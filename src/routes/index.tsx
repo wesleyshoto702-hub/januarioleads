@@ -18,6 +18,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { buildFactualBusinessDescription } from "../features/business-presence/business-description";
 import { discoverBusinessPresence } from "../features/business-presence/discover-business-presence";
 import { presenceFromBusiness } from "../features/business-presence/storage";
+import type { BusinessPresence } from "../features/business-presence/types";
 import { LeadEnrichmentModal } from "../features/lead-enrichment/LeadEnrichmentModal";
 import { ChanceBadge } from "../features/lead-chance/ChanceBadge";
 import {
@@ -27,6 +28,7 @@ import {
 import { PromptGenerator } from "../features/prompt-generator/PromptGenerator";
 import { makePromptBusinessKey } from "../features/prompt-generator/storage";
 import type { PromptBusinessContext } from "../features/prompt-generator/types";
+import { BusinessDetailsModal } from "../features/search-leads/BusinessDetailsModal";
 import { SearchLeadsView } from "../features/search-leads/SearchLeadsView";
 import {
   findBusinessDuplicate,
@@ -162,6 +164,36 @@ const STORAGE = {
   theme: "leadflow:theme",
 };
 
+function leadToBusinessSearchResult(lead: Lead): BusinessSearchResult {
+  return {
+    placeId: lead.placeId ?? `lead:${lead.id}`,
+    name: lead.company,
+    primaryCategory: lead.primaryCategory ?? null,
+    categories: lead.categories ?? [],
+    description: lead.description ?? null,
+    address: lead.address ?? null,
+    neighborhood: lead.neighborhood ?? null,
+    city: lead.city ?? null,
+    state: lead.state ?? null,
+    phone: lead.phone || null,
+    internationalPhone: lead.internationalPhone ?? null,
+    rating: lead.rating ?? null,
+    reviewCount: lead.reviewCount ?? null,
+    isOpenNow: lead.isOpenNow ?? null,
+    openingHours: lead.openingHours ?? [],
+    website: lead.website ?? null,
+    instagram: lead.instagram ?? null,
+    instagramConfidence: lead.instagramConfidence ?? null,
+    instagramSource: lead.instagramSource ?? null,
+    instagramCheckedAt: lead.instagramCheckedAt ?? null,
+    factualDescription: lead.factualDescription ?? null,
+    googleMapsUrl: lead.googleMapsUrl ?? null,
+    businessStatus: lead.businessStatus ?? null,
+    latitude: lead.latitude ?? null,
+    longitude: lead.longitude ?? null,
+  };
+}
+
 const STATUS_LABEL: Record<Status, string> = {
   waiting: "Aguardando",
   accepted: "Aceito",
@@ -186,6 +218,7 @@ function LeadFlowApp() {
   const [selectedMessage, setSelectedMessage] = useState(0);
   const [deleteLead, setDeleteLead] = useState<Lead | null>(null);
   const [enrichmentLead, setEnrichmentLead] = useState<Lead | null>(null);
+  const [leadDetailsId, setLeadDetailsId] = useState<string | null>(null);
   const [promptBusiness, setPromptBusiness] = useState<PromptBusinessContext | null>(null);
   const [savedNotice, setSavedNotice] = useState(false);
 
@@ -405,6 +438,21 @@ function LeadFlowApp() {
       longitude: lead.longitude ?? null,
       notes: lead.notes || null,
     });
+  }
+
+  function applyPresenceToLead(
+    leadId: string,
+    presence: BusinessPresence,
+  ) {
+    applyPresenceToLead(leadId, presence);
+  }
+
+  function openBusinessWhatsApp(business: BusinessSearchResult) {
+    const value = business.phone ?? business.internationalPhone;
+    if (!value) return;
+    const phone = normalizeBrazilianPhone(value);
+    if (!phone) return;
+    window.open(`https://wa.me/${phone}`, "_blank", "noopener,noreferrer");
   }
 
   async function refreshLeadPresence(
@@ -728,6 +776,7 @@ function LeadFlowApp() {
                       setMessageLead(item);
                     }}
                     onGeneratePrompt={openPromptForLead}
+                    onDetails={(item) => setLeadDetailsId(item.id)}
                     onEnrich={setEnrichmentLead}
                     onEdit={openEditLead}
                     onDelete={setDeleteLead}
@@ -750,6 +799,7 @@ function LeadFlowApp() {
                       setMessageLead(item);
                     }}
                     onGeneratePrompt={openPromptForLead}
+                    onDetails={(item) => setLeadDetailsId(item.id)}
                     onEnrich={setEnrichmentLead}
                     onEdit={openEditLead}
                     onDelete={setDeleteLead}
@@ -901,6 +951,37 @@ function LeadFlowApp() {
         </Modal>
       )}
 
+      {leadDetailsId && (() => {
+        const lead = leads.find((item) => item.id === leadDetailsId);
+        if (!lead) return null;
+
+        const business = leadToBusinessSearchResult(lead);
+        const chance = hasEnoughDataForLeadChance(lead)
+          ? calculateLeadChance(lead, lead.segment)
+          : null;
+
+        return (
+          <BusinessDetailsModal
+            business={business}
+            chance={chance}
+            segmentLabel={lead.segment}
+            onClose={() => setLeadDetailsId(null)}
+            onWhatsApp={openBusinessWhatsApp}
+            onMessage={() => {
+              setSelectedMessage(0);
+              setMessageLead(lead);
+            }}
+            onGeneratePrompt={() => {
+              setLeadDetailsId(null);
+              openPromptForLead(lead);
+            }}
+            onPresenceUpdate={(presence) =>
+              applyPresenceToLead(lead.id, presence)
+            }
+          />
+        );
+      })()}
+
       {enrichmentLead && (
         <LeadEnrichmentModal
           lead={enrichmentLead}
@@ -962,6 +1043,7 @@ function LeadRow({
   onStatus,
   onMessage,
   onGeneratePrompt,
+  onDetails,
   onEnrich,
   onEdit,
   onDelete,
@@ -970,6 +1052,7 @@ function LeadRow({
   onStatus: (id: string, status: Status) => void;
   onMessage: (lead: Lead) => void;
   onGeneratePrompt: (lead: Lead) => void;
+  onDetails: (lead: Lead) => void;
   onEnrich: (lead: Lead) => void;
   onEdit: (lead: Lead) => void;
   onDelete: (lead: Lead) => void;
@@ -998,6 +1081,13 @@ function LeadRow({
         </small>
       </div>
       <div className="actions-cell">
+        <button
+          className="lead-details-button"
+          onClick={() => onDetails(lead)}
+          type="button"
+        >
+          Ver empresa
+        </button>
         {lead.phone && (
           <button className="message-button" onClick={() => onMessage(lead)} type="button">
             <MessageCircle size={16} />
