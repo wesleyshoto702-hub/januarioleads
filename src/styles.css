@@ -3772,3 +3772,226 @@ a {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Chance */
+.business-name-line,
+.lead-company-name-line {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.business-name-line h2,
+.lead-company-name-line > strong {
+  min-width: 0;
+}
+
+.chance-wrap {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  z-index: 6;
+}
+
+.chance-badge {
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 7px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  font-size: 9px;
+  line-height: 1;
+  font-weight: 720;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.chance-badge span {
+  color: inherit !important;
+  font-size: inherit !important;
+  margin: 0 !important;
+}
+
+.chance-badge strong {
+  font-size: 10px;
+  font-weight: 820;
+}
+
+.chance-badge.very-low {
+  border-color: #dedee2;
+  background: #f1f1f3;
+  color: #767680;
+}
+
+.chance-badge.low {
+  border-color: #d5d5da;
+  background: #e9e9ec;
+  color: #5d5d66;
+}
+
+.chance-badge.medium {
+  border-color: #d8d5d0;
+  background: #f5f2ed;
+  color: #303036;
+}
+
+.chance-badge.high {
+  border-color: rgba(215, 25, 45, 0.22);
+  background: rgba(215, 25, 45, 0.08);
+  color: #b8182a;
+}
+
+.chance-badge.very-high {
+  border-color: var(--primary-action);
+  background: var(--primary-action);
+  color: #ffffff;
+}
+
+.dark .chance-badge.very-low {
+  border-color: #25252b;
+  background: #141417;
+  color: #6f6f78;
+}
+
+.dark .chance-badge.low {
+  border-color: #303036;
+  background: #1b1b1f;
+  color: #a0a0a8;
+}
+
+.dark .chance-badge.medium {
+  border-color: #3a3a42;
+  background: #26262c;
+  color: #f0f0f2;
+}
+
+.dark .chance-badge.high {
+  border-color: rgba(239, 35, 60, 0.28);
+  background: rgba(239, 35, 60, 0.11);
+  color: #ff7d8c;
+}
+
+.dark .chance-badge.very-high {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #ffffff;
+}
+
+.chance-popover {
+  position: absolute;
+  top: calc(100% + 7px);
+  left: 0;
+  width: min(270px, calc(100vw - 32px));
+  display: grid;
+  gap: 7px;
+  padding: 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: 9px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+  color: var(--text);
+  text-align: left;
+  white-space: normal;
+  z-index: 40;
+}
+
+.chance-popover > strong {
+  font-size: 11px;
+}
+
+.chance-popover > small {
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.chance-popover-title {
+  margin-top: 2px;
+  color: var(--faint);
+  font-size: 8px;
+  font-weight: 760;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.chance-reasons {
+  display: grid;
+  gap: 5px;
+}
+
+.chance-reasons > span {
+  position: relative;
+  padding-left: 10px;
+  color: var(--muted) !important;
+  font-size: 9px !important;
+  line-height: 1.4;
+}
+
+.chance-reasons > span::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 5px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.detail-name-line {
+  margin-top: 1px;
+}
+
+.detail-name-line h2 {
+  margin: 0;
+}
+
+.lead-company-name-line {
+  max-width: 100%;
+}
+
+.lead-company-name-line > strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.company-cell .lead-company-name-line .chance-wrap,
+.card-top .lead-company-name-line .chance-wrap {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 520px) {
+  .business-name-line {
+    align-items: flex-start;
+  }
+
+  .business-title-row > div {
+    min-width: 0;
+  }
+
+  .business-name-line h2 {
+    max-width: 100%;
+  }
+
+  .chance-badge {
+    min-height: 23px;
+    padding: 0 6px;
+  }
+
+  .chance-popover {
+    position: fixed;
+    left: 14px;
+    right: 14px;
+    top: auto;
+    bottom: 18px;
+    width: auto;
+    z-index: 120;
+  }
+}
