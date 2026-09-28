@@ -1,4 +1,5 @@
 import type { BusinessSearchResponse } from "./types";
+import { getAccessToken } from "../../lib/auth";
 
 type SearchBusinessesInput = {
   segment: string;
@@ -11,9 +12,9 @@ const PUBLIC_SUPABASE_PUBLISHABLE_KEY =
 
 function getSupabaseConfig() {
   const url =
-    import.meta.env.VITE_SUPABASE_URL?.trim() || PUBLIC_SUPABASE_URL;
+    import.meta.env["VITE_SUPABASE_URL"]?.trim() || PUBLIC_SUPABASE_URL;
   const publishableKey =
-    import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() ||
+    import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"]?.trim() ||
     PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
   return {
@@ -37,17 +38,35 @@ export async function searchBusinesses(
   }
 
   try {
+    const accessToken = await getAccessToken();
+    if (!accessToken) {
+      return {
+        ok: false,
+        code: "AUTH_REQUIRED",
+        message: "Sua sessão expirou. Entre novamente para buscar empresas.",
+      };
+    }
+
     const response = await fetch(config.functionUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         apikey: config.publishableKey,
+        Authorization: `Bearer ${accessToken}`,
       },
       body: JSON.stringify({
         segment: input.segment,
         ...(input.pageToken ? { pageToken: input.pageToken } : {}),
       }),
     });
+
+    if (response.status === 401) {
+      return {
+        ok: false,
+        code: "AUTH_REQUIRED",
+        message: "Sua sessão expirou. Entre novamente para buscar empresas.",
+      };
+    }
 
     let payload: unknown;
 
@@ -74,9 +93,7 @@ export async function searchBusinesses(
       ok: false,
       code: "REQUEST_FAILED",
       message:
-        response.status === 401
-          ? "A aplicação não conseguiu autenticar a chamada ao serviço de busca."
-          : "Não foi possível buscar empresas agora. Tente novamente.",
+        "Não foi possível buscar empresas agora. Tente novamente.",
     };
   } catch {
     return {
