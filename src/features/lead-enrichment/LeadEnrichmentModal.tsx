@@ -273,6 +273,15 @@ export function LeadEnrichmentModal({
                             Google Maps <ExternalLink size={12} />
                           </a>
                         )}
+                        {candidate.business.instagram && (
+                          <a
+                            href={candidate.business.instagram}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Instagram <ExternalLink size={12} />
+                          </a>
+                        )}
                       </div>
 
                       {candidate.business.openingHours.length > 0 && (
