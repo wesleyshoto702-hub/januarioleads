@@ -81,6 +81,8 @@ function json(body: unknown, status = 200) {
 function failure(
   code:
     | "NOT_CONFIGURED"
+    | "AUTH_REQUIRED"
+    | "FORBIDDEN"
     | "GOOGLE_AUTH"
     | "API_NOT_ENABLED"
     | "BILLING_REQUIRED"
@@ -300,6 +302,70 @@ Deno.serve(async (request) => {
       "A aplicação não conseguiu autenticar a chamada ao serviço de busca.",
       401,
     );
+  }
+
+  const authorization = request.headers.get("Authorization");
+  if (!authorization || !/^Bearer\s+\S+$/i.test(authorization)) {
+    return failure(
+      "AUTH_REQUIRED",
+      "Sua sessão expirou. Entre novamente para buscar empresas.",
+      401,
+    );
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")?.replace(/\/$/, "");
+  if (!supabaseUrl) {
+    return failure("REQUEST_FAILED", "O serviço de autenticação não está disponível.", 503);
+  }
+
+  const authHeaders = {
+    apikey: request.headers.get("apikey") ?? "",
+    Authorization: authorization,
+  };
+
+  let userId: string;
+  try {
+    const userResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      headers: authHeaders,
+    });
+    if (!userResponse.ok) {
+      return failure(
+        "AUTH_REQUIRED",
+        "Sua sessão expirou. Entre novamente para buscar empresas.",
+        401,
+      );
+    }
+    const user: unknown = await userResponse.json();
+    if (!user || typeof user !== "object" || !("id" in user) || typeof user.id !== "string" || !user.id) {
+      return failure(
+        "AUTH_REQUIRED",
+        "Sua sessão expirou. Entre novamente para buscar empresas.",
+        401,
+      );
+    }
+    userId = user.id;
+  } catch {
+    return failure("REQUEST_FAILED", "Não foi possível validar sua sessão agora.", 503);
+  }
+
+  try {
+    const accessResponse = await fetch(
+      `${supabaseUrl}/rest/v1/private_access?select=user_id&user_id=eq.${encodeURIComponent(userId)}&limit=1`,
+      { headers: authHeaders },
+    );
+    if (!accessResponse.ok) {
+      return failure("REQUEST_FAILED", "Não foi possível verificar o acesso agora.", 503);
+    }
+    const rows: unknown = await accessResponse.json();
+    if (!Array.isArray(rows) || !rows.some((row) => row && typeof row === "object" && "user_id" in row && row.user_id === userId)) {
+      return failure(
+        "FORBIDDEN",
+        "Esta conta não está autorizada a acessar o JanuarioLeads.",
+        403,
+      );
+    }
+  } catch {
+    return failure("REQUEST_FAILED", "Não foi possível verificar o acesso agora.", 503);
   }
 
   const googleApiKey = Deno.env.get("GOOGLE_PLACES_API_KEY");
