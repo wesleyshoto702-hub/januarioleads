@@ -207,3 +207,140 @@ Quando um lead manual é enriquecido por **Buscar informações/Atualizar inform
 ### Camada de busca web
 
 A camada 3 de busca pública na web não está ativada porque o projeto não possui hoje um provedor de busca web. Ativá-la exige uma integração externa adicional e um novo Secret. Nenhum provedor foi adicionado silenciosamente.
+
+
+## Atualização automática dos leads
+
+O JanuarioLeads agora possui sincronização periódica dos leads que têm `placeId` confirmado.
+
+### Arquitetura
+
+```text
+Supabase Cron (1x por dia)
+-> pg_net
+-> Edge Function sync-leads
+-> Google Places Place Details (New)
+-> comparação campo a campo
+-> public.leads
+-> public.lead_updates
+-> JanuarioLeads
+```
+
+O job ativo é `sync-leads-daily`, configurado para `0 6 * * *` (06:00 UTC / 03:00 em America/Sao_Paulo).
+
+### Persistência e migração
+
+Antes desta funcionalidade, os leads do CRM existiam somente em `localStorage`. Isso não permitiria atualização com o navegador fechado.
+
+A aplicação agora mantém:
+
+- `localStorage` como fallback local;
+- `public.leads` como cópia persistente usada pelo backend;
+- `public.lead_updates` como histórico das mudanças detectadas.
+
+No primeiro acesso autenticado após esta versão:
+
+1. os leads locais são lidos normalmente;
+2. o frontend consulta os leads remotos do usuário;
+3. somente IDs locais ausentes no Supabase são inseridos;
+4. a cópia remota passa a alimentar o CRM;
+5. o `localStorage` continua sendo mantido como fallback.
+
+Nenhum lead local é apagado antes da confirmação remota.
+
+### Segurança
+
+As tabelas `leads` e `lead_updates` usam RLS e só permitem acesso ao próprio `user_id`, desde que o usuário também exista em `private_access`.
+
+`anon` não possui acesso às tabelas.
+
+A função `sync-leads` não usa a sessão do navegador. Ela é protegida por um token interno aleatório:
+
+- plaintext somente no Supabase Vault;
+- SHA-256 somente em `sync_internal_config`;
+- `sync_internal_config` não possui grants para `anon` nem `authenticated`;
+- a função compara o token antes de ler leads ou chamar o Google.
+
+`GOOGLE_PLACES_API_KEY` continua somente no backend.
+
+### Place Details
+
+A sincronização usa:
+
+```text
+GET https://places.googleapis.com/v1/places/{PLACE_ID}?languageCode=pt-BR&regionCode=BR
+```
+
+Field Mask:
+
+```text
+id,
+displayName,
+primaryType,
+primaryTypeDisplayName,
+types,
+editorialSummary,
+formattedAddress,
+addressComponents,
+nationalPhoneNumber,
+internationalPhoneNumber,
+rating,
+userRatingCount,
+businessStatus,
+currentOpeningHours,
+regularOpeningHours,
+websiteUri,
+googleMapsUri,
+location
+```
+
+A função não solicita texto completo das avaliações.
+
+### Mudanças monitoradas
+
+O histórico registra, quando aplicável:
+
+- nome da empresa;
+- endereço;
+- site identificado, alterado ou removido;
+- telefone, preservando `previous_phone`;
+- nota;
+- quantidade de avaliações, incluindo mensagens como `+3 novas avaliações`;
+- horários;
+- situação da empresa;
+- categoria principal;
+- categorias relacionadas.
+
+Também são mantidos atualizados, sem criar notificação desnecessária em todos os casos: telefone internacional, Google Maps, descrição, bairro, cidade, estado, coordenadas, status aberto/agora e descrição factual.
+
+A comparação de categorias é independente da ordem retornada pelo Google para evitar falsos positivos.
+
+### Falhas e retry
+
+Cada lead é processado isoladamente. Uma falha não interrompe os demais.
+
+Erros de rede, HTTP 429 e HTTP 5xx recebem retry moderado com backoff limitado. Falhas são gravadas em `last_sync_error` e também no histórico como `sync_error`.
+
+O processamento usa lotes de até 50 leads, concorrência máxima de 3 e pequeno intervalo entre itens.
+
+### Interface
+
+Em **Meus Leads** existe uma área compacta **Atualizações recentes**.
+
+Leads com novidades não vistas mostram um contador discreto. Ao abrir **Ver empresa**, as mudanças daquele lead são marcadas como vistas e o mesmo modal compartilhado mostra:
+
+- Última atualização;
+- histórico recente;
+- demais dados atuais da empresa.
+
+### Chance e Gerar prompt
+
+Chance continua sendo calculado em tempo de execução a partir dos dados atuais. Nenhum score antigo é persistido como definitivo.
+
+Gerar prompt continua usando o estado atual do lead e não apaga prompts já salvos quando a sincronização detecta mudanças.
+
+### Custos
+
+A sincronização automática usa somente Supabase + Google Places.
+
+Ela não chama `generate-site-prompt`, não lê `OPENAI_API_KEY` e não consome créditos da OpenAI.
