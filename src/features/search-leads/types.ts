@@ -16,6 +16,10 @@ export type BusinessSearchResult = {
   openingHours: string[];
   website: string | null;
   instagram: string | null;
+  instagramConfidence?: "high" | "medium" | "low" | null;
+  instagramSource?: "google_places" | "official_website" | "web_search" | null;
+  instagramCheckedAt?: string | null;
+  factualDescription?: string | null;
   googleMapsUrl: string | null;
   businessStatus: string | null;
   latitude: number | null;
