@@ -89,8 +89,6 @@ export function LeadEnrichmentModal({
     });
   }
 
-  const noMatch = searched && !loading && !error && candidates.length === 0;
-
   return (
     <div
       className="modal-backdrop"
