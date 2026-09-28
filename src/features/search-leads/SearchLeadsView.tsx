@@ -413,7 +413,10 @@ export function SearchLeadsView({
           onClose={() => setDetails(null)}
           onWhatsApp={openWhatsApp}
           onMessage={onMessage}
-          onGeneratePrompt={(item) => onGeneratePrompt(item, resultsSegment)}
+          onGeneratePrompt={(item) => {
+            setDetails(null);
+            onGeneratePrompt(item, resultsSegment);
+          }}
           onAdd={(item) => onAddLead(item, resultsSegment)}
         />
       )}
