@@ -105,3 +105,32 @@ Nunca coloque essa chave no frontend, GitHub ou em variável `VITE_*`.
 ### Persistência
 
 O último prompt de cada empresa é salvo localmente no navegador em `januarioleads:generated-prompts`. Isso preserva a arquitetura atual do CRM em `localStorage` e não migra leads para o banco.
+
+
+## Buscar informações
+
+A ação **Buscar informações** enriquece leads adicionados manualmente com dados reais do Google Places, reutilizando a Edge Function `search-places` e a mesma `GOOGLE_PLACES_API_KEY`.
+
+Fluxo:
+
+```text
+Lead manual
+-> search-places (mode: lead-enrichment)
+-> Google Places API (New)
+-> candidatos + confiança determinística
+-> confirmação manual
+-> enriquecimento do lead no localStorage
+```
+
+A busca usa, nesta ordem:
+
+1. `placeId` já confirmado, para **Atualizar informações**;
+2. telefone normalizado em contexto brasileiro;
+3. nome + Lavras, Minas Gerais, Brasil;
+4. nome + segmento + Lavras, Minas Gerais, Brasil.
+
+O nível de confiança é calculado sem IA, usando correspondência de telefone, semelhança do nome, localização em Lavras e compatibilidade de segmento. Nenhum resultado altera o lead sem confirmação.
+
+O enriquecimento preserva status, observações, histórico e mensagens. Campos públicos do Google são adicionados somente quando retornados.
+
+A funcionalidade não usa OpenAI e não consome créditos de IA.
