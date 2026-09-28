@@ -12,6 +12,8 @@ import {
   X,
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { SearchLeadsView } from "../features/search-leads/SearchLeadsView";
+import type { BusinessSearchResult } from "../features/search-leads/types";
 
 export const Route = createFileRoute("/")({
   component: LeadFlowApp,
@@ -29,6 +31,12 @@ type Lead = {
   lastContact?: string;
   notes: string;
   createdAt: string;
+  placeId?: string;
+  address?: string;
+  website?: string;
+  googleMapsUrl?: string;
+  instagram?: string;
+  source?: "manual" | "lavras-search";
 };
 
 type LeadForm = Omit<Lead, "id" | "createdAt" | "lastContact">;
@@ -78,7 +86,7 @@ function LeadFlowApp() {
   const [messages, setMessages] = useState(DEFAULT_MESSAGES);
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [hydrated, setHydrated] = useState(false);
-  const [view, setView] = useState<"leads" | "messages">("leads");
+  const [view, setView] = useState<"leads" | "search" | "messages">("leads");
   const [leadModal, setLeadModal] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [form, setForm] = useState<LeadForm>(EMPTY_FORM);
@@ -86,7 +94,7 @@ function LeadFlowApp() {
   const [statusFilter, setStatusFilter] = useState<"all" | Status>("all");
   const [segmentFilter, setSegmentFilter] = useState("all");
   const [sort, setSort] = useState("recent");
-  const [messageLead, setMessageLead] = useState<Lead | null>(null);
+  const [messageLead, setMessageLead] = useState<{ id?: string; company: string; phone: string } | null>(null);
   const [selectedMessage, setSelectedMessage] = useState(0);
   const [deleteLead, setDeleteLead] = useState<Lead | null>(null);
   const [savedNotice, setSavedNotice] = useState(false);
@@ -222,6 +230,7 @@ function LeadFlowApp() {
   function normalizeBrazilianPhone(value: string) {
     let digits = value.replace(/\D/g, "");
     if (digits.startsWith("0")) digits = digits.replace(/^0+/, "");
+    if (!digits) return "";
     if (!digits.startsWith("55")) digits = "55" + digits;
     return digits;
   }
@@ -247,6 +256,55 @@ function LeadFlowApp() {
     window.setTimeout(() => setSavedNotice(false), 1800);
   }
 
+  function addFoundLead(business: BusinessSearchResult, selectedSegment: string) {
+    const foundPhone = business.phone ?? business.internationalPhone ?? "";
+    const normalizedFoundPhone = normalizeBrazilianPhone(foundPhone);
+    const normalizedName = business.name.trim().toLocaleLowerCase("pt-BR");
+    const normalizedAddress = (business.address ?? "").trim().toLocaleLowerCase("pt-BR");
+
+    const duplicate = leads.some((lead) => {
+      if (lead.placeId && lead.placeId === business.placeId) return true;
+
+      const currentPhone = normalizeBrazilianPhone(lead.phone);
+      if (normalizedFoundPhone && currentPhone && normalizedFoundPhone === currentPhone) return true;
+
+      return (
+        normalizedAddress &&
+        lead.company.trim().toLocaleLowerCase("pt-BR") === normalizedName &&
+        (lead.address ?? "").trim().toLocaleLowerCase("pt-BR") === normalizedAddress
+      );
+    });
+
+    if (duplicate) return;
+
+    const details = [
+      "Lead encontrado através do buscador de empresas em Lavras.",
+      business.address ? `Endereço: ${business.address}` : "",
+      business.website ? `Site: ${business.website}` : "",
+      business.instagram ? `Instagram: ${business.instagram}` : "",
+      business.googleMapsUrl ? `Google Maps: ${business.googleMapsUrl}` : "",
+    ].filter(Boolean);
+
+    const newLead: Lead = {
+      id: crypto.randomUUID(),
+      company: business.name,
+      segment: selectedSegment,
+      phone: foundPhone,
+      status: "waiting",
+      firstContact: new Date().toISOString().slice(0, 10),
+      notes: details.join("\n"),
+      createdAt: new Date().toISOString(),
+      placeId: business.placeId,
+      source: "lavras-search",
+      ...(business.address ? { address: business.address } : {}),
+      ...(business.website ? { website: business.website } : {}),
+      ...(business.googleMapsUrl ? { googleMapsUrl: business.googleMapsUrl } : {}),
+      ...(business.instagram ? { instagram: business.instagram } : {}),
+    };
+
+    setLeads((current) => [newLead, ...current]);
+  }
+
   return (
     <main className="app-shell">
       <header className="topbar">
@@ -263,6 +321,13 @@ function LeadFlowApp() {
               type="button"
             >
               Meus Leads
+            </button>
+            <button
+              className={view === "search" ? "nav-link active" : "nav-link"}
+              onClick={() => setView("search")}
+              type="button"
+            >
+              Buscar leads
             </button>
             <button
               className={view === "messages" ? "nav-link active" : "nav-link"}
@@ -408,6 +473,15 @@ function LeadFlowApp() {
             </div>
           </div>
         </section>
+      ) : view === "search" ? (
+        <SearchLeadsView
+          existingLeads={leads}
+          onAddLead={addFoundLead}
+          onMessage={(target) => {
+            setSelectedMessage(0);
+            setMessageLead(target);
+          }}
+        />
       ) : (
         <MessagesView
           messages={messages}
