@@ -1296,6 +1296,7 @@ function LeadCard({
   onMessage,
   onGeneratePrompt,
   onDetails,
+  updateCount,
   onEnrich,
   onEdit,
   onDelete,
@@ -1305,6 +1306,7 @@ function LeadCard({
   onMessage: (lead: Lead) => void;
   onGeneratePrompt: (lead: Lead) => void;
   onDetails: (lead: Lead) => void;
+  updateCount: number;
   onEnrich: (lead: Lead) => void;
   onEdit: (lead: Lead) => void;
   onDelete: (lead: Lead) => void;
