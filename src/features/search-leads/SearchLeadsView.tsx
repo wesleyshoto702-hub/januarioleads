@@ -13,16 +13,10 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { businessAlreadyExists, type ExistingLeadIdentity } from "./identity";
 import { searchBusinesses } from "./search-businesses";
 import { normalizeSearchText, SEGMENT_GROUPS } from "./segments";
 import type { BusinessSearchResult } from "./types";
-
-export type ExistingLeadIdentity = {
-  company: string;
-  phone: string;
-  placeId?: string;
-  address?: string;
-};
 
 export type SearchMessageTarget = {
   company: string;
@@ -41,17 +35,6 @@ type ResultFilter =
 type ResultSort = "rating" | "reviews" | "az" | "za";
 
 const RECENT_SEARCHES_KEY = "leadflow:recent-searches";
-
-function normalizePhone(value: string) {
-  let digits = value.replace(/\D/g, "");
-  digits = digits.replace(/^0+/, "");
-  if (digits && !digits.startsWith("55")) digits = "55" + digits;
-  return digits;
-}
-
-function normalizeIdentity(value: string | null | undefined) {
-  return normalizeSearchText(value ?? "");
-}
 
 function formatGoogleType(value: string) {
   return value
@@ -82,29 +65,6 @@ function storeRecentSearch(segment: string) {
   const next = [segment, ...getRecentSearches().filter((item) => item !== segment)].slice(0, 5);
   localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
   return next;
-}
-
-function businessAlreadyExists(
-  business: BusinessSearchResult,
-  leads: ExistingLeadIdentity[],
-) {
-  const businessPhone = business.phone ? normalizePhone(business.phone) : "";
-  const businessName = normalizeIdentity(business.name);
-  const businessAddress = normalizeIdentity(business.address);
-
-  return leads.some((lead) => {
-    if (business.placeId && lead.placeId && business.placeId === lead.placeId) return true;
-
-    const leadPhone = lead.phone ? normalizePhone(lead.phone) : "";
-    if (businessPhone && leadPhone && businessPhone === leadPhone) return true;
-
-    return (
-      businessName &&
-      businessAddress &&
-      normalizeIdentity(lead.company) === businessName &&
-      normalizeIdentity(lead.address) === businessAddress
-    );
-  });
 }
 
 export function SearchLeadsView({
