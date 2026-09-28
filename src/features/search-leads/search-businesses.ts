@@ -80,9 +80,7 @@ function parsePlace(place: GooglePlace): BusinessSearchResult | null {
     address: place.formattedAddress?.trim() || null,
     neighborhood: parseNeighborhood(place),
     city: parseCity(place),
-    state:
-      component(place, "administrative_area_level_1") ??
-      component(place, "administrative_area_level_1"),
+    state: component(place, "administrative_area_level_1"),
     phone: place.nationalPhoneNumber?.trim() || null,
     internationalPhone: place.internationalPhoneNumber?.trim() || null,
     rating: typeof place.rating === "number" ? place.rating : null,
