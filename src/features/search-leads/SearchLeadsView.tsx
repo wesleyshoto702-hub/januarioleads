@@ -11,7 +11,7 @@ import {
   Star,
   X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { searchBusinesses } from "./search-businesses";
 import { normalizeSearchText, SEGMENT_GROUPS } from "./segments";
 import type { BusinessSearchResult } from "./types";
@@ -113,7 +113,11 @@ export function SearchLeadsView({
   const [sort, setSort] = useState<ResultSort>("rating");
   const [onlyNew, setOnlyNew] = useState(false);
   const [details, setDetails] = useState<BusinessSearchResult | null>(null);
-  const [recentSearches, setRecentSearches] = useState<string[]>(getRecentSearches);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+
+  useEffect(() => {
+    setRecentSearches(getRecentSearches());
+  }, []);
 
   const filteredGroups = useMemo(() => {
     const query = normalizeSearchText(categoryQuery);
