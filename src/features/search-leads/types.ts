@@ -33,6 +33,7 @@ export type BusinessSearchFailure = {
   code:
     | "NOT_CONFIGURED"
     | "AUTH_REQUIRED"
+    | "FORBIDDEN"
     | "GOOGLE_AUTH"
     | "API_NOT_ENABLED"
     | "BILLING_REQUIRED"
