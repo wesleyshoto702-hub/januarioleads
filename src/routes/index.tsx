@@ -9,11 +9,15 @@ import {
   Moon,
   Plus,
   Search,
+  Sparkles,
   Sun,
   Trash2,
   X,
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { PromptGenerator } from "../features/prompt-generator/PromptGenerator";
+import { makePromptBusinessKey } from "../features/prompt-generator/storage";
+import type { PromptBusinessContext } from "../features/prompt-generator/types";
 import { SearchLeadsView } from "../features/search-leads/SearchLeadsView";
 import type { BusinessSearchResult } from "../features/search-leads/types";
 import { getValidSession, signOut, subscribeAuthChange } from "../lib/auth";
@@ -149,6 +153,7 @@ function LeadFlowApp() {
   const [messageLead, setMessageLead] = useState<{ id?: string; company: string; phone: string } | null>(null);
   const [selectedMessage, setSelectedMessage] = useState(0);
   const [deleteLead, setDeleteLead] = useState<Lead | null>(null);
+  const [promptBusiness, setPromptBusiness] = useState<PromptBusinessContext | null>(null);
   const [savedNotice, setSavedNotice] = useState(false);
 
   useEffect(() => {
@@ -306,6 +311,59 @@ function LeadFlowApp() {
     localStorage.setItem(STORAGE.messages, JSON.stringify(messages));
     setSavedNotice(true);
     window.setTimeout(() => setSavedNotice(false), 1800);
+  }
+
+  function openPromptForBusiness(
+    business: BusinessSearchResult,
+    selectedSegment: string,
+  ) {
+    setPromptBusiness({
+      key: makePromptBusinessKey({
+        placeId: business.placeId,
+        company: business.name,
+        phone: business.phone,
+        address: business.address,
+      }),
+      company: business.name,
+      segment: selectedSegment || business.primaryCategory || "Empresa local",
+      primaryCategory: business.primaryCategory,
+      categories: business.categories,
+      description: business.description,
+      address: business.address,
+      neighborhood: business.neighborhood,
+      city: business.city,
+      state: business.state,
+      phone: business.phone,
+      internationalPhone: business.internationalPhone,
+      rating: business.rating,
+      reviewCount: business.reviewCount,
+      openingHours: business.openingHours,
+      businessStatus: business.businessStatus,
+      website: business.website,
+      instagram: business.instagram,
+      googleMapsUrl: business.googleMapsUrl,
+      latitude: business.latitude,
+      longitude: business.longitude,
+    });
+  }
+
+  function openPromptForLead(lead: Lead) {
+    setPromptBusiness({
+      key: makePromptBusinessKey({
+        placeId: lead.placeId,
+        company: lead.company,
+        phone: lead.phone,
+        address: lead.address,
+      }),
+      company: lead.company,
+      segment: lead.segment,
+      address: lead.address ?? null,
+      phone: lead.phone || null,
+      website: lead.website ?? null,
+      instagram: lead.instagram ?? null,
+      googleMapsUrl: lead.googleMapsUrl ?? null,
+      notes: lead.notes || null,
+    });
   }
 
   function addFoundLead(business: BusinessSearchResult, selectedSegment: string) {
@@ -509,6 +567,8 @@ function LeadFlowApp() {
                       setSelectedMessage(0);
                       setMessageLead(item);
                     }}
+                    onGeneratePrompt={openPromptForLead}
+                    onGeneratePrompt={openPromptForLead}
                     onEdit={openEditLead}
                     onDelete={setDeleteLead}
                   />
@@ -547,6 +607,7 @@ function LeadFlowApp() {
             setSelectedMessage(0);
             setMessageLead(target);
           }}
+          onGeneratePrompt={openPromptForBusiness}
         />
       ) : (
         <MessagesView
@@ -679,6 +740,13 @@ function LeadFlowApp() {
         </Modal>
       )}
 
+      {promptBusiness && (
+        <PromptGenerator
+          business={promptBusiness}
+          onClose={() => setPromptBusiness(null)}
+        />
+      )}
+
       {deleteLead && (
         <Modal onClose={() => setDeleteLead(null)} title="Excluir lead" compact>
           <p className="modal-copy">
@@ -723,12 +791,14 @@ function LeadRow({
   lead,
   onStatus,
   onMessage,
+  onGeneratePrompt,
   onEdit,
   onDelete,
 }: {
   lead: Lead;
   onStatus: (id: string, status: Status) => void;
   onMessage: (lead: Lead) => void;
+  onGeneratePrompt: (lead: Lead) => void;
   onEdit: (lead: Lead) => void;
   onDelete: (lead: Lead) => void;
 }) {
@@ -754,6 +824,10 @@ function LeadRow({
             Mandar mensagem
           </button>
         )}
+        <button className="prompt-button" onClick={() => onGeneratePrompt(lead)} type="button">
+          <Sparkles size={15} />
+          Gerar prompt
+        </button>
         <button className="row-icon" onClick={() => onEdit(lead)} type="button" title="Editar">
           <Edit3 size={16} />
         </button>
@@ -769,12 +843,14 @@ function LeadCard({
   lead,
   onStatus,
   onMessage,
+  onGeneratePrompt,
   onEdit,
   onDelete,
 }: {
   lead: Lead;
   onStatus: (id: string, status: Status) => void;
   onMessage: (lead: Lead) => void;
+  onGeneratePrompt: (lead: Lead) => void;
   onEdit: (lead: Lead) => void;
   onDelete: (lead: Lead) => void;
 }) {
@@ -801,6 +877,10 @@ function LeadCard({
             Mandar mensagem
           </button>
         )}
+        <button className="prompt-button" onClick={() => onGeneratePrompt(lead)} type="button">
+          <Sparkles size={15} />
+          Gerar prompt
+        </button>
         <button className="row-icon" onClick={() => onEdit(lead)} type="button" aria-label="Editar">
           <Edit3 size={17} />
         </button>
