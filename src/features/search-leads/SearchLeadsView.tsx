@@ -52,6 +52,21 @@ function normalizeIdentity(value: string | null | undefined) {
   return normalizeSearchText(value ?? "");
 }
 
+function formatGoogleType(value: string) {
+  return value
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function formatBusinessStatus(value: string | null) {
+  if (value === "CLOSED_PERMANENTLY") return "Fechada permanentemente";
+  if (value === "CLOSED_TEMPORARILY") return "Fechada temporariamente";
+  if (value === "OPERATIONAL") return "Em funcionamento";
+  return null;
+}
+
 function getRecentSearches() {
   if (typeof window === "undefined") return [] as string[];
   try {
@@ -561,6 +576,24 @@ function BusinessDetails({
             )}
           </div>
 
+          {business.categories.length > 0 && (
+            <div className="detail-section">
+              <h3>Categorias relacionadas</h3>
+              <div className="category-tags">
+                {business.categories.slice(0, 8).map((category) => (
+                  <span key={category}>{formatGoogleType(category)}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {business.businessStatus && formatBusinessStatus(business.businessStatus) && (
+            <div className="detail-section">
+              <h3>Situação da empresa</h3>
+              <p className="detail-note">{formatBusinessStatus(business.businessStatus)}</p>
+            </div>
+          )}
+
           {business.openingHours.length > 0 && (
             <div className="detail-section">
               <h3>Horários de funcionamento</h3>
@@ -589,7 +622,7 @@ function BusinessDetails({
               )}
               {business.googleMapsUrl && (
                 <a href={business.googleMapsUrl} target="_blank" rel="noreferrer">
-                  <MapPin size={15} /> Google Maps <ExternalLink size={13} />
+                  <MapPin size={15} /> Google Maps e avaliações <ExternalLink size={13} />
                 </a>
               )}
             </div>
