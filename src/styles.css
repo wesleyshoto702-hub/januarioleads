@@ -1038,16 +1038,29 @@ select {
 @media (max-width: 760px) {
   .topbar-inner {
     height: 60px;
-    padding: 0 16px;
-    grid-template-columns: 1fr auto;
+    padding: 0 14px;
+    grid-template-columns: auto 1fr auto;
+    gap: 8px;
   }
 
   .topnav {
-    display: none;
+    justify-self: center;
+    gap: 2px;
+    padding: 3px;
+  }
+
+  .nav-link {
+    padding: 7px 9px;
+    font-size: 11px;
   }
 
   .brand {
-    font-size: 15px;
+    font-size: 0;
+  }
+
+  .brand-mark {
+    width: 30px;
+    height: 30px;
   }
 
   .page-wrap {
