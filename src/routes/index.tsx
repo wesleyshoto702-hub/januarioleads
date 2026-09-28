@@ -615,11 +615,11 @@ function LeadFlowApp() {
     const factualDescription = buildFactualBusinessDescription(business);
 
     updateLeadLocally(leadId, (lead) => {
-    const officialPhone =
-      business.phone ?? business.internationalPhone ?? lead.phone;
+      const officialPhone =
+        business.phone ?? business.internationalPhone ?? lead.phone;
 
-    return {
-      ...lead,
+      return {
+        ...lead,
       company: business.name || lead.company,
       phone: officialPhone,
       placeId: business.placeId,
@@ -637,9 +637,9 @@ function LeadFlowApp() {
       ...(business.address ? { address: business.address } : {}),
       ...(business.website ? { website: business.website } : {}),
       ...(business.googleMapsUrl ? { googleMapsUrl: business.googleMapsUrl } : {}),
-      ...(business.instagram && !googlePresence?.instagramUrl
-    ? { instagram: business.instagram }
-    : {}),
+        ...(business.instagram && !googlePresence?.instagramUrl
+          ? { instagram: business.instagram }
+          : {}),
       ...(business.primaryCategory
         ? { primaryCategory: business.primaryCategory }
         : {}),
@@ -670,9 +670,9 @@ function LeadFlowApp() {
       ...(business.longitude !== null
         ? { longitude: business.longitude }
         : {}),
-    };
-
+      };
     });
+
     setEnrichmentLead(null);
     void refreshLeadPresence(leadId, business, Boolean(previous?.placeId));
   }
