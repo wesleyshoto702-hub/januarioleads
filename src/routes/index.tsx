@@ -444,7 +444,32 @@ function LeadFlowApp() {
     leadId: string,
     presence: BusinessPresence,
   ) {
-    applyPresenceToLead(leadId, presence);
+    setLeads((current) =>
+      current.map((lead) => {
+        if (lead.id !== leadId) return lead;
+
+        if (
+          !presence.instagramUrl &&
+          lead.instagram &&
+          lead.instagramConfidence === "high"
+        ) {
+          return lead;
+        }
+
+        return {
+          ...lead,
+          instagramCheckedAt: presence.instagramCheckedAt,
+          ...(presence.instagramUrl
+            ? {
+                instagram: presence.instagramUrl,
+                instagramConfidence: presence.instagramConfidence ?? "high",
+                instagramSource:
+                  presence.instagramSource ?? "official_website",
+              }
+            : {}),
+        };
+      }),
+    );
   }
 
   function openBusinessWhatsApp(business: BusinessSearchResult) {
@@ -1120,6 +1145,7 @@ function LeadCard({
   onStatus,
   onMessage,
   onGeneratePrompt,
+  onDetails,
   onEnrich,
   onEdit,
   onDelete,
@@ -1128,6 +1154,7 @@ function LeadCard({
   onStatus: (id: string, status: Status) => void;
   onMessage: (lead: Lead) => void;
   onGeneratePrompt: (lead: Lead) => void;
+  onDetails: (lead: Lead) => void;
   onEnrich: (lead: Lead) => void;
   onEdit: (lead: Lead) => void;
   onDelete: (lead: Lead) => void;
@@ -1157,6 +1184,13 @@ function LeadCard({
       </div>
       {lead.notes && <p className="card-notes">{lead.notes}</p>}
       <div className="card-actions">
+        <button
+          className="lead-details-button"
+          onClick={() => onDetails(lead)}
+          type="button"
+        >
+          Ver empresa
+        </button>
         {lead.phone && (
           <button className="message-button" onClick={() => onMessage(lead)} type="button">
             <MessageCircle size={16} />
