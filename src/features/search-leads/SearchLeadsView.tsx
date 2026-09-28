@@ -8,6 +8,7 @@ import {
   MessageCircle,
   Phone,
   Search,
+  Sparkles,
   Star,
   X,
 } from "lucide-react";
@@ -110,10 +111,12 @@ export function SearchLeadsView({
   existingLeads,
   onAddLead,
   onMessage,
+  onGeneratePrompt,
 }: {
   existingLeads: ExistingLeadIdentity[];
   onAddLead: (business: BusinessSearchResult, selectedSegment: string) => void;
   onMessage: (target: SearchMessageTarget) => void;
+  onGeneratePrompt: (business: BusinessSearchResult, selectedSegment: string) => void;
 }) {
   const [categoryQuery, setCategoryQuery] = useState("");
   const [selectedSegment, setSelectedSegment] = useState("");
@@ -383,6 +386,7 @@ export function SearchLeadsView({
               onDetails={setDetails}
               onWhatsApp={openWhatsApp}
               onMessage={onMessage}
+              onGeneratePrompt={(item) => onGeneratePrompt(item, resultsSegment)}
               onAdd={(item) => onAddLead(item, resultsSegment)}
             />
           ))}
@@ -409,6 +413,7 @@ export function SearchLeadsView({
           onClose={() => setDetails(null)}
           onWhatsApp={openWhatsApp}
           onMessage={onMessage}
+          onGeneratePrompt={(item) => onGeneratePrompt(item, resultsSegment)}
           onAdd={(item) => onAddLead(item, resultsSegment)}
         />
       )}
@@ -422,6 +427,7 @@ function BusinessCard({
   onDetails,
   onWhatsApp,
   onMessage,
+  onGeneratePrompt,
   onAdd,
 }: {
   business: BusinessSearchResult;
@@ -429,6 +435,7 @@ function BusinessCard({
   onDetails: (business: BusinessSearchResult) => void;
   onWhatsApp: (business: BusinessSearchResult) => void;
   onMessage: (target: SearchMessageTarget) => void;
+  onGeneratePrompt: (business: BusinessSearchResult) => void;
   onAdd: (business: BusinessSearchResult) => void;
 }) {
   return (
@@ -510,6 +517,14 @@ function BusinessCard({
         )}
         <button
           type="button"
+          className="secondary-button compact-button prompt-button"
+          onClick={() => onGeneratePrompt(business)}
+        >
+          <Sparkles size={14} />
+          Gerar prompt
+        </button>
+        <button
+          type="button"
           className={alreadyAdded ? "secondary-button compact-button added-button" : "primary-button compact-button"}
           disabled={alreadyAdded}
           onClick={() => onAdd(business)}
@@ -527,6 +542,7 @@ function BusinessDetails({
   onClose,
   onWhatsApp,
   onMessage,
+  onGeneratePrompt,
   onAdd,
 }: {
   business: BusinessSearchResult;
@@ -534,6 +550,7 @@ function BusinessDetails({
   onClose: () => void;
   onWhatsApp: (business: BusinessSearchResult) => void;
   onMessage: (target: SearchMessageTarget) => void;
+  onGeneratePrompt: (business: BusinessSearchResult) => void;
   onAdd: (business: BusinessSearchResult) => void;
 }) {
   return (
@@ -644,6 +661,14 @@ function BusinessDetails({
                 </button>
               </>
             )}
+            <button
+              type="button"
+              className="secondary-button prompt-button"
+              onClick={() => onGeneratePrompt(business)}
+            >
+              <Sparkles size={15} />
+              Gerar prompt
+            </button>
             <button
               type="button"
               className={alreadyAdded ? "secondary-button added-button" : "primary-button"}
