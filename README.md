@@ -171,3 +171,39 @@ Faixas visuais:
 - 81–100: vermelho forte.
 
 A tela **Buscar leads** permite ordenar por **Maior Chance** e **Menor Chance** sem alterar os filtros existentes.
+
+
+## Ver empresa: descrição e Instagram
+
+A tela **Ver empresa** agora possui uma seção **Sobre a empresa** gerada deterministicamente com dados públicos já disponíveis. A descrição não usa OpenAI.
+
+Fontes usadas, em ordem:
+- editorial summary do Google Places quando disponível;
+- categoria principal e categorias relacionadas;
+- cidade/estado;
+- situação do estabelecimento;
+- horários;
+- avaliação e quantidade de avaliações.
+
+O texto é curto, factual e não inventa serviços, diferenciais, história, equipe, preços ou especializações.
+
+### Descoberta de Instagram
+
+A descoberta está centralizada e atualmente usa duas camadas seguras:
+
+1. Instagram já retornado pelo Google Places quando `websiteUri` aponta diretamente para um perfil do Instagram;
+2. site oficial identificado pelo Google Places, procurando links públicos diretos para perfis do Instagram na página principal e, quando disponível, na página de contato.
+
+Somente URLs no formato de perfil `instagram.com/usuario` são aceitas. Links para posts, reels, stories ou caminhos reservados são descartados.
+
+A descoberta não faz scraping do Instagram, não faz login, não acessa páginas privadas e não usa OpenAI.
+
+### Cache
+
+Resultados de presença online ficam no `localStorage` em `januarioleads:business-presence` por 7 dias. Abrir **Ver empresa** novamente usa o cache e evita nova verificação automática dentro desse período. A ação manual **Buscar Instagram novamente** força uma nova verificação quando existe site oficial.
+
+Quando um lead manual é enriquecido por **Buscar informações/Atualizar informações**, a mesma lógica é reutilizada. Instagram de alta confiança já salvo não é apagado se uma atualização posterior não encontrar o perfil.
+
+### Camada de busca web
+
+A camada 3 de busca pública na web não está ativada porque o projeto não possui hoje um provedor de busca web. Ativá-la exige uma integração externa adicional e um novo Secret. Nenhum provedor foi adicionado silenciosamente.
