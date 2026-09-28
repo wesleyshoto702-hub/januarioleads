@@ -49,15 +49,11 @@ export function LeadEnrichmentModal({
   const [candidates, setCandidates] = useState<LeadEnrichmentCandidate[]>([]);
   const [attempted, setAttempted] = useState<LeadEnrichmentMethod[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searched, setSearched] = useState(false);
   const [error, setError] = useState("");
 
   async function runSearch(target: EnrichmentLead) {
-    if (loading && searched) return;
-
     setLoading(true);
     setError("");
-    setSearched(true);
     setCandidates([]);
     setAttempted([]);
 
