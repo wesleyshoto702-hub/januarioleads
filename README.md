@@ -72,3 +72,36 @@ A função:
 - mantém o mesmo formato de dados já esperado pela interface atual.
 
 A função está configurada em `supabase/config.toml`.
+
+
+## Gerar prompt
+
+A ferramenta **Gerar prompt** analisa os dados reais disponíveis de uma empresa e produz uma estratégia estruturada de site/landing page e um prompt pronto para uso no Lovable.
+
+Fluxo:
+
+```text
+JanuarioLeads -> Supabase Edge Function generate-site-prompt -> OpenAI Responses API
+```
+
+A Edge Function exige a sessão autenticada do JanuarioLeads e a mesma allowlist privada utilizada pela busca. Chamadas sem usuário autorizado não chegam ao provedor de IA.
+
+### Provedor
+
+Modelo atual: `gpt-5.6-terra`.
+
+A resposta usa Structured Outputs com JSON Schema e é dividida em análise, estratégia, direção visual, imagens, estrutura e prompt Lovable.
+
+### Secret privado
+
+Configure somente em **Supabase -> Edge Function Secrets**:
+
+```sh
+OPENAI_API_KEY=...
+```
+
+Nunca coloque essa chave no frontend, GitHub ou em variável `VITE_*`.
+
+### Persistência
+
+O último prompt de cada empresa é salvo localmente no navegador em `januarioleads:generated-prompts`. Isso preserva a arquitetura atual do CRM em `localStorage` e não migra leads para o banco.
