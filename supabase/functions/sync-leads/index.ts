@@ -316,7 +316,7 @@ function parsePlace(place: GooglePlace): CurrentPlace {
     website: online.website,
     googleMapsUrl: place.googleMapsUri?.trim() || null,
     primaryCategory: place.primaryTypeDisplayName?.text?.trim() || null,
-    categories: place.types ?? [],
+    categories: Array.from(new Set(place.types ?? [])).sort(),
     description: place.editorialSummary?.text?.trim() || null,
     factualDescription: null,
     neighborhood: parseNeighborhood(place),
@@ -401,6 +401,15 @@ async function fetchPlaceDetails(apiKey: string, placeId: string) {
 
 function sameArray(a: string[] | null | undefined, b: string[] | null | undefined) {
   return JSON.stringify(a ?? []) === JSON.stringify(b ?? []);
+}
+
+function sameStringSet(
+  a: string[] | null | undefined,
+  b: string[] | null | undefined,
+) {
+  const left = Array.from(new Set(a ?? [])).sort();
+  const right = Array.from(new Set(b ?? [])).sort();
+  return JSON.stringify(left) === JSON.stringify(right);
 }
 
 function changed(a: unknown, b: unknown) {
@@ -574,7 +583,7 @@ function updateRecord(
     );
   }
 
-  if (!sameArray(lead.categories, current.categories)) {
+  if (!sameStringSet(lead.categories, current.categories)) {
     patch.categories = current.categories;
     addUpdate(
       "categories",
