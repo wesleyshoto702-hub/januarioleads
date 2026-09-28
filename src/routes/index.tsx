@@ -15,6 +15,10 @@ import {
   X,
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { buildFactualBusinessDescription } from "../features/business-presence/business-description";
+import { discoverBusinessPresence } from "../features/business-presence/discover-business-presence";
+import { presenceFromBusiness } from "../features/business-presence/storage";
+import type { BusinessPresence } from "../features/business-presence/types";
 import { LeadEnrichmentModal } from "../features/lead-enrichment/LeadEnrichmentModal";
 import { ChanceBadge } from "../features/lead-chance/ChanceBadge";
 import {
@@ -101,6 +105,10 @@ type Lead = {
   website?: string;
   googleMapsUrl?: string;
   instagram?: string;
+  instagramConfidence?: "high" | "medium" | "low";
+  instagramSource?: "google_places" | "official_website" | "web_search";
+  instagramCheckedAt?: string;
+  factualDescription?: string;
   primaryCategory?: string;
   categories?: string[];
   description?: string;
@@ -347,7 +355,9 @@ function LeadFlowApp() {
       segment: selectedSegment || business.primaryCategory || "Empresa local",
       primaryCategory: business.primaryCategory,
       categories: business.categories,
-      description: business.description,
+      description:
+        business.factualDescription ??
+        buildFactualBusinessDescription(business),
       address: business.address,
       neighborhood: business.neighborhood,
       city: business.city,
@@ -378,7 +388,7 @@ function LeadFlowApp() {
       segment: lead.segment,
       primaryCategory: lead.primaryCategory ?? null,
       categories: lead.categories ?? [],
-      description: lead.description ?? null,
+      description: lead.factualDescription ?? lead.description ?? null,
       address: lead.address ?? null,
       neighborhood: lead.neighborhood ?? null,
       city: lead.city ?? null,
@@ -398,7 +408,46 @@ function LeadFlowApp() {
     });
   }
 
+  async function refreshLeadPresence(
+    leadId: string,
+    business: BusinessSearchResult,
+    force = false,
+  ) {
+    const presence = await discoverBusinessPresence(business, { force });
+    if (!presence) return;
+
+    setLeads((current) =>
+      current.map((lead) => {
+        if (lead.id !== leadId) return lead;
+
+        if (
+          !presence.instagramUrl &&
+          lead.instagram &&
+          lead.instagramConfidence === "high"
+        ) {
+          return lead;
+        }
+
+        return {
+          ...lead,
+          instagramCheckedAt: presence.instagramCheckedAt,
+          ...(presence.instagramUrl
+            ? {
+                instagram: presence.instagramUrl,
+                instagramConfidence: presence.instagramConfidence ?? "high",
+                instagramSource: presence.instagramSource ?? "official_website",
+              }
+            : {}),
+        };
+      }),
+    );
+  }
+
   function applyEnrichment(leadId: string, business: BusinessSearchResult) {
+    const previous = leads.find((lead) => lead.id === leadId);
+    const googlePresence = presenceFromBusiness(business);
+    const factualDescription = buildFactualBusinessDescription(business);
+
     setLeads((current) =>
       current.map((lead) => {
         if (lead.id !== leadId) return lead;
@@ -413,10 +462,21 @@ function LeadFlowApp() {
           placeId: business.placeId,
           enrichedAt: new Date().toISOString(),
           source: lead.source ?? "manual",
+          factualDescription,
+          ...(googlePresence?.instagramUrl
+            ? {
+                instagram: googlePresence.instagramUrl,
+                instagramConfidence: googlePresence.instagramConfidence ?? "high",
+                instagramSource: googlePresence.instagramSource ?? "google_places",
+                instagramCheckedAt: googlePresence.instagramCheckedAt,
+              }
+            : {}),
           ...(business.address ? { address: business.address } : {}),
           ...(business.website ? { website: business.website } : {}),
           ...(business.googleMapsUrl ? { googleMapsUrl: business.googleMapsUrl } : {}),
-          ...(business.instagram ? { instagram: business.instagram } : {}),
+          ...(business.instagram && !googlePresence?.instagramUrl
+        ? { instagram: business.instagram }
+        : {}),
           ...(business.primaryCategory
             ? { primaryCategory: business.primaryCategory }
             : {}),
@@ -451,6 +511,7 @@ function LeadFlowApp() {
       }),
     );
     setEnrichmentLead(null);
+    void refreshLeadPresence(leadId, business, Boolean(previous?.placeId));
   }
 
   function addFoundLead(business: BusinessSearchResult, selectedSegment: string) {
@@ -467,6 +528,9 @@ function LeadFlowApp() {
       business.googleMapsUrl ? `Google Maps: ${business.googleMapsUrl}` : "",
     ].filter(Boolean);
 
+    const googlePresence = presenceFromBusiness(business);
+    const factualDescription = buildFactualBusinessDescription(business);
+
     const newLead: Lead = {
       id: crypto.randomUUID(),
       company: business.name,
@@ -478,6 +542,15 @@ function LeadFlowApp() {
       createdAt: new Date().toISOString(),
       placeId: business.placeId,
       source: "lavras-search",
+      factualDescription,
+      ...(googlePresence?.instagramUrl
+        ? {
+            instagram: googlePresence.instagramUrl,
+            instagramConfidence: googlePresence.instagramConfidence ?? "high",
+            instagramSource: googlePresence.instagramSource ?? "google_places",
+            instagramCheckedAt: googlePresence.instagramCheckedAt,
+          }
+        : {}),
       ...(business.address ? { address: business.address } : {}),
       ...(business.website ? { website: business.website } : {}),
       ...(business.googleMapsUrl ? { googleMapsUrl: business.googleMapsUrl } : {}),
