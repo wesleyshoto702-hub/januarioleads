@@ -673,7 +673,7 @@ function LeadRow({
         <span>{lead.segment}</span>
         {lead.notes && <small title={lead.notes}>{lead.notes}</small>}
       </div>
-      <div className="phone-cell">{lead.phone}</div>
+      <div className="phone-cell">{lead.phone || "Sem telefone"}</div>
       <StatusControl lead={lead} onStatus={onStatus} />
       <div className="date-cell">
         <span>{formatDate(lead.firstContact)}</span>
@@ -682,10 +682,12 @@ function LeadRow({
         </small>
       </div>
       <div className="actions-cell">
-        <button className="message-button" onClick={() => onMessage(lead)} type="button">
-          <MessageCircle size={16} />
-          Mandar mensagem
-        </button>
+        {lead.phone && (
+          <button className="message-button" onClick={() => onMessage(lead)} type="button">
+            <MessageCircle size={16} />
+            Mandar mensagem
+          </button>
+        )}
         <button className="row-icon" onClick={() => onEdit(lead)} type="button" title="Editar">
           <Edit3 size={16} />
         </button>
@@ -719,7 +721,7 @@ function LeadCard({
         </div>
         <span className={`status-badge ${lead.status}`}>{STATUS_LABEL[lead.status]}</span>
       </div>
-      <div className="card-phone">{lead.phone}</div>
+      <div className="card-phone">{lead.phone || "Sem telefone disponível"}</div>
       <StatusControl lead={lead} onStatus={onStatus} />
       <div className="card-meta">
         <span>Primeiro contato: {formatDate(lead.firstContact)}</span>
@@ -727,10 +729,12 @@ function LeadCard({
       </div>
       {lead.notes && <p className="card-notes">{lead.notes}</p>}
       <div className="card-actions">
-        <button className="message-button" onClick={() => onMessage(lead)} type="button">
-          <MessageCircle size={16} />
-          Mandar mensagem
-        </button>
+        {lead.phone && (
+          <button className="message-button" onClick={() => onMessage(lead)} type="button">
+            <MessageCircle size={16} />
+            Mandar mensagem
+          </button>
+        )}
         <button className="row-icon" onClick={() => onEdit(lead)} type="button" aria-label="Editar">
           <Edit3 size={17} />
         </button>
