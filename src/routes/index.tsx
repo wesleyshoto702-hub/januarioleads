@@ -487,32 +487,7 @@ function LeadFlowApp() {
   ) {
     const presence = await discoverBusinessPresence(business, { force });
     if (!presence) return;
-
-    setLeads((current) =>
-      current.map((lead) => {
-        if (lead.id !== leadId) return lead;
-
-        if (
-          !presence.instagramUrl &&
-          lead.instagram &&
-          lead.instagramConfidence === "high"
-        ) {
-          return lead;
-        }
-
-        return {
-          ...lead,
-          instagramCheckedAt: presence.instagramCheckedAt,
-          ...(presence.instagramUrl
-            ? {
-                instagram: presence.instagramUrl,
-                instagramConfidence: presence.instagramConfidence ?? "high",
-                instagramSource: presence.instagramSource ?? "official_website",
-              }
-            : {}),
-        };
-      }),
-    );
+    applyPresenceToLead(leadId, presence);
   }
 
   function applyEnrichment(leadId: string, business: BusinessSearchResult) {
