@@ -39,6 +39,7 @@ export function BusinessDetailsModal({
   business,
   chance,
   segmentLabel,
+  alreadyAdded = false,
   onClose,
   onWhatsApp,
   onMessage,
@@ -49,6 +50,7 @@ export function BusinessDetailsModal({
   business: BusinessSearchResult;
   chance?: LeadChanceResult | null;
   segmentLabel?: string | null;
+  alreadyAdded?: boolean;
   onClose: () => void;
   onWhatsApp: (business: BusinessSearchResult) => void;
   onMessage: (target: BusinessDetailsMessageTarget) => void;
@@ -268,13 +270,14 @@ export function BusinessDetailsModal({
               <Sparkles size={15} />
               Gerar prompt
             </button>
-            {onAdd && (
+            {(onAdd || alreadyAdded) && (
               <button
                 type="button"
-                className="primary-button"
-                onClick={() => onAdd(business)}
+                className={alreadyAdded ? "secondary-button added-button" : "primary-button"}
+                disabled={alreadyAdded}
+                onClick={() => onAdd?.(business)}
               >
-                Adicionar aos meus leads
+                {alreadyAdded ? "Já está nos seus leads" : "Adicionar aos meus leads"}
               </button>
             )}
           </div>
