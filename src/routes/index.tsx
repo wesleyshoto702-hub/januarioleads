@@ -438,13 +438,12 @@ function LeadFlowApp() {
     if (!form.company.trim() || !form.segment.trim()) return;
 
     if (editingLead) {
-      setLeads((current) =>
-        current.map((lead) =>
-          lead.id === editingLead.id
-            ? { ...lead, ...form, company: form.company.trim(), segment: form.segment.trim() }
-            : lead,
-        ),
-      );
+      updateLeadLocally(editingLead.id, (lead) => ({
+        ...lead,
+        ...form,
+        company: form.company.trim(),
+        segment: form.segment.trim(),
+      }));
     } else {
       const newLead: Lead = {
         ...form,
@@ -454,7 +453,7 @@ function LeadFlowApp() {
         createdAt: new Date().toISOString(),
         source: "manual",
       };
-      setLeads((current) => [newLead, ...current]);
+      addLeadLocally(newLead);
     }
 
     setLeadModal(false);
@@ -462,14 +461,15 @@ function LeadFlowApp() {
   }
 
   function changeStatus(id: string, status: Status) {
-    setLeads((current) =>
-      current.map((lead) => (lead.id === id ? { ...lead, status } : lead)),
-    );
+    updateLeadLocally(id, (lead) => ({ ...lead, status }));
   }
 
   function confirmDelete() {
     if (!deleteLead) return;
-    setLeads((current) => current.filter((lead) => lead.id !== deleteLead.id));
+    removeLeadLocally(deleteLead.id);
+    setLeadUpdates((current) =>
+      current.filter((update) => update.leadId !== deleteLead.id),
+    );
     setDeleteLead(null);
   }
 
@@ -479,11 +479,12 @@ function LeadFlowApp() {
     const personalized = (messages[selectedMessage] ?? "").replaceAll("{empresa}", messageLead.company);
     const url = `https://wa.me/${phone}?text=${encodeURIComponent(personalized)}`;
     const today = new Date().toISOString().slice(0, 10);
-    setLeads((current) =>
-      current.map((lead) =>
-        lead.id === messageLead.id ? { ...lead, lastContact: today } : lead,
-      ),
-    );
+    if (messageLead.id) {
+      updateLeadLocally(messageLead.id, (lead) => ({
+        ...lead,
+        lastContact: today,
+      }));
+    }
     window.open(url, "_blank", "noopener,noreferrer");
     setMessageLead(null);
   }
@@ -566,32 +567,28 @@ function LeadFlowApp() {
     leadId: string,
     presence: BusinessPresence,
   ) {
-    setLeads((current) =>
-      current.map((lead) => {
-        if (lead.id !== leadId) return lead;
+    updateLeadLocally(leadId, (lead) => {
+      if (
+        !presence.instagramUrl &&
+        lead.instagram &&
+        lead.instagramConfidence === "high"
+      ) {
+        return lead;
+      }
 
-        if (
-          !presence.instagramUrl &&
-          lead.instagram &&
-          lead.instagramConfidence === "high"
-        ) {
-          return lead;
-        }
-
-        return {
-          ...lead,
-          instagramCheckedAt: presence.instagramCheckedAt,
-          ...(presence.instagramUrl
-            ? {
-                instagram: presence.instagramUrl,
-                instagramConfidence: presence.instagramConfidence ?? "high",
-                instagramSource:
-                  presence.instagramSource ?? "official_website",
-              }
-            : {}),
-        };
-      }),
-    );
+      return {
+        ...lead,
+        instagramCheckedAt: presence.instagramCheckedAt,
+        ...(presence.instagramUrl
+          ? {
+              instagram: presence.instagramUrl,
+              instagramConfidence: presence.instagramConfidence ?? "high",
+              instagramSource:
+                presence.instagramSource ?? "official_website",
+            }
+          : {}),
+      };
+    });
   }
 
   function openBusinessWhatsApp(business: BusinessSearchResult) {
@@ -617,68 +614,65 @@ function LeadFlowApp() {
     const googlePresence = presenceFromBusiness(business);
     const factualDescription = buildFactualBusinessDescription(business);
 
-    setLeads((current) =>
-      current.map((lead) => {
-        if (lead.id !== leadId) return lead;
+    updateLeadLocally(leadId, (lead) => {
+    const officialPhone =
+      business.phone ?? business.internationalPhone ?? lead.phone;
 
-        const officialPhone =
-          business.phone ?? business.internationalPhone ?? lead.phone;
-
-        return {
-          ...lead,
-          company: business.name || lead.company,
-          phone: officialPhone,
-          placeId: business.placeId,
-          enrichedAt: new Date().toISOString(),
-          source: lead.source ?? "manual",
-          factualDescription,
-          ...(googlePresence?.instagramUrl
-            ? {
-                instagram: googlePresence.instagramUrl,
-                instagramConfidence: googlePresence.instagramConfidence ?? "high",
-                instagramSource: googlePresence.instagramSource ?? "google_places",
-                instagramCheckedAt: googlePresence.instagramCheckedAt,
-              }
-            : {}),
-          ...(business.address ? { address: business.address } : {}),
-          ...(business.website ? { website: business.website } : {}),
-          ...(business.googleMapsUrl ? { googleMapsUrl: business.googleMapsUrl } : {}),
-          ...(business.instagram && !googlePresence?.instagramUrl
-        ? { instagram: business.instagram }
+    return {
+      ...lead,
+      company: business.name || lead.company,
+      phone: officialPhone,
+      placeId: business.placeId,
+      enrichedAt: new Date().toISOString(),
+      source: lead.source ?? "manual",
+      factualDescription,
+      ...(googlePresence?.instagramUrl
+        ? {
+            instagram: googlePresence.instagramUrl,
+            instagramConfidence: googlePresence.instagramConfidence ?? "high",
+            instagramSource: googlePresence.instagramSource ?? "google_places",
+            instagramCheckedAt: googlePresence.instagramCheckedAt,
+          }
         : {}),
-          ...(business.primaryCategory
-            ? { primaryCategory: business.primaryCategory }
-            : {}),
-          ...(business.categories.length > 0
-            ? { categories: business.categories }
-            : {}),
-          ...(business.description ? { description: business.description } : {}),
-          ...(business.neighborhood ? { neighborhood: business.neighborhood } : {}),
-          ...(business.city ? { city: business.city } : {}),
-          ...(business.state ? { state: business.state } : {}),
-          ...(business.internationalPhone
-            ? { internationalPhone: business.internationalPhone }
-            : {}),
-          ...(business.rating !== null ? { rating: business.rating } : {}),
-          ...(business.reviewCount !== null
-            ? { reviewCount: business.reviewCount }
-            : {}),
-          ...(business.isOpenNow !== null
-            ? { isOpenNow: business.isOpenNow }
-            : {}),
-          ...(business.openingHours.length > 0
-            ? { openingHours: business.openingHours }
-            : {}),
-          ...(business.businessStatus
-            ? { businessStatus: business.businessStatus }
-            : {}),
-          ...(business.latitude !== null ? { latitude: business.latitude } : {}),
-          ...(business.longitude !== null
-            ? { longitude: business.longitude }
-            : {}),
-        };
-      }),
-    );
+      ...(business.address ? { address: business.address } : {}),
+      ...(business.website ? { website: business.website } : {}),
+      ...(business.googleMapsUrl ? { googleMapsUrl: business.googleMapsUrl } : {}),
+      ...(business.instagram && !googlePresence?.instagramUrl
+    ? { instagram: business.instagram }
+    : {}),
+      ...(business.primaryCategory
+        ? { primaryCategory: business.primaryCategory }
+        : {}),
+      ...(business.categories.length > 0
+        ? { categories: business.categories }
+        : {}),
+      ...(business.description ? { description: business.description } : {}),
+      ...(business.neighborhood ? { neighborhood: business.neighborhood } : {}),
+      ...(business.city ? { city: business.city } : {}),
+      ...(business.state ? { state: business.state } : {}),
+      ...(business.internationalPhone
+        ? { internationalPhone: business.internationalPhone }
+        : {}),
+      ...(business.rating !== null ? { rating: business.rating } : {}),
+      ...(business.reviewCount !== null
+        ? { reviewCount: business.reviewCount }
+        : {}),
+      ...(business.isOpenNow !== null
+        ? { isOpenNow: business.isOpenNow }
+        : {}),
+      ...(business.openingHours.length > 0
+        ? { openingHours: business.openingHours }
+        : {}),
+      ...(business.businessStatus
+        ? { businessStatus: business.businessStatus }
+        : {}),
+      ...(business.latitude !== null ? { latitude: business.latitude } : {}),
+      ...(business.longitude !== null
+        ? { longitude: business.longitude }
+        : {}),
+    };
+
+    });
     setEnrichmentLead(null);
     void refreshLeadPresence(leadId, business, Boolean(previous?.placeId));
   }
@@ -742,7 +736,7 @@ function LeadFlowApp() {
       ...(business.longitude !== null ? { longitude: business.longitude } : {}),
     };
 
-    setLeads((current) => [newLead, ...current]);
+    addLeadLocally(newLead);
   }
 
   return (
