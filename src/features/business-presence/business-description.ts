@@ -46,15 +46,19 @@ export function buildFactualBusinessDescription(
     const location = locationLabel(business);
 
     if (category && location) {
-      parts.push(`${category} localizada em ${location}`);
+      parts.push(
+        `Estabelecimento em ${location}, classificado no Google como ${category}`,
+      );
     } else if (category) {
       parts.push(`Estabelecimento classificado no Google como ${category}`);
     } else if (location) {
       parts.push(`Estabelecimento localizado em ${location}`);
     }
 
+    const ignoredCategories = new Set(["Establishment", "Point Of Interest"]);
     const related = business.categories
       .map(formatGoogleType)
+      .filter((item) => !ignoredCategories.has(item))
       .filter(
         (item, index, array) =>
           item &&
