@@ -16,6 +16,11 @@ import {
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { LeadEnrichmentModal } from "../features/lead-enrichment/LeadEnrichmentModal";
+import { ChanceBadge } from "../features/lead-chance/ChanceBadge";
+import {
+  calculateLeadChance,
+  hasEnoughDataForLeadChance,
+} from "../features/lead-chance/lead-chance";
 import { PromptGenerator } from "../features/prompt-generator/PromptGenerator";
 import { makePromptBusinessKey } from "../features/prompt-generator/storage";
 import type { PromptBusinessContext } from "../features/prompt-generator/types";
@@ -895,10 +900,17 @@ function LeadRow({
   onEdit: (lead: Lead) => void;
   onDelete: (lead: Lead) => void;
 }) {
+  const chance = hasEnoughDataForLeadChance(lead)
+    ? calculateLeadChance(lead, lead.segment)
+    : null;
+
   return (
     <article className="table-row">
       <div className="company-cell">
-        <strong>{lead.company}</strong>
+        <div className="lead-company-name-line">
+          <strong>{lead.company}</strong>
+          {chance && <ChanceBadge chance={chance} />}
+        </div>
         <span>{lead.segment}</span>
         {lead.enrichedAt && <small className="enriched-badge">Dados enriquecidos</small>}
         {lead.notes && <small title={lead.notes}>{lead.notes}</small>}
@@ -956,11 +968,18 @@ function LeadCard({
   onEdit: (lead: Lead) => void;
   onDelete: (lead: Lead) => void;
 }) {
+  const chance = hasEnoughDataForLeadChance(lead)
+    ? calculateLeadChance(lead, lead.segment)
+    : null;
+
   return (
     <article className="lead-card">
       <div className="card-top">
         <div>
-          <strong>{lead.company}</strong>
+          <div className="lead-company-name-line">
+            <strong>{lead.company}</strong>
+            {chance && <ChanceBadge chance={chance} />}
+          </div>
           <span>{lead.segment}</span>
           {lead.enrichedAt && <small className="enriched-badge">Dados enriquecidos</small>}
         </div>
