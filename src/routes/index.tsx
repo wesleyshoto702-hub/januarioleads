@@ -1,8 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   Check,
   ChevronDown,
   Edit3,
+  Loader2,
+  LogOut,
   MessageCircle,
   Moon,
   Plus,
@@ -14,10 +16,49 @@ import {
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { SearchLeadsView } from "../features/search-leads/SearchLeadsView";
 import type { BusinessSearchResult } from "../features/search-leads/types";
+import { getValidSession, signOut, subscribeAuthChange } from "../lib/auth";
 
 export const Route = createFileRoute("/")({
-  component: LeadFlowApp,
+  component: PrivateLeadFlowApp,
 });
+
+function PrivateLeadFlowApp() {
+  const navigate = useNavigate();
+  const [authReady, setAuthReady] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    async function verify() {
+      const session = await getValidSession();
+      if (!active) return;
+      if (!session) {
+        await navigate({ to: "/login", replace: true });
+        return;
+      }
+      setAuthReady(true);
+    }
+
+    void verify();
+    const unsubscribe = subscribeAuthChange(() => void verify());
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [navigate]);
+
+  if (!authReady) {
+    return (
+      <main className="auth-loading" aria-live="polite">
+        <Loader2 size={20} className="auth-spinner" />
+        <span>Verificando acesso...</span>
+      </main>
+    );
+  }
+
+  return <LeadFlowApp />;
+}
 
 type Status = "waiting" | "accepted" | "rejected";
 
@@ -82,6 +123,7 @@ const STATUS_LABEL: Record<Status, string> = {
 };
 
 function LeadFlowApp() {
+  const navigate = useNavigate();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [messages, setMessages] = useState(DEFAULT_MESSAGES);
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -338,7 +380,20 @@ function LeadFlowApp() {
             </button>
           </nav>
 
-          <button
+          <div className="topbar-actions">
+            <button
+              className="logout-button"
+              type="button"
+              onClick={async () => {
+                await signOut();
+                await navigate({ to: "/login", replace: true });
+              }}
+              title="Sair"
+            >
+              <LogOut size={16} />
+              <span>Sair</span>
+            </button>
+            <button
             className="icon-button"
             onClick={() => setTheme((current) => (current === "light" ? "dark" : "light"))}
             type="button"
@@ -346,7 +401,8 @@ function LeadFlowApp() {
             title={theme === "light" ? "Tema escuro" : "Tema claro"}
           >
             {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
-          </button>
+            </button>
+          </div>
         </div>
       </header>
 
