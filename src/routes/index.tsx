@@ -568,7 +568,6 @@ function LeadFlowApp() {
                       setMessageLead(item);
                     }}
                     onGeneratePrompt={openPromptForLead}
-                    onGeneratePrompt={openPromptForLead}
                     onEdit={openEditLead}
                     onDelete={setDeleteLead}
                   />
@@ -589,6 +588,7 @@ function LeadFlowApp() {
                       setSelectedMessage(0);
                       setMessageLead(item);
                     }}
+                    onGeneratePrompt={openPromptForLead}
                     onEdit={openEditLead}
                     onDelete={setDeleteLead}
                   />
