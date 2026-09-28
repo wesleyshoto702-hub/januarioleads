@@ -1919,3 +1919,26 @@ select {
     width: 100%;
   }
 }
+
+
+.category-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.category-tags span {
+  padding: 5px 7px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.detail-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
