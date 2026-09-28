@@ -15,10 +15,15 @@ import {
   X,
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { LeadEnrichmentModal } from "../features/lead-enrichment/LeadEnrichmentModal";
 import { PromptGenerator } from "../features/prompt-generator/PromptGenerator";
 import { makePromptBusinessKey } from "../features/prompt-generator/storage";
 import type { PromptBusinessContext } from "../features/prompt-generator/types";
 import { SearchLeadsView } from "../features/search-leads/SearchLeadsView";
+import {
+  findBusinessDuplicate,
+  normalizeBrazilianPhone,
+} from "../features/search-leads/identity";
 import type { BusinessSearchResult } from "../features/search-leads/types";
 import { getValidSession, signOut, subscribeAuthChange } from "../lib/auth";
 
@@ -91,6 +96,21 @@ type Lead = {
   website?: string;
   googleMapsUrl?: string;
   instagram?: string;
+  primaryCategory?: string;
+  categories?: string[];
+  description?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
+  internationalPhone?: string;
+  rating?: number;
+  reviewCount?: number;
+  isOpenNow?: boolean;
+  openingHours?: string[];
+  businessStatus?: string;
+  latitude?: number;
+  longitude?: number;
+  enrichedAt?: string;
   source?: "manual" | "lavras-search";
 };
 
@@ -153,6 +173,7 @@ function LeadFlowApp() {
   const [messageLead, setMessageLead] = useState<{ id?: string; company: string; phone: string } | null>(null);
   const [selectedMessage, setSelectedMessage] = useState(0);
   const [deleteLead, setDeleteLead] = useState<Lead | null>(null);
+  const [enrichmentLead, setEnrichmentLead] = useState<Lead | null>(null);
   const [promptBusiness, setPromptBusiness] = useState<PromptBusinessContext | null>(null);
   const [savedNotice, setSavedNotice] = useState(false);
 
@@ -247,7 +268,7 @@ function LeadFlowApp() {
 
   function saveLead(event: FormEvent) {
     event.preventDefault();
-    if (!form.company.trim() || !form.segment.trim() || !form.phone.trim()) return;
+    if (!form.company.trim() || !form.segment.trim()) return;
 
     if (editingLead) {
       setLeads((current) =>
@@ -264,6 +285,7 @@ function LeadFlowApp() {
         segment: form.segment.trim(),
         id: crypto.randomUUID(),
         createdAt: new Date().toISOString(),
+        source: "manual",
       };
       setLeads((current) => [newLead, ...current]);
     }
@@ -282,14 +304,6 @@ function LeadFlowApp() {
     if (!deleteLead) return;
     setLeads((current) => current.filter((lead) => lead.id !== deleteLead.id));
     setDeleteLead(null);
-  }
-
-  function normalizeBrazilianPhone(value: string) {
-    let digits = value.replace(/\D/g, "");
-    if (digits.startsWith("0")) digits = digits.replace(/^0+/, "");
-    if (!digits) return "";
-    if (!digits.startsWith("55")) digits = "55" + digits;
-    return digits;
   }
 
   function openWhatsApp() {
@@ -357,33 +371,77 @@ function LeadFlowApp() {
       }),
       company: lead.company,
       segment: lead.segment,
+      primaryCategory: lead.primaryCategory ?? null,
+      categories: lead.categories ?? [],
+      description: lead.description ?? null,
       address: lead.address ?? null,
+      neighborhood: lead.neighborhood ?? null,
+      city: lead.city ?? null,
+      state: lead.state ?? null,
       phone: lead.phone || null,
+      internationalPhone: lead.internationalPhone ?? null,
+      rating: lead.rating ?? null,
+      reviewCount: lead.reviewCount ?? null,
+      openingHours: lead.openingHours ?? [],
+      businessStatus: lead.businessStatus ?? null,
       website: lead.website ?? null,
       instagram: lead.instagram ?? null,
       googleMapsUrl: lead.googleMapsUrl ?? null,
+      latitude: lead.latitude ?? null,
+      longitude: lead.longitude ?? null,
       notes: lead.notes || null,
     });
   }
 
+  function applyEnrichment(leadId: string, business: BusinessSearchResult) {
+    setLeads((current) =>
+      current.map((lead) => {
+        if (lead.id !== leadId) return lead;
+
+        const officialPhone =
+          business.phone ?? business.internationalPhone ?? lead.phone;
+
+        return {
+          ...lead,
+          company: business.name || lead.company,
+          phone: officialPhone,
+          placeId: business.placeId,
+          address: business.address ?? lead.address,
+          website: business.website ?? lead.website,
+          googleMapsUrl: business.googleMapsUrl ?? lead.googleMapsUrl,
+          instagram: business.instagram ?? lead.instagram,
+          primaryCategory: business.primaryCategory ?? lead.primaryCategory,
+          categories:
+            business.categories.length > 0
+              ? business.categories
+              : lead.categories,
+          description: business.description ?? lead.description,
+          neighborhood: business.neighborhood ?? lead.neighborhood,
+          city: business.city ?? lead.city,
+          state: business.state ?? lead.state,
+          internationalPhone:
+            business.internationalPhone ?? lead.internationalPhone,
+          rating: business.rating ?? lead.rating,
+          reviewCount: business.reviewCount ?? lead.reviewCount,
+          isOpenNow: business.isOpenNow ?? lead.isOpenNow,
+          openingHours:
+            business.openingHours.length > 0
+              ? business.openingHours
+              : lead.openingHours,
+          businessStatus: business.businessStatus ?? lead.businessStatus,
+          latitude: business.latitude ?? lead.latitude,
+          longitude: business.longitude ?? lead.longitude,
+          enrichedAt: new Date().toISOString(),
+          source: lead.source ?? "manual",
+        };
+      }),
+    );
+    setEnrichmentLead(null);
+  }
+
   function addFoundLead(business: BusinessSearchResult, selectedSegment: string) {
     const foundPhone = business.phone ?? business.internationalPhone ?? "";
-    const normalizedFoundPhone = normalizeBrazilianPhone(foundPhone);
-    const normalizedName = business.name.trim().toLocaleLowerCase("pt-BR");
-    const normalizedAddress = (business.address ?? "").trim().toLocaleLowerCase("pt-BR");
-
-    const duplicate = leads.some((lead) => {
-      if (lead.placeId && lead.placeId === business.placeId) return true;
-
-      const currentPhone = normalizeBrazilianPhone(lead.phone);
-      if (normalizedFoundPhone && currentPhone && normalizedFoundPhone === currentPhone) return true;
-
-      return (
-        normalizedAddress &&
-        lead.company.trim().toLocaleLowerCase("pt-BR") === normalizedName &&
-        (lead.address ?? "").trim().toLocaleLowerCase("pt-BR") === normalizedAddress
-      );
-    });
+    const duplicate = findBusinessDuplicate(business, leads);
 
     if (duplicate) return;
 
@@ -410,6 +468,20 @@ function LeadFlowApp() {
       ...(business.website ? { website: business.website } : {}),
       ...(business.googleMapsUrl ? { googleMapsUrl: business.googleMapsUrl } : {}),
       ...(business.instagram ? { instagram: business.instagram } : {}),
+      ...(business.primaryCategory ? { primaryCategory: business.primaryCategory } : {}),
+      ...(business.categories.length ? { categories: business.categories } : {}),
+      ...(business.description ? { description: business.description } : {}),
+      ...(business.neighborhood ? { neighborhood: business.neighborhood } : {}),
+      ...(business.city ? { city: business.city } : {}),
+      ...(business.state ? { state: business.state } : {}),
+      ...(business.internationalPhone ? { internationalPhone: business.internationalPhone } : {}),
+      ...(business.rating !== null ? { rating: business.rating } : {}),
+      ...(business.reviewCount !== null ? { reviewCount: business.reviewCount } : {}),
+      ...(business.isOpenNow !== null ? { isOpenNow: business.isOpenNow } : {}),
+      ...(business.openingHours.length ? { openingHours: business.openingHours } : {}),
+      ...(business.businessStatus ? { businessStatus: business.businessStatus } : {}),
+      ...(business.latitude !== null ? { latitude: business.latitude } : {}),
+      ...(business.longitude !== null ? { longitude: business.longitude } : {}),
     };
 
     setLeads((current) => [newLead, ...current]);
@@ -568,6 +640,7 @@ function LeadFlowApp() {
                       setMessageLead(item);
                     }}
                     onGeneratePrompt={openPromptForLead}
+                    onEnrich={setEnrichmentLead}
                     onEdit={openEditLead}
                     onDelete={setDeleteLead}
                   />
@@ -589,6 +662,7 @@ function LeadFlowApp() {
                       setMessageLead(item);
                     }}
                     onGeneratePrompt={openPromptForLead}
+                    onEnrich={setEnrichmentLead}
                     onEdit={openEditLead}
                     onDelete={setDeleteLead}
                   />
@@ -650,7 +724,6 @@ function LeadFlowApp() {
             <label>
               <span>Telefone / WhatsApp</span>
               <input
-                required
                 inputMode="tel"
                 value={form.phone}
                 onChange={(event) => setForm({ ...form, phone: event.target.value })}
@@ -740,6 +813,15 @@ function LeadFlowApp() {
         </Modal>
       )}
 
+      {enrichmentLead && (
+        <LeadEnrichmentModal
+          lead={enrichmentLead}
+          existingLeads={leads}
+          onConfirm={(business) => applyEnrichment(enrichmentLead.id, business)}
+          onClose={() => setEnrichmentLead(null)}
+        />
+      )}
+
       {promptBusiness && (
         <PromptGenerator
           business={promptBusiness}
@@ -792,6 +874,7 @@ function LeadRow({
   onStatus,
   onMessage,
   onGeneratePrompt,
+  onEnrich,
   onEdit,
   onDelete,
 }: {
@@ -799,6 +882,7 @@ function LeadRow({
   onStatus: (id: string, status: Status) => void;
   onMessage: (lead: Lead) => void;
   onGeneratePrompt: (lead: Lead) => void;
+  onEnrich: (lead: Lead) => void;
   onEdit: (lead: Lead) => void;
   onDelete: (lead: Lead) => void;
 }) {
@@ -807,6 +891,7 @@ function LeadRow({
       <div className="company-cell">
         <strong>{lead.company}</strong>
         <span>{lead.segment}</span>
+        {lead.enrichedAt && <small className="enriched-badge">Dados enriquecidos</small>}
         {lead.notes && <small title={lead.notes}>{lead.notes}</small>}
       </div>
       <div className="phone-cell">{lead.phone || "Sem telefone"}</div>
@@ -822,6 +907,12 @@ function LeadRow({
           <button className="message-button" onClick={() => onMessage(lead)} type="button">
             <MessageCircle size={16} />
             Mandar mensagem
+          </button>
+        )}
+        {lead.source !== "lavras-search" && (
+          <button className="enrichment-button" onClick={() => onEnrich(lead)} type="button">
+            <Search size={15} />
+            {lead.placeId ? "Atualizar informações" : "Buscar informações"}
           </button>
         )}
         <button className="prompt-button" onClick={() => onGeneratePrompt(lead)} type="button">
@@ -844,6 +935,7 @@ function LeadCard({
   onStatus,
   onMessage,
   onGeneratePrompt,
+  onEnrich,
   onEdit,
   onDelete,
 }: {
@@ -851,6 +943,7 @@ function LeadCard({
   onStatus: (id: string, status: Status) => void;
   onMessage: (lead: Lead) => void;
   onGeneratePrompt: (lead: Lead) => void;
+  onEnrich: (lead: Lead) => void;
   onEdit: (lead: Lead) => void;
   onDelete: (lead: Lead) => void;
 }) {
@@ -860,6 +953,7 @@ function LeadCard({
         <div>
           <strong>{lead.company}</strong>
           <span>{lead.segment}</span>
+          {lead.enrichedAt && <small className="enriched-badge">Dados enriquecidos</small>}
         </div>
         <span className={`status-badge ${lead.status}`}>{STATUS_LABEL[lead.status]}</span>
       </div>
@@ -875,6 +969,12 @@ function LeadCard({
           <button className="message-button" onClick={() => onMessage(lead)} type="button">
             <MessageCircle size={16} />
             Mandar mensagem
+          </button>
+        )}
+        {lead.source !== "lavras-search" && (
+          <button className="enrichment-button" onClick={() => onEnrich(lead)} type="button">
+            <Search size={15} />
+            {lead.placeId ? "Atualizar informações" : "Buscar informações"}
           </button>
         )}
         <button className="prompt-button" onClick={() => onGeneratePrompt(lead)} type="button">
