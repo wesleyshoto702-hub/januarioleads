@@ -22,3 +22,16 @@ cd <repository-name>
 npm i
 npm run dev
 ```
+
+
+## Busca de empresas em Lavras
+
+A área **Buscar leads** usa o Google Places API (New) através de uma Server Function do TanStack Start. A chave não fica no frontend.
+
+Configure no ambiente seguro do projeto/deploy:
+
+```sh
+GOOGLE_PLACES_API_KEY=sua_chave
+```
+
+A chave real não deve ser adicionada ao GitHub. Ative a **Places API (New)** no projeto correspondente do Google Maps Platform.
