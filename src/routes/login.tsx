@@ -91,7 +91,7 @@ function LoginPage() {
         <div className="login-brand">
           <span className="brand-mark">J</span>
           <div>
-            <strong>JanuarioLeads</strong>
+            <strong><span>Januario</span><span className="brand-accent">Leads</span></strong>
             <span>Acesso privado</span>
           </div>
         </div>
