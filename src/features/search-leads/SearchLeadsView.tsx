@@ -723,7 +723,7 @@ function BusinessDetails({
             </div>
             {presenceLoading ? (
               <span className="presence-checking">Verificando presença online...</span>
-            ) : !business.instagram ? (
+            ) : !business.instagram && business.website ? (
               <button
                 className="presence-retry"
                 type="button"
