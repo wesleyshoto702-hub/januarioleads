@@ -880,6 +880,387 @@ async function runLeadEnrichment(
   });
 }
 
+
+type PresenceConfidence = "high" | "medium" | "low";
+type PresenceSource = "google_places" | "official_website" | "web_search";
+type BusinessPresence = {
+  instagramUrl: string | null;
+  instagramConfidence: PresenceConfidence | null;
+  instagramSource: PresenceSource | null;
+  instagramCheckedAt: string;
+};
+
+const INSTAGRAM_RESERVED_PATHS = new Set([
+  "accounts",
+  "about",
+  "developer",
+  "developers",
+  "direct",
+  "directory",
+  "explore",
+  "legal",
+  "p",
+  "privacy",
+  "reel",
+  "reels",
+  "stories",
+  "terms",
+  "tv",
+]);
+
+function canonicalInstagramProfile(value: string | null | undefined) {
+  if (!value?.trim()) return null;
+
+  try {
+    const url = new URL(value.trim());
+    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+    if (host !== "instagram.com") return null;
+
+    const parts = url.pathname.split("/").filter(Boolean);
+    if (parts.length !== 1) return null;
+
+    const username = parts[0].trim();
+    if (
+      !username ||
+      INSTAGRAM_RESERVED_PATHS.has(username.toLowerCase()) ||
+      !/^[A-Za-z0-9._]+$/.test(username)
+    ) {
+      return null;
+    }
+
+    return `https://www.instagram.com/${username}/`;
+  } catch {
+    return null;
+  }
+}
+
+function isBlockedWebsiteHost(hostname: string) {
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+
+  if (
+    host === "localhost" ||
+    host.endsWith(".localhost") ||
+    host.endsWith(".local") ||
+    host === "metadata.google.internal"
+  ) {
+    return true;
+  }
+
+  if (host === "::1" || host.startsWith("fc") || host.startsWith("fd")) {
+    return true;
+  }
+
+  const ipv4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (!ipv4) return false;
+
+  const octets = ipv4.slice(1).map(Number);
+  if (octets.some((item) => item > 255)) return true;
+
+  const [a, b] = octets;
+  return (
+    a === 0 ||
+    a === 10 ||
+    a === 127 ||
+    (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    a >= 224
+  );
+}
+
+function safePublicWebsite(value: string) {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    if (isBlockedWebsiteHost(url.hostname)) return null;
+    return url;
+  } catch {
+    return null;
+  }
+}
+
+async function readLimitedHtml(response: Response, maxBytes = 1_500_000) {
+  if (!response.body) return "";
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+
+  try {
+    while (total < maxBytes) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+
+      const remaining = maxBytes - total;
+      const chunk =
+        value.byteLength > remaining ? value.slice(0, remaining) : value;
+      chunks.push(chunk);
+      total += chunk.byteLength;
+
+      if (value.byteLength > remaining) break;
+    }
+  } finally {
+    reader.cancel().catch(() => undefined);
+  }
+
+  const merged = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
+  return new TextDecoder().decode(merged);
+}
+
+async function fetchOfficialHtml(value: string) {
+  let current = safePublicWebsite(value);
+  if (!current) return null;
+
+  for (let redirect = 0; redirect <= 3; redirect += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6_000);
+
+    try {
+      const response = await fetch(current, {
+        method: "GET",
+        redirect: "manual",
+        signal: controller.signal,
+        headers: {
+          Accept: "text/html,application/xhtml+xml",
+          "User-Agent": "JanuarioLeads/1.0 business-presence-check",
+        },
+      });
+
+      if (response.status >= 300 && response.status < 400) {
+        const location = response.headers.get("location");
+        if (!location) return null;
+        const next = safePublicWebsite(new URL(location, current).toString());
+        if (!next) return null;
+        current = next;
+        continue;
+      }
+
+      if (!response.ok) return null;
+
+      const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
+      if (
+        contentType &&
+        !contentType.includes("text/html") &&
+        !contentType.includes("application/xhtml+xml")
+      ) {
+        return null;
+      }
+
+      const length = Number(response.headers.get("content-length") ?? "0");
+      if (Number.isFinite(length) && length > 2_000_000) return null;
+
+      return {
+        html: await readLimitedHtml(response),
+        finalUrl: current,
+      };
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  return null;
+}
+
+function htmlHrefValues(html: string) {
+  const values: string[] = [];
+  const regex = /href\s*=\s*(["'])(.*?)\1/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(html)) !== null && values.length < 500) {
+    const href = match[2]
+      .replace(/&amp;/gi, "&")
+      .replace(/&#x2F;/gi, "/")
+      .trim();
+    if (href) values.push(href);
+  }
+
+  return values;
+}
+
+function instagramFromOfficialHtml(html: string, baseUrl: URL) {
+  for (const href of htmlHrefValues(html)) {
+    try {
+      const resolved = new URL(href, baseUrl);
+      const profile = canonicalInstagramProfile(resolved.toString());
+      if (profile) return profile;
+    } catch {
+      // Ignore malformed links.
+    }
+  }
+
+  return null;
+}
+
+function contactPageFromOfficialHtml(html: string, baseUrl: URL) {
+  for (const href of htmlHrefValues(html)) {
+    try {
+      const resolved = new URL(href, baseUrl);
+      if (resolved.origin !== baseUrl.origin) continue;
+
+      const value = `${resolved.pathname} ${resolved.search}`.toLowerCase();
+      if (
+        /(^|[\/_-])(contato|contact|fale-conosco|faleconosco)([\/_-]|$)/.test(
+          value,
+        )
+      ) {
+        return resolved.toString();
+      }
+    } catch {
+      // Ignore malformed links.
+    }
+  }
+
+  return null;
+}
+
+async function runPresenceDiscovery(body: Record<string, unknown>) {
+  const businessValue = body.business;
+  if (!businessValue || typeof businessValue !== "object") {
+    return failure(
+      "INVALID_REQUEST",
+      "Informe os dados da empresa para verificar a presença online.",
+      400,
+    );
+  }
+
+  const business = businessValue as {
+    name?: unknown;
+    website?: unknown;
+    instagram?: unknown;
+  };
+
+  if (
+    typeof business.name !== "string" ||
+    business.name.trim().length < 2 ||
+    business.name.length > 180
+  ) {
+    return failure(
+      "INVALID_REQUEST",
+      "O nome da empresa é necessário para verificar a presença online.",
+      400,
+    );
+  }
+
+  if (
+    business.website !== undefined &&
+    business.website !== null &&
+    typeof business.website !== "string"
+  ) {
+    return failure(
+      "INVALID_REQUEST",
+      "O site informado para a empresa é inválido.",
+      400,
+    );
+  }
+
+  if (
+    business.instagram !== undefined &&
+    business.instagram !== null &&
+    typeof business.instagram !== "string"
+  ) {
+    return failure(
+      "INVALID_REQUEST",
+      "O Instagram informado para a empresa é inválido.",
+      400,
+    );
+  }
+
+  const checkedAt = new Date().toISOString();
+  const googleInstagram =
+    typeof business.instagram === "string"
+      ? canonicalInstagramProfile(business.instagram)
+      : null;
+
+  if (googleInstagram) {
+    const presence: BusinessPresence = {
+      instagramUrl: googleInstagram,
+      instagramConfidence: "high",
+      instagramSource: "google_places",
+      instagramCheckedAt: checkedAt,
+    };
+
+    return json({ ok: true, mode: "presence-discovery", presence });
+  }
+
+  const website =
+    typeof business.website === "string" ? business.website.trim() : "";
+
+  if (!website) {
+    const presence: BusinessPresence = {
+      instagramUrl: null,
+      instagramConfidence: null,
+      instagramSource: null,
+      instagramCheckedAt: checkedAt,
+    };
+
+    return json({ ok: true, mode: "presence-discovery", presence });
+  }
+
+  const root = await fetchOfficialHtml(website);
+  if (!root) {
+    const presence: BusinessPresence = {
+      instagramUrl: null,
+      instagramConfidence: null,
+      instagramSource: null,
+      instagramCheckedAt: checkedAt,
+    };
+
+    return json({ ok: true, mode: "presence-discovery", presence });
+  }
+
+  const rootInstagram = instagramFromOfficialHtml(root.html, root.finalUrl);
+  if (rootInstagram) {
+    const presence: BusinessPresence = {
+      instagramUrl: rootInstagram,
+      instagramConfidence: "high",
+      instagramSource: "official_website",
+      instagramCheckedAt: checkedAt,
+    };
+
+    return json({ ok: true, mode: "presence-discovery", presence });
+  }
+
+  const contactPage = contactPageFromOfficialHtml(root.html, root.finalUrl);
+  if (contactPage && contactPage !== root.finalUrl.toString()) {
+    const contact = await fetchOfficialHtml(contactPage);
+    if (contact) {
+      const contactInstagram = instagramFromOfficialHtml(
+        contact.html,
+        contact.finalUrl,
+      );
+
+      if (contactInstagram) {
+        const presence: BusinessPresence = {
+          instagramUrl: contactInstagram,
+          instagramConfidence: "high",
+          instagramSource: "official_website",
+          instagramCheckedAt: checkedAt,
+        };
+
+        return json({ ok: true, mode: "presence-discovery", presence });
+      }
+    }
+  }
+
+  const presence: BusinessPresence = {
+    instagramUrl: null,
+    instagramConfidence: null,
+    instagramSource: null,
+    instagramCheckedAt: checkedAt,
+  };
+
+  return json({ ok: true, mode: "presence-discovery", presence });
+}
+
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") {
     return new Response(null, {
@@ -1035,9 +1416,15 @@ Deno.serve(async (request) => {
   const mode =
     requestBody.mode === "lead-enrichment"
       ? "lead-enrichment"
-      : "segment-search";
+      : requestBody.mode === "presence-discovery"
+        ? "presence-discovery"
+        : "segment-search";
 
   try {
+    if (mode === "presence-discovery") {
+      return await runPresenceDiscovery(requestBody);
+    }
+
     if (mode === "lead-enrichment") {
       return await runLeadEnrichment(googleApiKey, requestBody);
     }
@@ -1046,7 +1433,9 @@ Deno.serve(async (request) => {
   } catch {
     return failure(
       "REQUEST_FAILED",
-      "Não foi possível comunicar com o Google Places agora.",
+      mode === "presence-discovery"
+        ? "Não foi possível verificar a presença online agora."
+        : "Não foi possível comunicar com o Google Places agora.",
       502,
     );
   }
