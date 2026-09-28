@@ -4,6 +4,7 @@ import {
   Check,
   ExternalLink,
   Globe,
+  Instagram,
   MapPin,
   MessageCircle,
   Phone,
@@ -13,6 +14,9 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { buildFactualBusinessDescription } from "../business-presence/business-description";
+import { discoverBusinessPresence } from "../business-presence/discover-business-presence";
+import type { BusinessPresence } from "../business-presence/types";
 import { ChanceBadge } from "../lead-chance/ChanceBadge";
 import {
   calculateLeadChance,
@@ -199,6 +203,36 @@ export function SearchLeadsView({
     if (!business.phone) return;
     const phone = normalizeBrazilianPhone(business.phone);
     window.open(`https://wa.me/${phone}`, "_blank", "noopener,noreferrer");
+  }
+
+
+  function updateBusinessPresence(
+    placeId: string,
+    presence: BusinessPresence,
+  ) {
+    const merge = (business: BusinessSearchResult): BusinessSearchResult => {
+      if (business.placeId !== placeId) return business;
+
+      const next: BusinessSearchResult = {
+        ...business,
+        instagramCheckedAt: presence.instagramCheckedAt,
+        ...(presence.instagramUrl
+          ? {
+              instagram: presence.instagramUrl,
+              instagramConfidence: presence.instagramConfidence,
+              instagramSource: presence.instagramSource,
+            }
+          : {}),
+      };
+
+      return {
+        ...next,
+        factualDescription: buildFactualBusinessDescription(next),
+      };
+    };
+
+    setResults((current) => current.map(merge));
+    setDetails((current) => (current ? merge(current) : current));
   }
 
   if (screen === "segments") {
@@ -397,8 +431,19 @@ export function SearchLeadsView({
           onMessage={onMessage}
           onGeneratePrompt={(item) => {
             setDetails(null);
-            onGeneratePrompt(item, resultsSegment);
+            onGeneratePrompt(
+              {
+                ...item,
+                factualDescription:
+                  item.factualDescription ??
+                  buildFactualBusinessDescription(item),
+              },
+              resultsSegment,
+            );
           }}
+          onPresenceUpdate={(presence) =>
+            updateBusinessPresence(details.placeId, presence)
+          }
           onAdd={(item) => onAddLead(item, resultsSegment)}
         />
       )}
@@ -534,6 +579,7 @@ function BusinessDetails({
   onWhatsApp,
   onMessage,
   onGeneratePrompt,
+  onPresenceUpdate,
   onAdd,
 }: {
   business: BusinessSearchResult;
@@ -543,8 +589,29 @@ function BusinessDetails({
   onWhatsApp: (business: BusinessSearchResult) => void;
   onMessage: (target: SearchMessageTarget) => void;
   onGeneratePrompt: (business: BusinessSearchResult) => void;
+  onPresenceUpdate: (presence: BusinessPresence) => void;
   onAdd: (business: BusinessSearchResult) => void;
 }) {
+  const [presenceLoading, setPresenceLoading] = useState(false);
+
+  const factualDescription =
+    business.factualDescription ?? buildFactualBusinessDescription(business);
+
+  async function verifyPresence(force = false) {
+    setPresenceLoading(true);
+    try {
+      const presence = await discoverBusinessPresence(business, { force });
+      if (presence) onPresenceUpdate(presence);
+    } finally {
+      setPresenceLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void verifyPresence(false);
+    // One automatic verification per opened business. Cache prevents repeat requests.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [business.placeId]);
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
       <section
@@ -568,8 +635,6 @@ function BusinessDetails({
         </div>
 
         <div className="business-detail-content">
-          {business.description && <p className="business-description">{business.description}</p>}
-
           <div className="detail-grid">
             {business.address && (
               <DetailItem label="Endereço" value={business.address} />
@@ -615,6 +680,11 @@ function BusinessDetails({
             </div>
           )}
 
+          <div className="detail-section business-about">
+            <h3>Sobre a empresa</h3>
+            <p>{factualDescription}</p>
+          </div>
+
           <div className="detail-section">
             <h3>Presença online</h3>
             <div className="detail-links">
@@ -625,9 +695,16 @@ function BusinessDetails({
               ) : (
                 <span>Site não identificado</span>
               )}
-              {business.instagram ? (
-                <a href={business.instagram} target="_blank" rel="noreferrer">
-                  Instagram <ExternalLink size={13} />
+              {business.instagram &&
+              business.instagramConfidence !== "low" ? (
+                <a
+                  className="instagram-identified-link"
+                  href={business.instagram}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <Instagram size={15} />
+                  Instagram identificado <ExternalLink size={13} />
                 </a>
               ) : (
                 <span>Instagram não identificado</span>
@@ -638,6 +715,17 @@ function BusinessDetails({
                 </a>
               )}
             </div>
+            {presenceLoading ? (
+              <span className="presence-checking">Verificando presença online...</span>
+            ) : !business.instagram ? (
+              <button
+                className="presence-retry"
+                type="button"
+                onClick={() => void verifyPresence(true)}
+              >
+                Buscar Instagram novamente
+              </button>
+            ) : null}
           </div>
 
           <div className="detail-actions">
