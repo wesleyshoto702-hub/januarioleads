@@ -592,7 +592,9 @@ function BusinessDetails({
   onPresenceUpdate: (presence: BusinessPresence) => void;
   onAdd: (business: BusinessSearchResult) => void;
 }) {
-  const [presenceLoading, setPresenceLoading] = useState(false);
+  const [presenceLoading, setPresenceLoading] = useState(
+    Boolean(business.instagram || business.website),
+  );
 
   const factualDescription =
     business.factualDescription ?? buildFactualBusinessDescription(business);
@@ -608,7 +610,11 @@ function BusinessDetails({
   }
 
   useEffect(() => {
-    void verifyPresence(false);
+    if (business.instagram || business.website) {
+      void verifyPresence(false);
+    } else {
+      setPresenceLoading(false);
+    }
     // One automatic verification per opened business. Cache prevents repeat requests.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [business.placeId]);
