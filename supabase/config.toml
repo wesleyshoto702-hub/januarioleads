@@ -3,3 +3,7 @@ verify_jwt = true
 
 [functions.generate-site-prompt]
 verify_jwt = true
+
+
+[functions.sync-leads]
+verify_jwt = false
