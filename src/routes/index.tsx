@@ -362,8 +362,8 @@ function LeadFlowApp() {
       <header className="topbar">
         <div className="topbar-inner">
           <button className="brand" onClick={() => setView("leads")} type="button">
-            <span className="brand-mark">L</span>
-            <span>LeadFlow</span>
+            <span className="brand-mark">J</span>
+            <span className="brand-word"><span>Januario</span><span className="brand-accent">Leads</span></span>
           </button>
 
           <nav className="topnav" aria-label="Navegação principal">
