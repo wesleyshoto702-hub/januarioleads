@@ -47,12 +47,12 @@ function readSession(): StoredSession | null {
   }
 }
 
-function writeSession(session: StoredSession | null) {
+function writeSession(session: StoredSession | null, notify = true) {
   if (typeof window === "undefined") return;
   if (session) localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
   else localStorage.removeItem(STORAGE_KEY);
   scheduleRefresh(session);
-  window.dispatchEvent(new Event("januarioleads:auth-change"));
+  if (notify) window.dispatchEvent(new Event("januarioleads:auth-change"));
 }
 
 function scheduleRefresh(session: StoredSession | null) {
@@ -226,7 +226,7 @@ export async function getValidSession() {
   }
 
   const next = { ...session, user };
-  writeSession(next);
+  writeSession(next, false);
   return next;
 }
 
