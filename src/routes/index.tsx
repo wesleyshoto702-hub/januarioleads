@@ -18,7 +18,6 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { buildFactualBusinessDescription } from "../features/business-presence/business-description";
 import { discoverBusinessPresence } from "../features/business-presence/discover-business-presence";
 import { presenceFromBusiness } from "../features/business-presence/storage";
-import type { BusinessPresence } from "../features/business-presence/types";
 import { LeadEnrichmentModal } from "../features/lead-enrichment/LeadEnrichmentModal";
 import { ChanceBadge } from "../features/lead-chance/ChanceBadge";
 import {
@@ -554,7 +553,9 @@ function LeadFlowApp() {
       ...(business.address ? { address: business.address } : {}),
       ...(business.website ? { website: business.website } : {}),
       ...(business.googleMapsUrl ? { googleMapsUrl: business.googleMapsUrl } : {}),
-      ...(business.instagram ? { instagram: business.instagram } : {}),
+      ...(business.instagram && !googlePresence?.instagramUrl
+        ? { instagram: business.instagram }
+        : {}),
       ...(business.primaryCategory ? { primaryCategory: business.primaryCategory } : {}),
       ...(business.categories.length ? { categories: business.categories } : {}),
       ...(business.description ? { description: business.description } : {}),
