@@ -295,15 +295,26 @@ export function LeadEnrichmentModal({
                         </details>
                       )}
 
-                      <button
-                        className="primary-button enrichment-confirm"
-                        type="button"
-                        onClick={() => onConfirm(candidate.business)}
-                      >
-                        {candidates.length > 1
-                          ? "Selecionar esta empresa"
-                          : "Confirmar empresa"}
-                      </button>
+                      <div className="enrichment-candidate-actions">
+                        {candidates.length === 1 && (
+                          <button
+                            className="secondary-button"
+                            type="button"
+                            onClick={() => setCandidates([])}
+                          >
+                            Não é esta empresa
+                          </button>
+                        )}
+                        <button
+                          className="primary-button enrichment-confirm"
+                          type="button"
+                          onClick={() => onConfirm(candidate.business)}
+                        >
+                          {candidates.length > 1
+                            ? "Selecionar esta empresa"
+                            : "Confirmar empresa"}
+                        </button>
+                      </div>
                     </article>
                   );
                 })}
