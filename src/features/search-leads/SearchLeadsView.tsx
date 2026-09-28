@@ -3,21 +3,18 @@ import {
   ArrowRight,
   Check,
   ExternalLink,
-  Globe,
-  Instagram,
   MapPin,
   MessageCircle,
   Phone,
   Search,
   Sparkles,
   Star,
-  X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { buildFactualBusinessDescription } from "../business-presence/business-description";
-import { discoverBusinessPresence } from "../business-presence/discover-business-presence";
 import type { BusinessPresence } from "../business-presence/types";
 import { ChanceBadge } from "../lead-chance/ChanceBadge";
+import { BusinessDetailsModal } from "./BusinessDetailsModal";
 import {
   calculateLeadChance,
   type LeadChanceResult,
@@ -54,21 +51,6 @@ type ResultSort =
   | "za";
 
 const RECENT_SEARCHES_KEY = "leadflow:recent-searches";
-
-function formatGoogleType(value: string) {
-  return value
-    .split("_")
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
-function formatBusinessStatus(value: string | null) {
-  if (value === "CLOSED_PERMANENTLY") return "Fechada permanentemente";
-  if (value === "CLOSED_TEMPORARILY") return "Fechada temporariamente";
-  if (value === "OPERATIONAL") return "Em funcionamento";
-  return null;
-}
 
 function getRecentSearches() {
   if (typeof window === "undefined") return [] as string[];
@@ -422,7 +404,7 @@ export function SearchLeadsView({
       )}
 
       {details && (
-        <BusinessDetails
+        <BusinessDetailsModal
           business={details}
           chance={calculateLeadChance(details, resultsSegment)}
           alreadyAdded={businessAlreadyExists(details, existingLeads)}
@@ -568,217 +550,6 @@ function BusinessCard({
         </button>
       </div>
     </article>
-  );
-}
-
-function BusinessDetails({
-  business,
-  chance,
-  alreadyAdded,
-  onClose,
-  onWhatsApp,
-  onMessage,
-  onGeneratePrompt,
-  onPresenceUpdate,
-  onAdd,
-}: {
-  business: BusinessSearchResult;
-  chance: LeadChanceResult;
-  alreadyAdded: boolean;
-  onClose: () => void;
-  onWhatsApp: (business: BusinessSearchResult) => void;
-  onMessage: (target: SearchMessageTarget) => void;
-  onGeneratePrompt: (business: BusinessSearchResult) => void;
-  onPresenceUpdate: (presence: BusinessPresence) => void;
-  onAdd: (business: BusinessSearchResult) => void;
-}) {
-  const [presenceLoading, setPresenceLoading] = useState(
-    Boolean(business.instagram || business.website),
-  );
-
-  const factualDescription =
-    business.factualDescription ?? buildFactualBusinessDescription(business);
-
-  async function verifyPresence(force = false) {
-    setPresenceLoading(true);
-    try {
-      const presence = await discoverBusinessPresence(business, { force });
-      if (presence) onPresenceUpdate(presence);
-    } finally {
-      setPresenceLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    if (business.instagram || business.website) {
-      void verifyPresence(false);
-    } else {
-      setPresenceLoading(false);
-    }
-    // One automatic verification per opened business. Cache prevents repeat requests.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [business.placeId]);
-  return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
-      <section
-        className="modal-card business-detail-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-label={business.name}
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <div className="modal-header">
-          <div>
-            <span className="detail-kicker">{business.primaryCategory ?? "Empresa local"}</span>
-            <div className="business-name-line detail-name-line">
-              <h2>{business.name}</h2>
-              <ChanceBadge chance={chance} />
-            </div>
-          </div>
-          <button className="icon-button" onClick={onClose} type="button" aria-label="Fechar">
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className="business-detail-content">
-          <div className="detail-grid">
-            {business.address && (
-              <DetailItem label="Endereço" value={business.address} />
-            )}
-            {business.neighborhood && <DetailItem label="Bairro" value={business.neighborhood} />}
-            {business.city && <DetailItem label="Cidade" value={business.city} />}
-            {business.phone && <DetailItem label="Telefone" value={business.phone} />}
-            {business.rating !== null && (
-              <DetailItem
-                label="Avaliação"
-                value={`${business.rating.toFixed(1)}${business.reviewCount !== null ? ` · ${business.reviewCount} avaliações` : ""}`}
-              />
-            )}
-            {business.isOpenNow !== null && (
-              <DetailItem label="Status agora" value={business.isOpenNow ? "Aberto" : "Fechado"} />
-            )}
-          </div>
-
-          {business.categories.length > 0 && (
-            <div className="detail-section">
-              <h3>Categorias relacionadas</h3>
-              <div className="category-tags">
-                {business.categories.slice(0, 8).map((category) => (
-                  <span key={category}>{formatGoogleType(category)}</span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {business.businessStatus && formatBusinessStatus(business.businessStatus) && (
-            <div className="detail-section">
-              <h3>Situação da empresa</h3>
-              <p className="detail-note">{formatBusinessStatus(business.businessStatus)}</p>
-            </div>
-          )}
-
-          {business.openingHours.length > 0 && (
-            <div className="detail-section">
-              <h3>Horários de funcionamento</h3>
-              <div className="opening-hours">
-                {business.openingHours.map((line) => <span key={line}>{line}</span>)}
-              </div>
-            </div>
-          )}
-
-          <div className="detail-section business-about">
-            <h3>Sobre a empresa</h3>
-            <p>{factualDescription}</p>
-          </div>
-
-          <div className="detail-section">
-            <h3>Presença online</h3>
-            <div className="detail-links">
-              {business.website ? (
-                <a href={business.website} target="_blank" rel="noreferrer">
-                  <Globe size={15} /> Site <ExternalLink size={13} />
-                </a>
-              ) : (
-                <span>Site não identificado</span>
-              )}
-              {business.instagram &&
-              business.instagramConfidence !== "low" ? (
-                <a
-                  className="instagram-identified-link"
-                  href={business.instagram}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <Instagram size={15} />
-                  Instagram identificado <ExternalLink size={13} />
-                </a>
-              ) : (
-                <span>Instagram não identificado</span>
-              )}
-              {business.googleMapsUrl && (
-                <a href={business.googleMapsUrl} target="_blank" rel="noreferrer">
-                  <MapPin size={15} /> Google Maps e avaliações <ExternalLink size={13} />
-                </a>
-              )}
-            </div>
-            {presenceLoading ? (
-              <span className="presence-checking">Verificando presença online...</span>
-            ) : !business.instagram && business.website ? (
-              <button
-                className="presence-retry"
-                type="button"
-                onClick={() => void verifyPresence(true)}
-              >
-                Buscar Instagram novamente
-              </button>
-            ) : null}
-          </div>
-
-          <div className="detail-actions">
-            {business.phone && (
-              <>
-                <button type="button" className="secondary-button" onClick={() => onWhatsApp(business)}>
-                  WhatsApp
-                </button>
-                <button
-                  type="button"
-                  className="message-button"
-                  onClick={() => onMessage({ company: business.name, phone: business.phone ?? "" })}
-                >
-                  <MessageCircle size={15} />
-                  Mandar mensagem
-                </button>
-              </>
-            )}
-            <button
-              type="button"
-              className="secondary-button prompt-button"
-              onClick={() => onGeneratePrompt(business)}
-            >
-              <Sparkles size={15} />
-              Gerar prompt
-            </button>
-            <button
-              type="button"
-              className={alreadyAdded ? "secondary-button added-button" : "primary-button"}
-              disabled={alreadyAdded}
-              onClick={() => onAdd(business)}
-            >
-              {alreadyAdded ? "Já está nos seus leads" : "Adicionar aos meus leads"}
-            </button>
-          </div>
-        </div>
-      </section>
-    </div>
-  );
-}
-
-function DetailItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="detail-item">
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
   );
 }
 
