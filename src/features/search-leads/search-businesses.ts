@@ -66,10 +66,27 @@ function parseCity(place: GooglePlace) {
   );
 }
 
+function websiteAndInstagram(value: string | undefined) {
+  const website = value?.trim() || null;
+  if (!website) return { website: null, instagram: null };
+
+  try {
+    const host = new URL(website).hostname.toLowerCase().replace(/^www\./, "");
+    if (host === "instagram.com") {
+      return { website: null, instagram: website };
+    }
+  } catch {
+    return { website, instagram: null };
+  }
+
+  return { website, instagram: null };
+}
+
 function parsePlace(place: GooglePlace): BusinessSearchResult | null {
   const placeId = place.id?.trim();
   const name = place.displayName?.text?.trim();
   if (!placeId || !name) return null;
+  const online = websiteAndInstagram(place.websiteUri);
 
   return {
     placeId,
@@ -93,8 +110,8 @@ function parsePlace(place: GooglePlace): BusinessSearchResult | null {
       place.regularOpeningHours?.weekdayDescriptions ??
       place.currentOpeningHours?.weekdayDescriptions ??
       [],
-    website: place.websiteUri?.trim() || null,
-    instagram: null,
+    website: online.website,
+    instagram: online.instagram,
     googleMapsUrl: place.googleMapsUri?.trim() || null,
     businessStatus: place.businessStatus?.trim() || null,
   };
