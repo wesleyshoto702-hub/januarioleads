@@ -19,6 +19,16 @@ import type { BusinessSearchResult } from "../features/search-leads/types";
 import { getValidSession, signOut, subscribeAuthChange } from "../lib/auth";
 
 export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: "JanuarioLeads — Meus leads" },
+      { name: "description", content: "Organize seus leads e contatos de prospecção no JanuarioLeads." },
+      { property: "og:title", content: "JanuarioLeads — Meus leads" },
+      { property: "og:description", content: "Organize seus leads e contatos de prospecção no JanuarioLeads." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: PrivateLeadFlowApp,
 });
 

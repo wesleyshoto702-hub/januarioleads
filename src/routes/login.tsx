@@ -4,6 +4,16 @@ import { FormEvent, useEffect, useState } from "react";
 import { getValidSession, signIn } from "../lib/auth";
 
 export const Route = createFileRoute("/login")({
+  head: () => ({
+    meta: [
+      { title: "JanuarioLeads — Entrar" },
+      { name: "description", content: "Entre na sua conta privada do JanuarioLeads." },
+      { property: "og:title", content: "JanuarioLeads — Entrar" },
+      { property: "og:description", content: "Entre na sua conta privada do JanuarioLeads." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: LoginPage,
 });
 
