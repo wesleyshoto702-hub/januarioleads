@@ -406,33 +406,42 @@ function LeadFlowApp() {
           company: business.name || lead.company,
           phone: officialPhone,
           placeId: business.placeId,
-          address: business.address ?? lead.address,
-          website: business.website ?? lead.website,
-          googleMapsUrl: business.googleMapsUrl ?? lead.googleMapsUrl,
-          instagram: business.instagram ?? lead.instagram,
-          primaryCategory: business.primaryCategory ?? lead.primaryCategory,
-          categories:
-            business.categories.length > 0
-              ? business.categories
-              : lead.categories,
-          description: business.description ?? lead.description,
-          neighborhood: business.neighborhood ?? lead.neighborhood,
-          city: business.city ?? lead.city,
-          state: business.state ?? lead.state,
-          internationalPhone:
-            business.internationalPhone ?? lead.internationalPhone,
-          rating: business.rating ?? lead.rating,
-          reviewCount: business.reviewCount ?? lead.reviewCount,
-          isOpenNow: business.isOpenNow ?? lead.isOpenNow,
-          openingHours:
-            business.openingHours.length > 0
-              ? business.openingHours
-              : lead.openingHours,
-          businessStatus: business.businessStatus ?? lead.businessStatus,
-          latitude: business.latitude ?? lead.latitude,
-          longitude: business.longitude ?? lead.longitude,
           enrichedAt: new Date().toISOString(),
           source: lead.source ?? "manual",
+          ...(business.address ? { address: business.address } : {}),
+          ...(business.website ? { website: business.website } : {}),
+          ...(business.googleMapsUrl ? { googleMapsUrl: business.googleMapsUrl } : {}),
+          ...(business.instagram ? { instagram: business.instagram } : {}),
+          ...(business.primaryCategory
+            ? { primaryCategory: business.primaryCategory }
+            : {}),
+          ...(business.categories.length > 0
+            ? { categories: business.categories }
+            : {}),
+          ...(business.description ? { description: business.description } : {}),
+          ...(business.neighborhood ? { neighborhood: business.neighborhood } : {}),
+          ...(business.city ? { city: business.city } : {}),
+          ...(business.state ? { state: business.state } : {}),
+          ...(business.internationalPhone
+            ? { internationalPhone: business.internationalPhone }
+            : {}),
+          ...(business.rating !== null ? { rating: business.rating } : {}),
+          ...(business.reviewCount !== null
+            ? { reviewCount: business.reviewCount }
+            : {}),
+          ...(business.isOpenNow !== null
+            ? { isOpenNow: business.isOpenNow }
+            : {}),
+          ...(business.openingHours.length > 0
+            ? { openingHours: business.openingHours }
+            : {}),
+          ...(business.businessStatus
+            ? { businessStatus: business.businessStatus }
+            : {}),
+          ...(business.latitude !== null ? { latitude: business.latitude } : {}),
+          ...(business.longitude !== null
+            ? { longitude: business.longitude }
+            : {}),
         };
       }),
     );
