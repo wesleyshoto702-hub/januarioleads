@@ -4065,3 +4065,60 @@ a {
     font-size: 10.5px;
   }
 }
+
+
+/* Saved lead details action */
+.lead-details-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: 0.16s ease;
+}
+
+.lead-details-button:hover {
+  border-color: color-mix(in srgb, var(--primary) 32%, var(--border));
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.actions-cell {
+  flex-wrap: wrap;
+  row-gap: 5px;
+}
+
+.actions-cell .message-button,
+.actions-cell .prompt-button,
+.actions-cell .enrichment-button {
+  min-height: 30px;
+  padding-inline: 8px;
+  font-size: 10px;
+}
+
+.actions-cell .row-icon {
+  width: 30px;
+  height: 30px;
+}
+
+.card-actions {
+  flex-wrap: wrap;
+}
+
+.card-actions .lead-details-button {
+  flex: 1 1 auto;
+}
+
+@media (max-width: 520px) {
+  .card-actions .lead-details-button {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+}
