@@ -5,11 +5,16 @@ type SearchBusinessesInput = {
   pageToken?: string;
 };
 
-function getSupabaseConfig() {
-  const url = import.meta.env.VITE_SUPABASE_URL?.trim();
-  const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim();
+const PUBLIC_SUPABASE_URL = "https://czkazbianiflhldenhcj.supabase.co";
+const PUBLIC_SUPABASE_PUBLISHABLE_KEY =
+  "sb_publishable_rDtFwPmhh93xceOpvf9hUg_PSlvpB8p";
 
-  if (!url || !publishableKey) return null;
+function getSupabaseConfig() {
+  const url =
+    import.meta.env.VITE_SUPABASE_URL?.trim() || PUBLIC_SUPABASE_URL;
+  const publishableKey =
+    import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() ||
+    PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
   return {
     functionUrl: `${url.replace(/\/$/, "")}/functions/v1/search-places`,
