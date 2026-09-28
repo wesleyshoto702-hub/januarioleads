@@ -13,6 +13,7 @@ import { discoverBusinessPresence } from "../business-presence/discover-business
 import type { BusinessPresence } from "../business-presence/types";
 import { ChanceBadge } from "../lead-chance/ChanceBadge";
 import type { LeadChanceResult } from "../lead-chance/lead-chance";
+import type { LeadUpdateRecord } from "../leads/remote-leads";
 import type { BusinessSearchResult } from "./types";
 
 export type BusinessDetailsMessageTarget = {
@@ -40,6 +41,8 @@ export function BusinessDetailsModal({
   chance,
   segmentLabel,
   alreadyAdded = false,
+  lastSyncedAt,
+  updates = [],
   onClose,
   onWhatsApp,
   onMessage,
@@ -51,6 +54,8 @@ export function BusinessDetailsModal({
   chance?: LeadChanceResult | null;
   segmentLabel?: string | null;
   alreadyAdded?: boolean;
+  lastSyncedAt?: string | null;
+  updates?: LeadUpdateRecord[];
   onClose: () => void;
   onWhatsApp: (business: BusinessSearchResult) => void;
   onMessage: (target: BusinessDetailsMessageTarget) => void;
@@ -147,6 +152,16 @@ export function BusinessDetailsModal({
                 value={business.isOpenNow ? "Aberto" : "Fechado"}
               />
             )}
+            {lastSyncedAt !== undefined && (
+              <DetailItem
+                label="Última atualização"
+                value={
+                  lastSyncedAt
+                    ? formatDateTime(lastSyncedAt)
+                    : "Ainda não sincronizado"
+                }
+              />
+            )}
           </div>
 
           {business.categories.length > 0 && (
@@ -237,6 +252,30 @@ export function BusinessDetailsModal({
             ) : null}
           </div>
 
+          {updates.length > 0 && (
+            <div className="detail-section lead-update-history">
+              <h3>Atualizações recentes</h3>
+              <div className="lead-update-history-list">
+                {updates.slice(0, 8).map((update) => (
+                  <div
+                    className={
+                      update.importance === "high"
+                        ? "lead-update-history-item important"
+                        : "lead-update-history-item"
+                    }
+                    key={update.id}
+                  >
+                    <div>
+                      <strong>{update.message}</strong>
+                      <span>{formatDateTime(update.createdAt)}</span>
+                    </div>
+                    {!update.isSeen && <small>Novo</small>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="detail-actions">
             {business.phone && (
               <>
@@ -285,6 +324,16 @@ export function BusinessDetailsModal({
       </section>
     </div>
   );
+}
+
+function formatDateTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(date);
 }
 
 function DetailItem({ label, value }: { label: string; value: string }) {
