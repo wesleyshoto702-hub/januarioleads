@@ -3995,3 +3995,73 @@ a {
     z-index: 120;
   }
 }
+
+
+/* Ver empresa: descrição factual e presença online */
+.business-about p {
+  max-width: 650px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.detail-links .instagram-identified-link {
+  border-color: color-mix(in srgb, #c13584 46%, var(--border));
+  background: color-mix(in srgb, #c13584 8%, var(--surface));
+  color: #a92b75;
+  font-weight: 700;
+}
+
+.detail-links .instagram-identified-link:hover {
+  border-color: color-mix(in srgb, #c13584 70%, var(--border));
+  background: color-mix(in srgb, #c13584 13%, var(--surface));
+  color: #8f1f62;
+}
+
+.dark .detail-links .instagram-identified-link {
+  border-color: color-mix(in srgb, #e255a1 42%, var(--border));
+  background: color-mix(in srgb, #e255a1 10%, var(--surface));
+  color: #f27db8;
+}
+
+.dark .detail-links .instagram-identified-link:hover {
+  border-color: color-mix(in srgb, #e255a1 68%, var(--border));
+  background: color-mix(in srgb, #e255a1 15%, var(--surface));
+  color: #ff9cca;
+}
+
+.presence-checking {
+  display: inline-flex;
+  margin-top: 8px;
+  color: var(--faint);
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.presence-retry {
+  margin-top: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 680;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.presence-retry:hover {
+  color: var(--text);
+}
+
+@media (max-width: 520px) {
+  .detail-links .instagram-identified-link {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .business-about p {
+    font-size: 10.5px;
+  }
+}
