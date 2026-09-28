@@ -1,2 +1,5 @@
 [functions.search-places]
 verify_jwt = true
+
+[functions.generate-site-prompt]
+verify_jwt = true
