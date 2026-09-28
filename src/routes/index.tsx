@@ -22,6 +22,16 @@ import type { BusinessPresence } from "../features/business-presence/types";
 import { LeadEnrichmentModal } from "../features/lead-enrichment/LeadEnrichmentModal";
 import { ChanceBadge } from "../features/lead-chance/ChanceBadge";
 import {
+  deleteRemoteLead,
+  fetchLeadUpdates,
+  fetchRemoteLeads,
+  markLeadUpdatesSeen,
+  migrateLocalLeads,
+  saveRemoteLead,
+  type LeadUpdateRecord,
+  type PersistedLead,
+} from "../features/leads/remote-leads";
+import {
   calculateLeadChance,
   hasEnoughDataForLeadChance,
 } from "../features/lead-chance/lead-chance";
@@ -91,42 +101,7 @@ function PrivateLeadFlowApp() {
 
 type Status = "waiting" | "accepted" | "rejected";
 
-type Lead = {
-  id: string;
-  company: string;
-  segment: string;
-  phone: string;
-  status: Status;
-  firstContact: string;
-  lastContact?: string;
-  notes: string;
-  createdAt: string;
-  placeId?: string;
-  address?: string;
-  website?: string;
-  googleMapsUrl?: string;
-  instagram?: string;
-  instagramConfidence?: "high" | "medium" | "low";
-  instagramSource?: "google_places" | "official_website" | "web_search";
-  instagramCheckedAt?: string;
-  factualDescription?: string;
-  primaryCategory?: string;
-  categories?: string[];
-  description?: string;
-  neighborhood?: string;
-  city?: string;
-  state?: string;
-  internationalPhone?: string;
-  rating?: number;
-  reviewCount?: number;
-  isOpenNow?: boolean;
-  openingHours?: string[];
-  businessStatus?: string;
-  latitude?: number;
-  longitude?: number;
-  enrichedAt?: string;
-  source?: "manual" | "lavras-search";
-};
+type Lead = PersistedLead;
 
 type LeadForm = Omit<Lead, "id" | "createdAt" | "lastContact">;
 
@@ -206,6 +181,9 @@ function LeadFlowApp() {
   const [messages, setMessages] = useState(DEFAULT_MESSAGES);
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [hydrated, setHydrated] = useState(false);
+  const [remoteReady, setRemoteReady] = useState(false);
+  const [remoteError, setRemoteError] = useState("");
+  const [leadUpdates, setLeadUpdates] = useState<LeadUpdateRecord[]>([]);
   const [view, setView] = useState<"leads" | "search" | "messages">("leads");
   const [leadModal, setLeadModal] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
@@ -223,27 +201,98 @@ function LeadFlowApp() {
   const [savedNotice, setSavedNotice] = useState(false);
 
   useEffect(() => {
+    let active = true;
+    let localLeads: Lead[] = [];
+
     try {
       const storedLeads = localStorage.getItem(STORAGE.leads);
       const storedMessages = localStorage.getItem(STORAGE.messages);
-      const storedTheme = localStorage.getItem(STORAGE.theme) as "light" | "dark" | null;
-      if (storedLeads) setLeads(JSON.parse(storedLeads));
+      const storedTheme = localStorage.getItem(STORAGE.theme) as
+        | "light"
+        | "dark"
+        | null;
+
+      if (storedLeads) {
+        const parsed = JSON.parse(storedLeads);
+        if (Array.isArray(parsed)) localLeads = parsed as Lead[];
+      }
+
+      setLeads(localLeads);
+
       if (storedMessages) {
         const parsed = JSON.parse(storedMessages);
         if (Array.isArray(parsed) && parsed.length === 3) setMessages(parsed);
       }
-      if (storedTheme === "dark" || storedTheme === "light") setTheme(storedTheme);
+
+      if (storedTheme === "dark" || storedTheme === "light") {
+        setTheme(storedTheme);
+      }
     } catch {
-      // If localStorage is corrupted, keep safe defaults instead of breaking the app.
+      // Corrupted local data never blocks access; backend migration still runs.
     } finally {
       setHydrated(true);
     }
+
+    async function connectRemoteStorage() {
+      try {
+        const remoteLeads = await migrateLocalLeads(localLeads);
+        if (!active) return;
+
+        setLeads(remoteLeads);
+        setLeadUpdates(await fetchLeadUpdates());
+        setRemoteReady(true);
+        setRemoteError("");
+      } catch {
+        if (!active) return;
+        setRemoteReady(false);
+        setRemoteError(
+          "Sincronização automática indisponível agora. Seus dados locais continuam preservados.",
+        );
+      }
+    }
+
+    void connectRemoteStorage();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
     if (!hydrated) return;
     localStorage.setItem(STORAGE.leads, JSON.stringify(leads));
   }, [leads, hydrated]);
+
+  useEffect(() => {
+    if (!remoteReady) return;
+
+    let active = true;
+
+    async function refreshRemoteState() {
+      try {
+        const [remoteLeads, updates] = await Promise.all([
+          fetchRemoteLeads(),
+          fetchLeadUpdates(),
+        ]);
+
+        if (!active) return;
+        setLeads(remoteLeads);
+        setLeadUpdates(updates);
+        setRemoteError("");
+      } catch {
+        if (!active) return;
+        setRemoteError(
+          "Não foi possível atualizar a cópia remota agora. O CRM continua disponível localmente.",
+        );
+      }
+    }
+
+    window.addEventListener("focus", refreshRemoteState);
+    return () => {
+      active = false;
+      window.removeEventListener("focus", refreshRemoteState);
+    };
+  }, [remoteReady]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -291,6 +340,79 @@ function LeadFlowApp() {
       return b.createdAt.localeCompare(a.createdAt);
     });
   }, [leads, search, statusFilter, segmentFilter, sort]);
+
+  const unseenUpdatesByLead = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const update of leadUpdates) {
+      if (update.isSeen) continue;
+      counts.set(update.leadId, (counts.get(update.leadId) ?? 0) + 1);
+    }
+    return counts;
+  }, [leadUpdates]);
+
+  const recentLeadUpdates = useMemo(
+    () => leadUpdates.slice(0, 6),
+    [leadUpdates],
+  );
+
+  function persistLeadChange(lead: Lead) {
+    if (!remoteReady) return;
+    void saveRemoteLead(lead).then((ok) => {
+      if (!ok) {
+        setRemoteError(
+          "Uma alteração ficou salva localmente, mas ainda não foi confirmada no Supabase.",
+        );
+      }
+    });
+  }
+
+  function updateLeadLocally(
+    id: string,
+    updater: (lead: Lead) => Lead,
+  ) {
+    setLeads((current) =>
+      current.map((lead) => {
+        if (lead.id !== id) return lead;
+        const next = updater(lead);
+        persistLeadChange(next);
+        return next;
+      }),
+    );
+  }
+
+  function addLeadLocally(lead: Lead) {
+    setLeads((current) => [lead, ...current]);
+    persistLeadChange(lead);
+  }
+
+  function removeLeadLocally(id: string) {
+    setLeads((current) => current.filter((lead) => lead.id !== id));
+    if (remoteReady) {
+      void deleteRemoteLead(id).then((ok) => {
+        if (!ok) {
+          setRemoteError(
+            "O lead foi removido localmente, mas a exclusão remota ainda não foi confirmada.",
+          );
+        }
+      });
+    }
+  }
+
+  function openLeadDetails(lead: Lead) {
+    setLeadDetailsId(lead.id);
+
+    const hasUnseen = leadUpdates.some(
+      (update) => update.leadId === lead.id && !update.isSeen,
+    );
+    if (!hasUnseen || !remoteReady) return;
+
+    setLeadUpdates((current) =>
+      current.map((update) =>
+        update.leadId === lead.id ? { ...update, isSeen: true } : update,
+      ),
+    );
+    void markLeadUpdatesSeen(lead.id);
+  }
 
   function openNewLead() {
     setEditingLead(null);
