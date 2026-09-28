@@ -178,9 +178,9 @@ export function SearchLeadsView({
     append ? setLoadingMore(true) : setLoading(true);
     setError(null);
 
-    const response = await searchBusinesses({
-      data: pageToken ? { segment, pageToken } : { segment },
-    });
+    const response = await searchBusinesses(
+      pageToken ? { segment, pageToken } : { segment },
+    );
 
     if (!response.ok) {
       setError({ code: response.code, message: response.message });
@@ -669,21 +669,25 @@ function DetailItem({ label, value }: { label: string; value: string }) {
 }
 
 function SearchError({ error }: { error: { code: string; message: string } }) {
+  const title =
+    error.code === "NOT_CONFIGURED"
+      ? "Integração de busca indisponível"
+      : error.code === "QUOTA"
+        ? "Limite da API atingido"
+        : error.code === "BILLING_REQUIRED"
+          ? "Faturamento necessário"
+          : error.code === "API_NOT_ENABLED"
+            ? "Places API indisponível"
+            : error.code === "GOOGLE_AUTH"
+              ? "Credencial do Google recusada"
+              : error.code === "INVALID_REQUEST"
+                ? "Busca inválida"
+                : "Erro na busca";
+
   return (
     <div className="search-error">
-      <strong>
-        {error.code === "NOT_CONFIGURED"
-          ? "Busca real ainda não configurada"
-          : error.code === "QUOTA"
-            ? "Limite da API atingido"
-            : "Erro na busca"}
-      </strong>
+      <strong>{title}</strong>
       <p>{error.message}</p>
-      {error.code === "NOT_CONFIGURED" && (
-        <small>
-          Adicione GOOGLE_PLACES_API_KEY como segredo do ambiente do projeto para ativar a busca.
-        </small>
-      )}
     </div>
   );
 }
