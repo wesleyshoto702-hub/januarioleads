@@ -358,7 +358,7 @@ async function fetchPlaceDetails(apiKey: string, placeId: string) {
 
     try {
       const response = await fetch(
-        `https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}`,
+        `https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}?languageCode=pt-BR&regionCode=BR`,
         {
           method: "GET",
           headers: {
