@@ -1,0 +1,35 @@
+export type BusinessSearchResult = {
+  placeId: string;
+  name: string;
+  primaryCategory: string | null;
+  categories: string[];
+  description: string | null;
+  address: string | null;
+  neighborhood: string | null;
+  city: string | null;
+  state: string | null;
+  phone: string | null;
+  internationalPhone: string | null;
+  rating: number | null;
+  reviewCount: number | null;
+  isOpenNow: boolean | null;
+  openingHours: string[];
+  website: string | null;
+  instagram: string | null;
+  googleMapsUrl: string | null;
+  businessStatus: string | null;
+};
+
+export type BusinessSearchSuccess = {
+  ok: true;
+  results: BusinessSearchResult[];
+  nextPageToken: string | null;
+};
+
+export type BusinessSearchFailure = {
+  ok: false;
+  code: "NOT_CONFIGURED" | "QUOTA" | "REQUEST_FAILED";
+  message: string;
+};
+
+export type BusinessSearchResponse = BusinessSearchSuccess | BusinessSearchFailure;
