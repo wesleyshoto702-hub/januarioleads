@@ -134,3 +134,40 @@ O nível de confiança é calculado sem IA, usando correspondência de telefone,
 O enriquecimento preserva status, observações, histórico e mensagens. Campos públicos do Google são adicionados somente quando retornados.
 
 A funcionalidade não usa OpenAI e não consome créditos de IA.
+
+
+## Chance
+
+O **Chance** é um score interno de priorização comercial de 1 a 100. Ele não representa probabilidade estatística de fechamento e é calculado localmente, sem OpenAI.
+
+A fórmula fica centralizada em `src/features/lead-chance/lead-chance.ts`.
+
+Pesos atuais:
+
+- base: 20;
+- site não identificado: +28;
+- site identificado: -10;
+- telefone identificado: +12;
+- telefone/WhatsApp não identificado: -18;
+- Instagram identificado: +6;
+- Instagram identificado + site não identificado: +8 adicionais;
+- avaliações: +1 (1–9), +4 (10–39), +7 (40–99), +10 (100+);
+- avaliação >= 4.2 com pelo menos 10 avaliações: +2;
+- avaliação < 3.5 com pelo menos 10 avaliações: -2;
+- empresa operacional: +5;
+- temporariamente fechada: -12;
+- permanentemente fechada: score final limitado a no máximo 7.
+
+Não existe bônus separado de WhatsApp porque o Google Places atualmente fornece telefone, mas não um campo independente confirmando que aquele número possui WhatsApp. Isso evita contabilizar o mesmo sinal duas vezes.
+
+O resultado é sempre limitado entre 1 e 100 e recalculado a partir dos dados atuais. O score não é persistido no lead.
+
+Faixas visuais:
+
+- 1–20: cinza discreto;
+- 21–40: cinza claro;
+- 41–60: neutro/off-white;
+- 61–80: vermelho suave;
+- 81–100: vermelho forte.
+
+A tela **Buscar leads** permite ordenar por **Maior Chance** e **Menor Chance** sem alterar os filtros existentes.
