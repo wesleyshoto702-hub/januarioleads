@@ -13,7 +13,16 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { businessAlreadyExists, type ExistingLeadIdentity } from "./identity";
+import { ChanceBadge } from "../lead-chance/ChanceBadge";
+import {
+  calculateLeadChance,
+  type LeadChanceResult,
+} from "../lead-chance/lead-chance";
+import {
+  businessAlreadyExists,
+  normalizeBrazilianPhone,
+  type ExistingLeadIdentity,
+} from "./identity";
 import { searchBusinesses } from "./search-businesses";
 import { normalizeSearchText, SEGMENT_GROUPS } from "./segments";
 import type { BusinessSearchResult } from "./types";
@@ -32,7 +41,13 @@ type ResultFilter =
   | "with-instagram"
   | "without-instagram";
 
-type ResultSort = "rating" | "reviews" | "az" | "za";
+type ResultSort =
+  | "chance-desc"
+  | "chance-asc"
+  | "rating"
+  | "reviews"
+  | "az"
+  | "za";
 
 const RECENT_SEARCHES_KEY = "leadflow:recent-searches";
 
@@ -111,8 +126,9 @@ export function SearchLeadsView({
       results.map((business) => ({
         business,
         alreadyAdded: businessAlreadyExists(business, existingLeads),
+        chance: calculateLeadChance(business, resultsSegment),
       })),
-    [results, existingLeads],
+    [results, existingLeads, resultsSegment],
   );
 
   const visibleResults = useMemo(() => {
@@ -127,6 +143,8 @@ export function SearchLeadsView({
     });
 
     return [...filtered].sort((a, b) => {
+      if (sort === "chance-desc") return b.chance.score - a.chance.score;
+      if (sort === "chance-asc") return a.chance.score - b.chance.score;
       if (sort === "reviews") return (b.business.reviewCount ?? -1) - (a.business.reviewCount ?? -1);
       if (sort === "az") return a.business.name.localeCompare(b.business.name, "pt-BR");
       if (sort === "za") return b.business.name.localeCompare(a.business.name, "pt-BR");
@@ -179,7 +197,7 @@ export function SearchLeadsView({
 
   function openWhatsApp(business: BusinessSearchResult) {
     if (!business.phone) return;
-    const phone = normalizePhone(business.phone);
+    const phone = normalizeBrazilianPhone(business.phone);
     window.open(`https://wa.me/${phone}`, "_blank", "noopener,noreferrer");
   }
 
@@ -319,6 +337,8 @@ export function SearchLeadsView({
               onChange={(event) => setSort(event.target.value as ResultSort)}
               aria-label="Ordenar resultados"
             >
+              <option value="chance-desc">Maior Chance</option>
+              <option value="chance-asc">Menor Chance</option>
               <option value="rating">Maior avaliação</option>
               <option value="reviews">Mais avaliações</option>
               <option value="az">Nome A-Z</option>
@@ -338,10 +358,11 @@ export function SearchLeadsView({
         </div>
       ) : (
         <div className="business-results">
-          {visibleResults.map(({ business, alreadyAdded }) => (
+          {visibleResults.map(({ business, alreadyAdded, chance }) => (
             <BusinessCard
               key={business.placeId}
               business={business}
+              chance={chance}
               alreadyAdded={alreadyAdded}
               onDetails={setDetails}
               onWhatsApp={openWhatsApp}
@@ -369,6 +390,7 @@ export function SearchLeadsView({
       {details && (
         <BusinessDetails
           business={details}
+          chance={calculateLeadChance(details, resultsSegment)}
           alreadyAdded={businessAlreadyExists(details, existingLeads)}
           onClose={() => setDetails(null)}
           onWhatsApp={openWhatsApp}
@@ -386,6 +408,7 @@ export function SearchLeadsView({
 
 function BusinessCard({
   business,
+  chance,
   alreadyAdded,
   onDetails,
   onWhatsApp,
@@ -394,6 +417,7 @@ function BusinessCard({
   onAdd,
 }: {
   business: BusinessSearchResult;
+  chance: LeadChanceResult;
   alreadyAdded: boolean;
   onDetails: (business: BusinessSearchResult) => void;
   onWhatsApp: (business: BusinessSearchResult) => void;
@@ -406,7 +430,10 @@ function BusinessCard({
       <div className="business-card-main">
         <div className="business-title-row">
           <div>
-            <h2>{business.name}</h2>
+            <div className="business-name-line">
+              <h2>{business.name}</h2>
+              <ChanceBadge chance={chance} />
+            </div>
             {business.primaryCategory && <span>{business.primaryCategory}</span>}
           </div>
           {business.isOpenNow !== null && (
@@ -501,6 +528,7 @@ function BusinessCard({
 
 function BusinessDetails({
   business,
+  chance,
   alreadyAdded,
   onClose,
   onWhatsApp,
@@ -509,6 +537,7 @@ function BusinessDetails({
   onAdd,
 }: {
   business: BusinessSearchResult;
+  chance: LeadChanceResult;
   alreadyAdded: boolean;
   onClose: () => void;
   onWhatsApp: (business: BusinessSearchResult) => void;
@@ -528,7 +557,10 @@ function BusinessDetails({
         <div className="modal-header">
           <div>
             <span className="detail-kicker">{business.primaryCategory ?? "Empresa local"}</span>
-            <h2>{business.name}</h2>
+            <div className="business-name-line detail-name-line">
+              <h2>{business.name}</h2>
+              <ChanceBadge chance={chance} />
+            </div>
           </div>
           <button className="icon-button" onClick={onClose} type="button" aria-label="Fechar">
             <X size={18} />
