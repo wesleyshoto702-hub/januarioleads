@@ -229,7 +229,7 @@ function LeadFlowApp() {
   function openWhatsApp() {
     if (!messageLead) return;
     const phone = normalizeBrazilianPhone(messageLead.phone);
-    const personalized = messages[selectedMessage].replaceAll("{empresa}", messageLead.company);
+    const personalized = (messages[selectedMessage] ?? "").replaceAll("{empresa}", messageLead.company);
     const url = `https://wa.me/${phone}?text=${encodeURIComponent(personalized)}`;
     const today = new Date().toISOString().slice(0, 10);
     setLeads((current) =>
