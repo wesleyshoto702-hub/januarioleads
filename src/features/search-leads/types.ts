@@ -18,6 +18,8 @@ export type BusinessSearchResult = {
   instagram: string | null;
   googleMapsUrl: string | null;
   businessStatus: string | null;
+  latitude: number | null;
+  longitude: number | null;
 };
 
 export type BusinessSearchSuccess = {
@@ -28,7 +30,14 @@ export type BusinessSearchSuccess = {
 
 export type BusinessSearchFailure = {
   ok: false;
-  code: "NOT_CONFIGURED" | "QUOTA" | "REQUEST_FAILED";
+  code:
+    | "NOT_CONFIGURED"
+    | "GOOGLE_AUTH"
+    | "API_NOT_ENABLED"
+    | "BILLING_REQUIRED"
+    | "INVALID_REQUEST"
+    | "QUOTA"
+    | "REQUEST_FAILED";
   message: string;
 };
 
