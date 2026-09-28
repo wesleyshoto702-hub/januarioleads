@@ -39,11 +39,11 @@ JanuarioLeads -> Supabase Edge Function -> Google Places API (New)
 O navegador utiliza somente as credenciais públicas do Supabase:
 
 ```sh
-VITE_SUPABASE_URL=https://SEU_PROJECT_REF.supabase.co
+VITE_SUPABASE_URL=https://czkazbianiflhldenhcj.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 ```
 
-Essas credenciais servem para identificar o projeto Supabase e invocar a Edge Function. Nenhuma chave privada do Google é enviada ao navegador.
+Essas credenciais servem para identificar o projeto Supabase e invocar a Edge Function. O código também possui um fallback com a URL e a publishable key públicas desse mesmo projeto para ambientes Lovable sem Build Secrets. Nenhuma chave privada do Google é enviada ao navegador.
 
 ### Secret privado
 
