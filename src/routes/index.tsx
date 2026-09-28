@@ -819,6 +819,54 @@ function LeadFlowApp() {
             <Stat label="Recusados" value={counts.rejected} tone="rejected" />
           </div>
 
+          <section className="recent-updates-panel" aria-label="Atualizações recentes">
+            <div className="recent-updates-heading">
+              <div>
+                <span>ATUALIZAÇÕES RECENTES</span>
+                <strong>Sincronização automática</strong>
+              </div>
+              <div className="auto-sync-status">
+                <span className={remoteReady ? "sync-dot active" : "sync-dot"} />
+                <span>{remoteReady ? "Ativada" : "Conectando"}</span>
+                <small>1 vez por dia</small>
+              </div>
+            </div>
+
+            {remoteError ? (
+              <p className="sync-inline-error">{remoteError}</p>
+            ) : recentLeadUpdates.length > 0 ? (
+              <div className="recent-updates-list">
+                {recentLeadUpdates.map((update) => {
+                  const lead = leads.find((item) => item.id === update.leadId);
+                  return (
+                    <button
+                      key={update.id}
+                      type="button"
+                      className={
+                        update.importance === "high"
+                          ? "recent-update-item important"
+                          : "recent-update-item"
+                      }
+                      onClick={() => {
+                        if (lead) openLeadDetails(lead);
+                      }}
+                    >
+                      <span>
+                        <strong>{update.message}</strong>
+                        <small>{lead?.company ?? "Lead"} · {formatDateTime(update.createdAt)}</small>
+                      </span>
+                      {!update.isSeen && <b>Novo</b>}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="recent-updates-empty">
+                Nenhuma mudança automática detectada ainda.
+              </p>
+            )}
+          </section>
+
           <div className="lead-panel">
             <div className="panel-toolbar">
               <div className="search-box">
@@ -892,7 +940,8 @@ function LeadFlowApp() {
                       setMessageLead(item);
                     }}
                     onGeneratePrompt={openPromptForLead}
-                    onDetails={(item) => setLeadDetailsId(item.id)}
+                    onDetails={openLeadDetails}
+                    updateCount={unseenUpdatesByLead.get(lead.id) ?? 0}
                     onEnrich={setEnrichmentLead}
                     onEdit={openEditLead}
                     onDelete={setDeleteLead}
@@ -915,7 +964,8 @@ function LeadFlowApp() {
                       setMessageLead(item);
                     }}
                     onGeneratePrompt={openPromptForLead}
-                    onDetails={(item) => setLeadDetailsId(item.id)}
+                    onDetails={openLeadDetails}
+                    updateCount={unseenUpdatesByLead.get(lead.id) ?? 0}
                     onEnrich={setEnrichmentLead}
                     onEdit={openEditLead}
                     onDelete={setDeleteLead}
@@ -1081,6 +1131,8 @@ function LeadFlowApp() {
             business={business}
             chance={chance}
             segmentLabel={lead.segment}
+            lastSyncedAt={lead.lastSyncedAt ?? null}
+            updates={leadUpdates.filter((update) => update.leadId === lead.id)}
             onClose={() => setLeadDetailsId(null)}
             onWhatsApp={openBusinessWhatsApp}
             onMessage={() => {
@@ -1160,6 +1212,7 @@ function LeadRow({
   onMessage,
   onGeneratePrompt,
   onDetails,
+  updateCount,
   onEnrich,
   onEdit,
   onDelete,
@@ -1169,6 +1222,7 @@ function LeadRow({
   onMessage: (lead: Lead) => void;
   onGeneratePrompt: (lead: Lead) => void;
   onDetails: (lead: Lead) => void;
+  updateCount: number;
   onEnrich: (lead: Lead) => void;
   onEdit: (lead: Lead) => void;
   onDelete: (lead: Lead) => void;
@@ -1186,6 +1240,11 @@ function LeadRow({
         </div>
         <span>{lead.segment}</span>
         {lead.enrichedAt && <small className="enriched-badge">Dados enriquecidos</small>}
+        {updateCount > 0 && (
+          <small className="lead-update-badge">
+            {updateCount} {updateCount === 1 ? "atualização" : "atualizações"}
+          </small>
+        )}
         {lead.notes && <small title={lead.notes}>{lead.notes}</small>}
       </div>
       <div className="phone-cell">{lead.phone || "Sem telefone"}</div>
@@ -1264,6 +1323,11 @@ function LeadCard({
           </div>
           <span>{lead.segment}</span>
           {lead.enrichedAt && <small className="enriched-badge">Dados enriquecidos</small>}
+        {updateCount > 0 && (
+          <small className="lead-update-badge">
+            {updateCount} {updateCount === 1 ? "atualização" : "atualizações"}
+          </small>
+        )}
         </div>
         <span className={`status-badge ${lead.status}`}>{STATUS_LABEL[lead.status]}</span>
       </div>
@@ -1464,6 +1528,16 @@ function EmptyState({ onNew, hasLeads }: { onNew: () => void; hasLeads: boolean 
       )}
     </div>
   );
+}
+
+function formatDateTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(date);
 }
 
 function formatDate(value: string) {
