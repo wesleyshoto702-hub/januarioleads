@@ -241,8 +241,14 @@ export async function uploadVisualReference(input: {
     },
   );
 
-  if (!uploadResponse.ok && uploadResponse.status !== 400) {
-    throw new Error("REFERENCE_UPLOAD_FAILED");
+  if (!uploadResponse.ok) {
+    const uploadError = await uploadResponse.text();
+    const duplicateObject =
+      uploadResponse.status === 400 &&
+      /duplicate|already exists/i.test(uploadError);
+    if (!duplicateObject) {
+      throw new Error("REFERENCE_UPLOAD_FAILED");
+    }
   }
 
   const insertResponse = await fetch(
@@ -271,6 +277,12 @@ export async function uploadVisualReference(input: {
   );
 
   if (!insertResponse.ok) {
+    if (insertResponse.status !== 409) {
+      await fetch(
+        `${SUPABASE_URL}/storage/v1/object/${BUCKET}/${storagePath}`,
+        { method: "DELETE", headers },
+      );
+    }
     if (insertResponse.status === 409) {
       throw new Error("REFERENCE_DUPLICATE");
     }
