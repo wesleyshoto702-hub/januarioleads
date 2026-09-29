@@ -5003,18 +5003,30 @@ a {
 
   .preview-section,
   .preview-section-inner,
-  .preview-section-content,
+  .preview-section-content {
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+
   .preview-section-image,
   .preview-cta-row,
-  .preview-items {
+  .preview-items,
+  .preview-item {
     break-inside: avoid;
     page-break-inside: avoid;
   }
 
   .preview-section h1,
-  .preview-section h2 {
+  .preview-section h2,
+  .preview-eyebrow,
+  .preview-emphasize {
     break-after: avoid;
     page-break-after: avoid;
+  }
+
+  .preview-body-copy {
+    orphans: 3;
+    widows: 3;
   }
 
   .preview-cta {
