@@ -4974,10 +4974,31 @@ a {
   }
 
   .site-preview-print-root {
+    --preview-section-y: 42px;
+    --preview-section-x: 16mm;
     width: 100% !important;
     overflow: visible !important;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
+  }
+
+  .kind-hero .preview-section-inner,
+  .kind-hero.no-image .preview-section-inner {
+    min-height: auto !important;
+  }
+
+  .preview-concept-footer {
+    display: none !important;
+  }
+
+  .preview-section:last-of-type::after {
+    content: "Prévia conceitual";
+    position: absolute;
+    right: 16mm;
+    bottom: 8px;
+    color: var(--preview-muted);
+    font-size: 8px;
+    letter-spacing: .04em;
   }
 
   .preview-section,
