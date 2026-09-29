@@ -500,23 +500,7 @@ function LeadFlowApp() {
 
   function addLeadLocally(lead: Lead) {
     setLeads((current) => [lead, ...current]);
-
-    if (!remoteReady) return;
-
-    void saveRemoteLead(lead).then((ok) => {
-      if (!ok) {
-        setRemoteError(
-          "Uma alteração ficou salva localmente, mas ainda não foi confirmada no Supabase.",
-        );
-        return;
-      }
-
-      recordActivity(lead.id, {
-        type: "lead_added",
-        title: "Empresa adicionada aos Meus Leads",
-        createdAt: lead.createdAt,
-      });
-    });
+    persistLeadChange(lead);
   }
 
   function removeLeadLocally(id: string) {
