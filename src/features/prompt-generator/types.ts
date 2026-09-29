@@ -1,5 +1,3 @@
-import type { VisualReferenceAnalysis } from "./visual-reference-types";
-
 export type PromptProjectType =
   | "Landing Page"
   | "Site Institucional"
@@ -105,6 +103,8 @@ export type SavedPromptRecord = {
   generatedAt: string;
   projectType: PromptProjectType;
   objective: PromptObjective;
+  visualReferenceSetId?: string | null;
+  visualReferenceSignature?: string | null;
   result: GeneratedSitePrompt;
 };
 
