@@ -603,19 +603,22 @@ function LeadFlowApp() {
       if (statusChanged) {
         const previousStatus = STATUS_LABEL[editingLead.status];
         const newStatus = STATUS_LABEL[nextLead.status];
+        const editedSuffix =
+          changedFields.length > 0
+            ? ` · Também editado: ${changedFields.join(" · ")}`
+            : "";
 
         recordActivity(editingLead.id, {
           type: "status_changed",
           title: "Status alterado",
-          description: `${previousStatus} → ${newStatus}`,
+          description: `${previousStatus} → ${newStatus}${editedSuffix}`,
           metadata: {
             previousStatus,
             newStatus,
+            ...(changedFields.length > 0 ? { changedFields } : {}),
           },
         });
-      }
-
-      if (changedFields.length > 0) {
+      } else if (changedFields.length > 0) {
         recordActivity(editingLead.id, {
           type: "lead_edited",
           title: "Empresa editada",
