@@ -18,6 +18,8 @@ import {
   deleteVisualReference,
   ensureVisualReferenceSet,
   fetchReferencePreview,
+  updateReferenceNote,
+  updateVisualGuidance,
   uploadVisualReference,
 } from "./visual-references";
 
@@ -56,14 +58,18 @@ function ReferenceThumbnail({
     let active = true;
     let objectUrl: string | null = null;
 
-    void fetchReferencePreview(reference).then((url) => {
-      if (!active || !url) {
-        if (url) URL.revokeObjectURL(url);
-        return;
-      }
-      objectUrl = url;
-      setPreviewUrl(url);
-    });
+    void fetchReferencePreview(reference)
+      .then((url) => {
+        if (!active || !url) {
+          if (url) URL.revokeObjectURL(url);
+          return;
+        }
+        objectUrl = url;
+        setPreviewUrl(url);
+      })
+      .catch(() => {
+        if (active) setPreviewUrl(null);
+      });
 
     return () => {
       active = false;
@@ -105,6 +111,9 @@ function ReferenceThumbnail({
         disabled={disabled}
         value={reference.note}
         onChange={(event) => onNote(event.target.value)}
+        onBlur={(event) => {
+          void updateReferenceNote(reference.id, event.target.value);
+        }}
         placeholder="Opcional: o que você gostou nesta imagem?"
       />
     </article>
@@ -185,6 +194,8 @@ export function VisualReferencesPanel({
           setUploadError(visualReferenceErrorMessage(error, file.name));
         }
       }
+    } catch {
+      setUploadError("Não foi possível preparar o armazenamento das referências agora.");
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = "";
@@ -197,7 +208,12 @@ export function VisualReferencesPanel({
       return;
     }
 
-    const ok = await deleteVisualReference(reference);
+    let ok = false;
+    try {
+      ok = await deleteVisualReference(reference);
+    } catch {
+      ok = false;
+    }
     if (!ok) {
       setUploadError("Não foi possível remover esta referência agora.");
       return;
@@ -310,6 +326,9 @@ export function VisualReferencesPanel({
                   }),
                 )
               }
+              onBlur={(event) => {
+                void updateVisualGuidance(value.id, event.target.value);
+              }}
               placeholder="Ex.: gostei principalmente da Hero, da tipografia grande e da distribuição das seções. Não quero copiar as cores."
             />
           </label>
