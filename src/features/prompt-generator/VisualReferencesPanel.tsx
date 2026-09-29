@@ -1,8 +1,12 @@
 import {
+  ExternalLink,
   Eye,
+  Globe2,
   ImagePlus,
   Loader2,
+  RefreshCw,
   Trash2,
+  X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -15,9 +19,13 @@ import type {
   VisualReferenceSet,
 } from "./visual-reference-types";
 import {
+  captureUrlVisualReference,
+  createUrlVisualReference,
   deleteVisualReference,
   ensureVisualReferenceSet,
   fetchReferencePreview,
+  fetchReferencePreviewAssets,
+  normalizeVisualReferenceUrl,
   updateReferenceNote,
   updateVisualGuidance,
   uploadVisualReference,
@@ -41,16 +49,43 @@ function invalidateLocalAnalysis(set: VisualReferenceSet): VisualReferenceSet {
   };
 }
 
+function replaceReference(
+  set: VisualReferenceSet,
+  next: VisualReferenceItem,
+) {
+  return invalidateLocalAnalysis({
+    ...set,
+    references: set.references
+      .map((item) => (item.id === next.id ? next : item))
+      .sort((a, b) => a.sortOrder - b.sortOrder),
+  });
+}
+
+function statusLabel(reference: VisualReferenceItem) {
+  if (reference.referenceType === "image") return "Analisado";
+  if (reference.captureStatus === "ready") return "Analisado";
+  if (reference.captureStatus === "failed") return "Falhou";
+  return "Capturando";
+}
+
 function ReferenceThumbnail({
   reference,
   disabled,
+  recapturing,
   onNote,
   onRemove,
+  onView,
+  onRecapture,
+  onScreenshotFallback,
 }: {
   reference: VisualReferenceItem;
   disabled: boolean;
+  recapturing: boolean;
   onNote: (value: string) => void;
   onRemove: () => void;
+  onView: () => void;
+  onRecapture: () => void;
+  onScreenshotFallback: () => void;
 }) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
@@ -75,47 +110,146 @@ function ReferenceThumbnail({
       active = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [reference.id, reference.storagePath]);
+  }, [
+    reference.id,
+    reference.storagePath,
+    reference.captureHash,
+    reference.assets,
+  ]);
+
+  const isUrl = reference.referenceType === "url";
+  const dimensions = isUrl
+    ? reference.assets.length > 1
+      ? `${reference.assets.length} capturas`
+      : reference.assets[0]
+        ? `${reference.assets[0].width}×${reference.assets[0].height}`
+        : "Sem captura"
+    : reference.width && reference.height
+      ? `${reference.width}×${reference.height}`
+      : "Screenshot";
 
   return (
     <article className="visual-reference-card">
-      <div className="visual-reference-thumb">
+      <button
+        type="button"
+        className="visual-reference-thumb visual-reference-thumb-button"
+        disabled={!previewUrl}
+        onClick={onView}
+        title={previewUrl ? "Visualizar referência" : "Captura ainda indisponível"}
+      >
         {previewUrl ? (
-          <img src={previewUrl} alt={reference.originalName} />
+          <img
+            src={previewUrl}
+            alt={
+              isUrl
+                ? `Captura de ${reference.sourceDomain ?? reference.originalName}`
+                : reference.originalName
+            }
+          />
         ) : (
           <div className="visual-reference-thumb-loading">
-            <Loader2 size={15} className="auth-spinner" />
+            {recapturing || reference.captureStatus === "pending" ? (
+              <Loader2 size={15} className="auth-spinner" />
+            ) : isUrl ? (
+              <Globe2 size={16} />
+            ) : (
+              <ImagePlus size={16} />
+            )}
           </div>
         )}
-        <button
-          type="button"
-          className="visual-reference-remove"
-          aria-label={`Remover ${reference.originalName}`}
-          title="Remover referência"
-          disabled={disabled}
-          onClick={onRemove}
-        >
-          <Trash2 size={13} />
-        </button>
-      </div>
+      </button>
+
+      <button
+        type="button"
+        className="visual-reference-remove"
+        aria-label={`Remover ${reference.originalName}`}
+        title="Remover referência"
+        disabled={disabled || recapturing}
+        onClick={onRemove}
+      >
+        <Trash2 size={13} />
+      </button>
+
       <div className="visual-reference-meta">
-        <strong title={reference.originalName}>{reference.originalName}</strong>
+        <div className="visual-reference-name-row">
+          {isUrl ? <Globe2 size={12} /> : <ImagePlus size={12} />}
+          <strong title={reference.sourceUrl ?? reference.originalName}>
+            {isUrl
+              ? reference.sourceDomain ?? reference.originalName
+              : reference.originalName}
+          </strong>
+        </div>
         <small>
-          {reference.width}×{reference.height} ·{" "}
-          {Math.max(1, Math.round(reference.byteSize / 1024))} KB
+          {dimensions} ·{" "}
+          <span
+            className={
+              reference.captureStatus === "failed"
+                ? "visual-reference-status failed"
+                : "visual-reference-status"
+            }
+          >
+            {recapturing ? "Capturando" : statusLabel(reference)}
+          </span>
         </small>
+        {isUrl && reference.captureTitle && (
+          <small title={reference.captureTitle} className="visual-reference-title">
+            {reference.captureTitle}
+          </small>
+        )}
       </div>
+
       <input
         type="text"
         maxLength={500}
-        disabled={disabled}
+        disabled={disabled || recapturing}
         value={reference.note}
         onChange={(event) => onNote(event.target.value)}
         onBlur={(event) => {
           void updateReferenceNote(reference.id, event.target.value);
         }}
-        placeholder="Opcional: o que você gostou nesta imagem?"
+        placeholder={
+          isUrl
+            ? "Opcional: ex. gostei principalmente da Hero"
+            : "Opcional: o que você gostou nesta imagem?"
+        }
       />
+
+      {isUrl && (
+        <div className="visual-reference-card-actions">
+          {reference.captureStatus === "ready" && (
+            <button
+              type="button"
+              disabled={disabled || recapturing}
+              onClick={onRecapture}
+            >
+              <RefreshCw size={12} />
+              Analisar novamente
+            </button>
+          )}
+          {reference.captureStatus === "failed" && (
+            <button
+              type="button"
+              disabled={disabled || recapturing}
+              onClick={onScreenshotFallback}
+            >
+              <ImagePlus size={12} />
+              Enviar screenshot
+            </button>
+          )}
+          {reference.sourceUrl && (
+            <a href={reference.sourceUrl} target="_blank" rel="noreferrer">
+              <ExternalLink size={12} />
+              Abrir site
+            </a>
+          )}
+        </div>
+      )}
+
+      {isUrl && reference.captureError && (
+        <p className="visual-reference-inline-error">
+          {reference.captureError}
+        </p>
+      )}
     </article>
   );
 }
@@ -135,10 +269,19 @@ export function VisualReferencesPanel({
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [urlInput, setUrlInput] = useState("");
+  const [urlLoading, setUrlLoading] = useState(false);
+  const [recapturingId, setRecapturingId] = useState<string | null>(null);
   const [uploadErrors, setUploadErrors] = useState<string[]>([]);
+  const [previewReference, setPreviewReference] =
+    useState<VisualReferenceItem | null>(null);
+  const [previewAssets, setPreviewAssets] = useState<
+    Array<{ label: string; url: string }>
+  >([]);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   async function addFiles(files: FileList | null) {
-    if (!files?.length || disabled || uploading) return;
+    if (!files?.length || disabled || uploading || urlLoading) return;
 
     const remaining = MAX_VISUAL_REFERENCES - (value?.references.length ?? 0);
     const selected = Array.from(files).slice(0, Math.max(0, remaining));
@@ -160,7 +303,9 @@ export function VisualReferencesPanel({
 
           if (
             current.references.some(
-              (reference) => reference.fileHash === optimized.hash,
+              (reference) =>
+                reference.referenceType === "image" &&
+                reference.fileHash === optimized.hash,
             )
           ) {
             errors.push(
@@ -212,9 +357,133 @@ export function VisualReferencesPanel({
     }
   }
 
+  async function addUrl() {
+    if (disabled || uploading || urlLoading) return;
+    const count = value?.references.length ?? 0;
+    if (count >= MAX_VISUAL_REFERENCES) {
+      setUploadErrors(["Você já adicionou o limite de 5 referências."]);
+      return;
+    }
+
+    setUploadErrors([]);
+
+    let normalized: { url: string; domain: string };
+    try {
+      normalized = normalizeVisualReferenceUrl(urlInput);
+    } catch {
+      setUploadErrors([
+        "Informe uma URL válida começando com http:// ou https://.",
+      ]);
+      return;
+    }
+
+    if (
+      value?.references.some(
+        (reference) =>
+          reference.referenceType === "url" &&
+          reference.sourceUrl === normalized.url,
+      )
+    ) {
+      setUploadErrors(["Este site já foi adicionado como referência."]);
+      return;
+    }
+
+    setUrlLoading(true);
+    try {
+      let current = value ?? (await ensureVisualReferenceSet(businessKey));
+      const pending = await createUrlVisualReference({
+        set: current,
+        url: normalized.url,
+        sortOrder: firstAvailableOrder(current.references),
+      });
+
+      if (!pending) throw new Error("REFERENCE_URL_CREATE_FAILED");
+
+      current = invalidateLocalAnalysis({
+        ...current,
+        references: [...current.references, pending].sort(
+          (a, b) => a.sortOrder - b.sortOrder,
+        ),
+      });
+      onChange(current);
+      setUrlInput("");
+
+      const captured = await captureUrlVisualReference(pending.id, false);
+      if (!captured.ok) {
+        const failed = {
+          ...pending,
+          captureStatus: "failed" as const,
+          captureError: captured.message,
+        };
+        onChange(replaceReference(current, failed));
+        setUploadErrors([
+          captured.code === "NOT_CONFIGURED"
+            ? "A captura por URL ainda não está configurada. Você pode enviar um screenshot por enquanto."
+            : captured.message,
+        ]);
+        return;
+      }
+
+      onChange(replaceReference(current, captured.reference));
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message === "REFERENCE_URL_DUPLICATE"
+          ? "Este site já foi adicionado como referência."
+          : "Não foi possível adicionar esta URL agora.";
+      setUploadErrors([message]);
+    } finally {
+      setUrlLoading(false);
+    }
+  }
+
+  async function recapture(reference: VisualReferenceItem) {
+    if (disabled || reference.referenceType !== "url" || recapturingId) return;
+
+    setRecapturingId(reference.id);
+    setUploadErrors([]);
+    try {
+      const response = await captureUrlVisualReference(reference.id, true);
+      if (!response.ok) {
+        setUploadErrors([response.message]);
+        return;
+      }
+
+      if (value) onChange(replaceReference(value, response.reference));
+    } catch {
+      setUploadErrors([
+        "Não foi possível analisar automaticamente este site. Envie um screenshot.",
+      ]);
+    } finally {
+      setRecapturingId(null);
+    }
+  }
+
+  async function openPreview(reference: VisualReferenceItem) {
+    setPreviewReference(reference);
+    setPreviewLoading(true);
+    setPreviewAssets([]);
+    try {
+      setPreviewAssets(await fetchReferencePreviewAssets(reference));
+    } finally {
+      setPreviewLoading(false);
+    }
+  }
+
+  function closePreview() {
+    for (const asset of previewAssets) URL.revokeObjectURL(asset.url);
+    setPreviewAssets([]);
+    setPreviewReference(null);
+  }
+
   async function removeReference(reference: VisualReferenceItem) {
-    if (!value || disabled) return;
-    if (!window.confirm(`Remover a referência "${reference.originalName}"?`)) {
+    if (!value || disabled || recapturingId) return;
+    if (
+      !window.confirm(
+        `Remover a referência "${
+          reference.sourceDomain ?? reference.originalName
+        }"?`,
+      )
+    ) {
       return;
     }
 
@@ -232,12 +501,15 @@ export function VisualReferencesPanel({
     onChange(
       invalidateLocalAnalysis({
         ...value,
-        references: value.references.filter((item) => item.id !== reference.id),
+        references: value.references.filter(
+          (item) => item.id !== reference.id,
+        ),
       }),
     );
   }
 
   const count = value?.references.length ?? 0;
+  const busy = disabled || uploading || urlLoading || Boolean(recapturingId);
 
   return (
     <section className="visual-references-panel" aria-label="Referências visuais">
@@ -246,32 +518,72 @@ export function VisualReferencesPanel({
           <span className="detail-kicker">REFERÊNCIAS VISUAIS · OPCIONAL</span>
           <strong>
             {count > 0
-              ? `${count} ${count === 1 ? "imagem adicionada" : "imagens adicionadas"}`
-              : "Use screenshots como direção de design"}
+              ? `${count} ${count === 1 ? "referência adicionada" : "referências adicionadas"}`
+              : "Use sites ou screenshots como direção de design"}
           </strong>
           <p>
-            Adicione screenshots de sites cuja direção visual você gostaria de
-            usar como referência.
+            Use sites que você considera boas referências de design. A análise
+            extrai princípios visuais; conteúdo e identidade não são copiados.
           </p>
         </div>
 
-        <div className="visual-reference-heading-actions">
-          {value?.analysis && (
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={onViewAnalysis}
-            >
-              <Eye size={14} />
-              Ver análise
-            </button>
-          )}
+        {value?.analysis && (
           <button
             type="button"
             className="secondary-button"
-            disabled={
-              disabled || uploading || count >= MAX_VISUAL_REFERENCES
-            }
+            onClick={onViewAnalysis}
+          >
+            <Eye size={14} />
+            Ver análise
+          </button>
+        )}
+      </div>
+
+      <div className="visual-reference-source-grid">
+        <div className="visual-reference-source-block">
+          <span>REFERÊNCIA POR SITE</span>
+          <div className="visual-reference-url-row">
+            <input
+              type="url"
+              value={urlInput}
+              disabled={busy || count >= MAX_VISUAL_REFERENCES}
+              onChange={(event) => setUrlInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  void addUrl();
+                }
+              }}
+              placeholder="https://site-referencia.com"
+            />
+            <button
+              type="button"
+              className="secondary-button"
+              disabled={
+                busy || count >= MAX_VISUAL_REFERENCES || !urlInput.trim()
+              }
+              onClick={() => void addUrl()}
+            >
+              {urlLoading ? (
+                <Loader2 size={14} className="auth-spinner" />
+              ) : (
+                <Globe2 size={14} />
+              )}
+              {urlLoading ? "Capturando..." : "Analisar site"}
+            </button>
+          </div>
+        </div>
+
+        <div className="visual-reference-or" aria-hidden="true">
+          <span>OU</span>
+        </div>
+
+        <div className="visual-reference-source-block">
+          <span>REFERÊNCIA POR IMAGEM</span>
+          <button
+            type="button"
+            className="secondary-button visual-reference-upload-button"
+            disabled={busy || count >= MAX_VISUAL_REFERENCES}
             onClick={() => inputRef.current?.click()}
           >
             {uploading ? (
@@ -279,19 +591,18 @@ export function VisualReferencesPanel({
             ) : (
               <ImagePlus size={14} />
             )}
-            {uploading ? "Processando..." : "+ Adicionar referências"}
+            {uploading ? "Processando..." : "Enviar screenshot"}
           </button>
+          <input
+            ref={inputRef}
+            className="visual-reference-file-input"
+            type="file"
+            accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
+            multiple
+            disabled={busy}
+            onChange={(event) => void addFiles(event.target.files)}
+          />
         </div>
-
-        <input
-          ref={inputRef}
-          className="visual-reference-file-input"
-          type="file"
-          accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
-          multiple
-          disabled={disabled || uploading}
-          onChange={(event) => void addFiles(event.target.files)}
-        />
       </div>
 
       {uploadErrors.length > 0 && (
@@ -312,6 +623,10 @@ export function VisualReferencesPanel({
                 key={reference.id}
                 reference={reference}
                 disabled={disabled}
+                recapturing={recapturingId === reference.id}
+                onView={() => void openPreview(reference)}
+                onRecapture={() => void recapture(reference)}
+                onScreenshotFallback={() => inputRef.current?.click()}
                 onRemove={() => void removeReference(reference)}
                 onNote={(note) =>
                   onChange(
@@ -347,18 +662,85 @@ export function VisualReferencesPanel({
               onBlur={(event) => {
                 void updateVisualGuidance(value.id, event.target.value);
               }}
-              placeholder="Ex.: gostei principalmente da Hero, da tipografia grande e da distribuição das seções. Não quero copiar as cores."
+              placeholder="Ex.: Quero principalmente a Hero, a tipografia grande e o ritmo das seções. Não quero copiar as cores."
             />
           </label>
 
           <div className="visual-reference-footnote">
-            <span>PNG, JPG, JPEG ou WEBP · máximo 5 imagens</span>
+            <span>Até 5 referências no total · URLs e screenshots podem ser combinados</span>
             <span>
-              As referências orientam mecanismos visuais; conteúdo e marca não
-              são copiados.
+              Sites protegidos por login, CAPTCHA, Cloudflare ou paywall não são contornados.
             </span>
           </div>
         </>
+      )}
+
+      {previewReference && (
+        <div
+          className="visual-reference-preview-backdrop"
+          role="presentation"
+          onMouseDown={closePreview}
+        >
+          <section
+            className="visual-reference-preview-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Visualizar referência"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <header>
+              <div>
+                <strong>
+                  {previewReference.sourceDomain ??
+                    previewReference.originalName}
+                </strong>
+                <small>
+                  {previewReference.referenceType === "url"
+                    ? "Captura renderizada do site"
+                    : "Screenshot enviado"}
+                </small>
+              </div>
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="Fechar"
+                onClick={closePreview}
+              >
+                <X size={17} />
+              </button>
+            </header>
+
+            {previewLoading ? (
+              <div className="visual-reference-preview-loading">
+                <Loader2 size={18} className="auth-spinner" />
+                Carregando captura...
+              </div>
+            ) : previewAssets.length === 0 ? (
+              <p className="visual-reference-preview-empty">
+                Nenhuma captura visual disponível.
+              </p>
+            ) : (
+              <div className="visual-reference-preview-assets">
+                {previewAssets.map((asset, index) => (
+                  <figure key={asset.url}>
+                    {previewAssets.length > 1 && (
+                      <figcaption>
+                        {asset.label === "hero"
+                          ? "Início / Hero"
+                          : asset.label === "middle"
+                            ? "Parte intermediária"
+                            : asset.label === "final"
+                              ? "Parte final"
+                              : `Captura ${index + 1}`}
+                      </figcaption>
+                    )}
+                    <img src={asset.url} alt="" />
+                  </figure>
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
       )}
     </section>
   );
