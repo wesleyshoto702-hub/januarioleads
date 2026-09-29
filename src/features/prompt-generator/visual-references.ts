@@ -47,6 +47,32 @@ async function auth() {
   };
 }
 
+async function sha256Text(value: string) {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(value),
+  );
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function currentReferenceSignature(
+  guidance: string,
+  references: VisualReferenceItem[],
+) {
+  return sha256Text(
+    JSON.stringify({
+      guidance: guidance.trim(),
+      references: references.map((reference) => ({
+        hash: reference.fileHash,
+        note: reference.note.trim(),
+        order: reference.sortOrder,
+      })),
+    }),
+  );
+}
+
 function mapReference(row: RemoteReference): VisualReferenceItem {
   return {
     id: row.id,
@@ -102,14 +128,23 @@ export async function getVisualReferenceSet(
     mapReference,
   );
 
+  const currentSignature = await currentReferenceSignature(
+    set.guidance,
+    references,
+  );
+  const analysisIsCurrent =
+    Boolean(set.analysis) &&
+    Boolean(set.analysis_signature) &&
+    set.analysis_signature === currentSignature;
+
   return {
     id: set.id,
     businessKey: set.business_key,
     guidance: set.guidance,
-    analysis: set.analysis,
+    analysis: analysisIsCurrent ? set.analysis : null,
     analysisSignature: set.analysis_signature,
-    analysisModel: set.analysis_model,
-    analyzedAt: set.analyzed_at,
+    analysisModel: analysisIsCurrent ? set.analysis_model : null,
+    analyzedAt: analysisIsCurrent ? set.analyzed_at : null,
     references,
   };
 }
