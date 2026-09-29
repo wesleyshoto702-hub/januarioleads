@@ -5305,3 +5305,15 @@ a {
     white-space: normal;
   }
 }
+
+
+.activity-inline-error {
+  margin: -4px 0 14px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--rejected) 35%, var(--border));
+  border-radius: 8px;
+  background: var(--rejected-bg);
+  color: var(--rejected);
+  font-size: 10px;
+  line-height: 1.45;
+}
