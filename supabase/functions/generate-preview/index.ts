@@ -307,7 +307,7 @@ function sanitizeBusiness(input: BusinessContext): BusinessContext {
     googleMapsUrl: safeUrl(input.googleMapsUrl),
     latitude: typeof input.latitude === "number" ? input.latitude : null,
     longitude: typeof input.longitude === "number" ? input.longitude : null,
-    notes: textOrNull(input.notes, 1600),
+    notes: null,
     verifiedImages,
   };
 }
@@ -396,7 +396,7 @@ CONTEÚDO
 - Não copie para a página instruções como "usar grid 12 colunas", "max-width", "SEO", "mobile first" etc.
 - Location pode usar endereço/horário/Maps, mas não iframe.
 - FooterNote deve ser exatamente "Prévia conceitual".
-- CTA href só pode usar dados reais: tel:, https://wa.me quando WhatsApp estiver explicitamente confirmado, website, Instagram ou Google Maps.
+- CTA href só pode usar dados reais já presentes em verifiedBusinessData. Não use observações privadas, notas internas, Chance, IDs, logs ou comentários do CRM.
 - Se não houver href confiável, use string vazia.
 
 RESPONSIVIDADE
@@ -562,11 +562,36 @@ function safeHex(value: unknown, fallback: string) {
   return /^#[0-9a-fA-F]{6}$/.test(normalized) ? normalized : fallback;
 }
 
+function normalizeDigits(value: string | null | undefined) {
+  return (value ?? "").replace(/\D/g, "");
+}
+
 function safeHref(value: unknown, business: BusinessContext) {
   if (typeof value !== "string" || !value.trim()) return "";
   const href = value.trim();
 
-  if (/^tel:\+?[0-9]+$/.test(href)) return href;
+  if (/^tel:/i.test(href)) {
+    const requested = normalizeDigits(href.slice(4));
+    const local = normalizeDigits(business.phone);
+    const international = normalizeDigits(business.internationalPhone);
+
+    const allowed = new Set(
+      [local, international]
+        .filter(Boolean)
+        .flatMap((phone) => {
+          if (phone.length === 10 || phone.length === 11) {
+            return [phone, "55" + phone];
+          }
+          return [phone];
+        }),
+    );
+
+    if (requested && allowed.has(requested)) {
+      return "tel:+" + (requested.startsWith("55") ? requested : "55" + requested);
+    }
+
+    return "";
+  }
 
   const trusted = new Set(
     [
@@ -687,7 +712,10 @@ Deno.serve(async (request) => {
   }
 
   const userPayload = {
-    verifiedBusinessData: input.business,
+    verifiedBusinessData: {
+      ...input.business,
+      notes: null,
+    },
     savedPromptVersion: input.prompt.generatedAt,
     promptResult: input.prompt.result,
     lovablePrompt:
