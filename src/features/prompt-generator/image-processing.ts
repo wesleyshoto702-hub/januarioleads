@@ -30,7 +30,8 @@ function canvasToBlob(
 }
 
 export async function optimizeVisualReference(file: File) {
-  if (!INPUT_TYPES.has(file.type)) {
+  const supportedByExtension = /\.(png|jpe?g|webp)$/i.test(file.name);
+  if (!INPUT_TYPES.has(file.type) && !supportedByExtension) {
     throw new Error("REFERENCE_UNSUPPORTED_TYPE");
   }
   if (file.size > MAX_SOURCE_FILE_BYTES) {
