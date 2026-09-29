@@ -165,10 +165,6 @@ export async function updateVisualGuidance(setId: string, guidance: string) {
       },
       body: JSON.stringify({
         guidance: guidance.slice(0, 1200),
-        analysis: null,
-        analysis_signature: null,
-        analysis_model: null,
-        analyzed_at: null,
         updated_at: new Date().toISOString(),
       }),
     },
@@ -297,6 +293,12 @@ export async function uploadVisualReference(input: {
 export async function deleteVisualReference(reference: VisualReferenceItem) {
   const { headers } = await auth();
 
+  const storageResponse = await fetch(
+    `${SUPABASE_URL}/storage/v1/object/${BUCKET}/${reference.storagePath}`,
+    { method: "DELETE", headers },
+  );
+  if (!storageResponse.ok && storageResponse.status !== 404) return false;
+
   const metadataResponse = await fetch(
     `${SUPABASE_URL}/rest/v1/prompt_visual_references?id=eq.${encodeURIComponent(reference.id)}`,
     {
@@ -308,11 +310,6 @@ export async function deleteVisualReference(reference: VisualReferenceItem) {
     },
   );
   if (!metadataResponse.ok) return false;
-
-  await fetch(
-    `${SUPABASE_URL}/storage/v1/object/${BUCKET}/${reference.storagePath}`,
-    { method: "DELETE", headers },
-  );
 
   await invalidateVisualAnalysis(reference.setId);
   return true;
