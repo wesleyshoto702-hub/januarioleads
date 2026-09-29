@@ -1,3 +1,5 @@
+import type { VisualReferenceAnalysis } from "./visual-reference-types";
+
 export type PromptProjectType =
   | "Landing Page"
   | "Site Institucional"
