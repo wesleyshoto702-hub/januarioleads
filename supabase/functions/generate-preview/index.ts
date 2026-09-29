@@ -252,6 +252,24 @@ function textOrNull(value: unknown, max = 1000) {
   return text ? text.slice(0, max) : null;
 }
 
+function visualText(value: unknown, max = 800) {
+  const text = textOrNull(value, max);
+  if (!text) return "";
+
+  return text
+    .replace(/\[(?:INFORMAÇÃO A CONFIRMAR|FOTO(?: REAL A INSERIR)?|IMAGEM)[^\]]*\]/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function visualStringArray(value: unknown, maxItems = 8, maxLength = 240) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => visualText(item, maxLength))
+    .filter(Boolean)
+    .slice(0, maxItems);
+}
+
 function stringArray(value: unknown, maxItems = 30, maxLength = 500) {
   if (!Array.isArray(value)) return [];
   return value
@@ -850,7 +868,7 @@ function sanitizeSpec(value: unknown, business: BusinessContext): PreviewSpec | 
         : "balanced",
     contrast: input.contrast === "soft" ? "soft" : "strong",
     primaryAction: {
-      label: textOrNull(input.primaryAction?.label, 100) ?? "",
+      label: visualText(input.primaryAction?.label, 100),
       href: safeHref(input.primaryAction?.href, business),
     },
     sections: input.sections.slice(0, 8).map((section, index) => ({
@@ -863,20 +881,20 @@ function sanitizeSpec(value: unknown, business: BusinessContext): PreviewSpec | 
         section.tone === "inverse"
           ? section.tone
           : "background",
-      eyebrow: textOrNull(section.eyebrow, 120) ?? "",
-      title: textOrNull(section.title, 220) ?? "",
-      body: textOrNull(section.body, 800) ?? "",
-      items: stringArray(section.items, 8, 240),
-      primaryCtaLabel: textOrNull(section.primaryCtaLabel, 100) ?? "",
+      eyebrow: visualText(section.eyebrow, 120),
+      title: visualText(section.title, 220),
+      body: visualText(section.body, 800),
+      items: visualStringArray(section.items, 8, 240),
+      primaryCtaLabel: visualText(section.primaryCtaLabel, 100),
       primaryCtaHref: safeHref(section.primaryCtaHref, business),
-      secondaryCtaLabel: textOrNull(section.secondaryCtaLabel, 100) ?? "",
+      secondaryCtaLabel: visualText(section.secondaryCtaLabel, 100),
       secondaryCtaHref: safeHref(section.secondaryCtaHref, business),
-      emphasize: textOrNull(section.emphasize, 180) ?? "",
+      emphasize: visualText(section.emphasize, 180),
       imageUrl:
         typeof section.imageUrl === "string" && verifiedUrls.has(section.imageUrl)
           ? section.imageUrl
           : "",
-      imageAlt: textOrNull(section.imageAlt, 220) ?? "",
+      imageAlt: visualText(section.imageAlt, 220),
     })),
     footerNote: "Prévia conceitual",
   };
