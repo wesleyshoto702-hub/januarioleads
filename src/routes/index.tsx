@@ -200,6 +200,7 @@ function LeadFlowApp() {
   const [leadDetailsId, setLeadDetailsId] = useState<string | null>(null);
   const [promptBusiness, setPromptBusiness] = useState<PromptBusinessContext | null>(null);
   const [promptActivityLeadId, setPromptActivityLeadId] = useState<string | null>(null);
+  const [activityError, setActivityError] = useState("");
   const [savedNotice, setSavedNotice] = useState(false);
 
   useEffect(() => {
@@ -377,9 +378,10 @@ function LeadFlowApp() {
       leadId,
       ...input,
     }).catch(() => {
-      setRemoteError(
+      setActivityError(
         "A ação foi concluída, mas o histórico não pôde ser atualizado agora.",
       );
+      window.setTimeout(() => setActivityError(""), 5000);
     });
   }
 
@@ -421,6 +423,38 @@ function LeadFlowApp() {
         field: "address",
         changed: previous.address !== next.address,
         label: "Endereço atualizado",
+      },
+      {
+        field: "neighborhood",
+        changed: previous.neighborhood !== next.neighborhood,
+        label: "Bairro atualizado",
+      },
+      {
+        field: "city",
+        changed: previous.city !== next.city,
+        label: "Cidade atualizada",
+      },
+      {
+        field: "state",
+        changed: previous.state !== next.state,
+        label: "Estado atualizado",
+      },
+      {
+        field: "internationalPhone",
+        changed: previous.internationalPhone !== next.internationalPhone,
+        label: "Telefone internacional atualizado",
+      },
+      {
+        field: "googleMapsUrl",
+        changed: previous.googleMapsUrl !== next.googleMapsUrl,
+        label: previous.googleMapsUrl
+          ? "Google Maps atualizado"
+          : "Google Maps identificado",
+      },
+      {
+        field: "factualDescription",
+        changed: previous.factualDescription !== next.factualDescription,
+        label: "Descrição atualizada",
       },
       {
         field: "website",
@@ -1000,6 +1034,12 @@ function LeadFlowApp() {
               Novo lead
             </button>
           </div>
+
+          {activityError && (
+            <p className="activity-inline-error" role="status">
+              {activityError}
+            </p>
+          )}
 
           <div className="stats-strip">
             <Stat label="Total de leads" value={counts.all} tone="neutral" />
