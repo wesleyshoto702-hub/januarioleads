@@ -88,12 +88,30 @@ export function SitePreviewViewer({
   async function printPreview() {
     if (printing) return;
     setPrinting(true);
-    await waitForAssets(rootRef.current);
-    await new Promise<void>((resolve) =>
-      requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
-    );
-    window.print();
-    setPrinting(false);
+
+    const previousTitle = document.title;
+    const slug = preview.company
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLocaleLowerCase("pt-BR")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 70);
+
+    document.title = (slug || "empresa") + "-landing-page-preview";
+
+    try {
+      await waitForAssets(rootRef.current);
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      );
+      window.print();
+    } finally {
+      window.setTimeout(() => {
+        document.title = previousTitle;
+        setPrinting(false);
+      }, 250);
+    }
   }
 
   const theme = preview.spec.theme;
