@@ -390,7 +390,6 @@ function LeadFlowApp() {
       ["company", "Nome"],
       ["segment", "Segmento"],
       ["phone", "Telefone"],
-      ["status", "Status"],
       ["firstContact", "Primeiro contato"],
       ["notes", "Observações"],
     ];
@@ -597,8 +596,24 @@ function LeadFlowApp() {
         segment: form.segment.trim(),
       };
       const changedFields = relevantLeadChanges(editingLead, nextLead);
+      const statusChanged = editingLead.status !== nextLead.status;
 
       updateLeadLocally(editingLead.id, () => nextLead);
+
+      if (statusChanged) {
+        const previousStatus = STATUS_LABEL[editingLead.status];
+        const newStatus = STATUS_LABEL[nextLead.status];
+
+        recordActivity(editingLead.id, {
+          type: "status_changed",
+          title: "Status alterado",
+          description: `${previousStatus} → ${newStatus}`,
+          metadata: {
+            previousStatus,
+            newStatus,
+          },
+        });
+      }
 
       if (changedFields.length > 0) {
         recordActivity(editingLead.id, {
