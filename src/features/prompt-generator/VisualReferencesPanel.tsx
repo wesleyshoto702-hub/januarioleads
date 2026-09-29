@@ -135,7 +135,7 @@ export function VisualReferencesPanel({
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState("");
+  const [uploadErrors, setUploadErrors] = useState<string[]>([]);
 
   async function addFiles(files: FileList | null) {
     if (!files?.length || disabled || uploading) return;
@@ -143,12 +143,13 @@ export function VisualReferencesPanel({
     const remaining = MAX_VISUAL_REFERENCES - (value?.references.length ?? 0);
     const selected = Array.from(files).slice(0, Math.max(0, remaining));
     if (selected.length === 0) {
-      setUploadError("Você já adicionou o limite de 5 referências.");
+      setUploadErrors(["Você já adicionou o limite de 5 referências."]);
       return;
     }
 
     setUploading(true);
-    setUploadError("");
+    setUploadErrors([]);
+    const errors: string[] = [];
 
     try {
       let current = value ?? (await ensureVisualReferenceSet(businessKey));
@@ -162,7 +163,7 @@ export function VisualReferencesPanel({
               (reference) => reference.fileHash === optimized.hash,
             )
           ) {
-            setUploadError(
+            errors.push(
               visualReferenceErrorMessage(
                 new Error("REFERENCE_DUPLICATE"),
                 file.name,
@@ -191,12 +192,21 @@ export function VisualReferencesPanel({
             onChange(current);
           }
         } catch (error) {
-          setUploadError(visualReferenceErrorMessage(error, file.name));
+          errors.push(visualReferenceErrorMessage(error, file.name));
         }
       }
+
+      if (files.length > selected.length) {
+        errors.push(
+          `Apenas ${selected.length} arquivo(s) foram considerados porque o limite é de 5 referências.`,
+        );
+      }
     } catch {
-      setUploadError("Não foi possível preparar o armazenamento das referências agora.");
+      errors.push(
+        "Não foi possível preparar o armazenamento das referências agora.",
+      );
     } finally {
+      setUploadErrors(errors);
       setUploading(false);
       if (inputRef.current) inputRef.current.value = "";
     }
@@ -215,7 +225,7 @@ export function VisualReferencesPanel({
       ok = false;
     }
     if (!ok) {
-      setUploadError("Não foi possível remover esta referência agora.");
+      setUploadErrors(["Não foi possível remover esta referência agora."]);
       return;
     }
 
@@ -284,7 +294,15 @@ export function VisualReferencesPanel({
         />
       </div>
 
-      {uploadError && <p className="visual-reference-error">{uploadError}</p>}
+      {uploadErrors.length > 0 && (
+        <div className="visual-reference-errors" role="status">
+          {uploadErrors.map((message) => (
+            <p className="visual-reference-error" key={message}>
+              {message}
+            </p>
+          ))}
+        </div>
+      )}
 
       {value && value.references.length > 0 && (
         <>
