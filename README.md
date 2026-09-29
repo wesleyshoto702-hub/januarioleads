@@ -651,3 +651,234 @@ Registrar histórico é uma operação secundária.
 Se a ação principal funcionar e a gravação do histórico falhar, a ação principal não é desfeita. A interface exibe um aviso discreto e não adiciona uma atividade falsa no estado local.
 
 Anotações, por outro lado, só aparecem na timeline depois que a persistência foi confirmada.
+
+
+## Referências visuais no Gerar prompt
+
+O Gerar prompt aceita referências visuais opcionais sem substituir o fluxo existente.
+
+### Fluxo
+
+```text
+screenshots + orientação do usuário
+        ↓
+analyze-visual-references
+        ↓
+visualReferenceAnalysis
+        ↓
+dados reais da empresa + regras existentes
+        ↓
+generate-site-prompt
+        ↓
+GeneratedSitePrompt / lovablePrompt
+        ↓
+Gerar preview
+```
+
+Sem referências, `generate-site-prompt` segue o caminho anterior. Os campos e instruções específicas de referências só são anexados à chamada OpenAI quando `visualReferenceAnalysis` está presente.
+
+### Interface
+
+Dentro de `PromptGenerator`, abaixo do resumo dos dados da empresa:
+
+- Referências visuais · Opcional
+- até 5 imagens
+- miniaturas compactas
+- remoção individual
+- observação opcional por imagem
+- orientação geral “O que você gostou nessas referências?”
+- Ver análise
+- Analisar novamente
+
+Formatos de entrada aceitos: PNG, JPG, JPEG e WEBP.
+
+O arquivo original pode ter até 12 MB. Antes do upload, o navegador:
+
+1. decodifica a imagem;
+2. redimensiona para no máximo 1600 px de largura e 12000 px de altura, preservando proporção;
+3. converte para WebP;
+4. tenta qualidade 0.84, 0.72 e 0.60 conforme necessário;
+5. exige resultado final de no máximo 3 MB;
+6. calcula SHA-256 sobre a imagem WebP final.
+
+As imagens nunca são armazenadas em base64 no localStorage.
+
+### Storage
+
+Bucket privado:
+
+```text
+prompt-visual-references
+```
+
+Características:
+
+- `public = false`
+- máximo 3 MB por objeto
+- MIME armazenado: `image/webp`
+- caminho: `<user_id>/<set_id>/<sha256>.webp`
+
+A exclusão é feita pela Storage API antes da remoção dos metadados, evitando abandonar arquivos quando uma referência é removida.
+
+### Banco
+
+`prompt_visual_reference_sets` representa o conjunto de referências de uma empresa/chave de prompt:
+
+- usuário
+- business key
+- orientação geral
+- análise estruturada
+- assinatura da análise
+- modelo
+- data da análise
+
+`prompt_visual_references` contém:
+
+- set
+- usuário
+- hash SHA-256
+- caminho privado
+- nome original
+- MIME final
+- bytes
+- largura/altura
+- observação opcional
+- ordem
+
+O último `SavedPromptRecord` guarda opcionalmente:
+
+- `visualReferenceSetId`
+- `visualReferenceSignature`
+
+Assim a geração fica ligada à versão exata das referências que a originou sem duplicar imagens ou análise.
+
+### Privacidade e RLS
+
+As duas tabelas usam RLS e exigem:
+
+- sessão autenticada;
+- `user_id = auth.uid()`;
+- usuário presente em `private_access`.
+
+Os itens também validam que o conjunto pai pertence ao mesmo usuário.
+
+O bucket privado possui policies SELECT/INSERT/UPDATE/DELETE limitadas ao primeiro diretório igual a `auth.uid()`, além da mesma allowlist `private_access`.
+
+Nenhuma URL pública permanente é criada.
+
+### Edge Function de visão
+
+`analyze-visual-references`:
+
+- `verify_jwt = true`
+- usa a autenticação existente
+- reutiliza `OPENAI_API_KEY`
+- usa `gpt-5.6-terra`
+- recebe somente `setId` e `force`
+- resolve referências privadas no backend
+- envia as imagens temporariamente como data URLs para a Responses API
+- usa `detail: high`
+- exige JSON Schema estruturado
+- não salva base64
+
+A análise considera:
+
+- direção geral
+- Hero/grid/alinhamento/densidade/ritmo
+- tipografia
+- tratamento de imagens
+- botões/navegação/bordas/cards
+- padrões em comum
+- diferenças
+- conflitos
+- mecanismos reaproveitáveis
+- elementos que não devem ser copiados
+
+Ela descreve mecanismos e efeitos, não chain-of-thought.
+
+### Cache
+
+A assinatura é SHA-256 de:
+
+- orientação geral normalizada;
+- hash das imagens;
+- observação normalizada de cada imagem;
+- ordem das referências.
+
+Se a assinatura atual for igual à assinatura já analisada e `force !== true`, a Edge Function devolve o `visualReferenceAnalysis` salvo sem chamar a OpenAI.
+
+Ao abrir a interface ou clicar em Ver análise nenhuma chamada OpenAI é feita.
+
+Alterar imagem, remover/substituir imagem, orientação ou observação produz uma assinatura diferente. A UI também recalcula a assinatura ao carregar o conjunto e não exibe uma análise antiga como atual.
+
+O botão **Analisar novamente** usa `force = true`.
+
+### Integração com generate-site-prompt
+
+`generate-site-prompt` continua sendo a única função que gera o prompt final.
+
+Quando existe `visualReferenceAnalysis`, recebe também a prioridade:
+
+```text
+dados reais da empresa
+> objetivo comercial
+> instruções explícitas do usuário
+> referências visuais
+> decisões criativas da IA
+```
+
+A análise influencia principalmente:
+
+- `visualDirection`
+- `sections`
+- `lovablePrompt`
+
+e torna mais específicos composição, hierarquia, tipografia, ritmo, densidade e tratamento de imagens.
+
+As regras adicionais proíbem transportar:
+
+- nome/marca/logotipo
+- texto/slogan
+- imagens/produtos/preços/depoimentos
+- código
+- paleta proprietária
+- layout pixel a pixel
+
+Proporções observadas são traduzidas em princípios adaptativos, não medidas rígidas.
+
+### Gerar preview
+
+O preview não recebe screenshots nem executa uma segunda análise visual.
+
+Ele continua consumindo o prompt salvo. Portanto a direção de referências chega ao preview somente através do resultado estruturado já gerado.
+
+### Falha da análise
+
+Se referências foram selecionadas e a análise visual falhar, o sistema não gera silenciosamente um prompt como se as tivesse utilizado.
+
+A interface oferece:
+
+- Tentar novamente
+- Gerar sem referências
+
+### Loading
+
+Não há mais timer simulando etapas do Gerar prompt.
+
+Quando há análise visual real:
+
+```text
+Analisando referências visuais...
+```
+
+Durante a geração normal:
+
+```text
+Gerando estratégia e prompt...
+```
+
+### Custo
+
+A análise visual adiciona uma chamada OpenAI somente quando a assinatura não tem cache válido ou quando o usuário solicita explicitamente Analisar novamente.
+
+A geração normal continua sendo uma chamada separada e mantém seu custo normal.
