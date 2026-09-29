@@ -805,11 +805,11 @@ function LeadFlowApp() {
 
     const nextLead: Lead = {
         ...previous,
-      company: business.name || lead.company,
+      company: business.name || previous.company,
       phone: officialPhone,
       placeId: business.placeId,
       enrichedAt: new Date().toISOString(),
-      source: lead.source ?? "manual",
+      source: previous.source ?? "manual",
       factualDescription,
       ...(googlePresence?.instagramUrl
         ? {
