@@ -260,12 +260,14 @@ export function VisualReferencesPanel({
   onChange,
   disabled,
   onViewAnalysis,
+  onReferenceRecaptured,
 }: {
   businessKey: string;
   value: VisualReferenceSet | null;
   onChange: (value: VisualReferenceSet | null) => void;
   disabled: boolean;
   onViewAnalysis: () => void;
+  onReferenceRecaptured?: (value: VisualReferenceSet) => Promise<void> | void;
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -448,7 +450,11 @@ export function VisualReferencesPanel({
         return;
       }
 
-      if (value) onChange(replaceReference(value, response.reference));
+      if (value) {
+        const nextSet = replaceReference(value, response.reference);
+        onChange(nextSet);
+        await onReferenceRecaptured?.(nextSet);
+      }
     } catch {
       setUploadErrors([
         "Não foi possível analisar automaticamente este site. Envie um screenshot.",
