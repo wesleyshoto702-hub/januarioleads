@@ -706,6 +706,11 @@ Deno.serve(async (request) => {
 
   const token = Deno.env.get("BROWSERLESS_API_TOKEN")?.trim();
   if (!token) {
+    await updateCaptureState(authorized, reference.id, {
+      capture_status: "failed",
+      capture_error:
+        "A captura por URL ainda não está configurada no backend.",
+    });
     return failure(
       "NOT_CONFIGURED",
       "A captura por URL ainda não está configurada. Envie um screenshot por enquanto.",
