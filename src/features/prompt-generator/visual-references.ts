@@ -375,14 +375,6 @@ export async function persistVisualReferenceDraft(set: VisualReferenceSet) {
       body: JSON.stringify({
         guidance: set.guidance.slice(0, 1200),
         updated_at: new Date().toISOString(),
-        ...(set.analysis === null && set.analysisSignature === null
-          ? {
-              analysis: null,
-              analysis_signature: null,
-              analysis_model: null,
-              analyzed_at: null,
-            }
-          : {}),
       }),
     },
   );
