@@ -1,6 +1,8 @@
 import { getValidSession } from "../../lib/auth";
 import type {
   AnalyzeVisualReferencesResponse,
+  CaptureUrlReferenceResponse,
+  VisualReferenceAsset,
   VisualReferenceItem,
   VisualReferenceSet,
 } from "./visual-reference-types";
@@ -23,14 +25,37 @@ type RemoteSet = {
 type RemoteReference = {
   id: string;
   set_id: string;
-  file_hash: string;
-  storage_path: string;
+  reference_type: "image" | "url";
+  file_hash: string | null;
+  storage_path: string | null;
   original_name: string;
+  mime_type: "image/webp" | null;
+  byte_size: number | null;
+  width: number | null;
+  height: number | null;
+  note: string;
+  sort_order: number;
+  created_at: string;
+  source_url: string | null;
+  source_domain: string | null;
+  capture_status: "pending" | "ready" | "failed" | null;
+  capture_error: string | null;
+  capture_hash: string | null;
+  capture_final_url: string | null;
+  capture_title: string | null;
+  captured_at: string | null;
+};
+
+type RemoteAsset = {
+  id: string;
+  reference_id: string;
+  storage_path: string;
+  file_hash: string;
   mime_type: "image/webp";
   byte_size: number;
   width: number;
   height: number;
-  note: string;
+  segment_kind: "full" | "hero" | "middle" | "final";
   sort_order: number;
   created_at: string;
 };
@@ -65,7 +90,14 @@ async function currentReferenceSignature(
     JSON.stringify({
       guidance: guidance.trim(),
       references: references.map((reference) => ({
-        hash: reference.fileHash,
+        type: reference.referenceType,
+        identity:
+          reference.referenceType === "url"
+            ? {
+                url: reference.sourceUrl,
+                captureHash: reference.captureHash,
+              }
+            : { hash: reference.fileHash },
         note: reference.note.trim(),
         order: reference.sortOrder,
       })),
@@ -73,10 +105,30 @@ async function currentReferenceSignature(
   );
 }
 
-function mapReference(row: RemoteReference): VisualReferenceItem {
+function mapAsset(row: RemoteAsset): VisualReferenceAsset {
+  return {
+    id: row.id,
+    referenceId: row.reference_id,
+    storagePath: row.storage_path,
+    fileHash: row.file_hash,
+    mimeType: row.mime_type,
+    byteSize: row.byte_size,
+    width: row.width,
+    height: row.height,
+    segmentKind: row.segment_kind,
+    sortOrder: row.sort_order,
+    createdAt: row.created_at,
+  };
+}
+
+function mapReference(
+  row: RemoteReference,
+  assets: VisualReferenceAsset[] = [],
+): VisualReferenceItem {
   return {
     id: row.id,
     setId: row.set_id,
+    referenceType: row.reference_type,
     fileHash: row.file_hash,
     storagePath: row.storage_path,
     originalName: row.original_name,
@@ -87,7 +139,72 @@ function mapReference(row: RemoteReference): VisualReferenceItem {
     note: row.note,
     sortOrder: row.sort_order,
     createdAt: row.created_at,
+    sourceUrl: row.source_url,
+    sourceDomain: row.source_domain,
+    captureStatus: row.capture_status,
+    captureError: row.capture_error,
+    captureHash: row.capture_hash,
+    captureFinalUrl: row.capture_final_url,
+    captureTitle: row.capture_title,
+    capturedAt: row.captured_at,
+    assets,
   };
+}
+
+export function normalizeVisualReferenceUrl(value: string) {
+  const raw = value.trim();
+  if (!raw) throw new Error("REFERENCE_URL_INVALID");
+
+  let candidate = raw;
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(candidate)) {
+    candidate = `https://${candidate}`;
+  }
+
+  const url = new URL(candidate);
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error("REFERENCE_URL_INVALID");
+  }
+  if (url.username || url.password) throw new Error("REFERENCE_URL_INVALID");
+
+  url.hash = "";
+  if (url.protocol === "http:" && url.port === "80") url.port = "";
+  if (url.protocol === "https:" && url.port === "443") url.port = "";
+
+  return {
+    url: url.toString(),
+    domain: url.hostname.toLowerCase(),
+  };
+}
+
+async function loadAssets(
+  headers: Record<string, string>,
+  referenceIds: string[],
+) {
+  if (referenceIds.length === 0) return new Map<string, VisualReferenceAsset[]>();
+
+  const params = new URLSearchParams({
+    select:
+      "id,reference_id,storage_path,file_hash,mime_type,byte_size,width,height,segment_kind,sort_order,created_at",
+    reference_id: `in.(${referenceIds.join(",")})`,
+    order: "sort_order.asc",
+  });
+
+  const response = await fetch(
+    `${SUPABASE_URL}/rest/v1/prompt_visual_reference_assets?${params}`,
+    { headers },
+  );
+  if (!response.ok) throw new Error("REFERENCE_ASSETS_LOAD_FAILED");
+
+  const rows = (await response.json()) as RemoteAsset[];
+  const grouped = new Map<string, VisualReferenceAsset[]>();
+  for (const row of rows) {
+    const asset = mapAsset(row);
+    grouped.set(row.reference_id, [
+      ...(grouped.get(row.reference_id) ?? []),
+      asset,
+    ]);
+  }
+  return grouped;
 }
 
 export async function getVisualReferenceSet(
@@ -113,7 +230,7 @@ export async function getVisualReferenceSet(
 
   const refParams = new URLSearchParams({
     select:
-      "id,set_id,file_hash,storage_path,original_name,mime_type,byte_size,width,height,note,sort_order,created_at",
+      "id,set_id,reference_type,file_hash,storage_path,original_name,mime_type,byte_size,width,height,note,sort_order,created_at,source_url,source_domain,capture_status,capture_error,capture_hash,capture_final_url,capture_title,captured_at",
     set_id: `eq.${set.id}`,
     order: "sort_order.asc",
   });
@@ -124,8 +241,13 @@ export async function getVisualReferenceSet(
   );
   if (!refsResponse.ok) throw new Error("REFERENCE_ITEMS_LOAD_FAILED");
 
-  const references = ((await refsResponse.json()) as RemoteReference[]).map(
-    mapReference,
+  const refRows = (await refsResponse.json()) as RemoteReference[];
+  const assets = await loadAssets(
+    headers,
+    refRows.filter((row) => row.reference_type === "url").map((row) => row.id),
+  );
+  const references = refRows.map((row) =>
+    mapReference(row, assets.get(row.id) ?? []),
   );
 
   const currentSignature = await currentReferenceSignature(
@@ -142,7 +264,7 @@ export async function getVisualReferenceSet(
     businessKey: set.business_key,
     guidance: set.guidance,
     analysis: analysisIsCurrent ? set.analysis : null,
-    analysisSignature: set.analysis_signature,
+    analysisSignature: analysisIsCurrent ? set.analysis_signature : null,
     analysisModel: analysisIsCurrent ? set.analysis_model : null,
     analyzedAt: analysisIsCurrent ? set.analyzed_at : null,
     references,
@@ -277,9 +399,7 @@ export async function uploadVisualReference(input: {
     const duplicateObject =
       uploadResponse.status === 400 &&
       /duplicate|already exists/i.test(uploadError);
-    if (!duplicateObject) {
-      throw new Error("REFERENCE_UPLOAD_FAILED");
-    }
+    if (!duplicateObject) throw new Error("REFERENCE_UPLOAD_FAILED");
   }
 
   const insertResponse = await fetch(
@@ -294,6 +414,7 @@ export async function uploadVisualReference(input: {
       body: JSON.stringify({
         set_id: input.set.id,
         user_id: session.user.id,
+        reference_type: "image",
         file_hash: input.hash,
         storage_path: storagePath,
         original_name: input.originalName.slice(0, 240),
@@ -314,9 +435,7 @@ export async function uploadVisualReference(input: {
         { method: "DELETE", headers },
       );
     }
-    if (insertResponse.status === 409) {
-      throw new Error("REFERENCE_DUPLICATE");
-    }
+    if (insertResponse.status === 409) throw new Error("REFERENCE_DUPLICATE");
     throw new Error("REFERENCE_METADATA_FAILED");
   }
 
@@ -325,14 +444,94 @@ export async function uploadVisualReference(input: {
   return rows[0] ? mapReference(rows[0]) : null;
 }
 
+export async function createUrlVisualReference(input: {
+  set: VisualReferenceSet;
+  url: string;
+  sortOrder: number;
+}) {
+  const normalized = normalizeVisualReferenceUrl(input.url);
+  const { session, headers } = await auth();
+
+  const response = await fetch(
+    `${SUPABASE_URL}/rest/v1/prompt_visual_references`,
+    {
+      method: "POST",
+      headers: {
+        ...headers,
+        "Content-Type": "application/json",
+        Prefer: "return=representation",
+      },
+      body: JSON.stringify({
+        set_id: input.set.id,
+        user_id: session.user.id,
+        reference_type: "url",
+        original_name: normalized.domain.slice(0, 240),
+        note: "",
+        sort_order: input.sortOrder,
+        source_url: normalized.url,
+        source_domain: normalized.domain,
+        capture_status: "pending",
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    if (response.status === 409) throw new Error("REFERENCE_URL_DUPLICATE");
+    throw new Error("REFERENCE_URL_CREATE_FAILED");
+  }
+
+  await invalidateVisualAnalysis(input.set.id);
+  const rows = (await response.json()) as RemoteReference[];
+  return rows[0] ? mapReference(rows[0]) : null;
+}
+
+export async function captureUrlVisualReference(
+  referenceId: string,
+  force = false,
+): Promise<CaptureUrlReferenceResponse> {
+  const { headers } = await auth();
+  const response = await fetch(
+    `${SUPABASE_URL}/functions/v1/capture-visual-reference`,
+    {
+      method: "POST",
+      headers: {
+        ...headers,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ referenceId, force }),
+    },
+  );
+
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch {
+    return {
+      ok: false,
+      code: "CAPTURE_FAILED",
+      message: "Não foi possível analisar automaticamente este site.",
+      fallbackToScreenshot: true,
+    };
+  }
+
+  return payload as CaptureUrlReferenceResponse;
+}
+
 export async function deleteVisualReference(reference: VisualReferenceItem) {
   const { headers } = await auth();
 
-  const storageResponse = await fetch(
-    `${SUPABASE_URL}/storage/v1/object/${BUCKET}/${reference.storagePath}`,
-    { method: "DELETE", headers },
-  );
-  if (!storageResponse.ok && storageResponse.status !== 404) return false;
+  const storagePaths = [
+    ...(reference.storagePath ? [reference.storagePath] : []),
+    ...reference.assets.map((asset) => asset.storagePath),
+  ];
+
+  for (const storagePath of storagePaths) {
+    const storageResponse = await fetch(
+      `${SUPABASE_URL}/storage/v1/object/${BUCKET}/${storagePath}`,
+      { method: "DELETE", headers },
+    );
+    if (!storageResponse.ok && storageResponse.status !== 404) return false;
+  }
 
   const metadataResponse = await fetch(
     `${SUPABASE_URL}/rest/v1/prompt_visual_references?id=eq.${encodeURIComponent(reference.id)}`,
@@ -350,14 +549,54 @@ export async function deleteVisualReference(reference: VisualReferenceItem) {
   return true;
 }
 
-export async function fetchReferencePreview(reference: VisualReferenceItem) {
-  const { headers } = await auth();
+async function fetchStorageObject(
+  headers: Record<string, string>,
+  storagePath: string,
+) {
   const response = await fetch(
-    `${SUPABASE_URL}/storage/v1/object/authenticated/${BUCKET}/${reference.storagePath}`,
+    `${SUPABASE_URL}/storage/v1/object/authenticated/${BUCKET}/${storagePath}`,
     { headers },
   );
   if (!response.ok) return null;
   return URL.createObjectURL(await response.blob());
+}
+
+export async function fetchReferencePreview(reference: VisualReferenceItem) {
+  const { headers } = await auth();
+  const storagePath =
+    reference.referenceType === "url"
+      ? reference.assets[0]?.storagePath
+      : reference.storagePath;
+
+  if (!storagePath) return null;
+  return fetchStorageObject(headers, storagePath);
+}
+
+export async function fetchReferencePreviewAssets(
+  reference: VisualReferenceItem,
+) {
+  const { headers } = await auth();
+  const paths =
+    reference.referenceType === "url"
+      ? reference.assets.map((asset) => ({
+          path: asset.storagePath,
+          label: asset.segmentKind,
+        }))
+      : reference.storagePath
+        ? [{ path: reference.storagePath, label: "full" as const }]
+        : [];
+
+  const results = await Promise.all(
+    paths.map(async (item) => ({
+      label: item.label,
+      url: await fetchStorageObject(headers, item.path),
+    })),
+  );
+
+  return results.filter(
+    (item): item is { label: typeof item.label; url: string } =>
+      Boolean(item.url),
+  );
 }
 
 export async function analyzeVisualReferences(
@@ -390,7 +629,6 @@ export async function analyzeVisualReferences(
 
   return payload as AnalyzeVisualReferencesResponse;
 }
-
 
 export async function persistVisualReferenceDraft(set: VisualReferenceSet) {
   const { headers } = await auth();
