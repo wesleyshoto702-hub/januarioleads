@@ -172,7 +172,7 @@ export function PromptGenerator({
   );
 
   async function handleGenerate(ignoreVisualReferences = false) {
-    if (loading) return;
+    if (loading || visualAnalysisLoading) return;
 
     const regenerated = Boolean(result);
 
@@ -429,7 +429,7 @@ export function PromptGenerator({
                   onChange={(event) =>
                     setProjectType(event.target.value as PromptProjectType)
                   }
-                  disabled={loading}
+                  disabled={loading || visualAnalysisLoading}
                 >
                   {PROJECT_TYPES.map((item) => (
                     <option value={item} key={item}>{item}</option>
@@ -444,7 +444,7 @@ export function PromptGenerator({
                   onChange={(event) =>
                     setObjective(event.target.value as PromptObjective)
                   }
-                  disabled={loading}
+                  disabled={loading || visualAnalysisLoading}
                 >
                   {OBJECTIVES.map((item) => (
                     <option value={item} key={item}>{item}</option>
@@ -490,7 +490,7 @@ export function PromptGenerator({
                       <button
                         className="secondary-button"
                         type="button"
-                        disabled={loading}
+                        disabled={loading || visualAnalysisLoading}
                         onClick={() => void handleGenerate(false)}
                       >
                         Tentar novamente
@@ -498,7 +498,7 @@ export function PromptGenerator({
                       <button
                         className="secondary-button"
                         type="button"
-                        disabled={loading}
+                        disabled={loading || visualAnalysisLoading}
                         onClick={() => void handleGenerate(true)}
                       >
                         Gerar sem referências
@@ -516,7 +516,7 @@ export function PromptGenerator({
               <button
                 className="primary-button prompt-generate-button"
                 type="button"
-                disabled={loading}
+                disabled={loading || visualAnalysisLoading}
                 onClick={() => void handleGenerate()}
               >
                 {loading ? <Loader2 size={16} className="auth-spinner" /> : result ? <RefreshCw size={16} /> : <Sparkles size={16} />}
@@ -699,7 +699,7 @@ function VisualReferenceAnalysisPreview({
           <button
             type="button"
             className="secondary-button"
-            disabled={loading}
+            disabled={loading || visualAnalysisLoading}
             onClick={onReanalyze}
           >
             {loading ? (
