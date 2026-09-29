@@ -46,6 +46,7 @@ export type PreviewSection = {
     | "stats"
     | "stack"
     | "grid";
+  tone: "background" | "surface" | "accent" | "inverse";
   eyebrow: string;
   title: string;
   body: string;
