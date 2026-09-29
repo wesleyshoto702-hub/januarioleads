@@ -216,17 +216,17 @@ function ReferenceThumbnail({
 
       {isUrl && (
         <div className="visual-reference-card-actions">
-          {reference.captureStatus === "ready" && (
-            <button
-              type="button"
-              disabled={disabled || recapturing}
-              onClick={onRecapture}
-            >
-              <RefreshCw size={12} />
-              Analisar novamente
-            </button>
-          )}
-          {reference.captureStatus === "failed" && (
+          <button
+            type="button"
+            disabled={disabled || recapturing}
+            onClick={onRecapture}
+          >
+            <RefreshCw size={12} />
+            {reference.captureStatus === "ready"
+              ? "Analisar novamente"
+              : "Tentar novamente"}
+          </button>
+          {reference.captureStatus !== "ready" && (
             <button
               type="button"
               disabled={disabled || recapturing}
