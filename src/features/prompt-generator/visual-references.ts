@@ -346,3 +346,53 @@ export async function analyzeVisualReferences(
 
   return payload as AnalyzeVisualReferencesResponse;
 }
+
+
+export async function persistVisualReferenceDraft(set: VisualReferenceSet) {
+  const { headers } = await auth();
+
+  const setResponse = await fetch(
+    `${SUPABASE_URL}/rest/v1/prompt_visual_reference_sets?id=eq.${encodeURIComponent(set.id)}`,
+    {
+      method: "PATCH",
+      headers: {
+        ...headers,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({
+        guidance: set.guidance.slice(0, 1200),
+        updated_at: new Date().toISOString(),
+        ...(set.analysis === null && set.analysisSignature === null
+          ? {
+              analysis: null,
+              analysis_signature: null,
+              analysis_model: null,
+              analyzed_at: null,
+            }
+          : {}),
+      }),
+    },
+  );
+
+  if (!setResponse.ok) return false;
+
+  const results = await Promise.all(
+    set.references.map((reference) =>
+      fetch(
+        `${SUPABASE_URL}/rest/v1/prompt_visual_references?id=eq.${encodeURIComponent(reference.id)}`,
+        {
+          method: "PATCH",
+          headers: {
+            ...headers,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal",
+          },
+          body: JSON.stringify({ note: reference.note.slice(0, 500) }),
+        },
+      ),
+    ),
+  );
+
+  return results.every((response) => response.ok);
+}
