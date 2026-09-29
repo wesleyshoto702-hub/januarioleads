@@ -5,6 +5,7 @@ import type {
   PromptObjective,
   PromptProjectType,
 } from "./types";
+import type { VisualReferenceAnalysis } from "./visual-reference-types";
 
 const SUPABASE_URL = "https://czkazbianiflhldenhcj.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY =
@@ -14,6 +15,7 @@ export async function generateSitePrompt(input: {
   business: PromptBusinessContext;
   projectType: PromptProjectType;
   objective: PromptObjective;
+  visualReferenceAnalysis?: VisualReferenceAnalysis | null;
 }): Promise<GeneratePromptResponse> {
   const accessToken = await getAccessToken();
 
