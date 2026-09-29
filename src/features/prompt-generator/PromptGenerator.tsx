@@ -10,6 +10,16 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { generateSitePrompt } from "./generate-site-prompt";
 import { getSavedPrompt, savePrompt } from "./storage";
+import { VisualReferencesPanel } from "./VisualReferencesPanel";
+import type {
+  VisualReferenceAnalysis,
+  VisualReferenceSet,
+} from "./visual-reference-types";
+import {
+  analyzeVisualReferences,
+  getVisualReferenceSet,
+  persistVisualReferenceDraft,
+} from "./visual-references";
 import {
   generatePreview,
   getSavedPreview,
@@ -45,12 +55,6 @@ const OBJECTIVES: PromptObjective[] = [
   "Levar pessoas ao estabelecimento",
 ];
 
-const GENERATION_STEPS = [
-  "Analisando empresa...",
-  "Definindo estratégia...",
-  "Preparando prompt...",
-];
-
 type ResultTab =
   | "analysis"
   | "strategy"
@@ -84,7 +88,12 @@ export function PromptGenerator({
   const [previewError, setPreviewError] = useState("");
   const [activeTab, setActiveTab] = useState<ResultTab>("analysis");
   const [loading, setLoading] = useState(false);
-  const [generationStep, setGenerationStep] = useState(0);
+  const [generationStatus, setGenerationStatus] = useState("");
+  const [visualReferenceSet, setVisualReferenceSet] =
+    useState<VisualReferenceSet | null>(null);
+  const [visualReferencesLoading, setVisualReferencesLoading] = useState(true);
+  const [visualAnalysisOpen, setVisualAnalysisOpen] = useState(false);
+  const [visualAnalysisError, setVisualAnalysisError] = useState("");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
 
@@ -119,6 +128,33 @@ export function PromptGenerator({
     };
   }, [business.key]);
 
+  useEffect(() => {
+    let active = true;
+    setVisualReferenceSet(null);
+    setVisualReferencesLoading(true);
+    setVisualAnalysisOpen(false);
+    setVisualAnalysisError("");
+
+    void getVisualReferenceSet(business.key)
+      .then((set) => {
+        if (active) setVisualReferenceSet(set);
+      })
+      .catch(() => {
+        if (active) {
+          setVisualAnalysisError(
+            "Não foi possível carregar as referências visuais agora.",
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setVisualReferencesLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [business.key]);
+
   const availableFacts = useMemo(
     () =>
       [
@@ -134,7 +170,7 @@ export function PromptGenerator({
     [business],
   );
 
-  async function handleGenerate() {
+  async function handleGenerate(ignoreVisualReferences = false) {
     if (loading) return;
 
     const regenerated = Boolean(result);
@@ -150,23 +186,67 @@ export function PromptGenerator({
 
     setLoading(true);
     setError("");
+    setVisualAnalysisError("");
     setCopied(false);
-    setGenerationStep(0);
 
-    const timer = window.setInterval(() => {
-      setGenerationStep((current) =>
-        Math.min(current + 1, GENERATION_STEPS.length - 1),
+    let visualReferenceAnalysis: VisualReferenceAnalysis | null = null;
+
+    if (
+      !ignoreVisualReferences &&
+      visualReferenceSet &&
+      visualReferenceSet.references.length > 0
+    ) {
+      setGenerationStatus("Analisando referências visuais...");
+
+      const persisted = await persistVisualReferenceDraft(visualReferenceSet);
+      if (!persisted) {
+        setLoading(false);
+        setGenerationStatus("");
+        setVisualAnalysisError(
+          "Não foi possível salvar as orientações das referências visuais.",
+        );
+        return;
+      }
+
+      const analysisResponse = await analyzeVisualReferences(
+        visualReferenceSet.id,
       );
-    }, 1700);
+
+      if (!analysisResponse.ok) {
+        setLoading(false);
+        setGenerationStatus("");
+        setVisualAnalysisError(
+          analysisResponse.message ||
+            "Não foi possível analisar as referências visuais.",
+        );
+        return;
+      }
+
+      visualReferenceAnalysis = analysisResponse.analysis;
+      setVisualReferenceSet((current) =>
+        current
+          ? {
+              ...current,
+              analysis: analysisResponse.analysis,
+              analysisSignature: analysisResponse.signature,
+              analysisModel: analysisResponse.model,
+              analyzedAt: analysisResponse.analyzedAt,
+            }
+          : current,
+      );
+    }
+
+    setGenerationStatus("Gerando estratégia e prompt...");
 
     const response = await generateSitePrompt({
       business,
       projectType,
       objective,
+      visualReferenceAnalysis,
     });
 
-    window.clearInterval(timer);
     setLoading(false);
+    setGenerationStatus("");
 
     if (!response.ok) {
       setError(response.message);
@@ -309,6 +389,52 @@ export function PromptGenerator({
               <Fact label="Instagram" value={business.instagram ? "Identificado" : "Não identificado"} />
             </div>
 
+            <VisualReferencesPanel
+              businessKey={business.key}
+              value={visualReferenceSet}
+              onChange={setVisualReferenceSet}
+              disabled={loading || visualReferencesLoading}
+              onViewAnalysis={() => setVisualAnalysisOpen((current) => !current)}
+            />
+
+            {visualAnalysisOpen && visualReferenceSet?.analysis && (
+              <VisualReferenceAnalysisPreview
+                analysis={visualReferenceSet.analysis}
+                model={visualReferenceSet.analysisModel}
+                analyzedAt={visualReferenceSet.analyzedAt}
+              />
+            )}
+
+            {visualAnalysisError && (
+              <div className="visual-analysis-failure">
+                <div>
+                  <strong>Não foi possível analisar as referências visuais.</strong>
+                  <span>{visualAnalysisError}</span>
+                </div>
+                {visualReferenceSet &&
+                  visualReferenceSet.references.length > 0 && (
+                    <div>
+                      <button
+                        className="secondary-button"
+                        type="button"
+                        disabled={loading}
+                        onClick={() => void handleGenerate(false)}
+                      >
+                        Tentar novamente
+                      </button>
+                      <button
+                        className="secondary-button"
+                        type="button"
+                        disabled={loading}
+                        onClick={() => void handleGenerate(true)}
+                      >
+                        Gerar sem referências
+                      </button>
+                    </div>
+                  )}
+              </div>
+            )}
+
             <div className="prompt-generate-row">
               <p>
                 Lacunas continuam explícitas no briefing, mas não viram seções vazias ou
@@ -322,7 +448,7 @@ export function PromptGenerator({
               >
                 {loading ? <Loader2 size={16} className="auth-spinner" /> : result ? <RefreshCw size={16} /> : <Sparkles size={16} />}
                 {loading
-                  ? GENERATION_STEPS[generationStep]
+                  ? generationStatus || "Gerando..."
                   : result
                     ? "Gerar nova versão"
                     : "Gerar análise e prompt"}
@@ -462,6 +588,66 @@ export function PromptGenerator({
         />
       )}
     </div>
+  );
+}
+
+function VisualReferenceAnalysisPreview({
+  analysis,
+  model,
+  analyzedAt,
+}: {
+  analysis: VisualReferenceAnalysis;
+  model: string | null;
+  analyzedAt: string | null;
+}) {
+  return (
+    <section className="visual-reference-analysis-preview">
+      <div className="visual-reference-analysis-heading">
+        <div>
+          <span className="detail-kicker">DIREÇÃO IDENTIFICADA</span>
+          <strong>{analysis.overallDirection}</strong>
+        </div>
+        {(model || analyzedAt) && (
+          <small>
+            {analyzedAt
+              ? new Intl.DateTimeFormat("pt-BR", {
+                  dateStyle: "short",
+                  timeStyle: "short",
+                }).format(new Date(analyzedAt))
+              : ""}
+            {model ? ` · ${model}` : ""}
+          </small>
+        )}
+      </div>
+
+      <div className="visual-reference-analysis-grid">
+        <div>
+          <span>Hero</span>
+          <p>{analysis.composition.hero}</p>
+        </div>
+        <div>
+          <span>Tipografia</span>
+          <p>{analysis.typography.hierarchy}</p>
+        </div>
+        <div>
+          <span>Ritmo</span>
+          <p>{analysis.composition.sectionRhythm}</p>
+        </div>
+        <div>
+          <span>Imagens</span>
+          <p>{analysis.imagery.usage}</p>
+        </div>
+      </div>
+
+      <div className="visual-reference-mechanisms">
+        <span>Elementos que serão aproveitados</span>
+        <ul>
+          {analysis.visualMechanismsToReuse.map((item, index) => (
+            <li key={index}>{item}</li>
+          ))}
+        </ul>
+      </div>
+    </section>
   );
 }
 
