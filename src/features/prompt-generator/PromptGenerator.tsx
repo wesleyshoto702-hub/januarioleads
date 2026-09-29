@@ -191,6 +191,7 @@ export function PromptGenerator({
     setCopied(false);
 
     let visualReferenceAnalysis: VisualReferenceAnalysis | null = null;
+    let visualReferenceSignature: string | null = null;
 
     if (
       !ignoreVisualReferences &&
@@ -224,6 +225,7 @@ export function PromptGenerator({
       }
 
       visualReferenceAnalysis = analysisResponse.analysis;
+      visualReferenceSignature = analysisResponse.signature;
       setVisualReferenceSet((current) =>
         current
           ? {
@@ -263,6 +265,10 @@ export function PromptGenerator({
       generatedAt: new Date().toISOString(),
       projectType,
       objective,
+      visualReferenceSetId: visualReferenceAnalysis
+        ? visualReferenceSet?.id ?? null
+        : null,
+      visualReferenceSignature,
       result: response.result,
     };
 
