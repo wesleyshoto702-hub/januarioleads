@@ -83,13 +83,16 @@ export function SitePreviewViewer({
 }) {
   const [viewport, setViewport] = useState<PreviewViewport>("desktop");
   const [printing, setPrinting] = useState(false);
+  const [printError, setPrintError] = useState("");
   const rootRef = useRef<HTMLDivElement>(null);
 
   async function printPreview() {
     if (printing) return;
     setPrinting(true);
+    setPrintError("");
 
     const previousTitle = document.title;
+    const previousViewport = viewport;
     const slug = preview.company
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
@@ -99,6 +102,7 @@ export function SitePreviewViewer({
       .slice(0, 70);
 
     document.title = (slug || "empresa") + "-landing-page-preview";
+    setViewport("desktop");
 
     try {
       await waitForAssets(rootRef.current);
@@ -106,9 +110,14 @@ export function SitePreviewViewer({
         requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
       );
       window.print();
+    } catch {
+      setPrintError(
+        "Não foi possível abrir a geração de PDF. Tente novamente pelo navegador.",
+      );
     } finally {
       window.setTimeout(() => {
         document.title = previousTitle;
+        setViewport(previousViewport);
         setPrinting(false);
       }, 250);
     }
@@ -186,6 +195,8 @@ export function SitePreviewViewer({
         </div>
       </header>
 
+      {printError && <div className="site-preview-print-error">{printError}</div>}
+
       <div className="site-preview-stage">
         <div
           className={
@@ -232,9 +243,7 @@ function PreviewSectionView({
   isFirst: boolean;
 }) {
   const image = section.imageUrl ? (
-    <figure className="preview-section-image">
-      <img src={section.imageUrl} alt={section.imageAlt || ""} />
-    </figure>
+    <PreviewImage url={section.imageUrl} alt={section.imageAlt} />
   ) : null;
 
   const content = (
@@ -312,6 +321,21 @@ function PreviewSectionView({
         )}
       </div>
     </section>
+  );
+}
+
+function PreviewImage({ url, alt }: { url: string; alt: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return null;
+
+  return (
+    <figure className="preview-section-image">
+      <img
+        src={url}
+        alt={alt || ""}
+        onError={() => setFailed(true)}
+      />
+    </figure>
   );
 }
 
