@@ -344,3 +344,126 @@ Gerar prompt continua usando o estado atual do lead e não apaga prompts já sal
 A sincronização automática usa somente Supabase + Google Places.
 
 Ela não chama `generate-site-prompt`, não lê `OPENAI_API_KEY` e não consome créditos da OpenAI.
+
+
+## Gerar preview
+
+O JanuarioLeads pode materializar o prompt salvo de uma empresa como uma prévia visual de landing page.
+
+### Fluxo
+
+```text
+Empresa
+-> Gerar prompt
+-> prompt salvo
+-> generate-preview
+-> PreviewSpec estruturado
+-> renderer React controlado
+-> visualização Desktop / Mobile
+-> impressão / Salvar como PDF
+```
+
+O prompt salvo continua sendo a fonte de verdade. `generate-preview` não cria uma nova estratégia independente: recebe os dados públicos da empresa, o resultado estruturado de `generate-site-prompt` e o `lovablePrompt` correspondente àquela versão.
+
+### PreviewSpec
+
+A Edge Function retorna JSON estruturado, não HTML arbitrário.
+
+O `PreviewSpec` contém:
+
+- tema seguro em HEX;
+- perfis tipográficos;
+- densidade e contraste;
+- ação principal;
+- uma lista dinâmica de seções;
+- `kind`, `variant` e `tone` por seção;
+- copy visual;
+- CTAs validados;
+- imagens oficiais quando disponíveis;
+- a indicação `Prévia conceitual`.
+
+Não existe uma sequência fixa de seções. O renderer apenas materializa as seções e variantes retornadas pelo prompt atual.
+
+### Segurança do renderer
+
+O frontend não usa `dangerouslySetInnerHTML` e não executa HTML, CSS ou JavaScript gerado pelo modelo.
+
+A Edge Function sanitiza:
+
+- cores;
+- URLs;
+- telefone;
+- textos visuais;
+- imagens.
+
+CTAs telefônicos só são mantidos quando correspondem ao telefone confirmado da empresa. Site, Instagram e Google Maps só são aceitos quando correspondem às URLs reais recebidas.
+
+Marcadores internos como `[INFORMAÇÃO A CONFIRMAR]`, `[FOTO]`, `[FOTO REAL A INSERIR]` e `[IMAGEM]` são removidos antes da renderização.
+
+Observações privadas do CRM não são enviadas como conteúdo visual do preview.
+
+### Imagens
+
+A prioridade atual é:
+
+1. imagens explicitamente marcadas como verificadas no contexto da empresa;
+2. `og:image` ou `twitter:image` encontrados na homepage do site oficial.
+
+A consulta ao site oficial usa limites de tamanho, timeout, redirects controlados e bloqueio de hosts privados/locais.
+
+Não são utilizadas automaticamente imagens do Google Maps. O preview não faz scraping do Instagram e não gera imagens por IA para representar a empresa.
+
+Se nenhuma imagem confiável estiver disponível, todas as seções recebem `imageUrl` vazio. Variantes que normalmente poderiam usar fotografia colapsam para uma composição textual, sem coluna fantasma ou placeholder.
+
+### Cache e versionamento
+
+O cache fica em `public.site_previews`, protegido por RLS.
+
+A chave lógica é `(user_id, business_key)`, portanto existe somente o preview mais recente de cada empresa.
+
+`promptVersion` usa o `generatedAt` do prompt salvo. `previewVersion` é um UUID gerado a cada materialização.
+
+Se um novo prompt for criado, o preview anterior passa a ser exibido como:
+
+```text
+Preview baseado em uma versão anterior do prompt
+```
+
+Ele não é apresentado como se representasse o prompt novo.
+
+### PDF
+
+A primeira versão não utiliza serviço headless externo.
+
+O mesmo DOM usado no preview é preparado para impressão:
+
+- espera `document.fonts.ready`;
+- espera imagens terminarem de carregar ou falhar;
+- muda temporariamente para a composição Desktop;
+- usa CSS de impressão;
+- mantém imagens, CTAs e grupos curtos sem quebras internas;
+- evita isolar títulos;
+- oculta completamente a interface do JanuarioLeads;
+- adiciona `Prévia conceitual` discretamente à última seção;
+- sanitiza o `document.title` para sugerir um nome como `beefs-burger-landing-page-preview.pdf`.
+
+O botão **Baixar PDF** abre a impressão nativa do navegador, onde deve ser usada a opção **Salvar como PDF**. Essa abordagem preserva melhor HTML/CSS e links sem introduzir Browserless, PDFShift ou outro serviço pago.
+
+### Armazenamento
+
+Somente o `PreviewSpec` é persistido no banco.
+
+HTML temporário, screenshots e PDFs não são armazenados no `localStorage`, Database ou Storage. Portanto não há acúmulo de arquivos PDF nem necessidade de política de limpeza de bucket nesta versão.
+
+### Backend
+
+`generate-preview`:
+
+- exige JWT válido;
+- confirma o usuário em `private_access`;
+- reutiliza `OPENAI_API_KEY` somente no backend;
+- centraliza o nome do modelo no próprio backend;
+- retorna Structured Output;
+- não expõe nenhuma chave ao frontend.
+
+Nenhum novo Secret foi criado.
