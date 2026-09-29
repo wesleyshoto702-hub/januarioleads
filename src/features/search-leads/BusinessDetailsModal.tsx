@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 import { buildFactualBusinessDescription } from "../business-presence/business-description";
 import { discoverBusinessPresence } from "../business-presence/discover-business-presence";
 import type { BusinessPresence } from "../business-presence/types";
+import { LeadActivityTimeline } from "../lead-activities/LeadActivityTimeline";
 import { ChanceBadge } from "../lead-chance/ChanceBadge";
 import type { LeadChanceResult } from "../lead-chance/lead-chance";
 import type { LeadUpdateRecord } from "../leads/remote-leads";
@@ -43,6 +44,7 @@ export function BusinessDetailsModal({
   alreadyAdded = false,
   lastSyncedAt,
   updates = [],
+  activityLeadId,
   onClose,
   onWhatsApp,
   onMessage,
@@ -56,6 +58,7 @@ export function BusinessDetailsModal({
   alreadyAdded?: boolean;
   lastSyncedAt?: string | null;
   updates?: LeadUpdateRecord[];
+  activityLeadId?: string | null;
   onClose: () => void;
   onWhatsApp: (business: BusinessSearchResult) => void;
   onMessage: (target: BusinessDetailsMessageTarget) => void;
@@ -66,6 +69,7 @@ export function BusinessDetailsModal({
   const [presenceLoading, setPresenceLoading] = useState(
     Boolean(business.instagram || business.website),
   );
+  const [activeTab, setActiveTab] = useState<"info" | "history">("info");
 
   const factualDescription =
     business.factualDescription ?? buildFactualBusinessDescription(business);
@@ -81,6 +85,8 @@ export function BusinessDetailsModal({
   }
 
   useEffect(() => {
+    setActiveTab("info");
+
     if (business.instagram || business.website) {
       void verifyPresence(false);
     } else {
@@ -119,6 +125,30 @@ export function BusinessDetailsModal({
           </button>
         </div>
 
+        {activityLeadId && (
+          <div className="business-detail-tabs" role="tablist" aria-label="Detalhes da empresa">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "info"}
+              className={activeTab === "info" ? "active" : ""}
+              onClick={() => setActiveTab("info")}
+            >
+              Informações
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "history"}
+              className={activeTab === "history" ? "active" : ""}
+              onClick={() => setActiveTab("history")}
+            >
+              Histórico
+            </button>
+          </div>
+        )}
+
+        {activeTab === "info" ? (
         <div className="business-detail-content">
           <div className="detail-grid">
             {segmentLabel && (
@@ -321,6 +351,11 @@ export function BusinessDetailsModal({
             )}
           </div>
         </div>
+        ) : activityLeadId ? (
+          <div className="business-detail-content business-history-content">
+            <LeadActivityTimeline leadId={activityLeadId} />
+          </div>
+        ) : null}
       </section>
     </div>
   );
