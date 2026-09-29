@@ -655,7 +655,8 @@ function LeadFlowApp() {
     business: BusinessSearchResult,
     selectedSegment: string,
   ) {
-    setPromptActivityLeadId(null);
+    const existingLead = findBusinessDuplicate(business, leads);
+    setPromptActivityLeadId(existingLead?.id ?? null);
     setPromptBusiness({
       key: makePromptBusinessKey({
         placeId: business.placeId,
