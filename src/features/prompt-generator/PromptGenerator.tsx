@@ -198,55 +198,63 @@ export function PromptGenerator({
       visualReferenceSet &&
       visualReferenceSet.references.length > 0
     ) {
-      setGenerationStatus("Analisando referências visuais...");
+      if (
+        visualReferenceSet.analysis &&
+        visualReferenceSet.analysisSignature
+      ) {
+        visualReferenceAnalysis = visualReferenceSet.analysis;
+        visualReferenceSignature = visualReferenceSet.analysisSignature;
+      } else {
+        setGenerationStatus("Analisando referências visuais...");
 
-      try {
-        const persisted = await persistVisualReferenceDraft(
-          visualReferenceSet,
-        );
-        if (!persisted) {
+        try {
+          const persisted = await persistVisualReferenceDraft(
+            visualReferenceSet,
+          );
+          if (!persisted) {
+            setLoading(false);
+            setGenerationStatus("");
+            setVisualAnalysisError(
+              "Não foi possível salvar as orientações das referências visuais.",
+            );
+            return;
+          }
+
+          const analysisResponse = await analyzeVisualReferences(
+            visualReferenceSet.id,
+          );
+
+          if (!analysisResponse.ok) {
+            setLoading(false);
+            setGenerationStatus("");
+            setVisualAnalysisError(
+              analysisResponse.message ||
+                "Não foi possível analisar as referências visuais.",
+            );
+            return;
+          }
+
+          visualReferenceAnalysis = analysisResponse.analysis;
+          visualReferenceSignature = analysisResponse.signature;
+          setVisualReferenceSet((current) =>
+            current
+              ? {
+                  ...current,
+                  analysis: analysisResponse.analysis,
+                  analysisSignature: analysisResponse.signature,
+                  analysisModel: analysisResponse.model,
+                  analyzedAt: analysisResponse.analyzedAt,
+                }
+              : current,
+          );
+        } catch {
           setLoading(false);
           setGenerationStatus("");
           setVisualAnalysisError(
-            "Não foi possível salvar as orientações das referências visuais.",
+            "Não foi possível analisar as referências visuais.",
           );
           return;
         }
-
-        const analysisResponse = await analyzeVisualReferences(
-          visualReferenceSet.id,
-        );
-
-        if (!analysisResponse.ok) {
-          setLoading(false);
-          setGenerationStatus("");
-          setVisualAnalysisError(
-            analysisResponse.message ||
-              "Não foi possível analisar as referências visuais.",
-          );
-          return;
-        }
-
-        visualReferenceAnalysis = analysisResponse.analysis;
-        visualReferenceSignature = analysisResponse.signature;
-        setVisualReferenceSet((current) =>
-          current
-            ? {
-                ...current,
-                analysis: analysisResponse.analysis,
-                analysisSignature: analysisResponse.signature,
-                analysisModel: analysisResponse.model,
-                analyzedAt: analysisResponse.analyzedAt,
-              }
-            : current,
-        );
-      } catch {
-        setLoading(false);
-        setGenerationStatus("");
-        setVisualAnalysisError(
-          "Não foi possível analisar as referências visuais.",
-        );
-        return;
       }
     }
 
