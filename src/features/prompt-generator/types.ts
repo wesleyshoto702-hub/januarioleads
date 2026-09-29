@@ -36,6 +36,11 @@ export type PromptBusinessContext = {
   latitude?: number | null;
   longitude?: number | null;
   notes?: string | null;
+  verifiedImages?: Array<{
+    url: string;
+    alt?: string | null;
+    source?: string | null;
+  }>;
 };
 
 export type GeneratedSitePrompt = {
