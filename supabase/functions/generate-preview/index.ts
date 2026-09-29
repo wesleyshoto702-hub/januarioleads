@@ -69,6 +69,7 @@ type PreviewSection = {
     | "stats"
     | "stack"
     | "grid";
+  tone: "background" | "surface" | "accent" | "inverse";
   eyebrow: string;
   title: string;
   body: string;
@@ -390,6 +391,7 @@ TEMA
 - Preserve contraste alto o suficiente para leitura.
 - typography descreve perfis; o renderer escolherá famílias seguras equivalentes.
 - Não injete CSS, HTML ou nomes de classe.
+- Para cada seção, escolha tone conforme o prompt: background, surface, accent ou inverse. Não alterne cores por hábito.
 
 CONTEÚDO
 - title/body/items devem ser conteúdo que realmente pode aparecer no site.
@@ -477,6 +479,7 @@ const RESPONSE_SCHEMA = {
           "id",
           "kind",
           "variant",
+          "tone",
           "eyebrow",
           "title",
           "body",
@@ -517,6 +520,10 @@ const RESPONSE_SCHEMA = {
               "stack",
               "grid",
             ],
+          },
+          tone: {
+            type: "string",
+            enum: ["background", "surface", "accent", "inverse"],
           },
           eyebrow: { type: "string" },
           title: { type: "string" },
@@ -659,6 +666,12 @@ function sanitizeSpec(value: unknown, business: BusinessContext): PreviewSpec | 
       id: textOrNull(section.id, 80) ?? `section-${index + 1}`,
       kind: section.kind,
       variant: section.variant,
+      tone:
+        section.tone === "surface" ||
+        section.tone === "accent" ||
+        section.tone === "inverse"
+          ? section.tone
+          : "background",
       eyebrow: textOrNull(section.eyebrow, 120) ?? "",
       title: textOrNull(section.title, 220) ?? "",
       body: textOrNull(section.body, 800) ?? "",
