@@ -884,3 +884,115 @@ Gerando estratégia e prompt...
 A análise visual adiciona uma chamada OpenAI somente quando a assinatura não tem cache válido ou quando o usuário solicita explicitamente Analisar novamente.
 
 A geração normal continua sendo uma chamada separada e mantém seu custo normal.
+
+
+### Referência por URL com Browserless
+
+Referências visuais podem ser screenshots enviados manualmente ou URLs de sites.
+
+Ambos convergem para o mesmo fluxo:
+
+```text
+URL ou screenshot
+-> captura/arquivo privado
+-> analyze-visual-references
+-> visualReferenceAnalysis
+-> generate-site-prompt
+-> lovablePrompt
+-> generate-preview
+```
+
+Uma URL conta como **uma única referência** dentro do limite total de 5, mesmo quando internamente produz até três capturas (início/Hero, meio e final).
+
+#### Captura
+
+A Edge Function `capture-visual-reference` usa Browserless Cloud apenas como navegador Chromium remoto.
+
+Ela utiliza:
+
+```text
+POST https://production-sfo.browserless.io/chromium/function
+```
+
+e nunca usa `/unblock`, stealth, CAPTCHA solving, perfis autenticados ou proxy residencial.
+
+O fluxo:
+
+1. valida JWT e `private_access`;
+2. carrega somente a referência URL do próprio usuário;
+3. aceita somente HTTP/HTTPS sem credenciais embutidas;
+4. bloqueia localhost, redes privadas, link-local, metadata, faixas reservadas e IPs inválidos;
+5. resolve DNS A/AAAA antes da captura e rejeita endereços privados/reservados;
+6. o Chromium também intercepta requests e bloqueia destinos inseguros;
+7. o Browserless mantém seu blocklist padrão habilitado;
+8. aguarda DOM, rede e um pequeno settling delay;
+9. tenta aceitar somente banners simples e convencionais de cookies;
+10. detecta CAPTCHA/login/challenge e encerra sem tentar contornar;
+11. percorre a página com limite para disparar lazy-loading;
+12. usa uma captura full-page quando ela é suficientemente pequena;
+13. caso contrário, gera até três segmentos: `hero`, `middle` e `final`;
+14. grava WebP privado no bucket `prompt-visual-references`.
+
+O timeout total do Browserless é limitado e a Edge Function também possui timeout próprio.
+
+#### Persistência
+
+`prompt_visual_references` agora representa a referência lógica:
+
+- `reference_type = image | url`;
+- URL normalizada e domínio;
+- estado da captura;
+- hash da captura;
+- URL final;
+- título;
+- data da captura.
+
+As imagens internas produzidas por uma URL ficam em:
+
+```text
+public.prompt_visual_reference_assets
+```
+
+com FK para a referência lógica e RLS.
+
+Isso permite uma futura biblioteca compartilhável sem transformar cada segmento da mesma URL em uma referência separada.
+
+#### Cache
+
+Gerar prompt novamente **não recaptura URL**.
+
+Se `capture_hash` e os assets atuais continuam válidos, a captura é reutilizada. A análise visual consolidada também continua usando sua assinatura/cache atual.
+
+Somente o botão **Analisar novamente** de uma referência URL passa `force=true`, causando:
+
+```text
+nova captura Browserless
+-> invalidação da análise antiga
+-> nova análise visual consolidada
+```
+
+O botão **Reanalisar análise** da caixa de direção visual reprocessa somente as imagens já armazenadas e não recaptura sites externos.
+
+#### Falhas e fallback
+
+Quando uma página exige login, CAPTCHA, Cloudflare/challenge, acesso privado, timeout ou não pode ser capturada com segurança, a interface mostra que a captura falhou e oferece:
+
+```text
+Enviar screenshot
+```
+
+O sistema não tenta burlar a proteção.
+
+#### Secret
+
+A captura por URL exige exatamente:
+
+```text
+BROWSERLESS_API_TOKEN
+```
+
+Ele deve existir somente em Supabase -> Edge Functions -> Secrets.
+
+Não existe `VITE_BROWSERLESS_API_TOKEN` e o token nunca é enviado ao navegador.
+
+Enquanto esse Secret não existir, `capture-visual-reference` retorna `NOT_CONFIGURED` e o sistema de screenshots continua funcionando normalmente.
