@@ -476,7 +476,7 @@ Deno.serve(async (request) => {
 
   const refParams = new URLSearchParams({
     select:
-      "id,file_hash,storage_path,original_name,note,sort_order,byte_size,width,height",
+      "id,reference_type,file_hash,storage_path,original_name,note,sort_order,byte_size,width,height,source_url,source_domain,capture_status,capture_hash,capture_final_url,capture_title,captured_at",
     set_id: `eq.${set.id}`,
     user_id: `eq.${authorized.userId}`,
     order: "sort_order.asc",
@@ -491,14 +491,22 @@ Deno.serve(async (request) => {
 
   const references = (await refsResponse.json()) as Array<{
     id: string;
-    file_hash: string;
-    storage_path: string;
+    reference_type: "image" | "url";
+    file_hash: string | null;
+    storage_path: string | null;
     original_name: string;
     note: string;
     sort_order: number;
-    byte_size: number;
-    width: number;
-    height: number;
+    byte_size: number | null;
+    width: number | null;
+    height: number | null;
+    source_url: string | null;
+    source_domain: string | null;
+    capture_status: "pending" | "ready" | "failed" | null;
+    capture_hash: string | null;
+    capture_final_url: string | null;
+    capture_title: string | null;
+    captured_at: string | null;
   }>;
 
   if (references.length < 1 || references.length > 5) {
@@ -509,10 +517,96 @@ Deno.serve(async (request) => {
     );
   }
 
+
+  const urlReferenceIds = references
+    .filter((reference) => reference.reference_type === "url")
+    .map((reference) => reference.id);
+
+  const assetsByReference = new Map<
+    string,
+    Array<{
+      id: string;
+      reference_id: string;
+      storage_path: string;
+      file_hash: string;
+      byte_size: number;
+      width: number;
+      height: number;
+      segment_kind: "full" | "hero" | "middle" | "final";
+      sort_order: number;
+    }>
+  >();
+
+  if (urlReferenceIds.length > 0) {
+    const assetParams = new URLSearchParams({
+      select:
+        "id,reference_id,storage_path,file_hash,byte_size,width,height,segment_kind,sort_order",
+      reference_id: `in.(${urlReferenceIds.join(",")})`,
+      order: "sort_order.asc",
+    });
+
+    const assetsResponse = await fetch(
+      `${authorized.supabaseUrl}/rest/v1/prompt_visual_reference_assets?${assetParams}`,
+      { headers: authorized.headers },
+    );
+
+    if (!assetsResponse.ok) {
+      return failure(
+        "REFERENCE_LOAD_FAILED",
+        "Não foi possível carregar as capturas dos sites de referência.",
+        502,
+      );
+    }
+
+    const assets = (await assetsResponse.json()) as Array<{
+      id: string;
+      reference_id: string;
+      storage_path: string;
+      file_hash: string;
+      byte_size: number;
+      width: number;
+      height: number;
+      segment_kind: "full" | "hero" | "middle" | "final";
+      sort_order: number;
+    }>;
+
+    for (const asset of assets) {
+      assetsByReference.set(asset.reference_id, [
+        ...(assetsByReference.get(asset.reference_id) ?? []),
+        asset,
+      ]);
+    }
+  }
+
+  const unavailableUrl = references.find(
+    (reference) =>
+      reference.reference_type === "url" &&
+      (
+        reference.capture_status !== "ready" ||
+        !reference.capture_hash ||
+        (assetsByReference.get(reference.id)?.length ?? 0) === 0
+      ),
+  );
+
+  if (unavailableUrl) {
+    return failure(
+      "REFERENCE_LOAD_FAILED",
+      `A referência ${unavailableUrl.source_domain ?? unavailableUrl.original_name} ainda não possui uma captura visual válida. Analise o site novamente ou envie um screenshot.`,
+      400,
+    );
+  }
+
   const signaturePayload = JSON.stringify({
     guidance: set.guidance.trim(),
     references: references.map((reference) => ({
-      hash: reference.file_hash,
+      type: reference.reference_type,
+      identity:
+        reference.reference_type === "url"
+          ? {
+              url: reference.source_url,
+              captureHash: reference.capture_hash,
+            }
+          : { hash: reference.file_hash },
       note: reference.note.trim(),
       order: reference.sort_order,
     })),
@@ -541,49 +635,107 @@ Deno.serve(async (request) => {
     detail: "high";
   }> = [];
 
-  for (const reference of references) {
-    const fileResponse = await fetch(
-      `${authorized.supabaseUrl}/storage/v1/object/authenticated/${BUCKET}/${reference.storage_path}`,
-      { headers: authorized.headers },
-    );
+  const visualParts: Array<{
+    referenceIndex: number;
+    sourceType: "image" | "url";
+    sourceLabel: string;
+    segment: string;
+    dimensions: string;
+    note: string | null;
+  }> = [];
 
-    if (!fileResponse.ok) {
-      return failure(
-        "REFERENCE_LOAD_FAILED",
-        `Não foi possível carregar ${reference.original_name} para análise.`,
-        502,
+  for (let referenceIndex = 0; referenceIndex < references.length; referenceIndex += 1) {
+    const reference = references[referenceIndex];
+
+    const parts =
+      reference.reference_type === "url"
+        ? (assetsByReference.get(reference.id) ?? []).map((asset) => ({
+            storagePath: asset.storage_path,
+            dimensions: `${asset.width}x${asset.height}`,
+            segment: asset.segment_kind,
+          }))
+        : reference.storage_path
+          ? [{
+              storagePath: reference.storage_path,
+              dimensions: `${reference.width ?? 0}x${reference.height ?? 0}`,
+              segment:
+                (reference.height ?? 0) > (reference.width ?? 1) * 2.2
+                  ? "full"
+                  : "manual",
+            }]
+          : [];
+
+    for (const part of parts) {
+      const fileResponse = await fetch(
+        `${authorized.supabaseUrl}/storage/v1/object/authenticated/${BUCKET}/${part.storagePath}`,
+        { headers: authorized.headers },
       );
-    }
 
-    const bytes = new Uint8Array(await fileResponse.arrayBuffer());
-    imageInputs.push({
-      type: "input_image",
-      image_url: `data:image/webp;base64,${bytesToBase64(bytes)}`,
-      detail: "high",
-    });
+      if (!fileResponse.ok) {
+        return failure(
+          "REFERENCE_LOAD_FAILED",
+          `Não foi possível carregar ${reference.original_name} para análise.`,
+          502,
+        );
+      }
+
+      const bytes = new Uint8Array(await fileResponse.arrayBuffer());
+      imageInputs.push({
+        type: "input_image",
+        image_url: `data:image/webp;base64,${bytesToBase64(bytes)}`,
+        detail: "high",
+      });
+      visualParts.push({
+        referenceIndex: referenceIndex + 1,
+        sourceType: reference.reference_type,
+        sourceLabel:
+          reference.reference_type === "url"
+            ? reference.source_domain ?? reference.original_name
+            : reference.original_name,
+        segment: part.segment,
+        dimensions: part.dimensions,
+        note: reference.note.trim() || null,
+      });
+    }
   }
 
   const referenceNotes = references.map((reference, index) => ({
     reference: index + 1,
-    originalName: reference.original_name,
-    dimensions: `${reference.width}x${reference.height}`,
-    likelyScope:
-      reference.height > reference.width * 2.2
-        ? "provável screenshot de página longa/full page"
-        : reference.height > reference.width * 1.15
-          ? "provável seção/viewport vertical"
-          : "provável Hero/seção/viewport horizontal",
+    sourceType: reference.reference_type,
+    source:
+      reference.reference_type === "url"
+        ? reference.source_domain ?? reference.source_url
+        : reference.original_name,
+    captureTitle:
+      reference.reference_type === "url" ? reference.capture_title : null,
+    capturedAt:
+      reference.reference_type === "url" ? reference.captured_at : null,
+    parts:
+      reference.reference_type === "url"
+        ? (assetsByReference.get(reference.id) ?? []).map((asset) => ({
+            segment: asset.segment_kind,
+            dimensions: `${asset.width}x${asset.height}`,
+          }))
+        : [{
+            segment:
+              (reference.height ?? 0) > (reference.width ?? 1) * 2.2
+                ? "full"
+                : "manual",
+            dimensions: `${reference.width ?? 0}x${reference.height ?? 0}`,
+          }],
     note: reference.note.trim() || null,
   }));
 
   const userText = JSON.stringify({
     userGuidance: set.guidance.trim() || null,
     references: referenceNotes,
+    visualParts,
     priorityRules: [
       "A orientação explícita do usuário tem prioridade sobre interpretações visuais.",
       "Extraia mecanismos e princípios, não conteúdo comercial.",
       "Não transforme uma proporção observada em medida obrigatória.",
       "Diferencie padrões compartilhados, diferenças e conflitos.",
+      "Várias capturas internas da mesma URL pertencem à mesma referência lógica; use-as para entender o ritmo da página completa, não como referências independentes.",
       "A análise deve ajudar outra IA a criar algo original e específico.",
     ],
   });
