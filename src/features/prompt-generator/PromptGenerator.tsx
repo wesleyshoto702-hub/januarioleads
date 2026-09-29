@@ -93,6 +93,7 @@ export function PromptGenerator({
     useState<VisualReferenceSet | null>(null);
   const [visualReferencesLoading, setVisualReferencesLoading] = useState(true);
   const [visualAnalysisOpen, setVisualAnalysisOpen] = useState(false);
+  const [visualAnalysisLoading, setVisualAnalysisLoading] = useState(false);
   const [visualAnalysisError, setVisualAnalysisError] = useState("");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
@@ -275,6 +276,59 @@ export function PromptGenerator({
     });
   }
 
+  async function handleReanalyzeVisualReferences() {
+    if (
+      !visualReferenceSet ||
+      visualReferenceSet.references.length === 0 ||
+      visualAnalysisLoading ||
+      loading
+    ) {
+      return;
+    }
+
+    setVisualAnalysisLoading(true);
+    setVisualAnalysisError("");
+
+    try {
+      const persisted = await persistVisualReferenceDraft(visualReferenceSet);
+      if (!persisted) {
+        setVisualAnalysisError(
+          "Não foi possível salvar as orientações das referências visuais.",
+        );
+        return;
+      }
+
+      const response = await analyzeVisualReferences(
+        visualReferenceSet.id,
+        true,
+      );
+
+      if (!response.ok) {
+        setVisualAnalysisError(response.message);
+        return;
+      }
+
+      setVisualReferenceSet((current) =>
+        current
+          ? {
+              ...current,
+              analysis: response.analysis,
+              analysisSignature: response.signature,
+              analysisModel: response.model,
+              analyzedAt: response.analyzedAt,
+            }
+          : current,
+      );
+      setVisualAnalysisOpen(true);
+    } catch {
+      setVisualAnalysisError(
+        "Não foi possível analisar as referências visuais.",
+      );
+    } finally {
+      setVisualAnalysisLoading(false);
+    }
+  }
+
   async function handleGeneratePreview(force = false) {
     if (!promptRecord || previewLoading) return;
 
@@ -393,7 +447,7 @@ export function PromptGenerator({
               businessKey={business.key}
               value={visualReferenceSet}
               onChange={setVisualReferenceSet}
-              disabled={loading || visualReferencesLoading}
+              disabled={loading || visualReferencesLoading || visualAnalysisLoading}
               onViewAnalysis={() => setVisualAnalysisOpen((current) => !current)}
             />
 
@@ -402,6 +456,8 @@ export function PromptGenerator({
                 analysis={visualReferenceSet.analysis}
                 model={visualReferenceSet.analysisModel}
                 analyzedAt={visualReferenceSet.analyzedAt}
+                loading={visualAnalysisLoading}
+                onReanalyze={() => void handleReanalyzeVisualReferences()}
               />
             )}
 
@@ -595,10 +651,14 @@ function VisualReferenceAnalysisPreview({
   analysis,
   model,
   analyzedAt,
+  loading,
+  onReanalyze,
 }: {
   analysis: VisualReferenceAnalysis;
   model: string | null;
   analyzedAt: string | null;
+  loading: boolean;
+  onReanalyze: () => void;
 }) {
   return (
     <section className="visual-reference-analysis-preview">
@@ -607,17 +667,32 @@ function VisualReferenceAnalysisPreview({
           <span className="detail-kicker">DIREÇÃO IDENTIFICADA</span>
           <strong>{analysis.overallDirection}</strong>
         </div>
-        {(model || analyzedAt) && (
-          <small>
-            {analyzedAt
-              ? new Intl.DateTimeFormat("pt-BR", {
-                  dateStyle: "short",
-                  timeStyle: "short",
-                }).format(new Date(analyzedAt))
-              : ""}
-            {model ? ` · ${model}` : ""}
-          </small>
-        )}
+        <div className="visual-reference-analysis-meta">
+          {(model || analyzedAt) && (
+            <small>
+              {analyzedAt
+                ? new Intl.DateTimeFormat("pt-BR", {
+                    dateStyle: "short",
+                    timeStyle: "short",
+                  }).format(new Date(analyzedAt))
+                : ""}
+              {model ? ` · ${model}` : ""}
+            </small>
+          )}
+          <button
+            type="button"
+            className="secondary-button"
+            disabled={loading}
+            onClick={onReanalyze}
+          >
+            {loading ? (
+              <Loader2 size={13} className="auth-spinner" />
+            ) : (
+              <RefreshCw size={13} />
+            )}
+            {loading ? "Analisando..." : "Analisar novamente"}
+          </button>
+        </div>
       </div>
 
       <div className="visual-reference-analysis-grid">
