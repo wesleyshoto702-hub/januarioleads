@@ -466,16 +466,6 @@ IMAGENS
 - "Foto real recomendada aqui" só pode aparecer como comentário/metadata/instrução discreta de edição, nunca como grande elemento visual.
 - O array "images" pode ser vazio quando não houver uso seguro de imagem.
 
-REFERÊNCIAS VISUAIS OPCIONAIS
-- Quando "visualReferenceAnalysis" estiver presente, trate-a como direção de design secundária aos dados reais, objetivo comercial e instruções explícitas.
-- Reaproveite MECANISMOS visuais, nunca identidade proprietária: composição, hierarquia, assimetria, ritmo, densidade, escala tipográfica, tratamento de imagem, grids, navegação e CTAs.
-- Não copie nome, marca, texto, slogan, imagem, produto, preço, depoimento, código, paleta proprietária ou layout pixel a pixel.
-- Não converta observações como "Hero 60/40" em medida rígida; traduza para lógica compositiva adaptativa.
-- Se houver conflitos entre referências, escolha uma direção coerente em vez de misturar tudo.
-- Faça a influência aparecer de forma concreta principalmente em "visualDirection", "sections" e "lovablePrompt".
-- Em "## Direção visual" do lovablePrompt, explicite os mecanismos que devem orientar a implementação e por que funcionam para ESTA empresa, sem mencionar que são cópias de outros sites.
-- Em "## Estrutura sugerida", permita que a análise visual altere ritmo, densidade, alternância e composição das seções, sem inventar conteúdo comercial.
-
 DIREÇÃO VISUAL
 - Gere uma direção de arte curta e fundamentada em características concretas do negócio.
 - Defina somente o necessário: fundo predominante, superfície secundária se útil, cor de destaque, perfil tipográfico, densidade, contraste e tratamento de fotografia.
@@ -562,6 +552,18 @@ SAÍDA ESTRUTURADA
 - "images": zero ou poucos usos realmente sustentados.
 - "sections": somente as seções que devem existir.
 - "lovablePrompt": briefing executável, enxuto e adaptativo.
+`;
+
+const VISUAL_REFERENCE_SYSTEM_PROMPT = `
+REFERÊNCIAS VISUAIS OPCIONAIS
+- Trate visualReferenceAnalysis como direção de design secundária aos dados reais, objetivo comercial e instruções explícitas.
+- Reaproveite MECANISMOS visuais, nunca identidade proprietária: composição, hierarquia, assimetria, ritmo, densidade, escala tipográfica, tratamento de imagem, grids, navegação e CTAs.
+- Não copie nome, marca, texto, slogan, imagem, produto, preço, depoimento, código, paleta proprietária ou layout pixel a pixel.
+- Não converta observações como "Hero 60/40" em medida rígida; traduza para lógica compositiva adaptativa.
+- Se houver conflitos entre referências, escolha uma direção coerente em vez de misturar tudo.
+- Faça a influência aparecer de forma concreta principalmente em visualDirection, sections e lovablePrompt.
+- Em "## Direção visual" do lovablePrompt, explicite os mecanismos que devem orientar a implementação e por que funcionam para ESTA empresa.
+- Em "## Estrutura sugerida", permita que a análise visual altere ritmo, densidade, alternância e composição das seções, sem inventar conteúdo comercial.
 `;
 
 const RESPONSE_SCHEMA = {
@@ -775,9 +777,13 @@ Deno.serve(async (request) => {
     requestedObjective: input.objective,
     verifiedBusinessData: input.business,
     contentAvailability: buildContentAvailability(input.business),
-    visualReferenceAnalysis: input.visualReferenceAnalysis,
-    referencePriority:
-      "Dados reais da empresa > objetivo comercial > instruções explícitas do usuário > referências visuais > decisões criativas.",
+    ...(input.visualReferenceAnalysis
+      ? {
+          visualReferenceAnalysis: input.visualReferenceAnalysis,
+          referencePriority:
+            "Dados reais da empresa > objetivo comercial > instruções explícitas do usuário > referências visuais > decisões criativas.",
+        }
+      : {}),
     instructions: [
       "Se Tipo de projeto for IA decidir, escolha entre Landing Page e Site Institucional.",
       "Se Objetivo principal for IA decidir, escolha uma única ação principal coerente.",
@@ -786,9 +792,11 @@ Deno.serve(async (request) => {
       "Escolha somente as seções sustentadas pelos dados reais.",
       "Se não houver imagem real confirmada, faça a composição funcionar sem imagem e sem placeholder grande.",
       "Mantenha direção forte sem prescrever pixels, frações de grid, fontes exatas ou numeração sem necessidade.",
-      input.visualReferenceAnalysis
-        ? "Use visualReferenceAnalysis para tornar composição, hierarquia, tipografia, ritmo, densidade, tratamento de imagens e estrutura mais específicos. Reaproveite os mecanismos, nunca o conteúdo ou layout literal das referências."
-        : "Nenhuma referência visual foi fornecida; mantenha o comportamento criativo atual.",
+      ...(input.visualReferenceAnalysis
+        ? [
+            "Use visualReferenceAnalysis para tornar composição, hierarquia, tipografia, ritmo, densidade, tratamento de imagens e estrutura mais específicos. Reaproveite os mecanismos, nunca o conteúdo ou layout literal das referências.",
+          ]
+        : []),
     ],
   };
 
@@ -806,7 +814,17 @@ Deno.serve(async (request) => {
         input: [
           {
             role: "system",
-            content: [{ type: "input_text", text: SYSTEM_PROMPT }],
+            content: [
+              { type: "input_text", text: SYSTEM_PROMPT },
+              ...(input.visualReferenceAnalysis
+                ? [
+                    {
+                      type: "input_text" as const,
+                      text: VISUAL_REFERENCE_SYSTEM_PROMPT,
+                    },
+                  ]
+                : []),
+            ],
           },
           {
             role: "user",
