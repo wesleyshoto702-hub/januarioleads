@@ -807,6 +807,8 @@ A assinatura é SHA-256 de:
 
 Se a assinatura atual for igual à assinatura já analisada e `force !== true`, a Edge Function devolve o `visualReferenceAnalysis` salvo sem chamar a OpenAI.
 
+Além disso, quando a análise válida já está carregada no `PromptGenerator`, uma nova geração com as mesmas referências reutiliza essa análise diretamente no frontend e nem precisa chamar novamente a Edge Function de visão.
+
 Ao abrir a interface ou clicar em Ver análise nenhuma chamada OpenAI é feita.
 
 Alterar imagem, remover/substituir imagem, orientação ou observação produz uma assinatura diferente. A UI também recalcula a assinatura ao carregar o conjunto e não exibe uma análise antiga como atual.
