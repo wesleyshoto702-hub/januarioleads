@@ -155,13 +155,13 @@ export async function ensureVisualReferenceSet(businessKey: string) {
 
   const { session, headers } = await auth();
   const response = await fetch(
-    `${SUPABASE_URL}/rest/v1/prompt_visual_reference_sets`,
+    `${SUPABASE_URL}/rest/v1/prompt_visual_reference_sets?on_conflict=user_id,business_key`,
     {
       method: "POST",
       headers: {
         ...headers,
         "Content-Type": "application/json",
-        Prefer: "return=representation",
+        Prefer: "resolution=merge-duplicates,return=representation",
       },
       body: JSON.stringify({
         user_id: session.user.id,
