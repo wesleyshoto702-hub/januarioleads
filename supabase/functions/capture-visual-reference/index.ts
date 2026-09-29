@@ -20,7 +20,7 @@ type BrowserlessPayload = {
 
 const BUCKET = "prompt-visual-references";
 const BROWSERLESS_FUNCTION_ENDPOINT =
-  "https://production-sfo.browserless.io/function";
+  "https://production-sfo.browserless.io/chromium/function";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -318,6 +318,15 @@ export default async ({ page, context }) => {
   await page.setRequestInterception(true);
   page.on("request", (request) => {
     const requestUrl = request.url();
+    if (
+      requestUrl.startsWith("data:") ||
+      requestUrl.startsWith("blob:") ||
+      requestUrl === "about:blank"
+    ) {
+      request.continue();
+      return;
+    }
+
     if (!allowedUrl(requestUrl)) request.abort("blockedbyclient");
     else request.continue();
   });
@@ -452,9 +461,10 @@ export default async ({ page, context }) => {
   const captures = [];
 
   const makeCapture = async (kind, y, height) => {
-    const buffer = await page.screenshot({
+    const base64 = await page.screenshot({
       type: "webp",
       quality,
+      encoding: "base64",
       clip: { x: 0, y, width: 1440, height },
       captureBeyondViewport: true,
     });
@@ -462,8 +472,8 @@ export default async ({ page, context }) => {
       kind,
       width: 1440,
       height,
-      base64: Buffer.from(buffer).toString("base64"),
-      byteSize: buffer.length,
+      base64,
+      byteSize: Math.floor((base64.length * 3) / 4),
     };
   };
 
@@ -471,17 +481,19 @@ export default async ({ page, context }) => {
     const full = await page.screenshot({
       type: "webp",
       quality,
+      encoding: "base64",
       fullPage: true,
       captureBeyondViewport: true,
     });
 
-    if (full.length <= 2900000) {
+    const fullByteSize = Math.floor((full.length * 3) / 4);
+    if (fullByteSize <= 2900000) {
       captures.push({
         kind: "full",
         width: 1440,
         height: pageHeight,
-        base64: Buffer.from(full).toString("base64"),
-        byteSize: full.length,
+        base64: full,
+        byteSize: fullByteSize,
       });
     }
   }
@@ -712,7 +724,7 @@ Deno.serve(async (request) => {
   let browserlessResponse: Response;
   try {
     browserlessResponse = await fetch(
-      `${BROWSERLESS_FUNCTION_ENDPOINT}?token=${encodeURIComponent(token)}`,
+      `${BROWSERLESS_FUNCTION_ENDPOINT}?token=${encodeURIComponent(token)}&timeout=60000`,
       {
         method: "POST",
         signal: controller.signal,
