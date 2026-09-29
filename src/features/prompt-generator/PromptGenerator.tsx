@@ -62,9 +62,16 @@ type ResultTab =
 export function PromptGenerator({
   business,
   onClose,
+  onGenerated,
 }: {
   business: PromptBusinessContext;
   onClose: () => void;
+  onGenerated?: (input: {
+    regenerated: boolean;
+    generatedAt: string;
+    projectType: PromptProjectType;
+    objective: PromptObjective;
+  }) => void;
 }) {
   const [projectType, setProjectType] =
     useState<PromptProjectType>("IA decidir");
@@ -130,6 +137,8 @@ export function PromptGenerator({
   async function handleGenerate() {
     if (loading) return;
 
+    const regenerated = Boolean(result);
+
     if (
       result &&
       !window.confirm(
@@ -178,6 +187,12 @@ export function PromptGenerator({
 
     savePrompt(nextPrompt);
     setPromptRecord(nextPrompt);
+    onGenerated?.({
+      regenerated,
+      generatedAt: nextPrompt.generatedAt,
+      projectType,
+      objective,
+    });
   }
 
   async function handleGeneratePreview(force = false) {
