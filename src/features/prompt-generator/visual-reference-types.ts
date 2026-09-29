@@ -31,19 +31,51 @@ export type VisualReferenceAnalysis = {
   avoidCopying: string[];
 };
 
-export type VisualReferenceItem = {
+export type VisualReferenceType = "image" | "url";
+
+export type VisualReferenceCaptureStatus =
+  | "pending"
+  | "ready"
+  | "failed"
+  | null;
+
+export type VisualReferenceAsset = {
   id: string;
-  setId: string;
-  fileHash: string;
+  referenceId: string;
   storagePath: string;
-  originalName: string;
+  fileHash: string;
   mimeType: "image/webp";
   byteSize: number;
   width: number;
   height: number;
+  segmentKind: "full" | "hero" | "middle" | "final";
+  sortOrder: number;
+  createdAt: string;
+};
+
+export type VisualReferenceItem = {
+  id: string;
+  setId: string;
+  referenceType: VisualReferenceType;
+  fileHash: string | null;
+  storagePath: string | null;
+  originalName: string;
+  mimeType: "image/webp" | null;
+  byteSize: number | null;
+  width: number | null;
+  height: number | null;
   note: string;
   sortOrder: number;
   createdAt: string;
+  sourceUrl: string | null;
+  sourceDomain: string | null;
+  captureStatus: VisualReferenceCaptureStatus;
+  captureError: string | null;
+  captureHash: string | null;
+  captureFinalUrl: string | null;
+  captureTitle: string | null;
+  capturedAt: string | null;
+  assets: VisualReferenceAsset[];
 };
 
 export type VisualReferenceSet = {
@@ -80,4 +112,25 @@ export type AnalyzeVisualReferencesResponse =
         | "PROVIDER_FAILED"
         | "INVALID_AI_RESPONSE";
       message: string;
+    };
+
+export type CaptureUrlReferenceResponse =
+  | {
+      ok: true;
+      reference: VisualReferenceItem;
+      cached: boolean;
+    }
+  | {
+      ok: false;
+      code:
+        | "AUTH_REQUIRED"
+        | "FORBIDDEN"
+        | "INVALID_REQUEST"
+        | "NOT_CONFIGURED"
+        | "URL_BLOCKED"
+        | "CAPTURE_TIMEOUT"
+        | "CAPTURE_FAILED"
+        | "STORAGE_FAILED";
+      message: string;
+      fallbackToScreenshot: true;
     };
