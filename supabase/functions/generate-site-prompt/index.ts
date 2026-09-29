@@ -9,6 +9,40 @@ type PromptObjective =
   | "Levar pessoas ao estabelecimento"
   | "IA decidir";
 
+
+type VisualReferenceAnalysis = {
+  overallDirection: string;
+  composition: {
+    hero: string;
+    grid: string;
+    alignment: string;
+    density: string;
+    sectionRhythm: string;
+  };
+  typography: {
+    style: string;
+    hierarchy: string;
+    scale: string;
+    alignment: string;
+  };
+  imagery: {
+    usage: string;
+    crop: string;
+    placement: string;
+  };
+  interface: {
+    buttons: string;
+    navigation: string;
+    borders: string;
+    cards: string;
+  };
+  commonPatterns: string[];
+  meaningfulDifferences: string[];
+  conflicts: string[];
+  visualMechanismsToReuse: string[];
+  avoidCopying: string[];
+};
+
 type BusinessContext = {
   key?: string;
   company?: string;
@@ -232,6 +266,7 @@ function validateInput(value: unknown) {
     business?: unknown;
     projectType?: unknown;
     objective?: unknown;
+    visualReferenceAnalysis?: unknown;
   };
 
   if (!input.business || typeof input.business !== "object") return null;
@@ -252,10 +287,19 @@ function validateInput(value: unknown) {
     return null;
   }
 
+  let visualReferenceAnalysis: VisualReferenceAnalysis | null = null;
+  if (input.visualReferenceAnalysis !== undefined && input.visualReferenceAnalysis !== null) {
+    if (!isValidVisualReferenceAnalysis(input.visualReferenceAnalysis)) {
+      return null;
+    }
+    visualReferenceAnalysis = input.visualReferenceAnalysis;
+  }
+
   return {
     business: sanitizeBusiness(business),
     projectType: input.projectType as PromptProjectType,
     objective: input.objective as PromptObjective,
+    visualReferenceAnalysis,
   };
 }
 
@@ -298,6 +342,62 @@ function sanitizeBusiness(business: BusinessContext): BusinessContext {
     longitude: typeof business.longitude === "number" ? business.longitude : null,
     notes: textOrNull(business.notes, 1400),
   };
+}
+
+function limitedStrings(value: unknown, maxItems = 8, maxLength = 900) {
+  return (
+    Array.isArray(value) &&
+    value.length <= maxItems &&
+    value.every(
+      (item) =>
+        typeof item === "string" &&
+        item.trim().length > 0 &&
+        item.length <= maxLength,
+    )
+  );
+}
+
+function isValidVisualReferenceAnalysis(
+  value: unknown,
+): value is VisualReferenceAnalysis {
+  if (!value || typeof value !== "object") return false;
+  const analysis = value as Record<string, unknown>;
+  const composition = analysis.composition as Record<string, unknown> | null;
+  const typography = analysis.typography as Record<string, unknown> | null;
+  const imagery = analysis.imagery as Record<string, unknown> | null;
+  const ui = analysis.interface as Record<string, unknown> | null;
+
+  const validText = (target: Record<string, unknown> | null, keys: string[]) =>
+    Boolean(
+      target &&
+        keys.every(
+          (key) =>
+            typeof target[key] === "string" &&
+            (target[key] as string).trim().length > 0 &&
+            (target[key] as string).length <= 1400,
+        ),
+    );
+
+  return Boolean(
+    typeof analysis.overallDirection === "string" &&
+      analysis.overallDirection.trim().length > 0 &&
+      analysis.overallDirection.length <= 1800 &&
+      validText(composition, [
+        "hero",
+        "grid",
+        "alignment",
+        "density",
+        "sectionRhythm",
+      ]) &&
+      validText(typography, ["style", "hierarchy", "scale", "alignment"]) &&
+      validText(imagery, ["usage", "crop", "placement"]) &&
+      validText(ui, ["buttons", "navigation", "borders", "cards"]) &&
+      limitedStrings(analysis.commonPatterns) &&
+      limitedStrings(analysis.meaningfulDifferences) &&
+      limitedStrings(analysis.conflicts) &&
+      limitedStrings(analysis.visualMechanismsToReuse) &&
+      limitedStrings(analysis.avoidCopying)
+  );
 }
 
 function buildContentAvailability(business: BusinessContext) {
@@ -365,6 +465,16 @@ IMAGENS
 - Se não houver imagem real, a página deve parecer finalizada SEM imagem.
 - "Foto real recomendada aqui" só pode aparecer como comentário/metadata/instrução discreta de edição, nunca como grande elemento visual.
 - O array "images" pode ser vazio quando não houver uso seguro de imagem.
+
+REFERÊNCIAS VISUAIS OPCIONAIS
+- Quando "visualReferenceAnalysis" estiver presente, trate-a como direção de design secundária aos dados reais, objetivo comercial e instruções explícitas.
+- Reaproveite MECANISMOS visuais, nunca identidade proprietária: composição, hierarquia, assimetria, ritmo, densidade, escala tipográfica, tratamento de imagem, grids, navegação e CTAs.
+- Não copie nome, marca, texto, slogan, imagem, produto, preço, depoimento, código, paleta proprietária ou layout pixel a pixel.
+- Não converta observações como "Hero 60/40" em medida rígida; traduza para lógica compositiva adaptativa.
+- Se houver conflitos entre referências, escolha uma direção coerente em vez de misturar tudo.
+- Faça a influência aparecer de forma concreta principalmente em "visualDirection", "sections" e "lovablePrompt".
+- Em "## Direção visual" do lovablePrompt, explicite os mecanismos que devem orientar a implementação e por que funcionam para ESTA empresa, sem mencionar que são cópias de outros sites.
+- Em "## Estrutura sugerida", permita que a análise visual altere ritmo, densidade, alternância e composição das seções, sem inventar conteúdo comercial.
 
 DIREÇÃO VISUAL
 - Gere uma direção de arte curta e fundamentada em características concretas do negócio.
@@ -665,6 +775,9 @@ Deno.serve(async (request) => {
     requestedObjective: input.objective,
     verifiedBusinessData: input.business,
     contentAvailability: buildContentAvailability(input.business),
+    visualReferenceAnalysis: input.visualReferenceAnalysis,
+    referencePriority:
+      "Dados reais da empresa > objetivo comercial > instruções explícitas do usuário > referências visuais > decisões criativas.",
     instructions: [
       "Se Tipo de projeto for IA decidir, escolha entre Landing Page e Site Institucional.",
       "Se Objetivo principal for IA decidir, escolha uma única ação principal coerente.",
@@ -673,6 +786,9 @@ Deno.serve(async (request) => {
       "Escolha somente as seções sustentadas pelos dados reais.",
       "Se não houver imagem real confirmada, faça a composição funcionar sem imagem e sem placeholder grande.",
       "Mantenha direção forte sem prescrever pixels, frações de grid, fontes exatas ou numeração sem necessidade.",
+      input.visualReferenceAnalysis
+        ? "Use visualReferenceAnalysis para tornar composição, hierarquia, tipografia, ritmo, densidade, tratamento de imagens e estrutura mais específicos. Reaproveite os mecanismos, nunca o conteúdo ou layout literal das referências."
+        : "Nenhuma referência visual foi fornecida; mantenha o comportamento criativo atual.",
     ],
   };
 
