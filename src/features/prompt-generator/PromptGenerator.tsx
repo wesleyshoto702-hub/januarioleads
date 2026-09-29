@@ -699,7 +699,7 @@ function VisualReferenceAnalysisPreview({
           <button
             type="button"
             className="secondary-button"
-            disabled={loading || visualAnalysisLoading}
+            disabled={loading}
             onClick={onReanalyze}
           >
             {loading ? (
