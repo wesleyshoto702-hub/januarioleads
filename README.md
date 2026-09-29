@@ -589,11 +589,22 @@ A descrição mostra um resumo curto das primeiras mudanças e o metadata guarda
 
 **Edição manual**
 
-Uma operação de salvar com alterações relevantes cria somente um:
+Uma operação de salvar gera no máximo um evento.
+
+Se apenas campos da empresa mudarem:
 
 ```text
 Empresa editada
 ```
+
+Se o status também mudar, o único evento da operação é:
+
+```text
+Status alterado
+Aguardando → Aceito
+```
+
+e os demais campos editados ficam resumidos na descrição/metadata.
 
 Nenhum evento é criado quando o formulário é salvo sem mudança relevante.
 
