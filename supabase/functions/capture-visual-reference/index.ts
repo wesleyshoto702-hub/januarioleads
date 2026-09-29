@@ -243,6 +243,24 @@ function isBlockedHostname(hostname: string) {
   );
 }
 
+async function hostnameResolvesPublicly(hostname: string) {
+  if (blockedIpv4(hostname) || blockedIpv6(hostname)) return false;
+
+  const results = await Promise.allSettled([
+    Deno.resolveDns(hostname, "A"),
+    Deno.resolveDns(hostname, "AAAA"),
+  ]);
+
+  const addresses = results.flatMap((result) =>
+    result.status === "fulfilled" ? result.value : [],
+  );
+
+  if (addresses.length === 0) return false;
+  return addresses.every(
+    (address) => !blockedIpv4(address) && !blockedIpv6(address),
+  );
+}
+
 function normalizeAndValidateUrl(value: string) {
   let url: URL;
   try {
@@ -622,6 +640,26 @@ Deno.serve(async (request) => {
     await updateCaptureState(authorized, reference.id, {
       capture_status: "failed",
       capture_error: "URL bloqueada por segurança.",
+    });
+    return failure(
+      "URL_BLOCKED",
+      "Esta URL não pode ser processada por segurança. Envie um screenshot.",
+      400,
+    );
+  }
+
+  let resolvesPublicly = false;
+  try {
+    resolvesPublicly = await hostnameResolvesPublicly(normalized.hostname);
+  } catch {
+    resolvesPublicly = false;
+  }
+
+  if (!resolvesPublicly) {
+    await updateCaptureState(authorized, reference.id, {
+      capture_status: "failed",
+      capture_error:
+        "O domínio não pôde ser validado como endereço público.",
     });
     return failure(
       "URL_BLOCKED",
