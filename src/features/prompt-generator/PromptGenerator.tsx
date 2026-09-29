@@ -3,17 +3,29 @@ import {
   Copy,
   Loader2,
   RefreshCw,
+  Eye,
   Sparkles,
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { generateSitePrompt } from "./generate-site-prompt";
 import { getSavedPrompt, savePrompt } from "./storage";
+import {
+  generatePreview,
+  getSavedPreview,
+  savePreview,
+} from "../site-preview/preview-service";
+import { SitePreviewViewer } from "../site-preview/SitePreviewViewer";
+import {
+  isPreviewCurrent,
+  type SavedPreviewRecord,
+} from "../site-preview/types";
 import type {
   GeneratedSitePrompt,
   PromptBusinessContext,
   PromptObjective,
   PromptProjectType,
+  SavedPromptRecord,
 } from "./types";
 
 const PROJECT_TYPES: PromptProjectType[] = [
@@ -58,6 +70,11 @@ export function PromptGenerator({
     useState<PromptProjectType>("IA decidir");
   const [objective, setObjective] = useState<PromptObjective>("IA decidir");
   const [result, setResult] = useState<GeneratedSitePrompt | null>(null);
+  const [promptRecord, setPromptRecord] = useState<SavedPromptRecord | null>(null);
+  const [preview, setPreview] = useState<SavedPreviewRecord | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewError, setPreviewError] = useState("");
   const [activeTab, setActiveTab] = useState<ResultTab>("analysis");
   const [loading, setLoading] = useState(false);
   const [generationStep, setGenerationStep] = useState(0);
@@ -65,19 +82,34 @@ export function PromptGenerator({
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
+    let active = true;
     const saved = getSavedPrompt(business.key);
+
+    setPreview(null);
+    setPreviewOpen(false);
+    setPreviewError("");
+
     if (!saved) {
       setProjectType("IA decidir");
       setObjective("IA decidir");
       setResult(null);
+      setPromptRecord(null);
       setActiveTab("analysis");
-      return;
+    } else {
+      setProjectType(saved.projectType);
+      setObjective(saved.objective);
+      setResult(saved.result);
+      setPromptRecord(saved);
+      setActiveTab("analysis");
     }
 
-    setProjectType(saved.projectType);
-    setObjective(saved.objective);
-    setResult(saved.result);
-    setActiveTab("analysis");
+    void getSavedPreview(business.key).then((storedPreview) => {
+      if (active) setPreview(storedPreview);
+    });
+
+    return () => {
+      active = false;
+    };
   }, [business.key]);
 
   const availableFacts = useMemo(
@@ -134,14 +166,52 @@ export function PromptGenerator({
 
     setResult(response.result);
     setActiveTab("analysis");
-    savePrompt({
+
+    const nextPrompt: SavedPromptRecord = {
       businessKey: business.key,
       company: business.company,
       generatedAt: new Date().toISOString(),
       projectType,
       objective,
       result: response.result,
+    };
+
+    savePrompt(nextPrompt);
+    setPromptRecord(nextPrompt);
+  }
+
+  async function handleGeneratePreview(force = false) {
+    if (!promptRecord || previewLoading) return;
+
+    if (!force && isPreviewCurrent(preview, promptRecord)) {
+      setPreviewOpen(true);
+      return;
+    }
+
+    setPreviewLoading(true);
+    setPreviewError("");
+
+    const response = await generatePreview({
+      business,
+      prompt: promptRecord,
     });
+
+    setPreviewLoading(false);
+
+    if (!response.ok) {
+      setPreviewError(response.message);
+      return;
+    }
+
+    setPreview(response.preview);
+    setPreviewOpen(true);
+
+    const persisted = await savePreview(response.preview);
+    if (!persisted) {
+      setPreviewError(
+        "A prévia foi criada, mas o cache remoto não pôde ser confirmado. Você ainda pode visualizá-la agora.",
+      );
+    }
   }
 
   async function copyPrompt() {
@@ -247,6 +317,73 @@ export function PromptGenerator({
             {error && <div className="prompt-error">{error}</div>}
           </section>
 
+          <section className="prompt-preview-panel">
+            <div className="prompt-preview-heading">
+              <div>
+                <span className="detail-kicker">PREVIEW</span>
+                <strong>
+                  {!promptRecord
+                    ? "Gere o prompt primeiro."
+                    : !preview
+                      ? "Ainda não gerado"
+                      : isPreviewCurrent(preview, promptRecord)
+                        ? "Preview atualizado"
+                        : "Preview baseado em uma versão anterior do prompt"}
+                </strong>
+                {preview && (
+                  <small>
+                    Gerado em {new Intl.DateTimeFormat("pt-BR", {
+                      dateStyle: "short",
+                      timeStyle: "short",
+                    }).format(new Date(preview.generatedAt))}
+                  </small>
+                )}
+              </div>
+
+              <div className="prompt-preview-actions">
+                {preview && (
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => setPreviewOpen(true)}
+                  >
+                    <Eye size={15} />
+                    Visualizar
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  className="primary-button"
+                  disabled={!promptRecord || previewLoading}
+                  onClick={() =>
+                    void handleGeneratePreview(
+                      Boolean(preview && isPreviewCurrent(preview, promptRecord)),
+                    )
+                  }
+                >
+                  {previewLoading ? (
+                    <Loader2 size={15} className="auth-spinner" />
+                  ) : (
+                    <Sparkles size={15} />
+                  )}
+                  {previewLoading
+                    ? "Criando prévia da landing page..."
+                    : preview && isPreviewCurrent(preview, promptRecord)
+                      ? "Gerar novamente"
+                      : "Gerar preview"}
+                </button>
+              </div>
+            </div>
+
+            {previewLoading && (
+              <p className="prompt-preview-loading">
+                Isso pode levar alguns segundos. O restante do CRM continua disponível.
+              </p>
+            )}
+            {previewError && <div className="prompt-error">{previewError}</div>}
+          </section>
+
           {result && (
             <section className="prompt-result">
               <div className="prompt-tabs" role="tablist" aria-label="Resultado da análise">
@@ -297,6 +434,18 @@ export function PromptGenerator({
           )}
         </div>
       </section>
+
+      {previewOpen && preview && (
+        <SitePreviewViewer
+          preview={preview}
+          stale={!isPreviewCurrent(preview, promptRecord)}
+          onClose={() => setPreviewOpen(false)}
+          onRegenerate={() => {
+            setPreviewOpen(false);
+            void handleGeneratePreview(true);
+          }}
+        />
+      )}
     </div>
   );
 }
