@@ -200,43 +200,54 @@ export function PromptGenerator({
     ) {
       setGenerationStatus("Analisando referências visuais...");
 
-      const persisted = await persistVisualReferenceDraft(visualReferenceSet);
-      if (!persisted) {
+      try {
+        const persisted = await persistVisualReferenceDraft(
+          visualReferenceSet,
+        );
+        if (!persisted) {
+          setLoading(false);
+          setGenerationStatus("");
+          setVisualAnalysisError(
+            "Não foi possível salvar as orientações das referências visuais.",
+          );
+          return;
+        }
+
+        const analysisResponse = await analyzeVisualReferences(
+          visualReferenceSet.id,
+        );
+
+        if (!analysisResponse.ok) {
+          setLoading(false);
+          setGenerationStatus("");
+          setVisualAnalysisError(
+            analysisResponse.message ||
+              "Não foi possível analisar as referências visuais.",
+          );
+          return;
+        }
+
+        visualReferenceAnalysis = analysisResponse.analysis;
+        visualReferenceSignature = analysisResponse.signature;
+        setVisualReferenceSet((current) =>
+          current
+            ? {
+                ...current,
+                analysis: analysisResponse.analysis,
+                analysisSignature: analysisResponse.signature,
+                analysisModel: analysisResponse.model,
+                analyzedAt: analysisResponse.analyzedAt,
+              }
+            : current,
+        );
+      } catch {
         setLoading(false);
         setGenerationStatus("");
         setVisualAnalysisError(
-          "Não foi possível salvar as orientações das referências visuais.",
+          "Não foi possível analisar as referências visuais.",
         );
         return;
       }
-
-      const analysisResponse = await analyzeVisualReferences(
-        visualReferenceSet.id,
-      );
-
-      if (!analysisResponse.ok) {
-        setLoading(false);
-        setGenerationStatus("");
-        setVisualAnalysisError(
-          analysisResponse.message ||
-            "Não foi possível analisar as referências visuais.",
-        );
-        return;
-      }
-
-      visualReferenceAnalysis = analysisResponse.analysis;
-      visualReferenceSignature = analysisResponse.signature;
-      setVisualReferenceSet((current) =>
-        current
-          ? {
-              ...current,
-              analysis: analysisResponse.analysis,
-              analysisSignature: analysisResponse.signature,
-              analysisModel: analysisResponse.model,
-              analyzedAt: analysisResponse.analyzedAt,
-            }
-          : current,
-      );
     }
 
     setGenerationStatus("Gerando estratégia e prompt...");
