@@ -476,11 +476,11 @@ const RESPONSE_SCHEMA = {
         company: { type: "string" },
         segment: { type: "string" },
         nicheClassification: { type: "string" },
-        facts: { type: "array", items: { type: "string" } },
-        digitalPresence: { type: "array", items: { type: "string" } },
-        opportunities: { type: "array", items: { type: "string" } },
-        missingInformation: { type: "array", items: { type: "string" } },
-        dataLimitations: { type: "array", items: { type: "string" } },
+        facts: { type: "array", maxItems: 7, items: { type: "string" } },
+        digitalPresence: { type: "array", maxItems: 5, items: { type: "string" } },
+        opportunities: { type: "array", maxItems: 5, items: { type: "string" } },
+        missingInformation: { type: "array", maxItems: 7, items: { type: "string" } },
+        dataLimitations: { type: "array", maxItems: 5, items: { type: "string" } },
       },
     },
     strategy: {
@@ -519,7 +519,7 @@ const RESPONSE_SCHEMA = {
       ],
       properties: {
         style: { type: "string" },
-        personality: { type: "array", items: { type: "string" } },
+        personality: { type: "array", maxItems: 4, items: { type: "string" } },
         typography: {
           type: "object",
           additionalProperties: false,
@@ -532,6 +532,8 @@ const RESPONSE_SCHEMA = {
         },
         palette: {
           type: "array",
+          minItems: 3,
+          maxItems: 4,
           items: {
             type: "object",
             additionalProperties: false,
@@ -544,7 +546,7 @@ const RESPONSE_SCHEMA = {
             },
           },
         },
-        photography: { type: "array", items: { type: "string" } },
+        photography: { type: "array", maxItems: 4, items: { type: "string" } },
         composition: { type: "string" },
         rhythm: { type: "string" },
         signatureDetail: { type: "string" },
@@ -552,6 +554,7 @@ const RESPONSE_SCHEMA = {
     },
     images: {
       type: "array",
+      maxItems: 3,
       items: {
         type: "object",
         additionalProperties: false,
@@ -568,6 +571,8 @@ const RESPONSE_SCHEMA = {
     },
     sections: {
       type: "array",
+      minItems: 3,
+      maxItems: 6,
       items: {
         type: "object",
         additionalProperties: false,
@@ -580,7 +585,7 @@ const RESPONSE_SCHEMA = {
         },
       },
     },
-    lovablePrompt: { type: "string" },
+    lovablePrompt: { type: "string", minLength: 3500, maxLength: 10500 },
   },
 };
 
