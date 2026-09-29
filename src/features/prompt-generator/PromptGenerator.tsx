@@ -301,10 +301,11 @@ export function PromptGenerator({
     });
   }
 
-  async function handleReanalyzeVisualReferences() {
+  async function reanalyzeVisualReferenceSet(
+    targetSet: VisualReferenceSet,
+  ) {
     if (
-      !visualReferenceSet ||
-      visualReferenceSet.references.length === 0 ||
+      targetSet.references.length === 0 ||
       visualAnalysisLoading ||
       loading
     ) {
@@ -315,7 +316,7 @@ export function PromptGenerator({
     setVisualAnalysisError("");
 
     try {
-      const persisted = await persistVisualReferenceDraft(visualReferenceSet);
+      const persisted = await persistVisualReferenceDraft(targetSet);
       if (!persisted) {
         setVisualAnalysisError(
           "Não foi possível salvar as orientações das referências visuais.",
@@ -323,10 +324,7 @@ export function PromptGenerator({
         return;
       }
 
-      const response = await analyzeVisualReferences(
-        visualReferenceSet.id,
-        true,
-      );
+      const response = await analyzeVisualReferences(targetSet.id, true);
 
       if (!response.ok) {
         setVisualAnalysisError(response.message);
@@ -334,7 +332,7 @@ export function PromptGenerator({
       }
 
       setVisualReferenceSet((current) =>
-        current
+        current && current.id === targetSet.id
           ? {
               ...current,
               analysis: response.analysis,
@@ -352,6 +350,11 @@ export function PromptGenerator({
     } finally {
       setVisualAnalysisLoading(false);
     }
+  }
+
+  async function handleReanalyzeVisualReferences() {
+    if (!visualReferenceSet) return;
+    await reanalyzeVisualReferenceSet(visualReferenceSet);
   }
 
   async function handleGeneratePreview(force = false) {
@@ -474,6 +477,9 @@ export function PromptGenerator({
               onChange={setVisualReferenceSet}
               disabled={loading || visualReferencesLoading || visualAnalysisLoading}
               onViewAnalysis={() => setVisualAnalysisOpen((current) => !current)}
+              onReferenceRecaptured={(nextSet) =>
+                reanalyzeVisualReferenceSet(nextSet)
+              }
             />
 
             {visualAnalysisOpen && visualReferenceSet?.analysis && (
@@ -715,7 +721,7 @@ function VisualReferenceAnalysisPreview({
             ) : (
               <RefreshCw size={13} />
             )}
-            {loading ? "Analisando..." : "Analisar novamente"}
+            {loading ? "Analisando..." : "Reanalisar análise"}
           </button>
         </div>
       </div>
