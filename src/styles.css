@@ -5676,3 +5676,28 @@ a {
     gap: 4px;
   }
 }
+
+
+.visual-reference-analysis-meta {
+  flex: 0 0 auto;
+  display: grid;
+  justify-items: end;
+  gap: 7px;
+}
+
+.visual-reference-analysis-meta .secondary-button {
+  min-height: 31px;
+  padding: 0 8px;
+  font-size: 8px;
+}
+
+@media (max-width: 760px) {
+  .visual-reference-analysis-meta {
+    width: 100%;
+    justify-items: stretch;
+  }
+
+  .visual-reference-analysis-meta .secondary-button {
+    width: 100%;
+  }
+}
