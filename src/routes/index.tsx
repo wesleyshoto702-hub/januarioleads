@@ -20,6 +20,7 @@ import { discoverBusinessPresence } from "../features/business-presence/discover
 import { presenceFromBusiness } from "../features/business-presence/storage";
 import type { BusinessPresence } from "../features/business-presence/types";
 import { LeadEnrichmentModal } from "../features/lead-enrichment/LeadEnrichmentModal";
+import { createLeadActivity } from "../features/lead-activities/lead-activities";
 import { ChanceBadge } from "../features/lead-chance/ChanceBadge";
 import {
   deleteRemoteLead,
@@ -198,6 +199,7 @@ function LeadFlowApp() {
   const [enrichmentLead, setEnrichmentLead] = useState<Lead | null>(null);
   const [leadDetailsId, setLeadDetailsId] = useState<string | null>(null);
   const [promptBusiness, setPromptBusiness] = useState<PromptBusinessContext | null>(null);
+  const [promptActivityLeadId, setPromptActivityLeadId] = useState<string | null>(null);
   const [savedNotice, setSavedNotice] = useState(false);
 
   useEffect(() => {
@@ -355,6 +357,122 @@ function LeadFlowApp() {
     [leadUpdates],
   );
 
+  function recordActivity(
+    leadId: string,
+    input: {
+      type:
+        | "lead_added"
+        | "whatsapp_opened"
+        | "prompt_generated"
+        | "status_changed"
+        | "company_updated"
+        | "lead_edited";
+      title: string;
+      description?: string | null;
+      metadata?: Record<string, unknown>;
+      createdAt?: string;
+    },
+  ) {
+    void createLeadActivity({
+      leadId,
+      ...input,
+    }).catch(() => {
+      setRemoteError(
+        "A ação foi concluída, mas o histórico não pôde ser atualizado agora.",
+      );
+    });
+  }
+
+  function relevantLeadChanges(previous: Lead, next: Lead) {
+    const checks: Array<[keyof Lead, string]> = [
+      ["company", "Nome"],
+      ["segment", "Segmento"],
+      ["phone", "Telefone"],
+      ["status", "Status"],
+      ["firstContact", "Primeiro contato"],
+      ["notes", "Observações"],
+    ];
+
+    return checks
+      .filter(([key]) => previous[key] !== next[key])
+      .map(([, label]) => label);
+  }
+
+  function enrichmentChanges(previous: Lead, next: Lead) {
+    const normalizedArray = (value: string[] | undefined) =>
+      JSON.stringify([...(value ?? [])].sort());
+
+    const checks: Array<{
+      field: string;
+      changed: boolean;
+      label: string;
+    }> = [
+      {
+        field: "company",
+        changed: previous.company !== next.company,
+        label: "Nome atualizado",
+      },
+      {
+        field: "phone",
+        changed: previous.phone !== next.phone,
+        label: "Telefone atualizado",
+      },
+      {
+        field: "address",
+        changed: previous.address !== next.address,
+        label: "Endereço atualizado",
+      },
+      {
+        field: "website",
+        changed: previous.website !== next.website,
+        label: previous.website ? "Site atualizado" : "Site identificado",
+      },
+      {
+        field: "instagram",
+        changed: previous.instagram !== next.instagram,
+        label: previous.instagram
+          ? "Instagram atualizado"
+          : "Instagram identificado",
+      },
+      {
+        field: "rating",
+        changed: previous.rating !== next.rating,
+        label: "Avaliação atualizada",
+      },
+      {
+        field: "reviewCount",
+        changed: previous.reviewCount !== next.reviewCount,
+        label: "Quantidade de avaliações atualizada",
+      },
+      {
+        field: "openingHours",
+        changed:
+          normalizedArray(previous.openingHours) !==
+          normalizedArray(next.openingHours),
+        label: "Horário atualizado",
+      },
+      {
+        field: "businessStatus",
+        changed: previous.businessStatus !== next.businessStatus,
+        label: "Situação da empresa atualizada",
+      },
+      {
+        field: "primaryCategory",
+        changed: previous.primaryCategory !== next.primaryCategory,
+        label: "Categoria principal atualizada",
+      },
+      {
+        field: "categories",
+        changed:
+          normalizedArray(previous.categories) !==
+          normalizedArray(next.categories),
+        label: "Categorias atualizadas",
+      },
+    ];
+
+    return checks.filter((item) => item.changed);
+  }
+
   function persistLeadChange(lead: Lead) {
     if (!remoteReady) return;
     void saveRemoteLead(lead).then((ok) => {
@@ -382,7 +500,23 @@ function LeadFlowApp() {
 
   function addLeadLocally(lead: Lead) {
     setLeads((current) => [lead, ...current]);
-    persistLeadChange(lead);
+
+    if (!remoteReady) return;
+
+    void saveRemoteLead(lead).then((ok) => {
+      if (!ok) {
+        setRemoteError(
+          "Uma alteração ficou salva localmente, mas ainda não foi confirmada no Supabase.",
+        );
+        return;
+      }
+
+      recordActivity(lead.id, {
+        type: "lead_added",
+        title: "Empresa adicionada aos Meus Leads",
+        createdAt: lead.createdAt,
+      });
+    });
   }
 
   function removeLeadLocally(id: string) {
@@ -438,12 +572,24 @@ function LeadFlowApp() {
     if (!form.company.trim() || !form.segment.trim()) return;
 
     if (editingLead) {
-      updateLeadLocally(editingLead.id, (lead) => ({
-        ...lead,
+      const nextLead: Lead = {
+        ...editingLead,
         ...form,
         company: form.company.trim(),
         segment: form.segment.trim(),
-      }));
+      };
+      const changedFields = relevantLeadChanges(editingLead, nextLead);
+
+      updateLeadLocally(editingLead.id, () => nextLead);
+
+      if (changedFields.length > 0) {
+        recordActivity(editingLead.id, {
+          type: "lead_edited",
+          title: "Empresa editada",
+          description: changedFields.join(" · "),
+          metadata: { changedFields },
+        });
+      }
     } else {
       const newLead: Lead = {
         ...form,
@@ -461,7 +607,22 @@ function LeadFlowApp() {
   }
 
   function changeStatus(id: string, status: Status) {
-    updateLeadLocally(id, (lead) => ({ ...lead, status }));
+    const lead = leads.find((item) => item.id === id);
+    if (!lead || lead.status === status) return;
+
+    const previousStatus = STATUS_LABEL[lead.status];
+    const newStatus = STATUS_LABEL[status];
+
+    updateLeadLocally(id, (item) => ({ ...item, status }));
+    recordActivity(id, {
+      type: "status_changed",
+      title: "Status alterado",
+      description: `${previousStatus} → ${newStatus}`,
+      metadata: {
+        previousStatus,
+        newStatus,
+      },
+    });
   }
 
   function confirmDelete() {
@@ -486,6 +647,17 @@ function LeadFlowApp() {
       }));
     }
     window.open(url, "_blank", "noopener,noreferrer");
+
+    if (messageLead.id) {
+      recordActivity(messageLead.id, {
+        type: "whatsapp_opened",
+        title: "WhatsApp aberto",
+        metadata: {
+          messageTemplate: `Mensagem ${selectedMessage + 1}`,
+        },
+      });
+    }
+
     setMessageLead(null);
   }
 
@@ -499,6 +671,7 @@ function LeadFlowApp() {
     business: BusinessSearchResult,
     selectedSegment: string,
   ) {
+    setPromptActivityLeadId(null);
     setPromptBusiness({
       key: makePromptBusinessKey({
         placeId: business.placeId,
@@ -532,6 +705,7 @@ function LeadFlowApp() {
   }
 
   function openPromptForLead(lead: Lead) {
+    setPromptActivityLeadId(lead.id);
     setPromptBusiness({
       key: makePromptBusinessKey({
         placeId: lead.placeId,
@@ -591,12 +765,23 @@ function LeadFlowApp() {
     });
   }
 
-  function openBusinessWhatsApp(business: BusinessSearchResult) {
+  function openBusinessWhatsApp(
+    business: BusinessSearchResult,
+    activityLeadId?: string,
+  ) {
     const value = business.phone ?? business.internationalPhone;
     if (!value) return;
     const phone = normalizeBrazilianPhone(value);
     if (!phone) return;
+
     window.open(`https://wa.me/${phone}`, "_blank", "noopener,noreferrer");
+
+    if (activityLeadId) {
+      recordActivity(activityLeadId, {
+        type: "whatsapp_opened",
+        title: "WhatsApp aberto",
+      });
+    }
   }
 
   async function refreshLeadPresence(
@@ -611,15 +796,15 @@ function LeadFlowApp() {
 
   function applyEnrichment(leadId: string, business: BusinessSearchResult) {
     const previous = leads.find((lead) => lead.id === leadId);
+    if (!previous) return;
+
     const googlePresence = presenceFromBusiness(business);
     const factualDescription = buildFactualBusinessDescription(business);
+    const officialPhone =
+      business.phone ?? business.internationalPhone ?? previous.phone;
 
-    updateLeadLocally(leadId, (lead) => {
-      const officialPhone =
-        business.phone ?? business.internationalPhone ?? lead.phone;
-
-      return {
-        ...lead,
+    const nextLead: Lead = {
+        ...previous,
       company: business.name || lead.company,
       phone: officialPhone,
       placeId: business.placeId,
@@ -670,11 +855,30 @@ function LeadFlowApp() {
       ...(business.longitude !== null
         ? { longitude: business.longitude }
         : {}),
-      };
-    });
+    };
+
+    const changed = enrichmentChanges(previous, nextLead);
+    updateLeadLocally(leadId, () => nextLead);
+
+    if (changed.length > 0) {
+      const labels = changed.map((item) => item.label);
+      const shown = labels.slice(0, 3);
+      const remaining = Math.max(0, labels.length - shown.length);
+
+      recordActivity(leadId, {
+        type: "company_updated",
+        title: "Informações da empresa atualizadas",
+        description:
+          shown.join(" · ") +
+          (remaining > 0 ? ` · +${remaining} alterações` : ""),
+        metadata: {
+          changedFields: changed.map((item) => item.field),
+        },
+      });
+    }
 
     setEnrichmentLead(null);
-    void refreshLeadPresence(leadId, business, Boolean(previous?.placeId));
+    void refreshLeadPresence(leadId, business, Boolean(previous.placeId));
   }
 
   function addFoundLead(business: BusinessSearchResult, selectedSegment: string) {
@@ -1133,8 +1337,9 @@ function LeadFlowApp() {
             segmentLabel={lead.segment}
             lastSyncedAt={lead.lastSyncedAt ?? null}
             updates={leadUpdates.filter((update) => update.leadId === lead.id)}
+            activityLeadId={lead.id}
             onClose={() => setLeadDetailsId(null)}
-            onWhatsApp={openBusinessWhatsApp}
+            onWhatsApp={(business) => openBusinessWhatsApp(business, lead.id)}
             onMessage={() => {
               setSelectedMessage(0);
               setMessageLead(lead);
@@ -1162,7 +1367,25 @@ function LeadFlowApp() {
       {promptBusiness && (
         <PromptGenerator
           business={promptBusiness}
-          onClose={() => setPromptBusiness(null)}
+          onClose={() => {
+            setPromptBusiness(null);
+            setPromptActivityLeadId(null);
+          }}
+          onGenerated={(generation) => {
+            if (!promptActivityLeadId) return;
+
+            recordActivity(promptActivityLeadId, {
+              type: "prompt_generated",
+              title: generation.regenerated
+                ? "Prompt de landing page gerado novamente"
+                : "Prompt de landing page gerado",
+              metadata: {
+                promptVersion: generation.generatedAt,
+                projectType: generation.projectType,
+                objective: generation.objective,
+              },
+            });
+          }}
         />
       )}
 
