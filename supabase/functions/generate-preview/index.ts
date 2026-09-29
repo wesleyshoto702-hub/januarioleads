@@ -272,6 +272,197 @@ function safeUrl(value: unknown) {
   }
 }
 
+function isBlockedWebsiteHost(hostname: string) {
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+
+  if (
+    host === "localhost" ||
+    host.endsWith(".localhost") ||
+    host.endsWith(".local") ||
+    host === "metadata.google.internal"
+  ) {
+    return true;
+  }
+
+  if (host === "::1" || host.startsWith("fc") || host.startsWith("fd")) {
+    return true;
+  }
+
+  const ipv4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (!ipv4) return false;
+
+  const octets = ipv4.slice(1).map(Number);
+  if (octets.some((item) => item > 255)) return true;
+
+  const [a, b] = octets;
+  return (
+    a === 0 ||
+    a === 10 ||
+    a === 127 ||
+    (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    a >= 224
+  );
+}
+
+function safePublicWebsite(value: string) {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    if (isBlockedWebsiteHost(url.hostname)) return null;
+    return url;
+  } catch {
+    return null;
+  }
+}
+
+async function readLimitedHtml(response: Response, maxBytes = 1_200_000) {
+  if (!response.body) return "";
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+
+  try {
+    while (total < maxBytes) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+
+      const remaining = maxBytes - total;
+      const chunk = value.byteLength > remaining ? value.slice(0, remaining) : value;
+      chunks.push(chunk);
+      total += chunk.byteLength;
+      if (value.byteLength > remaining) break;
+    }
+  } finally {
+    reader.cancel().catch(() => undefined);
+  }
+
+  const merged = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
+  return new TextDecoder().decode(merged);
+}
+
+async function fetchOfficialHtml(value: string) {
+  let current = safePublicWebsite(value);
+  if (!current) return null;
+
+  for (let redirect = 0; redirect <= 3; redirect += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6_000);
+
+    try {
+      const response = await fetch(current, {
+        method: "GET",
+        redirect: "manual",
+        signal: controller.signal,
+        headers: {
+          Accept: "text/html,application/xhtml+xml",
+          "User-Agent": "JanuarioLeads/1.0 site-preview",
+        },
+      });
+
+      if (response.status >= 300 && response.status < 400) {
+        const location = response.headers.get("location");
+        if (!location) return null;
+        const next = safePublicWebsite(new URL(location, current).toString());
+        if (!next) return null;
+        current = next;
+        continue;
+      }
+
+      if (!response.ok) return null;
+      const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
+      if (
+        contentType &&
+        !contentType.includes("text/html") &&
+        !contentType.includes("application/xhtml+xml")
+      ) {
+        return null;
+      }
+
+      const length = Number(response.headers.get("content-length") ?? "0");
+      if (Number.isFinite(length) && length > 2_000_000) return null;
+
+      return {
+        html: await readLimitedHtml(response),
+        finalUrl: current,
+      };
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  return null;
+}
+
+function officialMetaImages(html: string, baseUrl: URL) {
+  const candidates: string[] = [];
+  const tagRegex = /<meta\s+[^>]*>/gi;
+  let tagMatch: RegExpExecArray | null;
+
+  while ((tagMatch = tagRegex.exec(html)) !== null && candidates.length < 6) {
+    const attrs = new Map<string, string>();
+    const attrRegex = /([A-Za-z:-]+)\s*=\s*(["'])(.*?)\2/g;
+    let attrMatch: RegExpExecArray | null;
+
+    while ((attrMatch = attrRegex.exec(tagMatch[0])) !== null) {
+      attrs.set(attrMatch[1].toLowerCase(), attrMatch[3].trim());
+    }
+
+    const key = (attrs.get("property") ?? attrs.get("name") ?? "").toLowerCase();
+    if (!["og:image", "og:image:url", "twitter:image", "twitter:image:src"].includes(key)) {
+      continue;
+    }
+
+    const content = attrs.get("content");
+    if (!content) continue;
+
+    try {
+      const resolved = safePublicWebsite(new URL(content, baseUrl).toString());
+      if (resolved) candidates.push(resolved.toString());
+    } catch {
+      // Ignore malformed metadata.
+    }
+  }
+
+  return Array.from(new Set(candidates)).slice(0, 3);
+}
+
+async function withOfficialWebsiteImages(business: BusinessContext) {
+  const existing = business.verifiedImages ?? [];
+  if (!business.website) return business;
+
+  const page = await fetchOfficialHtml(business.website);
+  if (!page) return business;
+
+  const discovered = officialMetaImages(page.html, page.finalUrl).map((url) => ({
+    url,
+    alt: `Imagem oficial associada a ${business.company ?? "empresa"}`,
+    source: "official_website",
+  }));
+
+  return {
+    ...business,
+    verifiedImages: [...existing, ...discovered]
+      .filter(
+        (item, index, array) =>
+          Boolean(item.url) &&
+          array.findIndex((candidate) => candidate.url === item.url) === index,
+      )
+      .slice(0, 12),
+  };
+}
+
 function sanitizeBusiness(input: BusinessContext): BusinessContext {
   const verifiedImages = Array.isArray(input.verifiedImages)
     ? input.verifiedImages
@@ -724,9 +915,11 @@ Deno.serve(async (request) => {
     );
   }
 
+  const materializationBusiness = await withOfficialWebsiteImages(input.business);
+
   const userPayload = {
     verifiedBusinessData: {
-      ...input.business,
+      ...materializationBusiness,
       notes: null,
     },
     savedPromptVersion: input.prompt.generatedAt,
@@ -807,7 +1000,7 @@ Deno.serve(async (request) => {
       return failure("INVALID_AI_RESPONSE", "A prévia retornada não pôde ser validada.", 502);
     }
 
-    const spec = sanitizeSpec(parsed, input.business);
+    const spec = sanitizeSpec(parsed, materializationBusiness);
     if (!spec) {
       return failure(
         "INVALID_AI_RESPONSE",
