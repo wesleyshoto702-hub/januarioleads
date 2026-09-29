@@ -128,7 +128,10 @@ export function SitePreviewViewer({
   } as CSSProperties;
 
   return (
-    <div className="site-preview-overlay">
+    <div
+      className="site-preview-overlay"
+      onMouseDown={(event) => event.stopPropagation()}
+    >
       <header className="site-preview-toolbar">
         <div>
           <strong>{preview.company}</strong>
@@ -286,6 +289,7 @@ function PreviewSectionView({
         "preview-section",
         "kind-" + section.kind,
         "variant-" + section.variant,
+        "tone-" + section.tone,
         image ? "has-image" : "no-image",
       ].join(" ")}
     >
