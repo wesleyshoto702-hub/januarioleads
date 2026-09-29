@@ -226,8 +226,8 @@ export function PromptGenerator({
 
             <div className="prompt-generate-row">
               <p>
-                Informações ausentes serão tratadas como <strong>[INFORMAÇÃO A CONFIRMAR]</strong>,
-                nunca como fatos.
+                Lacunas continuam explícitas no briefing, mas não viram seções vazias ou
+                placeholders grandes na landing page.
               </p>
               <button
                 className="primary-button prompt-generate-button"
@@ -281,8 +281,8 @@ export function PromptGenerator({
                   <div className="lovable-prompt-view">
                     <div className="prompt-copy-heading">
                       <div>
-                        <strong>Prompt completo para Lovable</strong>
-                        <span>Pronto para copiar e usar como primeira versão.</span>
+                        <strong>Prompt estratégico para Lovable</strong>
+                        <span>Direção forte, adaptativa e pronta para implementação.</span>
                       </div>
                       <button className="primary-button" type="button" onClick={() => void copyPrompt()}>
                         {copied ? <Check size={16} /> : <Copy size={16} />}
@@ -383,6 +383,19 @@ function VisualTab({ result }: { result: GeneratedSitePrompt }) {
 }
 
 function ImagesTab({ result }: { result: GeneratedSitePrompt }) {
+  if (result.images.length === 0) {
+    return (
+      <div className="prompt-result-grid">
+        <ResultBlock title="Uso de imagens">
+          <p>
+            Nenhuma imagem real foi confirmada para este briefing. A composição deve
+            funcionar sem imagem e sem placeholder visual dominante.
+          </p>
+        </ResultBlock>
+      </div>
+    );
+  }
+
   return (
     <div className="prompt-items-list">
       {result.images.map((image, index) => (
