@@ -467,3 +467,176 @@ HTML temporário, screenshots e PDFs não são armazenados no `localStorage`, Da
 - não expõe nenhuma chave ao frontend.
 
 Nenhum novo Secret foi criado.
+
+
+## Histórico de atividades
+
+O JanuarioLeads possui uma linha do tempo comercial privada por lead, integrada ao mesmo modal **Ver empresa**.
+
+### Separação de responsabilidades
+
+`lead_updates` continua armazenando mudanças automáticas detectadas em dados públicos da empresa.
+
+`lead_activities` armazena somente acontecimentos comerciais relevantes do relacionamento com o lead.
+
+Não são registrados eventos de analytics como abrir página, visualizar empresa, aplicar filtros ou fazer buscas.
+
+### Tabela
+
+`public.lead_activities` contém:
+
+- `id`
+- `lead_id`
+- `user_id`
+- `type`
+- `title`
+- `description`
+- `metadata`
+- `created_at`
+
+`lead_id` referencia `public.leads(id)` com `ON DELETE CASCADE`.
+
+Os tipos atualmente aceitos são:
+
+- `lead_added`
+- `whatsapp_opened`
+- `prompt_generated`
+- `status_changed`
+- `company_updated`
+- `lead_edited`
+- `manual_note`
+
+A estrutura permite adicionar novos tipos comerciais no futuro sem implementar follow-up ou pipeline nesta versão.
+
+### Segurança
+
+A tabela usa RLS.
+
+O usuário autenticado só pode selecionar e inserir atividades:
+
+- com seu próprio `user_id`;
+- pertencentes a um lead também de sua propriedade;
+- quando seu usuário continua autorizado em `private_access`.
+
+UPDATE e DELETE são permitidos somente quando `type = 'manual_note'`. Eventos automáticos não podem ser editados ou apagados pela interface comum nem pela Data API usando a sessão normal.
+
+`anon` não possui acesso à tabela.
+
+### Eventos automáticos
+
+**Empresa adicionada**
+
+Um trigger `leads_record_added_activity` roda depois do INSERT real em `public.leads` e cria:
+
+```text
+Empresa adicionada aos Meus Leads
+```
+
+O timestamp utilizado é o próprio `leads.created_at`.
+
+Existe um índice único parcial que garante no máximo um `lead_added` por lead/usuário.
+
+**WhatsApp**
+
+Somente quando a aplicação efetivamente abre `wa.me` para um lead salvo:
+
+```text
+WhatsApp aberto
+```
+
+Quando a conversa foi aberta a partir de uma das três mensagens salvas, o metadata registra somente qual template foi usado, por exemplo `Mensagem 2`. O conteúdo integral da mensagem não é duplicado.
+
+O sistema nunca registra "Mensagem enviada", pois não possui confirmação do envio no WhatsApp.
+
+**Gerar prompt**
+
+Depois de uma geração concluída com sucesso:
+
+```text
+Prompt de landing page gerado
+```
+
+Em uma regeneração:
+
+```text
+Prompt de landing page gerado novamente
+```
+
+Tentativas com erro não geram atividade.
+
+**Status**
+
+Somente quando o valor realmente muda:
+
+```text
+Status alterado
+Aguardando → Aceito
+```
+
+O metadata guarda `previousStatus` e `newStatus`.
+
+**Atualização de informações**
+
+Depois de confirmar Buscar/Atualizar informações, os dados antigos e novos são comparados.
+
+Somente quando campos públicos realmente mudaram é criado:
+
+```text
+Informações da empresa atualizadas
+```
+
+A descrição mostra um resumo curto das primeiras mudanças e o metadata guarda `changedFields`.
+
+**Edição manual**
+
+Uma operação de salvar com alterações relevantes cria somente um:
+
+```text
+Empresa editada
+```
+
+Nenhum evento é criado quando o formulário é salvo sem mudança relevante.
+
+A pontuação Chance não gera eventos nesta primeira versão.
+
+### Anotações
+
+A aba Histórico possui **Adicionar anotação**.
+
+Anotações manuais podem ser:
+
+- criadas;
+- editadas;
+- excluídas após confirmação.
+
+Somente registros `manual_note` expõem essas ações.
+
+### Carregamento e paginação
+
+O histórico não é carregado ao abrir Meus Leads.
+
+Ele é buscado somente quando a aba **Histórico** é efetivamente montada dentro de **Ver empresa**.
+
+A consulta usa:
+
+```text
+created_at DESC, id DESC
+```
+
+e carrega 20 eventos por página. Quando existem mais registros, aparece **Carregar anteriores**.
+
+### Leads antigos
+
+Nenhum passado comercial foi inventado.
+
+Para leads existentes antes da funcionalidade, o único backfill executado foi `lead_added`, porque `leads.created_at` já é uma data persistida e confiável.
+
+WhatsApp, prompts, status, edições ou outras interações antigas não foram reconstruídos.
+
+### Falhas secundárias
+
+Registrar histórico é uma operação secundária.
+
+Se a ação principal funcionar e a gravação do histórico falhar, a ação principal não é desfeita. A interface exibe um aviso discreto e não adiciona uma atividade falsa no estado local.
+
+Anotações, por outro lado, só aparecem na timeline depois que a persistência foi confirmada.
