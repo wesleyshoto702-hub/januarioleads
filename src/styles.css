@@ -4028,28 +4028,59 @@ a {
   line-height: 1.7;
 }
 
-.detail-links .instagram-identified-link {
-  border-color: color-mix(in srgb, #c13584 46%, var(--border));
-  background: color-mix(in srgb, #c13584 8%, var(--surface));
-  color: #a92b75;
-  font-weight: 700;
+.instagram-identified-link {
+  flex: 0 0 auto;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid color-mix(in srgb, #c13584 32%, var(--border));
+  border-radius: 8px;
+  outline: 0;
+  background: color-mix(in srgb, #c13584 6%, var(--surface-2));
+  color: color-mix(in srgb, #c13584 76%, var(--text));
+  font-size: 10px;
+  font-weight: 720;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    border-color .16s ease,
+    background-color .16s ease,
+    color .16s ease,
+    box-shadow .16s ease,
+    transform .16s ease;
 }
 
-.detail-links .instagram-identified-link:hover {
-  border-color: color-mix(in srgb, #c13584 70%, var(--border));
-  background: color-mix(in srgb, #c13584 13%, var(--surface));
-  color: #8f1f62;
+.instagram-identified-link svg {
+  flex: 0 0 auto;
 }
 
-.dark .detail-links .instagram-identified-link {
-  border-color: color-mix(in srgb, #e255a1 42%, var(--border));
-  background: color-mix(in srgb, #e255a1 10%, var(--surface));
-  color: #f27db8;
+.instagram-identified-link:hover {
+  border-color: color-mix(in srgb, #c13584 56%, var(--border));
+  background: color-mix(in srgb, #c13584 10%, var(--surface-2));
+  color: color-mix(in srgb, #c13584 88%, var(--text));
+  transform: translateY(-1px);
 }
 
-.dark .detail-links .instagram-identified-link:hover {
-  border-color: color-mix(in srgb, #e255a1 68%, var(--border));
-  background: color-mix(in srgb, #e255a1 15%, var(--surface));
+.instagram-identified-link:focus-visible {
+  border-color: color-mix(in srgb, #c13584 64%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, #c13584 18%, transparent);
+}
+
+.dark .instagram-identified-link {
+  border-color: color-mix(in srgb, #e255a1 30%, var(--border));
+  background: color-mix(in srgb, #e255a1 7%, var(--surface-2));
+  color: color-mix(in srgb, #f27db8 82%, var(--text));
+}
+
+.dark .instagram-identified-link:hover {
+  border-color: color-mix(in srgb, #e255a1 52%, var(--border));
+  background: color-mix(in srgb, #e255a1 11%, var(--surface-2));
   color: #ff9cca;
 }
 
@@ -4115,6 +4146,7 @@ a {
 .instagram-confirmed {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
+  gap: 16px;
 }
 
 .instagram-confirmed > div {
@@ -4248,9 +4280,10 @@ a {
 
 
 @media (max-width: 520px) {
-  .detail-links .instagram-identified-link {
+  .instagram-identified-link {
     width: 100%;
-    justify-content: flex-start;
+    min-height: 36px;
+    justify-content: center;
   }
 
   .business-about p {

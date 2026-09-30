@@ -360,9 +360,10 @@ export function BusinessDetailsModal({
                     href={confirmedInstagram}
                     target="_blank"
                     rel="noreferrer"
+                    aria-label="Abrir Instagram em nova aba"
                   >
-                    <Instagram size={15} />
-                    Abrir Instagram <ExternalLink size={13} />
+                    <Instagram size={14} aria-hidden="true" />
+                    <span>Abrir Instagram</span>
                   </a>
                 </div>
               ) : candidates.length > 0 ? (
