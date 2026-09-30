@@ -462,7 +462,12 @@ export function deterministicOfficialFacts(
       const host = url.hostname.toLowerCase().replace(/^www\./, "");
       const hay = normalizeText(link.text + " " + url.pathname + " " + host);
       let type = "";
-      if (host === "wa.me" || host === "api.whatsapp.com" || host === "whatsapp.com") type = "channel_whatsapp";
+      if (
+        host === "wa.me" ||
+        host === "api.whatsapp.com" ||
+        host === "whatsapp.com" ||
+        /\bwhats(app)?\b/.test(hay)
+      ) type = "channel_whatsapp";
       else if (host.includes("ifood.com") || /delivery|pedido|order/.test(hay)) type = "channel_delivery";
       else if (/agend|booking|booksy|trinks/.test(hay)) type = "channel_booking";
       else if (/reserv/.test(hay)) type = "channel_reservation";
