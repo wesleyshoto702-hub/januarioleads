@@ -189,24 +189,68 @@ O texto é curto, factual e não inventa serviços, diferenciais, história, equ
 
 ### Descoberta de Instagram
 
-A descoberta está centralizada e atualmente usa duas camadas seguras:
+A descoberta continua centralizada no fluxo de presença online e usa camadas com parada antecipada:
 
-1. Instagram já retornado pelo Google Places quando `websiteUri` aponta diretamente para um perfil do Instagram;
-2. site oficial identificado pelo Google Places, procurando links públicos diretos para perfis do Instagram na página principal e, quando disponível, na página de contato.
+1. Instagram já confirmado nos dados existentes/Google Places;
+2. site oficial identificado, procurando links públicos diretos para perfis do Instagram na página principal e, quando disponível, na página de contato;
+3. busca pública complementar pela OpenAI Responses API com a ferramenta hospedada `web_search`, somente quando uma ação de descoberta profunda é solicitada e as camadas anteriores não confirmaram o perfil.
 
-Somente URLs no formato de perfil `instagram.com/usuario` são aceitas. Links para posts, reels, stories ou caminhos reservados são descartados.
+A camada web reutiliza a `OPENAI_API_KEY` já existente no backend e o modelo `gpt-5.6-terra`. Ela não usa Browserless, não raspa google.com/Google Maps e não acessa Instagram com login.
 
-A descoberta não faz scraping do Instagram, não faz login, não acessa páginas privadas e não usa OpenAI.
+O backend limita a busca a poucos resultados, coleta no máximo três candidatos e valida sinais como:
+
+- telefone;
+- endereço;
+- website;
+- nome comercial;
+- nome profissional;
+- cidade/estado;
+- categoria;
+- username.
+
+Um candidato só entra na avaliação se o perfil tiver sido retornado diretamente como fonte da busca ou se uma página pública realmente recuperada mencionar aquele username/Instagram. Perfis com cidade conflitante são descartados.
+
+Resultados possíveis:
+
+- `high`: Instagram identificado e persistido;
+- `medium`: Instagram provável / possíveis Instagrams, exigindo confirmação manual;
+- `low`: não é vinculado automaticamente;
+- nenhum candidato: Instagram não identificado, sem tratar isso como erro.
+
+Quando dois candidatos fortes ficam próximos, nenhum é escolhido arbitrariamente. A interface mostra os candidatos com sinais e permite **Abrir perfil**, **Confirmar** e **Não é este**.
+
+Confirmação manual usa `instagram_source = manual_confirmation` e tem prioridade sobre pesquisas automáticas futuras.
 
 ### Cache
 
-Resultados de presença online ficam no `localStorage` em `januarioleads:business-presence` por 7 dias. Abrir **Ver empresa** novamente usa o cache e evita nova verificação automática dentro desse período. A ação manual **Buscar Instagram novamente** força uma nova verificação quando existe site oficial.
+Resultados positivos, negativos e candidatos usam `instagramCheckedAt` e uma assinatura SHA-256 baseada nos dados que afetam a descoberta:
 
-Quando um lead manual é enriquecido por **Buscar informações/Atualizar informações**, a mesma lógica é reutilizada. Instagram de alta confiança já salvo não é apagado se uma atualização posterior não encontrar o perfil.
+- nome;
+- telefone;
+- endereço;
+- cidade/estado;
+- website;
+- categoria principal.
 
-### Camada de busca web
+O cache normal dura 7 dias. Abrir **Ver empresa** não executa pesquisa. **Gerar prompt** também não pesquisa Instagram.
 
-A camada 3 de busca pública na web não está ativada porque o projeto não possui hoje um provedor de busca web. Ativá-la exige uma integração externa adicional e um novo Secret. Nenhum provedor foi adicionado silenciosamente.
+A busca ocorre apenas em fluxos explícitos, principalmente:
+
+- primeiro enriquecimento do lead;
+- **Buscar Instagram**;
+- **Buscar novamente**.
+
+Mudanças relevantes em nome, telefone, endereço ou site marcam `instagram_needs_review` sem disparar uma nova busca automaticamente. A sincronização periódica também aplica essa marcação, exceto para perfis confirmados manualmente.
+
+### Chance e Gerar prompt
+
+Candidatos `medium` não contam como Instagram identificado no cálculo da Chance e não entram no prompt como dado real.
+
+Somente Instagram confirmado/alta confiança pode influenciar esses dois fluxos.
+
+### Controle de custo
+
+A busca pública usa `search_context_size: low`, no máximo duas chamadas da ferramenta Web Search e até três candidatos. Se Google Places/dados existentes ou o website oficial confirmarem o perfil antes, a chamada OpenAI não acontece.
 
 
 ## Atualização automática dos leads
