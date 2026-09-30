@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { buildFactualBusinessDescription } from "../business-presence/business-description";
+import { BusinessDeepEnrichmentSection } from "../business-enrichment/BusinessDeepEnrichmentSection";
+import type { DeepEnrichmentApplied } from "../business-enrichment/types";
 import { discoverBusinessPresence } from "../business-presence/discover-business-presence";
 import { presenceFromBusiness } from "../business-presence/storage";
 import type {
@@ -73,6 +75,7 @@ export function BusinessDetailsModal({
   onMessage,
   onGeneratePrompt,
   onPresenceUpdate,
+  onDeepEnrichmentUpdate,
   onAdd,
 }: {
   business: BusinessSearchResult;
@@ -87,6 +90,7 @@ export function BusinessDetailsModal({
   onMessage: (target: BusinessDetailsMessageTarget) => void;
   onGeneratePrompt: (business: BusinessSearchResult) => void;
   onPresenceUpdate?: (presence: BusinessPresence) => void;
+  onDeepEnrichmentUpdate?: (value: DeepEnrichmentApplied) => void;
   onAdd?: (business: BusinessSearchResult) => void;
 }) {
   const [presenceLoading, setPresenceLoading] = useState(false);
@@ -469,6 +473,13 @@ export function BusinessDetailsModal({
               ) : null}
             </div>
           </div>
+
+          <BusinessDeepEnrichmentSection
+            business={business}
+            segment={segmentLabel ?? business.primaryCategory ?? "Empresa local"}
+            leadId={activityLeadId}
+            onApply={onDeepEnrichmentUpdate}
+          />
 
           {updates.length > 0 && (
             <div className="detail-section lead-update-history">

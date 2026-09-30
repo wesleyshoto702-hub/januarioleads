@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { buildFactualBusinessDescription } from "../features/business-presence/business-description";
+import type { DeepEnrichmentApplied } from "../features/business-enrichment/types";
 import { discoverBusinessPresence } from "../features/business-presence/discover-business-presence";
 import { presenceFromBusiness } from "../features/business-presence/storage";
 import type {
@@ -176,6 +177,12 @@ function leadToBusinessSearchResult(lead: Lead): BusinessSearchResult {
     businessStatus: lead.businessStatus ?? null,
     latitude: lead.latitude ?? null,
     longitude: lead.longitude ?? null,
+    verifiedContent: lead.verifiedContent ?? {},
+    verifiedImages: lead.verifiedImages ?? [],
+    confirmedChannels: lead.confirmedChannels ?? {},
+    deepEnrichmentStatus: lead.deepEnrichmentStatus ?? null,
+    deepEnrichmentQuality: lead.deepEnrichmentQuality ?? null,
+    deepEnrichmentCheckedAt: lead.deepEnrichmentCheckedAt ?? null,
   };
 }
 
@@ -816,6 +823,9 @@ function LeadFlowApp() {
       googleMapsUrl: business.googleMapsUrl,
       latitude: business.latitude,
       longitude: business.longitude,
+      verifiedImages: business.verifiedImages ?? [],
+      confirmedChannels: business.confirmedChannels ?? {},
+      verifiedContent: business.verifiedContent ?? {},
     });
   }
 
@@ -852,7 +862,41 @@ function LeadFlowApp() {
       latitude: lead.latitude ?? null,
       longitude: lead.longitude ?? null,
       notes: lead.notes || null,
+      verifiedImages: lead.verifiedImages ?? [],
+      confirmedChannels: lead.confirmedChannels ?? {},
+      verifiedContent: lead.verifiedContent ?? {},
     });
+  }
+
+  function applyDeepEnrichmentToLead(
+    leadId: string,
+    value: DeepEnrichmentApplied,
+  ) {
+    const previous = leads.find((lead) => lead.id === leadId);
+    if (!previous) return;
+
+    updateLeadLocally(leadId, (lead) => ({
+      ...lead,
+      verifiedContent: value.verifiedContent,
+      verifiedImages: value.verifiedImages,
+      confirmedChannels: value.confirmedChannels,
+      deepEnrichmentStatus: value.status,
+      deepEnrichmentQuality: value.quality ?? undefined,
+      deepEnrichmentCheckedAt: value.checkedAt ?? undefined,
+      ...(value.identityUpdates.website
+        ? { website: value.identityUpdates.website }
+        : {}),
+      ...(value.identityUpdates.instagram
+        ? {
+            instagram: value.identityUpdates.instagram,
+            instagramConfidence: "high" as const,
+            instagramSource: "official_website" as const,
+            instagramCheckedAt:
+              value.checkedAt ?? new Date().toISOString(),
+            instagramNeedsReview: false,
+          }
+        : {}),
+    }));
   }
 
   function applyPresenceToLead(
@@ -1047,6 +1091,24 @@ function LeadFlowApp() {
       ...(business.latitude !== null ? { latitude: business.latitude } : {}),
       ...(business.longitude !== null
         ? { longitude: business.longitude }
+        : {}),
+      ...(business.verifiedContent
+        ? { verifiedContent: business.verifiedContent }
+        : {}),
+      ...(business.verifiedImages
+        ? { verifiedImages: business.verifiedImages }
+        : {}),
+      ...(business.confirmedChannels
+        ? { confirmedChannels: business.confirmedChannels }
+        : {}),
+      ...(business.deepEnrichmentStatus
+        ? { deepEnrichmentStatus: business.deepEnrichmentStatus }
+        : {}),
+      ...(business.deepEnrichmentQuality
+        ? { deepEnrichmentQuality: business.deepEnrichmentQuality }
+        : {}),
+      ...(business.deepEnrichmentCheckedAt
+        ? { deepEnrichmentCheckedAt: business.deepEnrichmentCheckedAt }
         : {}),
     };
 
@@ -1421,6 +1483,7 @@ function LeadFlowApp() {
         <SearchLeadsView
           existingLeads={leads}
           onAddLead={addFoundLead}
+          onDeepEnrichmentApplied={applyDeepEnrichmentToLead}
           onMessage={(target) => {
             setSelectedMessage(0);
             setMessageLead(target);
@@ -1586,6 +1649,9 @@ function LeadFlowApp() {
             }}
             onPresenceUpdate={(presence) =>
               applyPresenceToLead(lead.id, presence)
+            }
+            onDeepEnrichmentUpdate={(value) =>
+              applyDeepEnrichmentToLead(lead.id, value)
             }
           />
         );

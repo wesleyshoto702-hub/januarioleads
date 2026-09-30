@@ -1,4 +1,11 @@
 import type { InstagramCandidate, InstagramSource } from "../business-presence/types";
+import type {
+  DeepConfirmedChannels,
+  DeepEnrichmentConfidence,
+  DeepEnrichmentStatus,
+  DeepVerifiedContent,
+  DeepVerifiedImage,
+} from "../business-enrichment/types";
 
 export type BusinessSearchResult = {
   placeId: string;
@@ -31,6 +38,12 @@ export type BusinessSearchResult = {
   businessStatus: string | null;
   latitude: number | null;
   longitude: number | null;
+  verifiedContent?: DeepVerifiedContent | null;
+  verifiedImages?: DeepVerifiedImage[] | null;
+  confirmedChannels?: DeepConfirmedChannels | null;
+  deepEnrichmentStatus?: DeepEnrichmentStatus | null;
+  deepEnrichmentQuality?: DeepEnrichmentConfidence | null;
+  deepEnrichmentCheckedAt?: string | null;
 };
 
 export type BusinessSearchSuccess = {

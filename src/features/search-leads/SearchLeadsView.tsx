@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { buildFactualBusinessDescription } from "../business-presence/business-description";
+import type { DeepEnrichmentApplied } from "../business-enrichment/types";
 import type { BusinessPresence } from "../business-presence/types";
 import { ChanceBadge } from "../lead-chance/ChanceBadge";
 import { BusinessDetailsModal } from "./BusinessDetailsModal";
@@ -75,11 +76,16 @@ export function SearchLeadsView({
   onAddLead,
   onMessage,
   onGeneratePrompt,
+  onDeepEnrichmentApplied,
 }: {
   existingLeads: ExistingLeadIdentity[];
   onAddLead: (business: BusinessSearchResult, selectedSegment: string) => void;
   onMessage: (target: SearchMessageTarget) => void;
   onGeneratePrompt: (business: BusinessSearchResult, selectedSegment: string) => void;
+  onDeepEnrichmentApplied?: (
+    leadId: string,
+    value: DeepEnrichmentApplied,
+  ) => void;
 }) {
   const [categoryQuery, setCategoryQuery] = useState("");
   const [selectedSegment, setSelectedSegment] = useState("");
@@ -95,6 +101,32 @@ export function SearchLeadsView({
   const [onlyNew, setOnlyNew] = useState(false);
   const [details, setDetails] = useState<BusinessSearchResult | null>(null);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
+
+  function applyDeepToBusiness(
+    current: BusinessSearchResult,
+    value: DeepEnrichmentApplied,
+  ): BusinessSearchResult {
+    const nextInstagram = value.identityUpdates.instagram ?? current.instagram;
+    return {
+      ...current,
+      verifiedContent: value.verifiedContent,
+      verifiedImages: value.verifiedImages,
+      confirmedChannels: value.confirmedChannels,
+      deepEnrichmentStatus: value.status,
+      deepEnrichmentQuality: value.quality,
+      deepEnrichmentCheckedAt: value.checkedAt,
+      website: value.identityUpdates.website ?? current.website,
+      instagram: nextInstagram,
+      ...(value.identityUpdates.instagram
+        ? {
+            instagramConfidence: "high" as const,
+            instagramSource: "official_website" as const,
+            instagramCheckedAt: value.checkedAt ?? new Date().toISOString(),
+            instagramNeedsReview: false,
+          }
+        : {}),
+    };
+  }
 
   useEffect(() => {
     setRecentSearches(getRecentSearches());
@@ -428,11 +460,15 @@ export function SearchLeadsView({
         </div>
       )}
 
-      {details && (
+      {details && (() => {
+        const duplicate = findBusinessDuplicate(details, existingLeads);
+        return (
         <BusinessDetailsModal
           business={details}
           chance={calculateLeadChance(details, resultsSegment)}
-          alreadyAdded={businessAlreadyExists(details, existingLeads)}
+          segmentLabel={resultsSegment}
+          alreadyAdded={Boolean(duplicate)}
+          activityLeadId={duplicate?.id ?? null}
           onClose={() => setDetails(null)}
           onWhatsApp={openWhatsApp}
           onMessage={(target) =>
@@ -456,9 +492,22 @@ export function SearchLeadsView({
           onPresenceUpdate={(presence) =>
             updateBusinessPresence(details.placeId, presence)
           }
+          onDeepEnrichmentUpdate={(value) => {
+            const enriched = applyDeepToBusiness(details, value);
+            setDetails(enriched);
+            setResults((current) =>
+              current.map((item) =>
+                item.placeId === details.placeId ? enriched : item,
+              ),
+            );
+            if (duplicate?.id) {
+              onDeepEnrichmentApplied?.(duplicate.id, value);
+            }
+          }}
           onAdd={(item) => onAddLead(item, resultsSegment)}
         />
-      )}
+        );
+      })()}
     </section>
   );
 }

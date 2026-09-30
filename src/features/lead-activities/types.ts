@@ -5,6 +5,8 @@ export type LeadActivityType =
   | "status_changed"
   | "company_updated"
   | "lead_edited"
+  | "deep_enrichment"
+  | "deep_enrichment_review"
   | "manual_note";
 
 export type LeadActivity = {

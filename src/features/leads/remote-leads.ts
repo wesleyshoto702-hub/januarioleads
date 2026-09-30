@@ -3,6 +3,13 @@ import type {
   InstagramCandidate,
   InstagramSource,
 } from "../business-presence/types";
+import type {
+  DeepConfirmedChannels,
+  DeepEnrichmentConfidence,
+  DeepEnrichmentStatus,
+  DeepVerifiedContent,
+  DeepVerifiedImage,
+} from "../business-enrichment/types";
 
 const SUPABASE_URL = "https://czkazbianiflhldenhcj.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY =
@@ -55,6 +62,12 @@ export type PersistedLead = {
   lastSyncedAt?: string | undefined;
   lastSyncError?: string | undefined;
   lastSyncErrorAt?: string | undefined;
+  verifiedContent?: DeepVerifiedContent | undefined;
+  verifiedImages?: DeepVerifiedImage[] | undefined;
+  confirmedChannels?: DeepConfirmedChannels | undefined;
+  deepEnrichmentStatus?: DeepEnrichmentStatus | undefined;
+  deepEnrichmentQuality?: DeepEnrichmentConfidence | undefined;
+  deepEnrichmentCheckedAt?: string | undefined;
 };
 
 export type LeadUpdateRecord = {
@@ -118,6 +131,12 @@ type RemoteLead = {
   last_synced_at: string | null;
   last_sync_error: string | null;
   last_sync_error_at: string | null;
+  verified_content: DeepVerifiedContent;
+  verified_images: DeepVerifiedImage[];
+  confirmed_channels: DeepConfirmedChannels;
+  deep_enrichment_status: DeepEnrichmentStatus | null;
+  deep_enrichment_quality: DeepEnrichmentConfidence | null;
+  deep_enrichment_checked_at: string | null;
 };
 
 type RemoteLeadUpdate = {
@@ -200,6 +219,12 @@ function toRemote(lead: PersistedLead, userId: string) {
     enriched_at: lead.enrichedAt,
     source: lead.source,
     auto_sync_enabled: lead.autoSyncEnabled ?? true,
+    verified_content: lead.verifiedContent ?? {},
+    verified_images: lead.verifiedImages ?? [],
+    confirmed_channels: lead.confirmedChannels ?? {},
+    deep_enrichment_status: lead.deepEnrichmentStatus,
+    deep_enrichment_quality: lead.deepEnrichmentQuality,
+    deep_enrichment_checked_at: lead.deepEnrichmentCheckedAt,
   });
 }
 
@@ -249,6 +274,12 @@ function fromRemote(row: RemoteLead): PersistedLead {
     lastSyncedAt: row.last_synced_at ?? undefined,
     lastSyncError: row.last_sync_error ?? undefined,
     lastSyncErrorAt: row.last_sync_error_at ?? undefined,
+    verifiedContent: row.verified_content ?? {},
+    verifiedImages: row.verified_images ?? [],
+    confirmedChannels: row.confirmed_channels ?? {},
+    deepEnrichmentStatus: row.deep_enrichment_status ?? undefined,
+    deepEnrichmentQuality: row.deep_enrichment_quality ?? undefined,
+    deepEnrichmentCheckedAt: row.deep_enrichment_checked_at ?? undefined,
   };
 }
 

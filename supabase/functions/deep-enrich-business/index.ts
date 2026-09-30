@@ -798,20 +798,26 @@ Deno.serve(async (request)=>{
 
     if (mode === "status") {
       const latest = await latestRun(authorized.userId,key);
-      if (!latest) {
+      const identityChanged =
+        Boolean(latest) && String(latest.identity_signature) !== signature;
+
+      if (!latest || identityChanged) {
         const empty:EnrichmentSnapshot = {
           runId:null,status:"not_started",quality:null,completeness:null,checkedAt:null,expiresAt:null,cached:false,
           summary:{verifiedFacts:0,reviewFacts:0,lowFacts:0,services:0,products:0,professionals:0,portfolioImages:0,verifiedImages:0,prices:0,bookingConfirmed:false,whatsappConfirmed:false,websiteFound:false,conflicts:0},
-          verifiedContent:business.verifiedContent ?? {},
-          verifiedImages:business.verifiedImages ?? [],
-          confirmedChannels:business.confirmedChannels ?? {},
+          // Do not replay a previous run when the fingerprint changed.
+          // Existing lead snapshot remains available to the rest of the CRM,
+          // but this panel requires a fresh explicit run for the new identity.
+          verifiedContent:identityChanged ? {} : business.verifiedContent ?? {},
+          verifiedImages:identityChanged ? [] : business.verifiedImages ?? [],
+          confirmedChannels:identityChanged ? {} : business.confirmedChannels ?? {},
           identityUpdates:{},
           reviewFacts:[],sources:[],metrics:baseMetrics(),errorSummary:null,
         };
-        return json({ok:true,snapshot:empty});
+        return json({ok:true,snapshot:empty,identityChanged});
       }
       const snap = await snapshotFromRun(latest,false);
-      return json({ok:true,snapshot:snap,identityChanged:String(latest.identity_signature)!==signature});
+      return json({ok:true,snapshot:snap,identityChanged:false});
     }
 
     if (mode !== "run") return failure("INVALID_REQUEST","Modo inválido.",400);
