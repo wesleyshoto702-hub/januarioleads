@@ -2,8 +2,10 @@ import {
   buildFingerprint,
   branchIdentityScoreFromText,
   identitySignature,
+  safePublicUrl,
   withVerifiedIdentityUpdates,
 } from "./security.ts";
+import { buildContentAvailabilityMatrix } from "../niche-strategies.ts";
 import {
   buildVerifiedSnapshot,
   finalizeCandidates,
@@ -221,5 +223,67 @@ Deno.test("verified website and Instagram update the cached identity signature",
     (await identitySignature(initial)) !==
       (await identitySignature(finalIdentity)),
     "The run must persist the final signature after identity enrichment.",
+  );
+});
+
+
+Deno.test("verified enrichment feeds the existing Content Availability Matrix", async () => {
+  const service = candidate("service", "corte masculino", "high", "example.com");
+  const portfolio = candidate(
+    "portfolio_image",
+    "trabalho real",
+    "high",
+    "example.com",
+    "official_image",
+  );
+  portfolio.value = { imageUrl: "https://example.com/trabalho.webp" };
+  portfolio.normalizedValue = "https example com trabalho webp";
+
+  const booking = candidate(
+    "channel_booking",
+    "agendamento",
+    "high",
+    "example.com",
+    "official_link",
+  );
+  booking.value = { url: "https://example.com/agendar" };
+  booking.normalizedValue = "https example com agendar";
+
+  const facts = await finalizeCandidates(
+    [service, portfolio, booking],
+    new Set(),
+  );
+  const snapshot = buildVerifiedSnapshot(facts);
+  const matrix = buildContentAvailabilityMatrix({
+    company: "Barbearia Fixture",
+    segment: "Barbearia",
+    verifiedContent: snapshot.verifiedContent,
+    verifiedImages: snapshot.verifiedImages,
+    confirmedChannels: snapshot.confirmedChannels,
+  });
+
+  assert(matrix.services.status === "verified", "Verified services must reach the existing matrix.");
+  assert(matrix.portfolio.status === "verified", "Verified portfolio must reach the existing matrix.");
+  assert(matrix.booking.status === "verified", "Verified booking must reach the existing matrix.");
+});
+
+Deno.test("SSRF URL gate rejects local private and credentialed targets", () => {
+  const rejected = [
+    "http://localhost/admin",
+    "http://127.0.0.1/",
+    "http://10.0.0.1/",
+    "http://192.168.1.1/",
+    "http://169.254.169.254/latest/meta-data/",
+    "http://[::1]/",
+    "ftp://example.com/file",
+    "https://user:pass@example.com/private",
+  ];
+  assert(
+    rejected.every((url) => safePublicUrl(url) === null),
+    "Private, local, credentialed and non-http(s) URLs must be rejected.",
+  );
+  assert(
+    safePublicUrl("https://example.com/servicos") !== null,
+    "Normal public HTTP(S) URL should remain eligible before DNS validation.",
   );
 });
