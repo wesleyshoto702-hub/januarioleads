@@ -1,6 +1,7 @@
 export type LeadChanceInput = {
   website?: string | null;
   instagram?: string | null;
+  instagramConfidence?: "high" | "medium" | "low" | null;
   phone?: string | null;
   internationalPhone?: string | null;
   rating?: number | null;
@@ -92,7 +93,11 @@ export function calculateLeadChance(
   let score = LEAD_CHANCE_WEIGHTS.base;
 
   const hasSite = Boolean(business.website?.trim());
-  const hasInstagram = Boolean(business.instagram?.trim());
+  const hasInstagram = Boolean(
+    business.instagram?.trim() &&
+      business.instagramConfidence !== "medium" &&
+      business.instagramConfidence !== "low",
+  );
   const hasPhone = Boolean(
     business.phone?.trim() || business.internationalPhone?.trim(),
   );
