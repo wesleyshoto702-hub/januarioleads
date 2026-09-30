@@ -138,7 +138,8 @@ export function presenceFromBusiness(
       ? business.instagramConfidence ?? "high"
       : null,
     instagramSource: instagramUrl
-      ? business.instagramSource ?? "existing_data"
+      ? business.instagramSource ??
+        (business.placeId?.trim() ? "google_places" : "existing_data")
       : null,
     instagramCheckedAt:
       business.instagramCheckedAt ?? new Date(0).toISOString(),
