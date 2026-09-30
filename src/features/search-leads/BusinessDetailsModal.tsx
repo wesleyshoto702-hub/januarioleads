@@ -10,7 +10,12 @@ import {
 import { useEffect, useState } from "react";
 import { buildFactualBusinessDescription } from "../business-presence/business-description";
 import { discoverBusinessPresence } from "../business-presence/discover-business-presence";
-import type { BusinessPresence } from "../business-presence/types";
+import { presenceFromBusiness } from "../business-presence/storage";
+import type {
+  BusinessPresence,
+  InstagramCandidate,
+  InstagramSource,
+} from "../business-presence/types";
 import { LeadActivityTimeline } from "../lead-activities/LeadActivityTimeline";
 import { ChanceBadge } from "../lead-chance/ChanceBadge";
 import type { LeadChanceResult } from "../lead-chance/lead-chance";
@@ -35,6 +40,24 @@ function formatBusinessStatus(value: string | null) {
   if (value === "CLOSED_TEMPORARILY") return "Fechada temporariamente";
   if (value === "OPERATIONAL") return "Em funcionamento";
   return null;
+}
+
+const INSTAGRAM_SOURCE_LABEL: Record<InstagramSource, string> = {
+  google_places: "Google Places",
+  official_website: "Website oficial",
+  web_search: "Busca pública",
+  manual_confirmation: "Confirmação manual",
+  existing_data: "Dados existentes",
+};
+
+function instagramUsername(value: string | null | undefined) {
+  if (!value) return null;
+  try {
+    const parts = new URL(value).pathname.split("/").filter(Boolean);
+    return parts.length === 1 ? parts[0] : null;
+  } catch {
+    return null;
+  }
 }
 
 export function BusinessDetailsModal({
@@ -66,34 +89,91 @@ export function BusinessDetailsModal({
   onPresenceUpdate?: (presence: BusinessPresence) => void;
   onAdd?: (business: BusinessSearchResult) => void;
 }) {
-  const [presenceLoading, setPresenceLoading] = useState(
-    Boolean(business.instagram || business.website),
-  );
+  const [presenceLoading, setPresenceLoading] = useState(false);
+  const [presenceError, setPresenceError] = useState("");
   const [activeTab, setActiveTab] = useState<"info" | "history">("info");
 
   const factualDescription =
     business.factualDescription ?? buildFactualBusinessDescription(business);
+  const confirmedInstagram =
+    business.instagram &&
+    business.instagramConfidence !== "medium" &&
+    business.instagramConfidence !== "low"
+      ? business.instagram
+      : null;
+  const candidates = (business.instagramCandidates ?? []).filter(
+    (candidate) => candidate.confidence === "medium",
+  );
 
   async function verifyPresence(force = false) {
     setPresenceLoading(true);
+    setPresenceError("");
     try {
-      const presence = await discoverBusinessPresence(business, { force });
+      const presence = await discoverBusinessPresence(business, {
+        force,
+        allowWebSearch: true,
+      });
       if (presence) onPresenceUpdate?.(presence);
+    } catch (error) {
+      setPresenceError(
+        error instanceof Error && error.message
+          ? error.message
+          : "Não foi possível buscar Instagram agora.",
+      );
     } finally {
       setPresenceLoading(false);
     }
   }
 
+  function confirmInstagram(candidate: InstagramCandidate) {
+    const current = presenceFromBusiness(business);
+    onPresenceUpdate?.({
+      instagramUrl: candidate.url,
+      instagramUsername: candidate.username,
+      instagramConfidence: "high",
+      instagramSource: "manual_confirmation",
+      instagramCheckedAt: new Date().toISOString(),
+      instagramCandidates: [],
+      instagramRejectedUrls: current?.instagramRejectedUrls ?? [],
+      instagramSearchSignature:
+        current?.instagramSearchSignature ??
+        business.instagramSearchSignature ??
+        null,
+      instagramNeedsReview: false,
+    });
+  }
+
+  function rejectInstagram(candidate: InstagramCandidate) {
+    const current = presenceFromBusiness(business);
+    const rejected = Array.from(
+      new Set([
+        ...(current?.instagramRejectedUrls ?? []),
+        candidate.url,
+      ]),
+    );
+    onPresenceUpdate?.({
+      instagramUrl: current?.instagramUrl ?? null,
+      instagramUsername: current?.instagramUsername ?? null,
+      instagramConfidence: current?.instagramConfidence ?? null,
+      instagramSource: current?.instagramSource ?? null,
+      instagramCheckedAt:
+        current?.instagramCheckedAt ?? new Date().toISOString(),
+      instagramCandidates: candidates.filter(
+        (item) => item.url !== candidate.url,
+      ),
+      instagramRejectedUrls: rejected,
+      instagramSearchSignature:
+        current?.instagramSearchSignature ??
+        business.instagramSearchSignature ??
+        null,
+      instagramNeedsReview: false,
+    });
+  }
+
   useEffect(() => {
     setActiveTab("info");
-
-    if (business.instagram || business.website) {
-      void verifyPresence(false);
-    } else {
-      setPresenceLoading(false);
-    }
-    // One automatic verification per opened business. Cache prevents repeat requests.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setPresenceError("");
+    setPresenceLoading(false);
   }, [business.placeId]);
 
   return (
@@ -241,20 +321,6 @@ export function BusinessDetailsModal({
               ) : (
                 <span>Site não identificado</span>
               )}
-              {business.instagram &&
-              business.instagramConfidence !== "low" ? (
-                <a
-                  className="instagram-identified-link"
-                  href={business.instagram}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <Instagram size={15} />
-                  Instagram identificado <ExternalLink size={13} />
-                </a>
-              ) : (
-                <span>Instagram não identificado</span>
-              )}
               {business.googleMapsUrl && (
                 <a
                   href={business.googleMapsUrl}
@@ -267,19 +333,138 @@ export function BusinessDetailsModal({
               )}
             </div>
 
-            {presenceLoading ? (
-              <span className="presence-checking">
-                Verificando presença online...
-              </span>
-            ) : !business.instagram && business.website ? (
-              <button
-                className="presence-retry"
-                type="button"
-                onClick={() => void verifyPresence(true)}
-              >
-                Buscar Instagram novamente
-              </button>
-            ) : null}
+            <div className="instagram-presence">
+              <div className="instagram-presence-heading">
+                <span>INSTAGRAM</span>
+                {business.instagramNeedsReview && (
+                  <small>Os dados da empresa mudaram; vale verificar novamente.</small>
+                )}
+              </div>
+
+              {confirmedInstagram ? (
+                <div className="instagram-confirmed">
+                  <div>
+                    <strong>Instagram identificado</strong>
+                    <span>
+                      @{business.instagramUsername ??
+                        instagramUsername(confirmedInstagram)}
+                    </span>
+                    {business.instagramSource && (
+                      <small>
+                        Fonte: {INSTAGRAM_SOURCE_LABEL[business.instagramSource]}
+                      </small>
+                    )}
+                  </div>
+                  <a
+                    className="instagram-identified-link"
+                    href={confirmedInstagram}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <Instagram size={15} />
+                    Abrir Instagram <ExternalLink size={13} />
+                  </a>
+                </div>
+              ) : candidates.length > 0 ? (
+                <div className="instagram-candidates">
+                  <strong>
+                    {candidates.length === 1
+                      ? "Instagram provável"
+                      : "Possíveis Instagrams"}
+                  </strong>
+
+                  {candidates.map((candidate) => (
+                    <article
+                      className="instagram-candidate"
+                      key={candidate.url}
+                    >
+                      <div className="instagram-candidate-main">
+                        <b>@{candidate.username}</b>
+                        {candidate.signals.length > 0 && (
+                          <div className="instagram-signals">
+                            <span>Sinais encontrados:</span>
+                            <ul>
+                              {candidate.signals.map((signal) => (
+                                <li key={signal}>{signal}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {candidate.evidenceUrls.length > 0 && (
+                          <div className="instagram-evidence">
+                            {candidate.evidenceUrls.slice(0, 2).map((url, index) => (
+                              <a
+                                key={url}
+                                href={url}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                Fonte pública {index + 1}
+                                <ExternalLink size={11} />
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="instagram-candidate-actions">
+                        <a
+                          href={candidate.url}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Abrir perfil
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => confirmInstagram(candidate)}
+                        >
+                          Confirmar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => rejectInstagram(candidate)}
+                        >
+                          Não é este
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="instagram-not-found">
+                  <span>Instagram não identificado</span>
+                </div>
+              )}
+
+              {presenceError ? (
+                <div className="instagram-search-error">
+                  <span>{presenceError}</span>
+                  <button
+                    type="button"
+                    onClick={() => void verifyPresence(true)}
+                  >
+                    Tentar novamente
+                  </button>
+                </div>
+              ) : presenceLoading ? (
+                <span className="presence-checking">
+                  Buscando Instagram...
+                </span>
+              ) : !confirmedInstagram ? (
+                <button
+                  className="presence-retry"
+                  type="button"
+                  onClick={() =>
+                    void verifyPresence(Boolean(business.instagramCheckedAt))
+                  }
+                >
+                  {business.instagramCheckedAt
+                    ? "Buscar novamente"
+                    : "Buscar Instagram"}
+                </button>
+              ) : null}
+            </div>
           </div>
 
           {updates.length > 0 && (
