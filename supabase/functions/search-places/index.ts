@@ -882,12 +882,62 @@ async function runLeadEnrichment(
 
 
 type PresenceConfidence = "high" | "medium" | "low";
-type PresenceSource = "google_places" | "official_website" | "web_search";
+type PresenceSource =
+  | "google_places"
+  | "official_website"
+  | "web_search"
+  | "manual_confirmation"
+  | "existing_data";
+
+type InstagramCandidate = {
+  url: string;
+  username: string;
+  confidence: "medium" | "low";
+  score: number;
+  signals: string[];
+  evidenceUrls: string[];
+};
+
 type BusinessPresence = {
   instagramUrl: string | null;
+  instagramUsername: string | null;
   instagramConfidence: PresenceConfidence | null;
   instagramSource: PresenceSource | null;
   instagramCheckedAt: string;
+  instagramCandidates: InstagramCandidate[];
+  instagramRejectedUrls: string[];
+  instagramSearchSignature: string | null;
+  instagramNeedsReview: boolean;
+};
+
+type RawWebCandidate = {
+  instagramUrl: string;
+  username: string;
+  publicName: string;
+  publicText: string;
+  phones: string[];
+  locations: string[];
+  websites: string[];
+  categories: string[];
+  associatedNames: string[];
+  evidenceUrls: string[];
+};
+
+type OpenAIWebResponse = {
+  output_text?: string;
+  output?: Array<{
+    type?: string;
+    action?: {
+      type?: string;
+      sources?: Array<{ url?: string }>;
+    };
+    content?: Array<{
+      type?: string;
+      text?: string;
+      annotations?: Array<{ type?: string; url?: string }>;
+    }>;
+  }>;
+  error?: { message?: string; code?: string; type?: string };
 };
 
 const INSTAGRAM_RESERVED_PATHS = new Set([
@@ -906,6 +956,21 @@ const INSTAGRAM_RESERVED_PATHS = new Set([
   "stories",
   "terms",
   "tv",
+]);
+
+const GENERIC_NAME_TOKENS = new Set([
+  "studio",
+  "clinica",
+  "saude",
+  "estetica",
+  "restaurante",
+  "gourmet",
+  "barbearia",
+  "central",
+  "salao",
+  "beleza",
+  "center",
+  "centro",
 ]);
 
 function canonicalInstagramProfile(value: string | null | undefined) {
@@ -932,6 +997,12 @@ function canonicalInstagramProfile(value: string | null | undefined) {
   } catch {
     return null;
   }
+}
+
+function instagramUsername(value: string | null | undefined) {
+  const profile = canonicalInstagramProfile(value);
+  if (!profile) return null;
+  return new URL(profile).pathname.split("/").filter(Boolean)[0] ?? null;
 }
 
 function isBlockedWebsiteHost(hostname: string) {
@@ -1044,7 +1115,8 @@ async function fetchOfficialHtml(value: string) {
 
       if (!response.ok) return null;
 
-      const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
+      const contentType =
+        response.headers.get("content-type")?.toLowerCase() ?? "";
       if (
         contentType &&
         !contentType.includes("text/html") &&
@@ -1122,6 +1194,588 @@ function contactPageFromOfficialHtml(html: string, baseUrl: URL) {
   return null;
 }
 
+function cleanString(value: unknown, max = 500) {
+  return typeof value === "string" ? value.trim().slice(0, max) : "";
+}
+
+function stringList(value: unknown, maxItems = 8, maxLength = 300) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim().slice(0, maxLength))
+    .filter(Boolean)
+    .slice(0, maxItems);
+}
+
+function normalizeWebsiteForSignature(value: string) {
+  if (!value) return "";
+  try {
+    const url = new URL(value);
+    return `${url.hostname.toLowerCase().replace(/^www\./, "")}${url.pathname.replace(/\/+$/, "")}`;
+  } catch {
+    return normalize(value);
+  }
+}
+
+async function sha256Text(value: string) {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(value),
+  );
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function instagramSearchSignature(business: {
+  name: string;
+  phone: string;
+  internationalPhone: string;
+  address: string;
+  city: string;
+  state: string;
+  website: string;
+  primaryCategory: string;
+}) {
+  return sha256Text(
+    JSON.stringify({
+      version: "instagram-discovery-v1",
+      name: normalize(business.name),
+      phone: normalizeBrazilianPhone(
+        business.phone || business.internationalPhone,
+      ),
+      address: normalize(business.address),
+      city: normalize(business.city),
+      state: normalize(business.state),
+      website: normalizeWebsiteForSignature(business.website),
+      primaryCategory: normalize(business.primaryCategory),
+    }),
+  );
+}
+
+function websiteHost(value: string) {
+  if (!value) return "";
+  try {
+    return new URL(value).hostname.toLowerCase().replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+}
+
+function significantTokens(value: string) {
+  return normalize(value)
+    .split(" ")
+    .filter((token) => token.length > 2)
+    .filter(
+      (token) =>
+        ![
+          "para",
+          "com",
+          "dos",
+          "das",
+          "uma",
+          "the",
+          "and",
+          "dra",
+          "dr",
+        ].includes(token),
+    );
+}
+
+function containsNormalized(haystack: string, needle: string) {
+  const left = normalize(haystack);
+  const right = normalize(needle);
+  return Boolean(right && left.includes(right));
+}
+
+function extractProfessionalName(value: string) {
+  const match = value.match(/\b(?:dra\.?|dr\.?|doutora|doutor)\s+([^|,;()]+)/i);
+  if (!match?.[1]) return "";
+  return match[1].trim().replace(/\s+-.*$/, "").slice(0, 100);
+}
+
+function addressSimilarity(address: string, locations: string[]) {
+  if (!address || locations.length === 0) return false;
+  const number = address.match(/\b\d{1,6}\b/)?.[0] ?? "";
+  const addressTokens = significantTokens(address).filter(
+    (token) => !["rua", "avenida", "av", "centro"].includes(token),
+  );
+
+  return locations.some((location) => {
+    const normalizedLocation = normalize(location);
+    const shared = addressTokens.filter((token) =>
+      normalizedLocation.includes(token),
+    ).length;
+    const locationNumber = location.match(/\b\d{1,6}\b/)?.[0] ?? "";
+    const numberMatches = !number || !locationNumber || number === locationNumber;
+    return numberMatches && shared >= Math.min(2, Math.max(1, addressTokens.length));
+  });
+}
+
+function rawCandidateSimilarity(
+  businessName: string,
+  candidate: RawWebCandidate,
+) {
+  const values = [
+    candidate.publicName,
+    ...candidate.associatedNames,
+    candidate.username.replace(/[._]/g, " "),
+  ].filter(Boolean);
+
+  return Math.max(
+    0,
+    ...values.map((value) => tokenSimilarity(businessName, value)),
+  );
+}
+
+function professionalSimilarity(
+  professional: string,
+  candidate: RawWebCandidate,
+) {
+  if (!professional) return 0;
+  const values = [
+    candidate.publicName,
+    ...candidate.associatedNames,
+    candidate.username.replace(/[._]/g, " "),
+  ].filter(Boolean);
+
+  return Math.max(
+    0,
+    ...values.map((value) => tokenSimilarity(professional, value)),
+  );
+}
+
+function scoreInstagramCandidate(
+  business: {
+    name: string;
+    phone: string;
+    internationalPhone: string;
+    address: string;
+    city: string;
+    state: string;
+    website: string;
+    primaryCategory: string;
+  },
+  candidate: RawWebCandidate,
+): InstagramCandidate & { highEligible: boolean; locationConflict: boolean } {
+  let score = 0;
+  const signals: string[] = [];
+  const phone = normalizeBrazilianPhone(
+    business.phone || business.internationalPhone,
+  );
+  const candidatePhones = candidate.phones.map(normalizeBrazilianPhone);
+  const phoneMatches = Boolean(phone && candidatePhones.includes(phone));
+
+  const addressMatches = addressSimilarity(
+    business.address,
+    candidate.locations,
+  );
+
+  const officialHost = websiteHost(business.website);
+  const websiteMatches = Boolean(
+    officialHost &&
+      candidate.websites.some((value) => websiteHost(value) === officialHost),
+  );
+
+  const nameSimilarity = rawCandidateSimilarity(business.name, candidate);
+  const professional = extractProfessionalName(business.name);
+  const professionalMatch = professionalSimilarity(professional, candidate);
+  const city = normalize(business.city);
+  const cityMatches = Boolean(
+    city &&
+      [candidate.publicText, ...candidate.locations].some((value) =>
+        containsNormalized(value, business.city),
+      ),
+  );
+  const locationConflict = Boolean(
+    city &&
+      candidate.locations.length > 0 &&
+      !cityMatches
+  );
+
+  const categoryTokens = significantTokens(business.primaryCategory);
+  const categoryText = normalize(
+    [...candidate.categories, candidate.publicText].join(" "),
+  );
+  const categoryMatches = categoryTokens.some((token) =>
+    categoryText.includes(token),
+  );
+
+  const usernameText = candidate.username.replace(/[._]/g, " ");
+  const usernameSimilarity = Math.max(
+    tokenSimilarity(business.name, usernameText),
+    professional ? tokenSimilarity(professional, usernameText) : 0,
+  );
+
+  if (phoneMatches) {
+    score += 10;
+    signals.push("Telefone público coincide");
+  }
+  if (addressMatches) {
+    score += 9;
+    signals.push("Endereço coincide");
+  }
+  if (websiteMatches) {
+    score += 8;
+    signals.push("Website associado coincide");
+  }
+  if (nameSimilarity >= 0.66) {
+    score += 5;
+    signals.push("Nome comercial coincide claramente");
+  } else if (nameSimilarity >= 0.45) {
+    score += 4;
+    signals.push("Nome comercial é compatível");
+  } else if (nameSimilarity >= 0.3) {
+    score += 2;
+    signals.push("Há termos relevantes do nome em comum");
+  }
+  if (professionalMatch >= 0.6) {
+    score += 5;
+    signals.push(
+      professional
+        ? `Nome profissional compatível: ${professional}`
+        : "Nome profissional compatível",
+    );
+  }
+  if (cityMatches) {
+    score += 3;
+    signals.push(
+      business.state
+        ? `${business.city} - ${business.state}`
+        : business.city,
+    );
+  }
+  if (categoryMatches) {
+    score += 2;
+    signals.push("Categoria/atividade compatível");
+  }
+  if (usernameSimilarity >= 0.55) {
+    score += 3;
+    signals.push("Nome de usuário compatível");
+  }
+
+  const nameTokens = significantTokens(business.name);
+  const genericName =
+    nameTokens.length <= 2 &&
+    nameTokens.every((token) => GENERIC_NAME_TOKENS.has(token));
+
+  if (genericName && !phoneMatches && !addressMatches && !websiteMatches) {
+    score -= 2;
+  }
+  if (locationConflict) score -= 6;
+
+  const veryStrong =
+    phoneMatches || addressMatches || websiteMatches;
+  const corroboratedName =
+    nameSimilarity >= 0.45 &&
+    cityMatches &&
+    (professionalMatch >= 0.6 || categoryMatches || usernameSimilarity >= 0.55);
+
+  const highEligible =
+    !locationConflict &&
+    score >= 9 &&
+    (veryStrong || corroboratedName);
+
+  const confidence: "medium" | "low" =
+    !locationConflict && score >= 6 && signals.length >= 2
+      ? "medium"
+      : "low";
+
+  return {
+    url: candidate.instagramUrl,
+    username: candidate.username,
+    confidence,
+    score,
+    signals: signals.slice(0, 5),
+    evidenceUrls: candidate.evidenceUrls.slice(0, 4),
+    highEligible,
+    locationConflict,
+  };
+}
+
+function extractOpenAIText(payload: OpenAIWebResponse) {
+  if (typeof payload.output_text === "string" && payload.output_text.trim()) {
+    return payload.output_text.trim();
+  }
+  for (const item of payload.output ?? []) {
+    for (const content of item.content ?? []) {
+      if (content.type === "output_text" && typeof content.text === "string") {
+        return content.text.trim();
+      }
+    }
+  }
+  return "";
+}
+
+function extractedWebSources(payload: OpenAIWebResponse) {
+  const urls = new Set<string>();
+
+  for (const item of payload.output ?? []) {
+    for (const source of item.action?.sources ?? []) {
+      if (source.url) urls.add(source.url);
+    }
+    for (const content of item.content ?? []) {
+      for (const annotation of content.annotations ?? []) {
+        if (annotation.url) urls.add(annotation.url);
+      }
+    }
+  }
+
+  return Array.from(urls);
+}
+
+const WEB_DISCOVERY_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["candidates"],
+  properties: {
+    candidates: {
+      type: "array",
+      maxItems: 3,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "instagramUrl",
+          "username",
+          "publicName",
+          "publicText",
+          "phones",
+          "locations",
+          "websites",
+          "categories",
+          "associatedNames",
+          "evidenceUrls",
+        ],
+        properties: {
+          instagramUrl: { type: "string" },
+          username: { type: "string" },
+          publicName: { type: "string" },
+          publicText: { type: "string" },
+          phones: {
+            type: "array",
+            maxItems: 4,
+            items: { type: "string" },
+          },
+          locations: {
+            type: "array",
+            maxItems: 5,
+            items: { type: "string" },
+          },
+          websites: {
+            type: "array",
+            maxItems: 4,
+            items: { type: "string" },
+          },
+          categories: {
+            type: "array",
+            maxItems: 5,
+            items: { type: "string" },
+          },
+          associatedNames: {
+            type: "array",
+            maxItems: 5,
+            items: { type: "string" },
+          },
+          evidenceUrls: {
+            type: "array",
+            maxItems: 6,
+            items: { type: "string" },
+          },
+        },
+      },
+    },
+  },
+};
+
+async function discoverInstagramOnWeb(
+  openAiApiKey: string,
+  business: {
+    name: string;
+    phone: string;
+    internationalPhone: string;
+    address: string;
+    city: string;
+    state: string;
+    website: string;
+    primaryCategory: string;
+  },
+  rejectedUrls: string[],
+) {
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${openAiApiKey}`,
+    },
+    body: JSON.stringify({
+      model: "gpt-5.6-terra",
+      reasoning: { effort: "low" },
+      max_output_tokens: 1600,
+      max_tool_calls: 2,
+      tools: [
+        {
+          type: "web_search",
+          search_context_size: "low",
+          external_web_access: true,
+        },
+      ],
+      tool_choice: "required",
+      include: ["web_search_call.action.sources"],
+      input: [
+        {
+          role: "system",
+          content: [
+            {
+              type: "input_text",
+              text:
+                "Você pesquisa presença pública de empresas locais para identificar possíveis perfis oficiais do Instagram. Use somente pesquisa web pública/indexada. Não faça login no Instagram, não use dados privados e não assuma que o primeiro resultado pertence à empresa. Procure no máximo 3 perfis plausíveis e retorne sinais públicos brutos para validação determinística posterior no backend. Se não houver candidato plausível, retorne candidates vazio.",
+            },
+          ],
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: JSON.stringify({
+                task:
+                  "Encontre possíveis perfis do Instagram associados a esta empresa. Use poucas consultas eficientes combinando nome exato, cidade, telefone, endereço e nome profissional quando existir. Priorize Instagram, mas use outras páginas públicas apenas como evidência de associação.",
+                business,
+                rejectedInstagramUrls: rejectedUrls,
+                rules: [
+                  "Não escolha candidato apenas por nome parecido.",
+                  "Diferencie nome comercial de nome do profissional.",
+                  "Não retorne URLs de post/reel/story; somente perfil.",
+                  "Em publicText, associatedNames, phones, locations, websites e categories, informe somente sinais realmente encontrados em resultados públicos.",
+                  "evidenceUrls deve conter as páginas públicas que sustentam os sinais.",
+                ],
+              }),
+            },
+          ],
+        },
+      ],
+      text: {
+        verbosity: "low",
+        format: {
+          type: "json_schema",
+          name: "instagram_public_candidates",
+          strict: true,
+          schema: WEB_DISCOVERY_SCHEMA,
+        },
+      },
+    }),
+  });
+
+  let payload: OpenAIWebResponse;
+  try {
+    payload = (await response.json()) as OpenAIWebResponse;
+  } catch {
+    throw new Error("OPENAI_INVALID_RESPONSE");
+  }
+
+  if (!response.ok) {
+    if (response.status === 429) throw new Error("OPENAI_QUOTA");
+    if (response.status === 401 || response.status === 403) {
+      throw new Error("OPENAI_AUTH");
+    }
+    throw new Error("OPENAI_WEB_SEARCH_FAILED");
+  }
+
+  const outputText = extractOpenAIText(payload);
+  if (!outputText) return [] as RawWebCandidate[];
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(outputText);
+  } catch {
+    return [] as RawWebCandidate[];
+  }
+
+  if (
+    !parsed ||
+    typeof parsed !== "object" ||
+    !Array.isArray((parsed as { candidates?: unknown }).candidates)
+  ) {
+    return [] as RawWebCandidate[];
+  }
+
+  const sourceUrls = extractedWebSources(payload);
+  const sourceProfiles = new Set(
+    sourceUrls
+      .map(canonicalInstagramProfile)
+      .filter((value): value is string => Boolean(value)),
+  );
+  const sourceSet = new Set(sourceUrls);
+  const rejected = new Set(
+    rejectedUrls
+      .map(canonicalInstagramProfile)
+      .filter((value): value is string => Boolean(value)),
+  );
+
+  const candidates: RawWebCandidate[] = [];
+  for (const value of (parsed as { candidates: unknown[] }).candidates) {
+    if (!value || typeof value !== "object") continue;
+    const raw = value as Record<string, unknown>;
+    const profile = canonicalInstagramProfile(cleanString(raw.instagramUrl));
+    if (!profile || rejected.has(profile) || !sourceProfiles.has(profile)) {
+      continue;
+    }
+
+    const username = instagramUsername(profile);
+    if (!username) continue;
+
+    const evidenceUrls = stringList(raw.evidenceUrls, 6, 600)
+      .filter((url) => sourceSet.has(url))
+      .slice(0, 4);
+
+    candidates.push({
+      instagramUrl: profile,
+      username,
+      publicName: cleanString(raw.publicName, 180),
+      publicText: cleanString(raw.publicText, 900),
+      phones: stringList(raw.phones, 4, 80),
+      locations: stringList(raw.locations, 5, 240),
+      websites: stringList(raw.websites, 4, 500),
+      categories: stringList(raw.categories, 5, 160),
+      associatedNames: stringList(raw.associatedNames, 5, 160),
+      evidenceUrls:
+        evidenceUrls.length > 0
+          ? evidenceUrls
+          : sourceUrls
+              .filter((url) => canonicalInstagramProfile(url) === profile)
+              .slice(0, 2),
+    });
+  }
+
+  const unique = new Map<string, RawWebCandidate>();
+  for (const candidate of candidates) {
+    if (!unique.has(candidate.instagramUrl)) {
+      unique.set(candidate.instagramUrl, candidate);
+    }
+  }
+
+  return Array.from(unique.values()).slice(0, 3);
+}
+
+function emptyPresence(
+  checkedAt: string,
+  signature: string,
+  rejectedUrls: string[],
+): BusinessPresence {
+  return {
+    instagramUrl: null,
+    instagramUsername: null,
+    instagramConfidence: null,
+    instagramSource: null,
+    instagramCheckedAt: checkedAt,
+    instagramCandidates: [],
+    instagramRejectedUrls: rejectedUrls,
+    instagramSearchSignature: signature,
+    instagramNeedsReview: false,
+  };
+}
+
 async function runPresenceDiscovery(body: Record<string, unknown>) {
   const businessValue = body.business;
   if (!businessValue || typeof businessValue !== "object") {
@@ -1132,17 +1786,9 @@ async function runPresenceDiscovery(body: Record<string, unknown>) {
     );
   }
 
-  const business = businessValue as {
-    name?: unknown;
-    website?: unknown;
-    instagram?: unknown;
-  };
-
-  if (
-    typeof business.name !== "string" ||
-    business.name.trim().length < 2 ||
-    business.name.length > 180
-  ) {
+  const rawBusiness = businessValue as Record<string, unknown>;
+  const name = cleanString(rawBusiness.name, 180);
+  if (name.length < 2) {
     return failure(
       "INVALID_REQUEST",
       "O nome da empresa é necessário para verificar a presença online.",
@@ -1150,117 +1796,217 @@ async function runPresenceDiscovery(body: Record<string, unknown>) {
     );
   }
 
-  if (
-    business.website !== undefined &&
-    business.website !== null &&
-    typeof business.website !== "string"
-  ) {
-    return failure(
-      "INVALID_REQUEST",
-      "O site informado para a empresa é inválido.",
-      400,
-    );
-  }
+  const business = {
+    name,
+    website: cleanString(rawBusiness.website, 500),
+    instagram: cleanString(rawBusiness.instagram, 500),
+    instagramConfidence: cleanString(rawBusiness.instagramConfidence, 20),
+    instagramSource: cleanString(rawBusiness.instagramSource, 40),
+    phone: cleanString(rawBusiness.phone, 80),
+    internationalPhone: cleanString(rawBusiness.internationalPhone, 80),
+    address: cleanString(rawBusiness.address, 300),
+    city: cleanString(rawBusiness.city, 120),
+    state: cleanString(rawBusiness.state, 120),
+    primaryCategory: cleanString(rawBusiness.primaryCategory, 160),
+  };
 
-  if (
-    business.instagram !== undefined &&
-    business.instagram !== null &&
-    typeof business.instagram !== "string"
-  ) {
-    return failure(
-      "INVALID_REQUEST",
-      "O Instagram informado para a empresa é inválido.",
-      400,
-    );
-  }
+  const rejectedUrls = stringList(
+    rawBusiness.instagramRejectedUrls,
+    12,
+    500,
+  )
+    .map(canonicalInstagramProfile)
+    .filter((value): value is string => Boolean(value));
 
   const checkedAt = new Date().toISOString();
-  const googleInstagram =
-    typeof business.instagram === "string"
-      ? canonicalInstagramProfile(business.instagram)
-      : null;
+  const signature = await instagramSearchSignature(business);
+  const knownInstagram = canonicalInstagramProfile(business.instagram);
 
-  if (googleInstagram) {
+  if (knownInstagram && business.instagramConfidence === "high") {
+    const source: PresenceSource =
+      business.instagramSource === "manual_confirmation"
+        ? "manual_confirmation"
+        : business.instagramSource === "official_website"
+          ? "official_website"
+          : business.instagramSource === "web_search"
+            ? "web_search"
+            : business.instagramSource === "google_places"
+              ? "google_places"
+              : "existing_data";
+
     const presence: BusinessPresence = {
-      instagramUrl: googleInstagram,
+      instagramUrl: knownInstagram,
+      instagramUsername: instagramUsername(knownInstagram),
+      instagramConfidence: "high",
+      instagramSource: source,
+      instagramCheckedAt: checkedAt,
+      instagramCandidates: [],
+      instagramRejectedUrls: rejectedUrls,
+      instagramSearchSignature: signature,
+      instagramNeedsReview: false,
+    };
+    return json({ ok: true, mode: "presence-discovery", presence });
+  }
+
+  if (knownInstagram && !business.instagramSource) {
+    const presence: BusinessPresence = {
+      instagramUrl: knownInstagram,
+      instagramUsername: instagramUsername(knownInstagram),
       instagramConfidence: "high",
       instagramSource: "google_places",
       instagramCheckedAt: checkedAt,
+      instagramCandidates: [],
+      instagramRejectedUrls: rejectedUrls,
+      instagramSearchSignature: signature,
+      instagramNeedsReview: false,
     };
-
     return json({ ok: true, mode: "presence-discovery", presence });
   }
 
-  const website =
-    typeof business.website === "string" ? business.website.trim() : "";
-
-  if (!website) {
-    const presence: BusinessPresence = {
-      instagramUrl: null,
-      instagramConfidence: null,
-      instagramSource: null,
-      instagramCheckedAt: checkedAt,
-    };
-
-    return json({ ok: true, mode: "presence-discovery", presence });
-  }
-
-  const root = await fetchOfficialHtml(website);
-  if (!root) {
-    const presence: BusinessPresence = {
-      instagramUrl: null,
-      instagramConfidence: null,
-      instagramSource: null,
-      instagramCheckedAt: checkedAt,
-    };
-
-    return json({ ok: true, mode: "presence-discovery", presence });
-  }
-
-  const rootInstagram = instagramFromOfficialHtml(root.html, root.finalUrl);
-  if (rootInstagram) {
-    const presence: BusinessPresence = {
-      instagramUrl: rootInstagram,
-      instagramConfidence: "high",
-      instagramSource: "official_website",
-      instagramCheckedAt: checkedAt,
-    };
-
-    return json({ ok: true, mode: "presence-discovery", presence });
-  }
-
-  const contactPage = contactPageFromOfficialHtml(root.html, root.finalUrl);
-  if (contactPage && contactPage !== root.finalUrl.toString()) {
-    const contact = await fetchOfficialHtml(contactPage);
-    if (contact) {
-      const contactInstagram = instagramFromOfficialHtml(
-        contact.html,
-        contact.finalUrl,
-      );
-
-      if (contactInstagram) {
+  if (business.website) {
+    const root = await fetchOfficialHtml(business.website);
+    if (root) {
+      const rootInstagram = instagramFromOfficialHtml(root.html, root.finalUrl);
+      if (rootInstagram && !rejectedUrls.includes(rootInstagram)) {
         const presence: BusinessPresence = {
-          instagramUrl: contactInstagram,
+          instagramUrl: rootInstagram,
+          instagramUsername: instagramUsername(rootInstagram),
           instagramConfidence: "high",
           instagramSource: "official_website",
           instagramCheckedAt: checkedAt,
+          instagramCandidates: [],
+          instagramRejectedUrls: rejectedUrls,
+          instagramSearchSignature: signature,
+          instagramNeedsReview: false,
         };
-
         return json({ ok: true, mode: "presence-discovery", presence });
+      }
+
+      const contactPage = contactPageFromOfficialHtml(root.html, root.finalUrl);
+      if (contactPage && contactPage !== root.finalUrl.toString()) {
+        const contact = await fetchOfficialHtml(contactPage);
+        if (contact) {
+          const contactInstagram = instagramFromOfficialHtml(
+            contact.html,
+            contact.finalUrl,
+          );
+          if (
+            contactInstagram &&
+            !rejectedUrls.includes(contactInstagram)
+          ) {
+            const presence: BusinessPresence = {
+              instagramUrl: contactInstagram,
+              instagramUsername: instagramUsername(contactInstagram),
+              instagramConfidence: "high",
+              instagramSource: "official_website",
+              instagramCheckedAt: checkedAt,
+              instagramCandidates: [],
+              instagramRejectedUrls: rejectedUrls,
+              instagramSearchSignature: signature,
+              instagramNeedsReview: false,
+            };
+            return json({ ok: true, mode: "presence-discovery", presence });
+          }
+        }
       }
     }
   }
 
+  if (body.allowWebSearch !== true) {
+    return json({
+      ok: true,
+      mode: "presence-discovery",
+      presence: emptyPresence(checkedAt, signature, rejectedUrls),
+    });
+  }
+
+  const openAiApiKey = Deno.env.get("OPENAI_API_KEY")?.trim();
+  if (!openAiApiKey) {
+    return failure(
+      "NOT_CONFIGURED",
+      "A busca pública complementar de Instagram não está configurada no backend.",
+      503,
+    );
+  }
+
+  let rawCandidates: RawWebCandidate[];
+  try {
+    rawCandidates = await discoverInstagramOnWeb(
+      openAiApiKey,
+      business,
+      rejectedUrls,
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (message === "OPENAI_QUOTA") {
+      return failure(
+        "QUOTA",
+        "O limite da busca pública foi atingido. Tente novamente mais tarde.",
+        429,
+      );
+    }
+    if (message === "OPENAI_AUTH") {
+      return failure(
+        "REQUEST_FAILED",
+        "A credencial da busca pública foi recusada.",
+        502,
+      );
+    }
+    return failure(
+      "REQUEST_FAILED",
+      "Não foi possível buscar Instagram agora. Tente novamente.",
+      502,
+    );
+  }
+
+  const scored = rawCandidates
+    .map((candidate) => scoreInstagramCandidate(business, candidate))
+    .filter((candidate) => !candidate.locationConflict)
+    .sort((a, b) => b.score - a.score);
+
+  const first = scored[0];
+  const second = scored[1];
+  const ambiguous = Boolean(
+    first?.highEligible &&
+      second &&
+      second.score >= 6 &&
+      first.score - second.score <= 2,
+  );
+
+  if (first?.highEligible && !ambiguous) {
+    const presence: BusinessPresence = {
+      instagramUrl: first.url,
+      instagramUsername: first.username,
+      instagramConfidence: "high",
+      instagramSource: "web_search",
+      instagramCheckedAt: checkedAt,
+      instagramCandidates: [],
+      instagramRejectedUrls: rejectedUrls,
+      instagramSearchSignature: signature,
+      instagramNeedsReview: false,
+    };
+    return json({ ok: true, mode: "presence-discovery", presence });
+  }
+
+  const candidates: InstagramCandidate[] = scored
+    .filter((candidate) => candidate.score >= 6)
+    .slice(0, 3)
+    .map((candidate) => ({
+      url: candidate.url,
+      username: candidate.username,
+      confidence: "medium",
+      score: candidate.score,
+      signals: candidate.signals,
+      evidenceUrls: candidate.evidenceUrls,
+    }));
+
   const presence: BusinessPresence = {
-    instagramUrl: null,
-    instagramConfidence: null,
-    instagramSource: null,
-    instagramCheckedAt: checkedAt,
+    ...emptyPresence(checkedAt, signature, rejectedUrls),
+    instagramCandidates: candidates,
   };
 
   return json({ ok: true, mode: "presence-discovery", presence });
 }
-
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") {
     return new Response(null, {
