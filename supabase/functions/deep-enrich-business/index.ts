@@ -589,6 +589,24 @@ function baseMetrics(): UsageMetrics {
   };
 }
 
+function finalizeMetrics(
+  metrics: UsageMetrics,
+  facts: PersistedFact[],
+  diagnostics: SourceDiagnostic[],
+) {
+  metrics.sourcesSuccessful = diagnostics.filter((item)=>item.extractionStatus==="successful").length;
+  metrics.sourcesPartial = diagnostics.filter((item)=>item.extractionStatus==="partial").length;
+  metrics.sourcesInconclusive = diagnostics.filter((item)=>item.extractionStatus==="inconclusive").length;
+  metrics.sourcesBlocked = diagnostics.filter((item)=>item.extractionStatus==="blocked").length;
+  metrics.sourcesFailed = diagnostics.filter((item)=>item.extractionStatus==="failed").length;
+  metrics.factsHigh = facts.filter((item)=>item.confidence==="high").length;
+  metrics.factsMedium = facts.filter((item)=>item.confidence==="medium").length;
+  metrics.factsLow = facts.filter((item)=>item.confidence==="low").length;
+  metrics.productsFound = facts.filter((item)=>item.type==="product" || item.type==="menu_item").length;
+  metrics.servicesFound = facts.filter((item)=>item.type==="service" || item.type==="treatment").length;
+  metrics.imagesFound = facts.filter((item)=>item.type.endsWith("_image")).length;
+}
+
 const RESEARCH_LABELS: Record<string,string> = {
   website: "site oficial",
   instagram: "Instagram oficial",
@@ -746,11 +764,16 @@ async function snapshotFromRun(row: Record<string,unknown>, cached: boolean): Pr
     sourceUrl:fact.sourceUrl || null,
   }));
   const sourceResponse = runId ? await adminRest(
-    `business_enrichment_sources?select=source_type,source_url,source_domain,page_title,confidence&run_id=eq.${encodeURIComponent(runId)}&order=created_at.asc&limit=30`
+    `business_enrichment_sources?select=source_type,source_url,source_domain,page_title,confidence,source_kind,fetch_method,extraction_status,browserless_decision,browserless_reason,linked_from,facts_found,identity_score,metadata&run_id=eq.${encodeURIComponent(runId)}&order=created_at.asc&limit=30`
   ) : null;
   const sourceRows = sourceResponse?.ok ? await sourceResponse.json() as Array<Record<string,unknown>> : [];
+  const engineVersion =
+    typeof row.engine_version === "string" ? row.engine_version : null;
   return {
     runId:runId || null,
+    engineVersion,
+    generatedWithOldEngine:
+      Boolean(runId) && engineVersion !== DEEP_ENRICHMENT_ENGINE_VERSION,
     status:(row.status ?? "not_started") as EnrichmentSnapshot["status"],
     quality:(row.quality ?? null) as EnrichmentSnapshot["quality"],
     completeness:typeof row.completeness==="number" ? row.completeness : row.completeness ? Number(row.completeness) : null,
@@ -758,20 +781,77 @@ async function snapshotFromRun(row: Record<string,unknown>, cached: boolean): Pr
     expiresAt:typeof row.expires_at==="string" ? row.expires_at : null,
     cached,
     summary:(row.summary && typeof row.summary==="object" ? row.summary : {
-      verifiedFacts:0,reviewFacts:0,lowFacts:0,services:0,products:0,professionals:0,portfolioImages:0,verifiedImages:0,prices:0,bookingConfirmed:false,whatsappConfirmed:false,websiteFound:false,conflicts:0,
+      verifiedFacts:0,reviewFacts:0,lowFacts:0,services:0,products:0,menuItems:0,professionals:0,portfolioImages:0,verifiedImages:0,prices:0,bookingConfirmed:false,deliveryConfirmed:false,whatsappConfirmed:false,websiteFound:false,conflicts:0,
     }) as EnrichmentSnapshot["summary"],
     verifiedContent:(row.verified_content && typeof row.verified_content==="object" ? row.verified_content : {}) as EnrichmentSnapshot["verifiedContent"],
     verifiedImages:Array.isArray(row.verified_images) ? row.verified_images as EnrichmentSnapshot["verifiedImages"] : [],
     confirmedChannels:(row.confirmed_channels && typeof row.confirmed_channels==="object" ? row.confirmed_channels : {}) as EnrichmentSnapshot["confirmedChannels"],
     identityUpdates:(row.identity_updates && typeof row.identity_updates==="object" ? row.identity_updates : {}) as EnrichmentSnapshot["identityUpdates"],
     reviewFacts,
-    sources:sourceRows.map((source)=>({
-      type:String(source.source_type ?? ""),
-      url:String(source.source_url ?? ""),
-      domain:String(source.source_domain ?? ""),
-      title:typeof source.page_title==="string" ? source.page_title : null,
-      confidence:(source.confidence ?? "low") as EnrichmentSnapshot["sources"][number]["confidence"],
-    })),
+    sources:sourceRows.map((source)=>{
+      const metadata =
+        source.metadata && typeof source.metadata === "object"
+          ? source.metadata as Record<string,unknown>
+          : {};
+      const found =
+        metadata.found && typeof metadata.found === "object"
+          ? metadata.found as Record<string,unknown>
+          : {};
+      return {
+        sourceKind:
+          source.source_kind === "official_website" ||
+          source.source_kind === "official_linked_platform"
+            ? source.source_kind
+            : "web_search",
+        url:String(source.source_url ?? ""),
+        domain:String(source.source_domain ?? ""),
+        title:typeof source.page_title==="string" ? source.page_title : null,
+        linkedFrom:typeof source.linked_from==="string" ? source.linked_from : null,
+        method:
+          source.fetch_method === "http+browserless" ||
+          source.fetch_method === "browserless" ||
+          source.fetch_method === "web_search"
+            ? source.fetch_method
+            : "http",
+        extractionStatus:
+          source.extraction_status === "successful" ||
+          source.extraction_status === "inconclusive" ||
+          source.extraction_status === "blocked" ||
+          source.extraction_status === "failed"
+            ? source.extraction_status
+            : "partial",
+        browserlessDecision:
+          source.browserless_decision === "used" ||
+          source.browserless_decision === "unavailable" ||
+          source.browserless_decision === "failed"
+            ? source.browserless_decision
+            : "not_needed",
+        browserlessReason:String(source.browserless_reason ?? "sufficient_static_content"),
+        identityScore:typeof source.identity_score==="number" ? source.identity_score : 0,
+        confidence:(source.confidence ?? "low") as EnrichmentSnapshot["sources"][number]["confidence"],
+        htmlBytes:Number(metadata.htmlBytes ?? 0),
+        textLength:Number(metadata.textLength ?? 0),
+        linkCount:Number(metadata.linkCount ?? 0),
+        scriptCount:Number(metadata.scriptCount ?? 0),
+        frameworkSignals:Array.isArray(metadata.frameworkSignals)
+          ? metadata.frameworkSignals.filter((item):item is string=>typeof item==="string")
+          : [],
+        jsonLdCount:Number(metadata.jsonLdCount ?? 0),
+        embeddedJsonCount:Number(metadata.embeddedJsonCount ?? 0),
+        imageCount:Number(metadata.imageCount ?? 0),
+        commercialSignals:Number(metadata.commercialSignals ?? 0),
+        commercialContentDensity:Number(metadata.commercialContentDensity ?? 0),
+        found:{
+          facts:Number(found.facts ?? source.facts_found ?? 0),
+          products:Number(found.products ?? 0),
+          menuItems:Number(found.menuItems ?? 0),
+          prices:Number(found.prices ?? 0),
+          images:Number(found.images ?? 0),
+          services:Number(found.services ?? 0),
+          channels:Number(found.channels ?? 0),
+        },
+      } as EnrichmentSnapshot["sources"][number];
+    }),
     metrics:(row.metrics && typeof row.metrics==="object" ? row.metrics : baseMetrics()) as UsageMetrics,
     errorSummary:typeof row.error_summary==="string" ? row.error_summary : null,
   };
