@@ -566,6 +566,33 @@ REFERÊNCIAS VISUAIS OPCIONAIS
 - Em "## Estrutura sugerida", permita que a análise visual altere ritmo, densidade, alternância e composição das seções, sem inventar conteúdo comercial.
 `;
 
+function compactVisualReferenceAnalysis(
+  analysis: VisualReferenceAnalysis | null,
+) {
+  if (!analysis) return null;
+
+  return {
+    overallDirection: analysis.overallDirection,
+    hero: analysis.composition.hero,
+    grid: analysis.composition.grid,
+    density: analysis.composition.density,
+    sectionRhythm: analysis.composition.sectionRhythm,
+    typography: {
+      style: analysis.typography.style,
+      hierarchy: analysis.typography.hierarchy,
+      scale: analysis.typography.scale,
+    },
+    imagery: {
+      usage: analysis.imagery.usage,
+      placement: analysis.imagery.placement,
+    },
+    commonPatterns: analysis.commonPatterns.slice(0, 4),
+    conflicts: analysis.conflicts.slice(0, 3),
+    mechanismsToAdapt: analysis.visualMechanismsToReuse.slice(0, 6),
+    elementsNotToCopy: analysis.avoidCopying.slice(0, 4),
+  };
+}
+
 const RESPONSE_SCHEMA = {
   type: "object",
   additionalProperties: false,
@@ -697,7 +724,7 @@ const RESPONSE_SCHEMA = {
         },
       },
     },
-    lovablePrompt: { type: "string", minLength: 3500, maxLength: 10500 },
+    lovablePrompt: { type: "string", minLength: 3000, maxLength: 8500 },
   },
 };
 
@@ -779,7 +806,9 @@ Deno.serve(async (request) => {
     contentAvailability: buildContentAvailability(input.business),
     ...(input.visualReferenceAnalysis
       ? {
-          visualReferenceAnalysis: input.visualReferenceAnalysis,
+          visualReferenceAnalysis: compactVisualReferenceAnalysis(
+            input.visualReferenceAnalysis,
+          ),
           referencePriority:
             "Dados reais da empresa > objetivo comercial > instruções explícitas do usuário > referências visuais > decisões criativas.",
         }
@@ -809,8 +838,8 @@ Deno.serve(async (request) => {
       },
       body: JSON.stringify({
         model: "gpt-5.6-terra",
-        reasoning: { effort: "medium" },
-        max_output_tokens: 7000,
+        reasoning: { effort: "low" },
+        max_output_tokens: 5000,
         input: [
           {
             role: "system",
