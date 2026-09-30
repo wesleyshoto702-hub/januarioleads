@@ -29,6 +29,7 @@ import {
   markLeadUpdatesSeen,
   migrateLocalLeads,
   saveRemoteLead,
+  type LeadStatus,
   type LeadUpdateRecord,
   type PersistedLead,
 } from "../features/leads/remote-leads";
@@ -100,7 +101,7 @@ function PrivateLeadFlowApp() {
   return <LeadFlowApp />;
 }
 
-type Status = "waiting" | "accepted" | "rejected";
+type Status = LeadStatus;
 
 type Lead = PersistedLead;
 
@@ -129,7 +130,7 @@ const EMPTY_FORM: LeadForm = {
   company: "",
   segment: "",
   phone: "",
-  status: "waiting",
+  status: "send_message",
   firstContact: new Date().toISOString().slice(0, 10),
   notes: "",
 };
@@ -171,6 +172,7 @@ function leadToBusinessSearchResult(lead: Lead): BusinessSearchResult {
 }
 
 const STATUS_LABEL: Record<Status, string> = {
+  send_message: "Enviar mensagem",
   waiting: "Aguardando",
   accepted: "Aceito",
   rejected: "Recusado",
@@ -311,6 +313,7 @@ function LeadFlowApp() {
   const counts = useMemo(
     () => ({
       all: leads.length,
+      send_message: leads.filter((lead) => lead.status === "send_message").length,
       waiting: leads.filter((lead) => lead.status === "waiting").length,
       accepted: leads.filter((lead) => lead.status === "accepted").length,
       rejected: leads.filter((lead) => lead.status === "rejected").length,
@@ -673,18 +676,41 @@ function LeadFlowApp() {
   function openWhatsApp() {
     if (!messageLead) return;
     const phone = normalizeBrazilianPhone(messageLead.phone);
-    const personalized = (messages[selectedMessage] ?? "").replaceAll("{empresa}", messageLead.company);
+    if (!phone) return;
+
+    const personalized = (messages[selectedMessage] ?? "").replaceAll(
+      "{empresa}",
+      messageLead.company,
+    );
     const url = `https://wa.me/${phone}?text=${encodeURIComponent(personalized)}`;
+
+    // Only advance the operational status if the browser actually allows
+    // the WhatsApp tab to open.
+    const whatsappWindow = window.open("about:blank", "_blank");
+    if (!whatsappWindow) {
+      setActivityError(
+        "O navegador bloqueou a abertura do WhatsApp. O status não foi alterado.",
+      );
+      window.setTimeout(() => setActivityError(""), 5000);
+      return;
+    }
+
+    whatsappWindow.opener = null;
+    whatsappWindow.location.href = url;
+
     const today = new Date().toISOString().slice(0, 10);
+    const currentLead = messageLead.id
+      ? leads.find((lead) => lead.id === messageLead.id)
+      : null;
+    const shouldAdvanceToWaiting = currentLead?.status === "send_message";
+
     if (messageLead.id) {
       updateLeadLocally(messageLead.id, (lead) => ({
         ...lead,
         lastContact: today,
+        ...(lead.status === "send_message" ? { status: "waiting" as Status } : {}),
       }));
-    }
-    window.open(url, "_blank", "noopener,noreferrer");
 
-    if (messageLead.id) {
       recordActivity(messageLead.id, {
         type: "whatsapp_opened",
         title: "WhatsApp aberto",
@@ -692,6 +718,19 @@ function LeadFlowApp() {
           messageTemplate: `Mensagem ${selectedMessage + 1}`,
         },
       });
+
+      if (shouldAdvanceToWaiting) {
+        recordActivity(messageLead.id, {
+          type: "status_changed",
+          title: "Status alterado",
+          description: "Enviar mensagem → Aguardando",
+          metadata: {
+            previousStatus: "Enviar mensagem",
+            newStatus: "Aguardando",
+            reason: "whatsapp_opened",
+          },
+        });
+      }
     }
 
     setMessageLead(null);
@@ -940,7 +979,7 @@ function LeadFlowApp() {
       company: business.name,
       segment: selectedSegment,
       phone: foundPhone,
-      status: "waiting",
+      status: "send_message",
       firstContact: new Date().toISOString().slice(0, 10),
       notes: details.join("\n"),
       createdAt: new Date().toISOString(),
@@ -1153,6 +1192,7 @@ function LeadFlowApp() {
             <div className="filter-row">
               {([
                 ["all", "Todos", counts.all],
+                ["send_message", "Enviar mensagem", counts.send_message],
                 ["waiting", "Aguardando", counts.waiting],
                 ["accepted", "Aceitos", counts.accepted],
                 ["rejected", "Recusados", counts.rejected],
@@ -1295,7 +1335,7 @@ function LeadFlowApp() {
             <fieldset className="status-field">
               <legend>Status</legend>
               <div className="status-options">
-                {(["waiting", "accepted", "rejected"] as Status[]).map((status) => (
+                {(["send_message", "waiting", "accepted", "rejected"] as Status[]).map((status) => (
                   <button
                     key={status}
                     type="button"
@@ -1655,7 +1695,7 @@ function StatusControl({
 }) {
   return (
     <div className="inline-status" aria-label="Alterar status">
-      {(["waiting", "accepted", "rejected"] as Status[]).map((status) => (
+      {(["send_message", "waiting", "accepted", "rejected"] as Status[]).map((status) => (
         <button
           key={status}
           type="button"
