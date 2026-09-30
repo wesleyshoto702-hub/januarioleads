@@ -472,7 +472,7 @@ export const CURRENT_NICHE_COVERAGE = [
   {
     "segment": "Farmácia",
     "nicheKey": "pharmacy",
-    "family": "health"
+    "family": "retail"
   },
   {
     "segment": "Fisioterapeuta",
@@ -3442,6 +3442,41 @@ const NICHE_OVERRIDES: Record<string, NicheStrategyOverride> = {
       "preços",
       "e-commerce",
       "estoque"
+    ]
+  },
+  "pharmacy": {
+    "conversionGoals": [
+      "visita",
+      "contato"
+    ],
+    "preferredPrimaryActions": [
+      "maps",
+      "phone",
+      "website"
+    ],
+    "contentPriorities": [
+      "produtos/categorias somente quando verificados",
+      "serviços confirmados",
+      "horários",
+      "localização",
+      "contato"
+    ],
+    "trustSignals": [
+      "localização",
+      "horários",
+      "avaliações",
+      "presença oficial"
+    ],
+    "prohibitedInferences": [
+      "medicamentos",
+      "preços",
+      "estoque",
+      "delivery",
+      "vacinação",
+      "serviços clínicos"
+    ],
+    "nicheSpecificCopyRules": [
+      "Não transforme a categoria Farmácia em catálogo de medicamentos nem atribua serviços de saúde não confirmados."
     ]
   },
   "optical_store": {
