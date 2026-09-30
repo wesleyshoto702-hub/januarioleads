@@ -962,7 +962,7 @@ function LeadFlowApp() {
     const previous = leads.find((lead) => lead.id === leadId);
     if (!previous) return;
 
-    const googlePresence = presenceFromBusiness(business);
+    const discoveredPresence = presenceFromBusiness(business);
     const factualDescription = buildFactualBusinessDescription(business);
     const officialPhone =
       business.phone ?? business.internationalPhone ?? previous.phone;
@@ -975,18 +975,33 @@ function LeadFlowApp() {
       enrichedAt: new Date().toISOString(),
       source: previous.source ?? "manual",
       factualDescription,
-      ...(googlePresence?.instagramUrl
+      ...(discoveredPresence
         ? {
-            instagram: googlePresence.instagramUrl,
-            instagramConfidence: googlePresence.instagramConfidence ?? "high",
-            instagramSource: googlePresence.instagramSource ?? "google_places",
-            instagramCheckedAt: googlePresence.instagramCheckedAt,
+            instagramCheckedAt: discoveredPresence.instagramCheckedAt,
+            instagramUsername:
+              discoveredPresence.instagramUsername ?? undefined,
+            instagramCandidates: discoveredPresence.instagramCandidates,
+            instagramRejectedUrls:
+              discoveredPresence.instagramRejectedUrls,
+            instagramSearchSignature:
+              discoveredPresence.instagramSearchSignature ?? undefined,
+            instagramNeedsReview:
+              discoveredPresence.instagramNeedsReview,
+            ...(discoveredPresence.instagramUrl
+              ? {
+                  instagram: discoveredPresence.instagramUrl,
+                  instagramConfidence:
+                    discoveredPresence.instagramConfidence ?? "high",
+                  instagramSource:
+                    discoveredPresence.instagramSource ?? "existing_data",
+                }
+              : {}),
           }
         : {}),
       ...(business.address ? { address: business.address } : {}),
       ...(business.website ? { website: business.website } : {}),
       ...(business.googleMapsUrl ? { googleMapsUrl: business.googleMapsUrl } : {}),
-        ...(business.instagram && !googlePresence?.instagramUrl
+        ...(business.instagram && !discoveredPresence?.instagramUrl
           ? { instagram: business.instagram }
           : {}),
       ...(business.primaryCategory
@@ -1079,7 +1094,7 @@ function LeadFlowApp() {
       business.googleMapsUrl ? `Google Maps: ${business.googleMapsUrl}` : "",
     ].filter(Boolean);
 
-    const googlePresence = presenceFromBusiness(business);
+    const discoveredPresence = presenceFromBusiness(business);
     const factualDescription = buildFactualBusinessDescription(business);
 
     const newLead: Lead = {
@@ -1094,18 +1109,33 @@ function LeadFlowApp() {
       placeId: business.placeId,
       source: "lavras-search",
       factualDescription,
-      ...(googlePresence?.instagramUrl
+      ...(discoveredPresence
         ? {
-            instagram: googlePresence.instagramUrl,
-            instagramConfidence: googlePresence.instagramConfidence ?? "high",
-            instagramSource: googlePresence.instagramSource ?? "google_places",
-            instagramCheckedAt: googlePresence.instagramCheckedAt,
+            instagramCheckedAt: discoveredPresence.instagramCheckedAt,
+            instagramUsername:
+              discoveredPresence.instagramUsername ?? undefined,
+            instagramCandidates: discoveredPresence.instagramCandidates,
+            instagramRejectedUrls:
+              discoveredPresence.instagramRejectedUrls,
+            instagramSearchSignature:
+              discoveredPresence.instagramSearchSignature ?? undefined,
+            instagramNeedsReview:
+              discoveredPresence.instagramNeedsReview,
+            ...(discoveredPresence.instagramUrl
+              ? {
+                  instagram: discoveredPresence.instagramUrl,
+                  instagramConfidence:
+                    discoveredPresence.instagramConfidence ?? "high",
+                  instagramSource:
+                    discoveredPresence.instagramSource ?? "existing_data",
+                }
+              : {}),
           }
         : {}),
       ...(business.address ? { address: business.address } : {}),
       ...(business.website ? { website: business.website } : {}),
       ...(business.googleMapsUrl ? { googleMapsUrl: business.googleMapsUrl } : {}),
-      ...(business.instagram && !googlePresence?.instagramUrl
+      ...(business.instagram && !discoveredPresence?.instagramUrl
         ? { instagram: business.instagram }
         : {}),
       ...(business.primaryCategory ? { primaryCategory: business.primaryCategory } : {}),
