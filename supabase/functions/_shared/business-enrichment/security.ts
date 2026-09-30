@@ -111,7 +111,9 @@ export function buildFingerprint(
     address: String(business.address ?? "").trim(),
     city: String(business.city ?? "").trim(),
     state: String(business.state ?? "").trim(),
-    postalCode: String(business.postalCode ?? "").trim(),
+    postalCode:
+      String(business.postalCode ?? "").trim() ||
+      (String(business.address ?? "").match(/\b\d{5}-?\d{3}\b/)?.[0] ?? ""),
     confirmedInstagram:
       business.instagramConfidence === "medium" || business.instagramConfidence === "low"
         ? ""

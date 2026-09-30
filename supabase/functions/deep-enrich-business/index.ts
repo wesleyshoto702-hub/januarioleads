@@ -28,7 +28,6 @@ import {
   buildVerifiedSnapshot,
   finalizeCandidates,
   mergeExistingBusiness,
-  missingResearchPriorities,
   summaryOf,
 } from "../_shared/business-enrichment/consolidate.ts";
 
@@ -479,6 +478,67 @@ function baseMetrics(): UsageMetrics {
   };
 }
 
+const RESEARCH_LABELS: Record<string,string> = {
+  website: "site oficial",
+  instagram: "Instagram oficial",
+  images: "fotos reais ambiente trabalhos",
+  services: "serviços",
+  products: "produtos",
+  menu: "cardápio",
+  prices: "preços",
+  professionals: "profissionais equipe",
+  credentials: "formação especializações credenciais",
+  portfolio: "portfólio trabalhos",
+  facilities: "estrutura ambiente",
+  team: "equipe",
+  delivery: "delivery pedido",
+  booking: "agendamento",
+  reservation: "reservas",
+  ecommerce: "loja online e-commerce",
+  regionsServed: "região atendida",
+  vehicleTypes: "tipos de veículos atendidos",
+  modalities: "modalidades",
+  courses: "cursos",
+  treatments: "tratamentos",
+  eventTypes: "tipos de eventos",
+  properties: "imóveis",
+  brands: "marcas",
+  capacity: "capacidade",
+  process: "processo de atendimento",
+  plans: "planos",
+  specialties: "especialidades estilos",
+  beforeAfter: "antes e depois",
+};
+
+function researchGaps(
+  business: BusinessInput,
+  strategy: ReturnType<typeof resolveNicheStrategy>,
+) {
+  const matrix = buildContentAvailabilityMatrix(business);
+  const keys:string[] = [];
+
+  for (const section of strategy.idealSections) {
+    for (const key of section.requiresAny) {
+      if (keys.includes(key)) continue;
+      const status = matrix[key as keyof typeof matrix]?.status;
+      if ((status === "missing" || status === "unverified") && RESEARCH_LABELS[key]) {
+        keys.push(key);
+      }
+    }
+  }
+
+  // Website/Instagram are useful discovery surfaces even when they do not
+  // directly control a commercial section.
+  for (const key of ["website","instagram"]) {
+    const status = matrix[key as keyof typeof matrix]?.status;
+    if ((status === "missing" || status === "unverified") && !keys.includes(key)) {
+      keys.push(key);
+    }
+  }
+
+  return keys.slice(0,6).map((key)=>RESEARCH_LABELS[key]);
+}
+
 function computeCompleteness(
   business: BusinessInput,
   strategy: ReturnType<typeof resolveNicheStrategy>,
@@ -601,6 +661,9 @@ async function runEnrichment(
   const candidates:FactCandidate[] = [];
 
   try {
+    const rejected = await rejectedSignatures(userId,key);
+    let officialPages: Awaited<ReturnType<typeof crawlOfficialWebsite>>["pages"] = [];
+
     if (rawBusiness.website) {
       const crawled = await crawlOfficialWebsite(
         rawBusiness.website,
@@ -611,28 +674,44 @@ async function runEnrichment(
         ],
         metrics,
       );
+      officialPages = crawled.pages;
       stageErrors.push(...crawled.errors);
       candidates.push(...deterministicOfficialFacts(crawled.pages,fingerprint));
-      const apiKey = Deno.env.get("OPENAI_API_KEY")?.trim() ?? "";
-      if (apiKey && crawled.pages.length) {
-        try {
-          candidates.push(...await extractOfficialTextFacts(
-            apiKey,crawled.pages,fingerprint,strategy.contentPriorities,metrics
-          ));
-        } catch {
-          stageErrors.push("official_text_extraction_failed");
-        }
-      }
     }
 
-    let staged = await finalizeCandidates(candidates,await rejectedSignatures(userId,key));
-    const missing = missingResearchPriorities(
-      [...strategy.contentPriorities,...strategy.idealSections.map((section)=>section.type)],
-      staged,
-    );
+    let staged = await finalizeCandidates(candidates,rejected);
+    let snapshotForGaps = buildVerifiedSnapshot(staged,{
+      verifiedContent:rawBusiness.verifiedContent,
+      verifiedImages:rawBusiness.verifiedImages,
+      confirmedChannels:rawBusiness.confirmedChannels,
+    });
+    let enrichedForGaps = mergeExistingBusiness(rawBusiness,snapshotForGaps);
+    let missing = researchGaps(enrichedForGaps,strategy);
+    const apiKey = Deno.env.get("OPENAI_API_KEY")?.trim() ?? "";
 
+    // Only ask the model to extract unstructured official text if deterministic
+    // HTML/JSON-LD parsing did not already fill the relevant commercial gaps.
+    if (apiKey && officialPages.length && missing.length) {
+      try {
+        candidates.push(...await extractOfficialTextFacts(
+          apiKey,officialPages,fingerprint,missing,metrics
+        ));
+      } catch {
+        stageErrors.push("official_text_extraction_failed");
+      }
+
+      staged = await finalizeCandidates(candidates,rejected);
+      snapshotForGaps = buildVerifiedSnapshot(staged,{
+        verifiedContent:rawBusiness.verifiedContent,
+        verifiedImages:rawBusiness.verifiedImages,
+        confirmedChannels:rawBusiness.confirmedChannels,
+      });
+      enrichedForGaps = mergeExistingBusiness(rawBusiness,snapshotForGaps);
+      missing = researchGaps(enrichedForGaps,strategy);
+    }
+
+    // Public Web Search is the last resort and only sees the remaining gaps.
     if (missing.length) {
-      const apiKey = Deno.env.get("OPENAI_API_KEY")?.trim() ?? "";
       if (apiKey) {
         try {
           candidates.push(...await researchMissingFacts(apiKey,fingerprint,missing,metrics));
@@ -644,7 +723,7 @@ async function runEnrichment(
       }
     }
 
-    staged = await finalizeCandidates(candidates,await rejectedSignatures(userId,key));
+    staged = await finalizeCandidates(candidates,rejected);
     const sourceIds = await insertSources(runId,userId,leadId,candidates);
     const inserted = await insertFacts(runId,userId,leadId,key,staged,sourceIds);
     const facts = inserted.length ? await loadRunFacts(runId) : staged;
