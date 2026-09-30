@@ -76,9 +76,16 @@ export async function finalizeCandidates(
   ]);
   const sourceRank = (item: PersistedFact) =>
     item.sourceType === "manual" ? 100 :
-    item.sourceType === "official_schema" ? 80 :
-    item.sourceType === "official_text" ? 70 :
-    item.sourceType === "official_link" ? 60 :
+    item.sourceType === "official_schema" ? 90 :
+    item.sourceType === "official_text" ? 82 :
+    item.sourceType === "official_link" ? 76 :
+    item.sourceType === "official_embedded_data" ? 84 :
+    item.sourceType === "official_platform_schema" ? 80 :
+    item.sourceType === "official_platform_embedded_data" ? 76 :
+    item.sourceType === "official_platform_text" ? 72 :
+    item.sourceType === "official_platform_link" ? 68 :
+    item.sourceType === "official_image" ? 66 :
+    item.sourceType === "official_platform_image" ? 62 :
     item.sourceType === "web_search" ? 30 : 20;
 
   const conflictGroups = new Map<string, PersistedFact[]>();
@@ -273,17 +280,24 @@ export function summaryOf(facts: PersistedFact[], snapshot: ReturnType<typeof bu
   const review = facts.filter((item) => item.resolution === "needs_review");
   const low = facts.filter((item) => item.resolution === "low_confidence");
   const count = (type: string) => verified.filter((item) => item.type === type).length;
+  const pricedCommercialFacts = verified.filter((item) =>
+    (item.type === "menu_item" || item.type === "product") &&
+    Boolean(item.value.price?.trim())
+  ).length;
+
   return {
     verifiedFacts: verified.length,
     reviewFacts: review.length,
     lowFacts: low.length,
     services: count("service"),
     products: count("product"),
+    menuItems: count("menu_item"),
     professionals: count("professional"),
     portfolioImages: count("portfolio_image"),
     verifiedImages: snapshot.verifiedImages.length,
-    prices: count("price"),
+    prices: count("price") + pricedCommercialFacts,
     bookingConfirmed: Boolean(snapshot.confirmedChannels.bookingUrl),
+    deliveryConfirmed: Boolean(snapshot.confirmedChannels.deliveryUrl),
     whatsappConfirmed: Boolean(snapshot.confirmedChannels.whatsappUrl),
     websiteFound: Boolean(snapshot.identityUpdates.website),
     conflicts: conflictCount(facts),
