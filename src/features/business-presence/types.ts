@@ -4,13 +4,29 @@ export type InstagramConfidence = "high" | "medium" | "low";
 export type InstagramSource =
   | "google_places"
   | "official_website"
-  | "web_search";
+  | "web_search"
+  | "manual_confirmation"
+  | "existing_data";
+
+export type InstagramCandidate = {
+  url: string;
+  username: string;
+  confidence: "medium" | "low";
+  score: number;
+  signals: string[];
+  evidenceUrls: string[];
+};
 
 export type BusinessPresence = {
   instagramUrl: string | null;
+  instagramUsername: string | null;
   instagramConfidence: InstagramConfidence | null;
   instagramSource: InstagramSource | null;
   instagramCheckedAt: string;
+  instagramCandidates: InstagramCandidate[];
+  instagramRejectedUrls: string[];
+  instagramSearchSignature: string | null;
+  instagramNeedsReview: boolean;
 };
 
 export type PresenceDiscoverySuccess = {
@@ -39,4 +55,9 @@ export type PresenceBusiness = Pick<
   instagramConfidence?: InstagramConfidence | null;
   instagramSource?: InstagramSource | null;
   instagramCheckedAt?: string | null;
+  instagramUsername?: string | null;
+  instagramCandidates?: InstagramCandidate[] | null;
+  instagramRejectedUrls?: string[] | null;
+  instagramSearchSignature?: string | null;
+  instagramNeedsReview?: boolean | null;
 };
