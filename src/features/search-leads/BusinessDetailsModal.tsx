@@ -478,7 +478,9 @@ export function BusinessDetailsModal({
             business={business}
             segment={segmentLabel ?? business.primaryCategory ?? "Empresa local"}
             leadId={activityLeadId}
-            onApply={onDeepEnrichmentUpdate}
+            {...(onDeepEnrichmentUpdate
+              ? { onApply: onDeepEnrichmentUpdate }
+              : {})}
           />
 
           {updates.length > 0 && (
