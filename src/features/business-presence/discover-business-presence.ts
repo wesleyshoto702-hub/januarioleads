@@ -2,6 +2,7 @@ import { getAccessToken } from "../../lib/auth";
 import {
   getPresenceCache,
   presenceFromBusiness,
+  presenceSearchSignature,
   savePresenceCache,
 } from "./storage";
 import type {
@@ -13,35 +14,66 @@ import type {
 const PUBLIC_SUPABASE_URL = "https://czkazbianiflhldenhcj.supabase.co";
 const PUBLIC_SUPABASE_PUBLISHABLE_KEY =
   "sb_publishable_rDtFwPmhh93xceOpvf9hUg_PSlvpB8p";
+const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+function isFresh(value: string | null | undefined) {
+  if (!value) return false;
+  const checkedAt = new Date(value).getTime();
+  return (
+    Number.isFinite(checkedAt) &&
+    Date.now() - checkedAt <= CACHE_TTL_MS
+  );
+}
 
 export async function discoverBusinessPresence(
   business: PresenceBusiness,
-  options?: { force?: boolean },
+  options?: { force?: boolean; allowWebSearch?: boolean },
 ): Promise<BusinessPresence | null> {
   const known = presenceFromBusiness(business);
-  if (known?.instagramConfidence === "high" && !options?.force) {
+
+  // A user-confirmed Instagram is authoritative until the user explicitly
+  // chooses a different profile.
+  if (
+    known?.instagramConfidence === "high" &&
+    known.instagramSource === "manual_confirmation"
+  ) {
+    savePresenceCache(business, known);
+    return known;
+  }
+
+  const signature = await presenceSearchSignature(business);
+
+  if (
+    !options?.force &&
+    known &&
+    known.instagramSearchSignature === signature &&
+    !known.instagramNeedsReview &&
+    isFresh(known.instagramCheckedAt)
+  ) {
+    savePresenceCache(business, known);
+    return known;
+  }
+
+  if (
+    !options?.force &&
+    known?.instagramConfidence === "high" &&
+    !known.instagramNeedsReview
+  ) {
     savePresenceCache(business, known);
     return known;
   }
 
   if (!options?.force) {
-    const cached = getPresenceCache(business);
+    const cached = getPresenceCache(business, signature);
     if (cached) return cached;
   }
 
-  if (!business.website?.trim()) {
-    const checked: BusinessPresence = {
-      instagramUrl: known?.instagramUrl ?? null,
-      instagramConfidence: known?.instagramConfidence ?? null,
-      instagramSource: known?.instagramSource ?? null,
-      instagramCheckedAt: new Date().toISOString(),
-    };
-    savePresenceCache(business, checked);
-    return checked;
-  }
-
   const accessToken = await getAccessToken();
-  if (!accessToken) return known;
+  if (!accessToken) {
+    throw new Error(
+      "Sua sessão expirou. Entre novamente para buscar Instagram.",
+    );
+  }
 
   const url =
     import.meta.env["VITE_SUPABASE_URL"]?.trim() || PUBLIC_SUPABASE_URL;
@@ -61,17 +93,22 @@ export async function discoverBusinessPresence(
         },
         body: JSON.stringify({
           mode: "presence-discovery",
+          allowWebSearch: options?.allowWebSearch === true,
+          force: options?.force === true,
           business: {
             placeId: business.placeId,
             name: business.name,
             website: business.website,
             instagram: business.instagram,
+            instagramConfidence: business.instagramConfidence,
+            instagramSource: business.instagramSource,
             phone: business.phone,
             internationalPhone: business.internationalPhone,
             address: business.address,
             city: business.city,
             state: business.state,
             primaryCategory: business.primaryCategory,
+            instagramRejectedUrls: business.instagramRejectedUrls ?? [],
           },
         }),
       },
@@ -81,7 +118,7 @@ export async function discoverBusinessPresence(
     try {
       payload = await response.json();
     } catch {
-      return known;
+      throw new Error("A busca respondeu de forma inesperada. Tente novamente.");
     }
 
     if (
@@ -90,14 +127,22 @@ export async function discoverBusinessPresence(
       !("ok" in payload) ||
       (payload as { ok?: unknown }).ok !== true
     ) {
-      return known;
+      const message =
+        payload &&
+        typeof payload === "object" &&
+        "message" in payload &&
+        typeof (payload as { message?: unknown }).message === "string"
+          ? (payload as { message: string }).message
+          : "Não foi possível buscar Instagram agora.";
+      throw new Error(message);
     }
 
     const presence = (payload as PresenceDiscoveryResponse & { ok: true })
       .presence;
     savePresenceCache(business, presence);
     return presence;
-  } catch {
-    return known;
+  } catch (error) {
+    if (error instanceof Error) throw error;
+    throw new Error("Não foi possível buscar Instagram agora.");
   }
 }
