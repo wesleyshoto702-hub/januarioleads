@@ -4272,16 +4272,51 @@ const DEPTH_WEIGHTS: Partial<Record<ContentKey, number>> = {
   beforeAfter: 2.5,
 };
 
-export function resolvePageDepth(matrix: ContentAvailabilityMatrix) {
+export function resolvePageDepth(
+  matrix: ContentAvailabilityMatrix,
+  resolvedStrategy?: ReturnType<typeof resolveNicheStrategy>,
+) {
+  // Depth is based on commercial value for THIS niche, never raw field count.
+  // Core operational facts always matter; niche-specific keys come from section
+  // eligibility so irrelevant structured fields cannot inflate the page.
+  const relevantKeys = new Set<ContentKey>([
+    "identity",
+    "description",
+    "location",
+    "phone",
+    "whatsapp",
+    "hours",
+    "reviews",
+    "website",
+    "instagram",
+    "maps",
+    "images",
+  ]);
+
+  if (resolvedStrategy) {
+    for (const rule of resolvedStrategy.idealSections as SectionRule[]) {
+      for (const key of rule.requiresAny) relevantKeys.add(key);
+    }
+  }
+
   let score = 0;
-  for (const [key, weight] of Object.entries(DEPTH_WEIGHTS) as Array<[ContentKey, number]>) {
+  for (const key of relevantKeys) {
+    const weight = DEPTH_WEIGHTS[key] ?? 0;
     const status = matrix[key].status;
     if (status === "verified") score += weight;
     else if (status === "partial") score += weight * 0.45;
   }
-  if (score >= 15) return { depth: "RICH" as const, score: Math.round(score * 10) / 10 };
-  if (score >= 7) return { depth: "STANDARD" as const, score: Math.round(score * 10) / 10 };
-  return { depth: "ESSENTIAL" as const, score: Math.round(score * 10) / 10 };
+
+  if (score >= 15) {
+    return { depth: "RICH" as const, score: Math.round(score * 10) / 10 };
+  }
+  if (score >= 7) {
+    return { depth: "STANDARD" as const, score: Math.round(score * 10) / 10 };
+  }
+  return {
+    depth: "ESSENTIAL" as const,
+    score: Math.round(score * 10) / 10,
+  };
 }
 
 function phoneHref(business: NicheBusinessInput) {
@@ -4433,7 +4468,7 @@ export function buildLandingPagePlan(
   matrix: ContentAvailabilityMatrix,
   primaryAction: ReturnType<typeof resolvePrimaryAction>,
 ) {
-  const { depth, score } = resolvePageDepth(matrix);
+  const { depth, score } = resolvePageDepth(matrix, resolvedStrategy);
   const evaluated = resolvedStrategy.idealSections.map((rule: SectionRule, index: number) => ({
     rule,
     index,
