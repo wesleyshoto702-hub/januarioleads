@@ -744,22 +744,19 @@ Deno.serve(async (request) => {
 
   const token = Deno.env.get("BROWSERLESS_API_TOKEN")?.trim();
   if (!token) {
-    await updateCaptureState(authorized, reference.id, {
-      capture_status: "failed",
-      capture_error:
-        "A captura por URL ainda não está configurada no backend.",
-    });
+    if (oldAssets.length === 0) {
+      await updateCaptureState(authorized, reference.id, {
+        capture_status: "failed",
+        capture_error:
+          "A captura por URL ainda não está configurada no backend.",
+      });
+    }
     return failure(
       "NOT_CONFIGURED",
       "A captura por URL ainda não está configurada. Envie um screenshot por enquanto.",
       503,
     );
   }
-
-  await updateCaptureState(authorized, reference.id, {
-    capture_status: "pending",
-    capture_error: null,
-  });
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 55000);
@@ -850,6 +847,35 @@ Deno.serve(async (request) => {
 
   const finalUrl = normalizeAndValidateUrl(payload.finalUrl ?? "");
   if (!finalUrl) {
+    if (oldAssets.length === 0) {
+      await updateCaptureState(authorized, reference.id, {
+        capture_status: "failed",
+        capture_error:
+          "A página redirecionou para um endereço bloqueado por segurança.",
+      });
+    }
+    return failure(
+      "URL_BLOCKED",
+      "A página redirecionou para um endereço bloqueado por segurança. Envie um screenshot.",
+      400,
+    );
+  }
+
+  let finalUrlPublic = false;
+  try {
+    finalUrlPublic = await hostnameResolvesPublicly(finalUrl.hostname);
+  } catch {
+    finalUrlPublic = false;
+  }
+
+  if (!finalUrlPublic) {
+    if (oldAssets.length === 0) {
+      await updateCaptureState(authorized, reference.id, {
+        capture_status: "failed",
+        capture_error:
+          "O redirecionamento final não pôde ser validado como endereço público.",
+      });
+    }
     return failure(
       "URL_BLOCKED",
       "A página redirecionou para um endereço bloqueado por segurança. Envie um screenshot.",
@@ -887,6 +913,13 @@ Deno.serve(async (request) => {
       });
     }
   } catch {
+    if (oldAssets.length === 0) {
+      await updateCaptureState(authorized, reference.id, {
+        capture_status: "failed",
+        capture_error:
+          "A captura ficou grande demais para ser processada com segurança.",
+      });
+    }
     return failure(
       "CAPTURE_FAILED",
       "A captura ficou grande demais para ser processada com segurança. Envie um screenshot.",
@@ -1064,6 +1097,11 @@ Deno.serve(async (request) => {
       await updateCaptureState(authorized, reference.id, {
         capture_status: "failed",
         capture_error: "A captura ocorreu, mas não pôde ser salva com segurança.",
+      });
+    } else {
+      await updateCaptureState(authorized, reference.id, {
+        capture_status: "ready",
+        capture_error: null,
       });
     }
 
