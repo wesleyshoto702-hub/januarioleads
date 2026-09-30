@@ -829,6 +829,8 @@ function legacyStructuralVisualDNA(
     analysis.typography.alignment,
   ].join(" ");
   const flowText = [
+    analysis.composition.grid,
+    analysis.composition.alignment,
     analysis.composition.sectionRhythm,
     ...analysis.commonPatterns,
     ...analysis.meaningfulDifferences,
@@ -1191,14 +1193,40 @@ function compactInterfaceSignals(analysis: VisualReferenceAnalysis) {
     candidates
       .map(([key, value, boost]) => ({
         key,
-        value: compactText(value, 280),
+        value: compactText(value, 190),
         score: structuralScore(value, boost),
       }))
       .filter((item) => item.value && item.score >= 8)
       .sort((a, b) => b.score - a.score)
-      .slice(0, 4)
+      .slice(0, 3)
       .map((item) => [item.key, item.value]),
   );
+}
+
+function compactStructuralEvidence(analysis: VisualReferenceAnalysis) {
+  const candidates = [
+    ["hero", analysis.composition.hero, 16],
+    ["alignment", analysis.composition.alignment, 14],
+    ["grid", analysis.composition.grid, 14],
+    ["density", analysis.composition.density, 10],
+    ["sectionRhythm", analysis.composition.sectionRhythm, 12],
+    ["typeHierarchy", analysis.typography.hierarchy, 10],
+    ["typeScale", analysis.typography.scale, 12],
+    ["typeAlignment", analysis.typography.alignment, 12],
+    ["imageRole", analysis.imagery.usage, 8],
+    ["imageCrop", analysis.imagery.crop, 8],
+    ["imagePlacement", analysis.imagery.placement, 9],
+  ] as const;
+
+  return candidates
+    .map(([key, value, boost]) => ({
+      key,
+      value: compactText(value, 230),
+      score: structuralScore(value, boost),
+    }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 7)
+    .map(({ key, value }) => ({ key, value }));
 }
 
 function compactVisualReferenceAnalysis(
@@ -1212,43 +1240,28 @@ function compactVisualReferenceAnalysis(
       : legacyStructuralVisualDNA(analysis);
 
   return {
-    qualitativeDirection: compactText(analysis.overallDirection, 420),
+    qualitativeDirection: compactText(analysis.overallDirection, 320),
     structuralVisualDNA: compactStructuralDNA(dna),
     structuralDNASource: analysis.structuralVisualDNA
       ? "native"
       : "derived_from_legacy_analysis",
-    compositionEvidence: {
-      hero: compactText(analysis.composition.hero, 360),
-      alignment: compactText(analysis.composition.alignment, 280),
-      grid: compactText(analysis.composition.grid, 320),
-      sectionRhythm: compactText(analysis.composition.sectionRhythm, 320),
-    },
-    typographyEvidence: {
-      hierarchy: compactText(analysis.typography.hierarchy, 280),
-      scale: compactText(analysis.typography.scale, 260),
-      alignment: compactText(analysis.typography.alignment, 240),
-    },
-    imageryEvidence: {
-      usage: compactText(analysis.imagery.usage, 260),
-      crop: compactText(analysis.imagery.crop, 220),
-      placement: compactText(analysis.imagery.placement, 240),
-    },
+    structuralEvidence: compactStructuralEvidence(analysis),
     interfaceSignals: compactInterfaceSignals(analysis),
-    priorityPatterns: selectRelevant(analysis.commonPatterns, 5, 2, 300),
+    priorityPatterns: selectRelevant(analysis.commonPatterns, 4, 2, 220),
     meaningfulDifferences: selectRelevant(
       analysis.meaningfulDifferences,
+      3,
       4,
-      4,
-      300,
+      220,
     ),
-    conflicts: selectRelevant(analysis.conflicts, 3, 3, 280),
+    conflicts: selectRelevant(analysis.conflicts, 2, 3, 200),
     mechanismsToAdapt: selectRelevant(
       analysis.visualMechanismsToReuse,
-      6,
       5,
-      320,
+      5,
+      240,
     ),
-    elementsNotToCopy: selectRelevant(analysis.avoidCopying, 3, 0, 260),
+    elementsNotToCopy: selectRelevant(analysis.avoidCopying, 2, 0, 190),
   };
 }
 
