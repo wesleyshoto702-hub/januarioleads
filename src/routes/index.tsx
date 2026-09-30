@@ -1229,6 +1229,24 @@ function LeadFlowApp() {
       ...(business.businessStatus ? { businessStatus: business.businessStatus } : {}),
       ...(business.latitude !== null ? { latitude: business.latitude } : {}),
       ...(business.longitude !== null ? { longitude: business.longitude } : {}),
+      ...(business.verifiedContent
+        ? { verifiedContent: business.verifiedContent }
+        : {}),
+      ...(business.verifiedImages
+        ? { verifiedImages: business.verifiedImages }
+        : {}),
+      ...(business.confirmedChannels
+        ? { confirmedChannels: business.confirmedChannels }
+        : {}),
+      ...(business.deepEnrichmentStatus
+        ? { deepEnrichmentStatus: business.deepEnrichmentStatus }
+        : {}),
+      ...(business.deepEnrichmentQuality
+        ? { deepEnrichmentQuality: business.deepEnrichmentQuality }
+        : {}),
+      ...(business.deepEnrichmentCheckedAt
+        ? { deepEnrichmentCheckedAt: business.deepEnrichmentCheckedAt }
+        : {}),
     };
 
     addLeadLocally(newLead);
