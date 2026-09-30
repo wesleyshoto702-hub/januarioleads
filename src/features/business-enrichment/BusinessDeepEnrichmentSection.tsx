@@ -465,29 +465,37 @@ export function BusinessDeepEnrichmentSection({
                         </a>
                         <small>{sourceKindLabel(source.sourceKind)}</small>
                       </div>
-                      <div className="deep-source-diagnostics">
-                        <span>
-                          Método <b>{methodLabel(source.method)}</b>
-                        </span>
-                        <span>
-                          Extração <b>{extractionLabel(source.extractionStatus)}</b>
-                        </span>
-                        <span>
-                          Browserless{" "}
-                          <b>
-                            {source.browserlessDecision === "used"
-                              ? "utilizado"
-                              : source.browserlessDecision === "not_needed"
-                                ? "não necessário"
-                                : source.browserlessDecision === "unavailable"
-                                  ? "indisponível"
-                                  : "falhou"}
-                          </b>
-                        </span>
-                      </div>
-                      <small className="deep-source-reason">
-                        {browserlessReasonLabel(source.browserlessReason)}
-                      </small>
+                      {snapshot.generatedWithOldEngine ? (
+                        <small className="deep-source-reason">
+                          Diagnóstico detalhado disponível após “Pesquisar novamente”.
+                        </small>
+                      ) : (
+                        <>
+                          <div className="deep-source-diagnostics">
+                            <span>
+                              Método <b>{methodLabel(source.method)}</b>
+                            </span>
+                            <span>
+                              Extração <b>{extractionLabel(source.extractionStatus)}</b>
+                            </span>
+                            <span>
+                              Browserless{" "}
+                              <b>
+                                {source.browserlessDecision === "used"
+                                  ? "utilizado"
+                                  : source.browserlessDecision === "not_needed"
+                                    ? "não necessário"
+                                    : source.browserlessDecision === "unavailable"
+                                      ? "indisponível"
+                                      : "falhou"}
+                              </b>
+                            </span>
+                          </div>
+                          <small className="deep-source-reason">
+                            {browserlessReasonLabel(source.browserlessReason)}
+                          </small>
+                        </>
+                      )}
                       {source.found.facts > 0 && (
                         <div className="deep-source-found">
                           {source.found.products + source.found.menuItems > 0 && (
@@ -509,7 +517,8 @@ export function BusinessDeepEnrichmentSection({
                           )}
                         </div>
                       )}
-                      {source.method !== "web_search" && (
+                      {!snapshot.generatedWithOldEngine &&
+                        source.method !== "web_search" && (
                         <div className="deep-source-tech">
                           <span>{source.textLength} caracteres de texto</span>
                           <span>{source.linkCount} links</span>
