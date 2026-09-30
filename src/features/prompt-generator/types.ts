@@ -41,6 +41,39 @@ export type PromptBusinessContext = {
     alt?: string | null;
     source?: string | null;
   }>;
+  confirmedChannels?: {
+    whatsappUrl?: string | null;
+    bookingUrl?: string | null;
+    deliveryUrl?: string | null;
+    reservationUrl?: string | null;
+    ecommerceUrl?: string | null;
+    menuUrl?: string | null;
+  };
+  verifiedContent?: {
+    services?: string[];
+    products?: string[];
+    menuItems?: string[];
+    prices?: string[];
+    professionals?: string[];
+    credentials?: string[];
+    portfolioImages?: Array<{ url: string; alt?: string | null; source?: string | null }>;
+    facilities?: string[];
+    team?: string[];
+    history?: string | null;
+    regionsServed?: string[];
+    vehicleTypes?: string[];
+    modalities?: string[];
+    courses?: string[];
+    treatments?: string[];
+    eventTypes?: string[];
+    properties?: string[];
+    brands?: string[];
+    capacity?: string | null;
+    process?: string[];
+    plans?: string[];
+    specialties?: string[];
+    beforeAfterImages?: Array<{ url: string; alt?: string | null; source?: string | null }>;
+  };
 };
 
 export type GeneratedSitePrompt = {
@@ -95,6 +128,25 @@ export type GeneratedSitePrompt = {
     cta: string;
   }>;
   lovablePrompt: string;
+  planning?: {
+    nicheKey: string;
+    family: string;
+    strategyVersion: string;
+    strategyMode: "specific" | "inherited";
+    usedFallback: boolean;
+    matchedBy: string;
+    pageDepth: "ESSENTIAL" | "STANDARD" | "RICH";
+    depthScore: number;
+    primaryAction: {
+      kind: string;
+      label: string;
+    };
+    includedSections: string[];
+    omittedSections: Array<{
+      type: string;
+      reason: string;
+    }>;
+  };
 };
 
 export type SavedPromptRecord = {

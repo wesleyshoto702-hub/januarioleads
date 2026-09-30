@@ -1,3 +1,8 @@
+import {
+  buildNichePlanningContext,
+  sanitizeNicheBusinessExtensions,
+} from "../_shared/niche-strategies.ts";
+
 type PromptProjectType = "Landing Page" | "Site Institucional" | "IA decidir";
 type PromptObjective =
   | "Conseguir pedidos"
@@ -150,6 +155,9 @@ type BusinessContext = {
   latitude?: number | null;
   longitude?: number | null;
   notes?: string | null;
+  verifiedImages?: Array<{ url: string; alt?: string | null; source?: string | null }>;
+  confirmedChannels?: Record<string, unknown>;
+  verifiedContent?: Record<string, unknown>;
 };
 
 type OpenAIResponse = {
@@ -425,6 +433,7 @@ function sanitizeBusiness(business: BusinessContext): BusinessContext {
     latitude: typeof business.latitude === "number" ? business.latitude : null,
     longitude: typeof business.longitude === "number" ? business.longitude : null,
     notes: textOrNull(business.notes, 1400),
+    ...sanitizeNicheBusinessExtensions(business as unknown as Record<string, unknown>),
   };
 }
 
@@ -556,25 +565,6 @@ function isValidVisualReferenceAnalysis(
   );
 }
 
-function buildContentAvailability(business: BusinessContext) {
-  return {
-    hasDescription: Boolean(business.description),
-    hasAddress: Boolean(business.address),
-    hasNeighborhood: Boolean(business.neighborhood),
-    hasCity: Boolean(business.city),
-    hasPhone: Boolean(business.phone || business.internationalPhone),
-    hasRating:
-      typeof business.rating === "number" &&
-      typeof business.reviewCount === "number" &&
-      business.reviewCount > 0,
-    hasOpeningHours: Boolean(business.openingHours?.length),
-    hasWebsite: Boolean(business.website),
-    hasInstagram: Boolean(business.instagram),
-    hasGoogleMaps: Boolean(business.googleMapsUrl),
-    hasVerifiedImages: false,
-  };
-}
-
 const SYSTEM_PROMPT = `
 Você é o motor estratégico do JanuarioLeads. Gere instruções para outro agente construir uma landing page/site de empresa local. Você atua como diretor criativo + estrategista + UX, NÃO como um template que decide cada pixel.
 
@@ -596,17 +586,21 @@ M — Modelo estético: direção curta e específica, fundamentada nos dados.
 P — Padrão técnico: responsividade, acessibilidade, performance e robustez do layout.
 O — Obstruções: uma lista curta do que evitar para impedir aparência genérica de IA.
 
-ANÁLISE DE CONTEÚDO — OBRIGATÓRIA ANTES DO DESIGN
-Considere nome, segmento, localização, telefone, site, Instagram, nota, quantidade de avaliações, horários, categorias, descrição, Google Maps e informações faltantes.
-"hasVerifiedImages" indica somente imagens fornecidas diretamente ao gerador. Site/Instagram não significam automaticamente que uma foto específica está confirmada.
+PLANEJAMENTO DETERMINÍSTICO ANTES DO DESIGN
+O payload já recebe nicheStrategySummary, contentAvailability e pagePlan calculados sem IA.
+- Niche Strategy diz O QUE importa comercialmente para o nicho.
+- Content Availability diz O QUE esta empresa realmente permite afirmar.
+- Page Plan contém somente seções elegíveis e registra as omitidas.
+- Structural Visual DNA continua dizendo COMO organizar visualmente.
+- Não reintroduza seção omitida pelo pagePlan sem evidência factual.
+- A primaryAction já foi resolvida contra canais confirmados; não invente WhatsApp, booking, delivery, reserva ou e-commerce.
 
 ESTRUTURA ADAPTATIVA
-- Crie somente seções sustentadas pelo conteúdo real e pela ação principal.
+- Use pagePlan.sections como espinha dorsal, preservando a finalidade comercial de cada seção.
 - Prefira poucas seções excelentes a muitas seções artificiais.
-- Não force Cardápio, Serviços, Galeria, Sobre, Depoimentos ou qualquer outra seção por causa do segmento.
-- Se produtos/serviços/cardápio não estiverem disponíveis, omita a seção, reduza para um bloco pequeno ou incorpore a informação em outra área.
-- Nunca crie uma seção visual grande contendo apenas [INFORMAÇÃO A CONFIRMAR].
-- Não use uma sequência padrão fixa entre empresas do mesmo nicho.
+- Se o plano for ESSENTIAL, faça uma página curta de propósito, mas visualmente finalizada.
+- Se for STANDARD ou RICH, use a maior profundidade somente porque existem dados comerciais que a sustentam.
+- Nunca crie seção grande contendo [INFORMAÇÃO A CONFIRMAR].
 - As seções retornadas em "sections" devem corresponder ao que realmente deve ser renderizado.
 
 HERO
@@ -1525,21 +1519,28 @@ Deno.serve(async (request) => {
     );
   }
 
+  const nichePlanning = buildNichePlanningContext(
+    input.business,
+    input.objective,
+  );
+
   const userPayload = {
     requestedProjectType: input.projectType,
     requestedObjective: input.objective,
     verifiedBusinessData: input.business,
-    contentAvailability: buildContentAvailability(input.business),
+    nicheStrategySummary: nichePlanning.promptSummary.nicheStrategy,
+    contentAvailability: nichePlanning.promptSummary.contentAvailability,
+    pagePlan: nichePlanning.promptSummary.pagePlan,
     ...(input.visualReferenceAnalysis
       ? {
           visualReferenceAnalysis: compactVisualReferenceAnalysis(
             input.visualReferenceAnalysis,
           ),
           referencePriority:
-            "Dados reais da empresa > objetivo comercial > instruções explícitas do usuário > referências visuais > decisões criativas.",
+            "Fatos reais > segurança/veracidade > objetivo e canais confirmados > Niche Strategy + Content Availability + Page Plan > orientação explícita do usuário > Structural Visual DNA > decisões criativas.",
           structuralTranslationHints: buildStructuralTranslationHints(
             input.visualReferenceAnalysis,
-            buildContentAvailability(input.business).hasVerifiedImages,
+            nichePlanning.contentAvailability.images.status === "verified",
           ),
         }
       : {}),
@@ -1548,7 +1549,9 @@ Deno.serve(async (request) => {
       "Se Objetivo principal for IA decidir, escolha uma única ação principal coerente.",
       "Não trate recomendações como fatos.",
       "Use [INFORMAÇÃO A CONFIRMAR] apenas no briefing interno e nunca como grande bloco visível.",
-      "Escolha somente as seções sustentadas pelos dados reais.",
+      "Use o Page Plan determinístico como estrutura comercial; não recoloque seções que foram omitidas por falta de evidência.",
+      "Use exatamente a ação principal resolvida no Page Plan; se ela for telefone ou Maps, não a transforme em WhatsApp, booking ou delivery.",
+      "Niche Strategy é prioridade comercial, não autorização factual. Somente Content Availability autoriza conteúdo.",
       "Se não houver imagem real confirmada, faça a composição funcionar sem imagem e sem placeholder grande.",
       "Mantenha direção forte sem prescrever pixels, frações de grid, fontes exatas ou numeração sem necessidade.",
       ...(input.visualReferenceAnalysis
@@ -1663,7 +1666,13 @@ Deno.serve(async (request) => {
       );
     }
 
-    return json({ ok: true, result });
+    const generated = result as Record<string, unknown>;
+    const enrichedResult = {
+      ...generated,
+      planning: nichePlanning.telemetry,
+    };
+
+    return json({ ok: true, result: enrichedResult });
   } catch {
     return failure(
       "PROVIDER_FAILED",
