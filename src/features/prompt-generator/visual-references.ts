@@ -421,7 +421,6 @@ export async function uploadVisualReference(input: {
         throw new Error("REFERENCE_METADATA_FAILED");
       }
 
-      await invalidateVisualAnalysis(input.set.id);
       const rows = (await reactivateResponse.json()) as RemoteReference[];
       return rows[0] ? mapReference(rows[0]) : null;
     }
@@ -537,7 +536,6 @@ export async function createUrlVisualReference(input: {
         throw new Error("REFERENCE_URL_CREATE_FAILED");
       }
 
-      await invalidateVisualAnalysis(input.set.id);
       const rows = (await reactivateResponse.json()) as RemoteReference[];
       return rows[0] ? mapReference(rows[0]) : null;
     }
@@ -630,7 +628,9 @@ export async function removeVisualReference(reference: VisualReferenceItem) {
   );
   if (!metadataResponse.ok) return false;
 
-  await invalidateVisualAnalysis(reference.setId);
+  // Keep the previous aggregate analysis as cache. Its signature no longer
+  // matches the active reference set, so loaders/analyzers will ignore it
+  // until the exact composition becomes active again.
   return true;
 }
 
