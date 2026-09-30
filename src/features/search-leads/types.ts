@@ -1,3 +1,5 @@
+import type { InstagramCandidate, InstagramSource } from "../business-presence/types";
+
 export type BusinessSearchResult = {
   placeId: string;
   name: string;
@@ -17,8 +19,13 @@ export type BusinessSearchResult = {
   website: string | null;
   instagram: string | null;
   instagramConfidence?: "high" | "medium" | "low" | null;
-  instagramSource?: "google_places" | "official_website" | "web_search" | null;
+  instagramSource?: InstagramSource | null;
   instagramCheckedAt?: string | null;
+  instagramUsername?: string | null;
+  instagramCandidates?: InstagramCandidate[] | null;
+  instagramRejectedUrls?: string[] | null;
+  instagramSearchSignature?: string | null;
+  instagramNeedsReview?: boolean | null;
   factualDescription?: string | null;
   googleMapsUrl: string | null;
   businessStatus: string | null;
