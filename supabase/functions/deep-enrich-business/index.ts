@@ -8,6 +8,7 @@ import type {
   EnrichmentSnapshot,
   FactCandidate,
   PersistedFact,
+  SourceDiagnostic,
   UsageMetrics,
 } from "../_shared/business-enrichment/types.ts";
 import {
@@ -22,6 +23,7 @@ import {
 import {
   crawlOfficialWebsite,
   deterministicOfficialFacts,
+  finalizeSourceDiagnostics,
 } from "../_shared/business-enrichment/website.ts";
 import {
   extractOfficialTextFacts,
@@ -35,6 +37,7 @@ import {
 } from "../_shared/business-enrichment/consolidate.ts";
 
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const DEEP_ENRICHMENT_ENGINE_VERSION = "2026-09-30.2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -477,7 +480,26 @@ function qualityFrom(completeness: number, verified: number, officialSources: nu
 
 function baseMetrics(): UsageMetrics {
   return {
-    modelCalls:0,webSearchCalls:0,browserlessCalls:0,httpPages:0,pagesAnalyzed:0,inputTokens:0,outputTokens:0,
+    modelCalls:0,
+    webSearchCalls:0,
+    browserlessCalls:0,
+    httpPages:0,
+    pagesAnalyzed:0,
+    inputTokens:0,
+    outputTokens:0,
+    httpPagesFetched:0,
+    browserlessRenders:0,
+    sourcesSuccessful:0,
+    sourcesPartial:0,
+    sourcesInconclusive:0,
+    sourcesBlocked:0,
+    sourcesFailed:0,
+    factsHigh:0,
+    factsMedium:0,
+    factsLow:0,
+    productsFound:0,
+    servicesFound:0,
+    imagesFound:0,
   };
 }
 
@@ -717,6 +739,7 @@ async function runEnrichment(
     identity:fingerprint,
     niche_key:strategy.nicheKey,
     niche_family:strategy.family,
+    engine_version:DEEP_ENRICHMENT_ENGINE_VERSION,
     status:"researching",
     force_refresh:force,
     started_at:new Date().toISOString(),
@@ -728,6 +751,7 @@ async function runEnrichment(
   try {
     const rejected = await rejectedSignatures(userId,key);
     let officialPages: Awaited<ReturnType<typeof crawlOfficialWebsite>>["pages"] = [];
+    let crawlDiagnostics: SourceDiagnostic[] = [];
 
     if (rawBusiness.website) {
       const crawled = await crawlOfficialWebsite(
@@ -738,8 +762,10 @@ async function runEnrichment(
           ...strategy.idealSections.map((section)=>section.type),
         ],
         metrics,
+        fingerprint,
       );
       officialPages = crawled.pages;
+      crawlDiagnostics = crawled.diagnostics;
       stageErrors.push(...crawled.errors);
       candidates.push(...deterministicOfficialFacts(crawled.pages,fingerprint));
     }
