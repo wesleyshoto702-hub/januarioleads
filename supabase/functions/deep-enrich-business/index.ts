@@ -981,9 +981,13 @@ async function runEnrichment(
     }
 
     staged = await finalizeCandidates(candidates,rejected);
-    const sourceIds = await insertSources(runId,userId,leadId,candidates);
+    const diagnostics = allSourceDiagnostics(crawlDiagnostics,candidates);
+    const sourceIds = await insertSources(
+      runId,userId,leadId,candidates,diagnostics
+    );
     const inserted = await insertFacts(runId,userId,leadId,key,staged,sourceIds);
     const facts = inserted.length ? await loadRunFacts(runId) : staged;
+    finalizeMetrics(metrics,facts,diagnostics);
     const snapshot = buildVerifiedSnapshot(facts,{
       verifiedContent:rawBusiness.verifiedContent,
       verifiedImages:rawBusiness.verifiedImages,
@@ -1178,8 +1182,16 @@ Deno.serve(async (request)=>{
 
       if (!latest || identityChanged) {
         const empty:EnrichmentSnapshot = {
-          runId:null,status:"not_started",quality:null,completeness:null,checkedAt:null,expiresAt:null,cached:false,
-          summary:{verifiedFacts:0,reviewFacts:0,lowFacts:0,services:0,products:0,professionals:0,portfolioImages:0,verifiedImages:0,prices:0,bookingConfirmed:false,whatsappConfirmed:false,websiteFound:false,conflicts:0},
+          runId:null,
+          engineVersion:null,
+          generatedWithOldEngine:false,
+          status:"not_started",
+          quality:null,
+          completeness:null,
+          checkedAt:null,
+          expiresAt:null,
+          cached:false,
+          summary:{verifiedFacts:0,reviewFacts:0,lowFacts:0,services:0,products:0,menuItems:0,professionals:0,portfolioImages:0,verifiedImages:0,prices:0,bookingConfirmed:false,deliveryConfirmed:false,whatsappConfirmed:false,websiteFound:false,conflicts:0},
           // Do not replay a previous run when the fingerprint changed.
           // Existing lead snapshot remains available to the rest of the CRM,
           // but this panel requires a fresh explicit run for the new identity.
