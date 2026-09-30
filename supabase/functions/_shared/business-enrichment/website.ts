@@ -694,10 +694,21 @@ function platformIdentityScore(
   fingerprint: BusinessIdentityFingerprint,
   page: PageSnapshot,
 ) {
-  return branchIdentityScoreFromText(
-    fingerprint,
-    `${page.title} ${page.metaDescription} ${page.text.slice(0, 16000)}`,
-  );
+  const text =
+    `${page.title} ${page.metaDescription} ${page.text.slice(0, 16000)}`;
+  let score = branchIdentityScoreFromText(fingerprint,text);
+  const exactName =
+    normalizeText(text).includes(normalizeText(fingerprint.canonicalName));
+
+  // A URL explicitly supplied by Google Places or linked from the verified
+  // official site is meaningful provenance, but never enough by itself to
+  // produce HIGH. It only helps a page that already names the business.
+  if (exactName && page.linkedFrom === "google_places_website") {
+    score = Math.min(100,score + 25);
+  } else if (exactName && page.linkedFrom) {
+    score = Math.min(100,score + 30);
+  }
+  return score;
 }
 
 async function materializePage(
@@ -730,6 +741,8 @@ async function materializePage(
           )
         : 0;
 
+  if (page) page.sourceIdentityScore = identityScore;
+
   const initialFacts = page
     ? deterministicOfficialFacts([page], fingerprint)
     : [];
@@ -761,6 +774,7 @@ async function materializePage(
               page.finalUrl,
               `${page.title} ${page.metaDescription} ${page.text.slice(0, 12000)}`,
             );
+      page.sourceIdentityScore = identityScore;
     } else {
       browserlessDecision = rendered.blocked ? "failed" : "failed";
       browserlessReason = rendered.blocked

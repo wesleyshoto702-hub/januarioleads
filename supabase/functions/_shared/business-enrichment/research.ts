@@ -171,6 +171,7 @@ function candidateFromRaw(
   sourceType: FactCandidate["sourceType"],
   sourceText: string,
   fingerprint: BusinessIdentityFingerprint,
+  identityScoreOverride?: number,
 ) {
   const sourceUrl = typeof raw.sourceUrl === "string" ? raw.sourceUrl.trim() : "";
   const source = safePublicUrl(sourceUrl);
@@ -227,12 +228,14 @@ function candidateFromRaw(
   if (!primaryValue) return null;
 
   const identityScore =
-    sourceType === "official_platform_text"
-      ? branchIdentityScoreFromText(
-          fingerprint,
-          `${evidence} ${name} ${description}`,
-        )
-      : identityScoreFromText(
+    typeof identityScoreOverride === "number"
+      ? identityScoreOverride
+      : sourceType === "official_platform_text"
+        ? branchIdentityScoreFromText(
+            fingerprint,
+            `${evidence} ${name} ${description}`,
+          )
+        : identityScoreFromText(
           fingerprint,
           sourceUrl,
           `${evidence} ${name} ${description}`,
@@ -336,6 +339,7 @@ export async function extractOfficialTextFacts(
         : "official_text",
       page.text,
       fingerprint,
+      page.sourceIdentityScore,
     );
     if (candidate) result.push(candidate);
   }

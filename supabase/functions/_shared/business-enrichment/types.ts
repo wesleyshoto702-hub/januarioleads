@@ -141,6 +141,7 @@ export type PageSnapshot = {
   sourceUpdatedAt: string | null;
   sourceKind?: EnrichmentSourceKind;
   linkedFrom?: string | null;
+  sourceIdentityScore?: number;
   embeddedJson?: unknown[];
 };
 
