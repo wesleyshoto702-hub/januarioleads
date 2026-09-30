@@ -24,6 +24,9 @@ type LeadRow = {
   business_status: string | null;
   latitude: number | null;
   longitude: number | null;
+  instagram_checked_at: string | null;
+  instagram_source: string | null;
+  instagram_needs_review: boolean;
 };
 
 type GoogleText = { text?: string };
@@ -422,6 +425,11 @@ function updateRecord(
 ) {
   const patch: Record<string, unknown> = {};
   const updates: LeadUpdate[] = [];
+  const instagramIdentityChanged =
+    (Boolean(current.company) && changed(lead.company, current.company)) ||
+    changed(lead.address, current.address) ||
+    changed(lead.website, current.website) ||
+    changed(lead.phone || null, current.phone);
 
   const addUpdate = (
     changeType: string,
@@ -611,6 +619,14 @@ function updateRecord(
   if (changed(lead.latitude, current.latitude)) patch.latitude = current.latitude;
   if (changed(lead.longitude, current.longitude)) patch.longitude = current.longitude;
 
+  if (
+    instagramIdentityChanged &&
+    lead.instagram_checked_at &&
+    lead.instagram_source !== "manual_confirmation"
+  ) {
+    patch.instagram_needs_review = true;
+  }
+
   patch.is_open_now = current.isOpenNow;
   patch.factual_description = current.factualDescription;
   patch.last_synced_at = new Date().toISOString();
@@ -724,6 +740,9 @@ async function fetchEligibleLeads(afterId?: string) {
       "business_status",
       "latitude",
       "longitude",
+      "instagram_checked_at",
+      "instagram_source",
+      "instagram_needs_review",
     ].join(","),
   );
   params.set("place_id", "not.is.null");
