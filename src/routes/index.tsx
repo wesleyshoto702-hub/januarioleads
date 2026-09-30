@@ -847,8 +847,10 @@ function LeadFlowApp() {
   function applyPresenceToLead(
     leadId: string,
     presence: BusinessPresence,
+    baselineLead?: Lead,
   ) {
-    const previous = leads.find((lead) => lead.id === leadId);
+    const previous =
+      baselineLead ?? leads.find((lead) => lead.id === leadId);
     if (!previous) return;
 
     const keepConfirmedInstagram =
@@ -944,6 +946,7 @@ function LeadFlowApp() {
     business: BusinessSearchResult,
     force = false,
     allowWebSearch = false,
+    baselineLead?: Lead,
   ) {
     try {
       const presence = await discoverBusinessPresence(business, {
@@ -951,7 +954,7 @@ function LeadFlowApp() {
         allowWebSearch,
       });
       if (!presence) return;
-      applyPresenceToLead(leadId, presence);
+      applyPresenceToLead(leadId, presence, baselineLead);
     } catch {
       setActivityError("Não foi possível buscar Instagram agora.");
       window.setTimeout(() => setActivityError(""), 5000);
@@ -1076,6 +1079,7 @@ function LeadFlowApp() {
         leadToBusinessSearchResult(nextLead),
         false,
         true,
+        nextLead,
       );
     }
   }
