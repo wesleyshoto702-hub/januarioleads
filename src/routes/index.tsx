@@ -625,6 +625,17 @@ function LeadFlowApp() {
       };
       const changedFields = relevantLeadChanges(editingLead, nextLead);
       const statusChanged = editingLead.status !== nextLead.status;
+      const instagramIdentityChanged =
+        editingLead.company !== nextLead.company ||
+        editingLead.phone !== nextLead.phone;
+
+      if (
+        instagramIdentityChanged &&
+        editingLead.instagramCheckedAt &&
+        editingLead.instagramSource !== "manual_confirmation"
+      ) {
+        nextLead.instagramNeedsReview = true;
+      }
 
       updateLeadLocally(editingLead.id, () => nextLead);
 
