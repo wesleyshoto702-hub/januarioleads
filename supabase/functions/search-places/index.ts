@@ -1524,6 +1524,57 @@ function extractedWebSources(payload: OpenAIWebResponse) {
   return Array.from(urls);
 }
 
+function normalizedSourceUrl(value: string) {
+  try {
+    const url = new URL(value);
+    url.hash = "";
+    return url.toString().replace(/\/$/, "");
+  } catch {
+    return value.trim().replace(/\/$/, "");
+  }
+}
+
+async function publicEvidenceMentionsUsername(
+  username: string,
+  evidenceUrls: string[],
+) {
+  const needle = username.toLowerCase();
+
+  for (const value of evidenceUrls.slice(0, 2)) {
+    let url: URL;
+    try {
+      url = new URL(value);
+    } catch {
+      continue;
+    }
+
+    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+    if (
+      host === "instagram.com" ||
+      host === "google.com" ||
+      host.endsWith(".google.com") ||
+      host === "maps.google.com"
+    ) {
+      continue;
+    }
+
+    const evidence = await fetchOfficialHtml(value);
+    if (!evidence?.html) continue;
+
+    const html = evidence.html.toLowerCase();
+    if (
+      html.includes(`@${needle}`) ||
+      html.includes(`instagram.com/${needle}`) ||
+      html.includes(`instagram.com%2f${needle}`) ||
+      html.includes(`instagram%2ecom%2f${needle}`)
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 const WEB_DISCOVERY_SCHEMA = {
   type: "object",
   additionalProperties: false,
@@ -1706,7 +1757,7 @@ async function discoverInstagramOnWeb(
       .map(canonicalInstagramProfile)
       .filter((value): value is string => Boolean(value)),
   );
-  const sourceSet = new Set(sourceUrls);
+  const sourceSet = new Set(sourceUrls.map(normalizedSourceUrl));
   const rejected = new Set(
     rejectedUrls
       .map(canonicalInstagramProfile)
@@ -1718,16 +1769,23 @@ async function discoverInstagramOnWeb(
     if (!value || typeof value !== "object") continue;
     const raw = value as Record<string, unknown>;
     const profile = canonicalInstagramProfile(cleanString(raw.instagramUrl));
-    if (!profile || rejected.has(profile) || !sourceProfiles.has(profile)) {
-      continue;
-    }
+    if (!profile || rejected.has(profile)) continue;
 
     const username = instagramUsername(profile);
     if (!username) continue;
 
     const evidenceUrls = stringList(raw.evidenceUrls, 6, 600)
-      .filter((url) => sourceSet.has(url))
+      .filter((url) => sourceSet.has(normalizedSourceUrl(url)))
       .slice(0, 4);
+
+    const directlySourced = sourceProfiles.has(profile);
+    const corroboratedByPublicPage =
+      evidenceUrls.length > 0 &&
+      (await publicEvidenceMentionsUsername(username, evidenceUrls));
+
+    if (!directlySourced && !corroboratedByPublicPage) {
+      continue;
+    }
 
     candidates.push({
       instagramUrl: profile,
