@@ -1456,8 +1456,8 @@ function scoreInstagramCandidate(
 
   const nameTokens = significantTokens(business.name);
   const genericName =
-    nameTokens.length <= 2 &&
-    nameTokens.every((token) => GENERIC_NAME_TOKENS.has(token));
+    nameTokens.length <= 3 &&
+    nameTokens.some((token) => GENERIC_NAME_TOKENS.has(token));
 
   if (genericName && !phoneMatches && !addressMatches && !websiteMatches) {
     score -= 2;
@@ -1821,8 +1821,13 @@ async function runPresenceDiscovery(body: Record<string, unknown>) {
   const checkedAt = new Date().toISOString();
   const signature = await instagramSearchSignature(business);
   const knownInstagram = canonicalInstagramProfile(business.instagram);
+  const force = body.force === true;
 
-  if (knownInstagram && business.instagramConfidence === "high") {
+  if (
+    knownInstagram &&
+    business.instagramConfidence === "high" &&
+    (!force || business.instagramSource === "manual_confirmation")
+  ) {
     const source: PresenceSource =
       business.instagramSource === "manual_confirmation"
         ? "manual_confirmation"
@@ -1848,7 +1853,7 @@ async function runPresenceDiscovery(body: Record<string, unknown>) {
     return json({ ok: true, mode: "presence-discovery", presence });
   }
 
-  if (knownInstagram && !business.instagramSource) {
+  if (knownInstagram && !business.instagramSource && !force) {
     const presence: BusinessPresence = {
       instagramUrl: knownInstagram,
       instagramUsername: instagramUsername(knownInstagram),
