@@ -20,6 +20,49 @@ import type {
   DeepEnrichmentSnapshot,
 } from "./types";
 
+function sourceKindLabel(
+  value: DeepEnrichmentSnapshot["sources"][number]["sourceKind"],
+) {
+  if (value === "official_linked_platform") return "Plataforma comercial vinculada";
+  if (value === "official_website") return "Site oficial";
+  return "Busca pública";
+}
+
+function extractionLabel(
+  value: DeepEnrichmentSnapshot["sources"][number]["extractionStatus"],
+) {
+  if (value === "successful") return "Bem-sucedida";
+  if (value === "partial") return "Parcial";
+  if (value === "inconclusive") return "Inconclusiva";
+  if (value === "blocked") return "Bloqueada";
+  return "Falhou";
+}
+
+function methodLabel(
+  value: DeepEnrichmentSnapshot["sources"][number]["method"],
+) {
+  if (value === "http+browserless") return "HTTP + Browserless";
+  if (value === "browserless") return "Browserless";
+  if (value === "web_search") return "Web Search";
+  return "HTTP";
+}
+
+function browserlessReasonLabel(value: string) {
+  const labels: Record<string,string> = {
+    dynamic_app_detected: "Aplicação dinâmica detectada",
+    commercial_content_missing: "Conteúdo comercial possivelmente incompleto",
+    spa_shell: "App shell / SPA detectada",
+    js_render_required: "Renderização JavaScript necessária",
+    html_insufficient: "HTML inicial insuficiente",
+    sufficient_static_content: "Conteúdo estático suficiente",
+    commercial_content_present: "Conteúdo comercial já presente no HTML",
+    browserless_unavailable: "Browserless indisponível",
+    browserless_failed: "Renderização não concluída",
+    identity_mismatch: "Identidade da plataforma não correspondeu",
+  };
+  return labels[value] ?? value.replaceAll("_", " ");
+}
+
 function qualityLabel(value: DeepEnrichmentSnapshot["quality"]) {
   if (value === "high") return "Alta";
   if (value === "medium") return "Média";
@@ -208,9 +251,14 @@ export function BusinessDeepEnrichmentSection({
           </small>
         </div>
         {done && (
-          <span className={`deep-quality ${snapshot.quality ?? "low"}`}>
-            Qualidade {qualityLabel(snapshot.quality)}
-          </span>
+          <div className="deep-quality-wrap">
+            <span className={`deep-quality ${snapshot.quality ?? "low"}`}>
+              Qualidade {qualityLabel(snapshot.quality)}
+            </span>
+            {snapshot.generatedWithOldEngine && (
+              <small>Resultado gerado com versão anterior da pesquisa.</small>
+            )}
+          </div>
         )}
       </div>
 
@@ -263,6 +311,12 @@ export function BusinessDeepEnrichmentSection({
               <span>Profissionais</span>
               <strong>{snapshot.summary.professionals} encontrados</strong>
             </div>
+            {snapshot.summary.menuItems > 0 && (
+              <div>
+                <span>Itens de menu</span>
+                <strong>{snapshot.summary.menuItems} encontrados</strong>
+              </div>
+            )}
             <div>
               <span>Portfólio</span>
               <strong>
@@ -291,6 +345,12 @@ export function BusinessDeepEnrichmentSection({
                   : "Não confirmado"}
               </strong>
             </div>
+            {snapshot.summary.deliveryConfirmed && (
+              <div>
+                <span>Delivery / pedido</span>
+                <strong>Confirmado</strong>
+              </div>
+            )}
             <div>
               <span>Preços</span>
               <strong>
@@ -393,16 +453,74 @@ export function BusinessDeepEnrichmentSection({
                 <span className="deep-detail-label">FONTES CONSULTADAS</span>
                 {snapshot.sources.length > 0 ? (
                   snapshot.sources.slice(0, 12).map((source) => (
-                    <a
-                      key={source.url}
-                      href={source.url}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      <span>{source.domain || source.type}</span>
-                      <small>{source.type.replaceAll("_", " ")}</small>
-                      <ExternalLink size={10} />
-                    </a>
+                    <article className="deep-source-item" key={source.url}>
+                      <div className="deep-source-title">
+                        <a
+                          href={source.url}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          <span>{source.domain || source.url}</span>
+                          <ExternalLink size={10} />
+                        </a>
+                        <small>{sourceKindLabel(source.sourceKind)}</small>
+                      </div>
+                      <div className="deep-source-diagnostics">
+                        <span>
+                          Método <b>{methodLabel(source.method)}</b>
+                        </span>
+                        <span>
+                          Extração <b>{extractionLabel(source.extractionStatus)}</b>
+                        </span>
+                        <span>
+                          Browserless{" "}
+                          <b>
+                            {source.browserlessDecision === "used"
+                              ? "utilizado"
+                              : source.browserlessDecision === "not_needed"
+                                ? "não necessário"
+                                : source.browserlessDecision === "unavailable"
+                                  ? "indisponível"
+                                  : "falhou"}
+                          </b>
+                        </span>
+                      </div>
+                      <small className="deep-source-reason">
+                        {browserlessReasonLabel(source.browserlessReason)}
+                      </small>
+                      {source.found.facts > 0 && (
+                        <div className="deep-source-found">
+                          {source.found.products + source.found.menuItems > 0 && (
+                            <span>
+                              {source.found.products + source.found.menuItems} itens
+                            </span>
+                          )}
+                          {source.found.prices > 0 && (
+                            <span>{source.found.prices} preços</span>
+                          )}
+                          {source.found.images > 0 && (
+                            <span>{source.found.images} imagens</span>
+                          )}
+                          {source.found.services > 0 && (
+                            <span>{source.found.services} serviços</span>
+                          )}
+                          {source.found.channels > 0 && (
+                            <span>{source.found.channels} canais</span>
+                          )}
+                        </div>
+                      )}
+                      {source.method !== "web_search" && (
+                        <div className="deep-source-tech">
+                          <span>{source.textLength} caracteres de texto</span>
+                          <span>{source.linkCount} links</span>
+                          <span>{source.scriptCount} scripts</span>
+                          <span>{source.jsonLdCount} JSON-LD</span>
+                          {source.frameworkSignals.length > 0 && (
+                            <span>{source.frameworkSignals.join(" · ")}</span>
+                          )}
+                        </div>
+                      )}
+                    </article>
                   ))
                 ) : (
                   <small>Nenhuma fonte adicional utilizável foi registrada.</small>
@@ -417,8 +535,14 @@ export function BusinessDeepEnrichmentSection({
                   {snapshot.metrics.webSearchCalls} buscas públicas
                 </span>
                 <span>
-                  {snapshot.metrics.browserlessCalls} renderizações Browserless
+                  {snapshot.metrics.browserlessRenders ??
+                    snapshot.metrics.browserlessCalls} renderizações Browserless
                 </span>
+                {snapshot.metrics.sourcesInconclusive > 0 && (
+                  <span>
+                    {snapshot.metrics.sourcesInconclusive} extrações inconclusivas
+                  </span>
+                )}
                 {snapshot.summary.conflicts > 0 && (
                   <span>{snapshot.summary.conflicts} conflitos registrados</span>
                 )}
