@@ -530,7 +530,11 @@ export function shouldUseBrowserless(
     profile.commercialSignals >= 4 ||
     profile.explicitPriceSignals > 0;
 
-  if (page.text.length < 350 && page.jsonLd.length === 0) {
+  if (
+    page.text.length < 350 &&
+    page.jsonLd.length === 0 &&
+    commercialFacts === 0
+  ) {
     return { use: true, reason: "html_insufficient" };
   }
   if (profile.spaShell && commercialFacts <= 1) {
