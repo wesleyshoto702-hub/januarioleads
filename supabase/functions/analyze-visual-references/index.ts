@@ -1019,28 +1019,66 @@ Deno.serve(async (request) => {
   }
 
   const signaturePayload = JSON.stringify({
+    signatureVersion: "visual-content-v1",
     guidance: set.guidance.trim(),
-    references: references.map((reference) => ({
+    references: references.map((reference, relativeOrder) => ({
       type: reference.reference_type,
-      identity:
+      visualHash:
         reference.reference_type === "url"
-          ? {
-              url: reference.source_url,
-              captureHash: reference.capture_hash,
-            }
-          : { hash: reference.file_hash },
+          ? reference.capture_hash
+          : reference.file_hash,
       note: reference.note.trim(),
-      order: reference.sort_order,
+      relativeOrder,
     })),
   });
   const signature = await sha256(signaturePayload);
 
+  const legacySignature = await sha256(
+    JSON.stringify({
+      guidance: set.guidance.trim(),
+      references: references.map((reference) => ({
+        type: reference.reference_type,
+        identity:
+          reference.reference_type === "url"
+            ? {
+                url: reference.source_url,
+                captureHash: reference.capture_hash,
+              }
+            : { hash: reference.file_hash },
+        note: reference.note.trim(),
+        order: reference.sort_order,
+      })),
+    }),
+  );
+
+  const cachedSignatureMatches =
+    set.analysis_signature === signature ||
+    set.analysis_signature === legacySignature;
+
   if (
     body.force !== true &&
     set.analysis &&
-    set.analysis_signature === signature &&
+    cachedSignatureMatches &&
     isValidAnalysis(set.analysis)
   ) {
+    if (set.analysis_signature !== signature) {
+      await fetch(
+        `${authorized.supabaseUrl}/rest/v1/prompt_visual_reference_sets?id=eq.${encodeURIComponent(set.id)}&user_id=eq.${encodeURIComponent(authorized.userId)}`,
+        {
+          method: "PATCH",
+          headers: {
+            ...authorized.headers,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal",
+          },
+          body: JSON.stringify({
+            analysis_signature: signature,
+            updated_at: new Date().toISOString(),
+          }),
+        },
+      );
+    }
+
     return json({
       ok: true,
       analysis: set.analysis,

@@ -82,25 +82,54 @@ async function sha256Text(value: string) {
     .join("");
 }
 
+function visualSignatureReferences(references: VisualReferenceItem[]) {
+  return [...references]
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((reference, relativeOrder) => ({
+      type: reference.referenceType,
+      visualHash:
+        reference.referenceType === "url"
+          ? reference.captureHash
+          : reference.fileHash,
+      note: reference.note.trim(),
+      relativeOrder,
+    }));
+}
+
 async function currentReferenceSignature(
   guidance: string,
   references: VisualReferenceItem[],
 ) {
   return sha256Text(
     JSON.stringify({
+      signatureVersion: "visual-content-v1",
       guidance: guidance.trim(),
-      references: references.map((reference) => ({
-        type: reference.referenceType,
-        identity:
-          reference.referenceType === "url"
-            ? {
-                url: reference.sourceUrl,
-                captureHash: reference.captureHash,
-              }
-            : { hash: reference.fileHash },
-        note: reference.note.trim(),
-        order: reference.sortOrder,
-      })),
+      references: visualSignatureReferences(references),
+    }),
+  );
+}
+
+async function legacyReferenceSignature(
+  guidance: string,
+  references: VisualReferenceItem[],
+) {
+  return sha256Text(
+    JSON.stringify({
+      guidance: guidance.trim(),
+      references: [...references]
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((reference) => ({
+          type: reference.referenceType,
+          identity:
+            reference.referenceType === "url"
+              ? {
+                  url: reference.sourceUrl,
+                  captureHash: reference.captureHash,
+                }
+              : { hash: reference.fileHash },
+          note: reference.note.trim(),
+          order: reference.sortOrder,
+        })),
     }),
   );
 }
@@ -255,17 +284,43 @@ export async function getVisualReferenceSet(
     set.guidance,
     references,
   );
+  const legacySignature = await legacyReferenceSignature(
+    set.guidance,
+    references,
+  );
   const analysisIsCurrent =
     Boolean(set.analysis) &&
     Boolean(set.analysis_signature) &&
-    set.analysis_signature === currentSignature;
+    (set.analysis_signature === currentSignature ||
+      set.analysis_signature === legacySignature);
+
+  if (
+    analysisIsCurrent &&
+    set.analysis_signature !== currentSignature
+  ) {
+    await fetch(
+      `${SUPABASE_URL}/rest/v1/prompt_visual_reference_sets?id=eq.${encodeURIComponent(set.id)}`,
+      {
+        method: "PATCH",
+        headers: {
+          ...headers,
+          "Content-Type": "application/json",
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify({
+          analysis_signature: currentSignature,
+          updated_at: new Date().toISOString(),
+        }),
+      },
+    );
+  }
 
   return {
     id: set.id,
     businessKey: set.business_key,
     guidance: set.guidance,
     analysis: analysisIsCurrent ? set.analysis : null,
-    analysisSignature: analysisIsCurrent ? set.analysis_signature : null,
+    analysisSignature: analysisIsCurrent ? currentSignature : null,
     analysisModel: analysisIsCurrent ? set.analysis_model : null,
     analyzedAt: analysisIsCurrent ? set.analyzed_at : null,
     references,

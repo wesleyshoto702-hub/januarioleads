@@ -17,6 +17,7 @@ import type {
 } from "./visual-reference-types";
 import {
   analyzeVisualReferences,
+  captureUrlVisualReference,
   getVisualReferenceSet,
   persistVisualReferenceDraft,
 } from "./visual-references";
@@ -205,8 +206,6 @@ export function PromptGenerator({
         visualReferenceAnalysis = visualReferenceSet.analysis;
         visualReferenceSignature = visualReferenceSet.analysisSignature;
       } else {
-        setGenerationStatus("Analisando referências visuais...");
-
         try {
           const persisted = await persistVisualReferenceDraft(
             visualReferenceSet,
@@ -220,33 +219,47 @@ export function PromptGenerator({
             return;
           }
 
-          const analysisResponse = await analyzeVisualReferences(
-            visualReferenceSet.id,
-          );
-
-          if (!analysisResponse.ok) {
-            setLoading(false);
-            setGenerationStatus("");
-            setVisualAnalysisError(
-              analysisResponse.message ||
-                "Não foi possível analisar as referências visuais.",
+          // Reload first: a locally stale state may still match a cached
+          // server-side analysis (for example after soft-remove/reactivation).
+          const refreshedSet = await getVisualReferenceSet(business.key);
+          if (
+            refreshedSet?.analysis &&
+            refreshedSet.analysisSignature
+          ) {
+            visualReferenceAnalysis = refreshedSet.analysis;
+            visualReferenceSignature = refreshedSet.analysisSignature;
+            setVisualReferenceSet(refreshedSet);
+          } else {
+            setGenerationStatus("Analisando referências visuais...");
+            const analysisResponse = await analyzeVisualReferences(
+              visualReferenceSet.id,
+              false,
             );
-            return;
-          }
 
-          visualReferenceAnalysis = analysisResponse.analysis;
-          visualReferenceSignature = analysisResponse.signature;
-          setVisualReferenceSet((current) =>
-            current
-              ? {
-                  ...current,
-                  analysis: analysisResponse.analysis,
-                  analysisSignature: analysisResponse.signature,
-                  analysisModel: analysisResponse.model,
-                  analyzedAt: analysisResponse.analyzedAt,
-                }
-              : current,
-          );
+            if (!analysisResponse.ok) {
+              setLoading(false);
+              setGenerationStatus("");
+              setVisualAnalysisError(
+                analysisResponse.message ||
+                  "Não foi possível analisar as referências visuais.",
+              );
+              return;
+            }
+
+            visualReferenceAnalysis = analysisResponse.analysis;
+            visualReferenceSignature = analysisResponse.signature;
+            setVisualReferenceSet((current) =>
+              current
+                ? {
+                    ...current,
+                    analysis: analysisResponse.analysis,
+                    analysisSignature: analysisResponse.signature,
+                    analysisModel: analysisResponse.model,
+                    analyzedAt: analysisResponse.analyzedAt,
+                  }
+                : current,
+            );
+          }
         } catch {
           setLoading(false);
           setGenerationStatus("");
@@ -303,6 +316,7 @@ export function PromptGenerator({
 
   async function reanalyzeVisualReferenceSet(
     targetSet: VisualReferenceSet,
+    recaptureUrls = false,
   ) {
     if (
       targetSet.references.length === 0 ||
@@ -316,7 +330,27 @@ export function PromptGenerator({
     setVisualAnalysisError("");
 
     try {
-      const persisted = await persistVisualReferenceDraft(targetSet);
+      let refreshedSet = targetSet;
+
+      if (recaptureUrls) {
+        for (const reference of targetSet.references) {
+          if (reference.referenceType !== "url") continue;
+          const capture = await captureUrlVisualReference(reference.id, true);
+          if (!capture.ok) {
+            setVisualAnalysisError(capture.message);
+            return;
+          }
+          refreshedSet = {
+            ...refreshedSet,
+            references: refreshedSet.references.map((item) =>
+              item.id === reference.id ? capture.reference : item,
+            ),
+          };
+        }
+        setVisualReferenceSet(refreshedSet);
+      }
+
+      const persisted = await persistVisualReferenceDraft(refreshedSet);
       if (!persisted) {
         setVisualAnalysisError(
           "Não foi possível salvar as orientações das referências visuais.",
@@ -324,7 +358,7 @@ export function PromptGenerator({
         return;
       }
 
-      const response = await analyzeVisualReferences(targetSet.id, true);
+      const response = await analyzeVisualReferences(refreshedSet.id, true);
 
       if (!response.ok) {
         setVisualAnalysisError(response.message);
@@ -354,7 +388,7 @@ export function PromptGenerator({
 
   async function handleReanalyzeVisualReferences() {
     if (!visualReferenceSet) return;
-    await reanalyzeVisualReferenceSet(visualReferenceSet);
+    await reanalyzeVisualReferenceSet(visualReferenceSet, true);
   }
 
   async function handleGeneratePreview(force = false) {

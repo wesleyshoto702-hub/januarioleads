@@ -721,6 +721,10 @@ REFERÊNCIAS VISUAIS OPCIONAIS
 - structuralVisualDNA é a fonte primária para decisões ESTRUTURAIS; qualitativeDirection e evidências textuais explicam contexto e intenção.
 - Traduza o DNA em instruções concretas. Prefira "Hero alta, eixo central dominante, headline de alta dominância e informação secundária em camada inferior" a "Hero impactante".
 - Preserve explicitamente alinhamento, grid, escala relativa, ritmo, sobreposição, mudanças de fundo, transições e hierarquia de CTA quando estiverem presentes.
+- Quando gridBehavior for "controlled_breaks" e isso for compatível com os dados, NÃO reduza a instrução a "composição dinâmica": permita uma quebra controlada do grid no elemento de maior destaque, mantendo textos utilitários presos à grade e sem overflow-x.
+- Quando overlaps for relevante, traduza-o em uma sobreposição estrutural controlada entre o elemento dominante e a transição/campo seguinte. Sem fotografia verificada, adapte a sobreposição para tipografia, dados ou geometria.
+- Quando elementsBreakingGrid for relevante, permita que o elemento visual principal ultrapasse parcialmente a coluna de conteúdo, mantendo endereço, telefone, horários e demais informações utilitárias alinhadas e responsivas.
+- Quando sectionAlignmentPattern ou contentAlignment indicar alternância, preserve a mudança de eixo após a Hero; não centralize automaticamente todas as seções só porque a Hero é central.
 - Valores "unknown" ou campos ausentes NÃO autorizam inferência. Não invente precisão.
 - Se a referência usa fotografia mas a empresa não possui imagem real confirmada, preserve o MECANISMO (protagonismo, camada, contraste, posição) usando tipografia, informação ou geometria; nunca invente a foto.
 - Uma decisão estrutural sustentada pela referência pode superar alertas anti-template genéricos, desde que continue adequada aos dados reais e não copie o layout literalmente.
@@ -1229,6 +1233,56 @@ function compactStructuralEvidence(analysis: VisualReferenceAnalysis) {
     .map(({ key, value }) => ({ key, value }));
 }
 
+function buildStructuralTranslationHints(
+  analysis: VisualReferenceAnalysis,
+  hasVerifiedImages: boolean,
+) {
+  const dna =
+    analysis.structuralVisualDNA && isValidStructuralVisualDNA(analysis.structuralVisualDNA)
+      ? analysis.structuralVisualDNA
+      : legacyStructuralVisualDNA(analysis);
+
+  const hints: string[] = [];
+
+  if (dna.layout.gridBehavior === "controlled_breaks") {
+    hints.push(
+      "Grid: permita quebra controlada apenas no elemento de maior destaque; textos utilitários permanecem alinhados à grade e o layout não pode gerar overflow-x.",
+    );
+  }
+
+  if (dna.layout.overlaps && dna.layout.overlaps !== "unknown") {
+    hints.push(
+      hasVerifiedImages
+        ? "Sobreposição: preserve uma sobreposição controlada do elemento dominante com a transição para o campo seguinte."
+        : "Sobreposição: como não há fotografia verificada, traduza o mecanismo para tipografia, dados ou geometria que atravessem parcialmente a transição, sem inventar imagem.",
+    );
+  }
+
+  if (
+    dna.layout.elementsBreakingGrid &&
+    dna.layout.elementsBreakingGrid !== "unknown"
+  ) {
+    hints.push(
+      "Quebra de coluna: o elemento visual principal pode ultrapassar parcialmente a largura da coluna; endereço, telefone, horários e CTAs utilitários devem permanecer contidos e responsivos.",
+    );
+  }
+
+  if (
+    dna.typography.contentAlignment === "alternating" ||
+    (dna.layout.sectionAlignmentPattern &&
+      dna.layout.sectionAlignmentPattern !== "unknown" &&
+      /alternat|left|right|esquer|direit/i.test(
+        dna.layout.sectionAlignmentPattern,
+      ))
+  ) {
+    hints.push(
+      "Fluxo de alinhamento: depois da Hero central, alterne o eixo dos blocos seguintes quando houver conteúdo suficiente; não centralize toda a página por herança da Hero.",
+    );
+  }
+
+  return hints;
+}
+
 function compactVisualReferenceAnalysis(
   analysis: VisualReferenceAnalysis | null,
 ) {
@@ -1483,6 +1537,10 @@ Deno.serve(async (request) => {
           ),
           referencePriority:
             "Dados reais da empresa > objetivo comercial > instruções explícitas do usuário > referências visuais > decisões criativas.",
+          structuralTranslationHints: buildStructuralTranslationHints(
+            input.visualReferenceAnalysis,
+            buildContentAvailability(input.business).hasVerifiedImages,
+          ),
         }
       : {}),
     instructions: [
