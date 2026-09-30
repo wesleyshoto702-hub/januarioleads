@@ -451,7 +451,9 @@ export function BusinessDetailsModal({
                 <span className="presence-checking">
                   Buscando Instagram...
                 </span>
-              ) : !confirmedInstagram ? (
+              ) : !confirmedInstagram ||
+                (business.instagramSource !== "manual_confirmation" &&
+                  business.instagramCheckedAt) ? (
                 <button
                   className="presence-retry"
                   type="button"
