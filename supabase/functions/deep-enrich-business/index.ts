@@ -15,6 +15,7 @@ import {
   businessKey,
   domainOf,
   identitySignature,
+  normalizeText,
   safePublicUrl,
   withVerifiedIdentityUpdates,
 } from "../_shared/business-enrichment/security.ts";
@@ -512,33 +513,95 @@ const RESEARCH_LABELS: Record<string,string> = {
   beforeAfter: "antes e depois",
 };
 
+const RESEARCH_PRIORITY_PATTERNS: Array<{
+  key: string;
+  patterns: string[];
+}> = [
+  { key: "services", patterns: ["servic", "procediment"] },
+  { key: "products", patterns: ["produto", "colecao"] },
+  { key: "menu", patterns: ["cardap", "menu"] },
+  { key: "prices", patterns: ["preco", "valor", "plano"] },
+  { key: "professionals", patterns: ["profission", "barbeir", "dentist", "equipe", "artista"] },
+  { key: "credentials", patterns: ["credencial", "formacao", "especializacao", "registro"] },
+  { key: "portfolio", patterns: ["portfolio", "trabalho", "resultado"] },
+  { key: "facilities", patterns: ["estrutura", "ambiente", "oficina", "clinica"] },
+  { key: "images", patterns: ["foto", "fotografia", "imagem", "ambiente"] },
+  { key: "delivery", patterns: ["delivery", "pedido", "entrega"] },
+  { key: "booking", patterns: ["agendamento", "agendar", "consulta"] },
+  { key: "reservation", patterns: ["reserva"] },
+  { key: "ecommerce", patterns: ["ecommerce", "e commerce", "comprar online"] },
+  { key: "regionsServed", patterns: ["regiao atendida", "area atendida"] },
+  { key: "vehicleTypes", patterns: ["veiculo", "carro", "moto"] },
+  { key: "modalities", patterns: ["modalidade"] },
+  { key: "courses", patterns: ["curso", "aula"] },
+  { key: "treatments", patterns: ["tratamento"] },
+  { key: "eventTypes", patterns: ["tipo de evento", "eventos"] },
+  { key: "properties", patterns: ["imovel", "imoveis"] },
+  { key: "brands", patterns: ["marca"] },
+  { key: "capacity", patterns: ["capacidade"] },
+  { key: "process", patterns: ["processo", "metodologia"] },
+  { key: "plans", patterns: ["plano"] },
+  { key: "specialties", patterns: ["especialidade", "estilo"] },
+  { key: "beforeAfter", patterns: ["antes e depois", "before after"] },
+];
+
 function researchGaps(
   business: BusinessInput,
   strategy: ReturnType<typeof resolveNicheStrategy>,
 ) {
   const matrix = buildContentAvailabilityMatrix(business);
-  const keys:string[] = [];
+  const scored = new Map<string,number>();
 
+  const add = (key: string, score: number) => {
+    const status = matrix[key as keyof typeof matrix]?.status;
+    if (
+      (status === "missing" || status === "unverified") &&
+      RESEARCH_LABELS[key]
+    ) {
+      scored.set(key, Math.max(scored.get(key) ?? 0, score));
+    }
+  };
+
+  // The existing Page Planner strategy remains the strongest signal.
   for (const section of strategy.idealSections) {
     for (const key of section.requiresAny) {
-      if (keys.includes(key)) continue;
-      const status = matrix[key as keyof typeof matrix]?.status;
-      if ((status === "missing" || status === "unverified") && RESEARCH_LABELS[key]) {
-        keys.push(key);
+      add(key, section.priority + 25);
+    }
+  }
+
+  // Visual priorities tell enrichment which missing factual assets would
+  // materially change the landing page, without creating a second strategy.
+  const visualWeight: Record<string,number> = {
+    critical: 125,
+    high: 112,
+    medium: 92,
+    secondary: 70,
+  };
+  for (const [key, priority] of strategy.visualContentPriorities) {
+    add(key, visualWeight[priority] ?? 70);
+  }
+
+  // Specific niche overrides often carry useful commercial needs that are not
+  // mandatory section gates (e.g. prices for a barbershop). Translate those
+  // existing priorities into the same bounded research queue.
+  strategy.contentPriorities.forEach((priority, index) => {
+    const normalized = normalizeText(priority);
+    for (const entry of RESEARCH_PRIORITY_PATTERNS) {
+      if (entry.patterns.some((pattern) => normalized.includes(pattern))) {
+        add(entry.key, 120 - Math.min(index, 20));
       }
     }
-  }
+  });
 
-  // Website/Instagram are useful discovery surfaces even when they do not
-  // directly control a commercial section.
-  for (const key of ["website","instagram"]) {
-    const status = matrix[key as keyof typeof matrix]?.status;
-    if ((status === "missing" || status === "unverified") && !keys.includes(key)) {
-      keys.push(key);
-    }
-  }
+  // Website is a high-value discovery surface. Instagram remains useful but
+  // does not outrank niche-critical factual gaps.
+  add("website", 118);
+  add("instagram", 76);
 
-  return keys.slice(0,6).map((key)=>RESEARCH_LABELS[key]);
+  return Array.from(scored.entries())
+    .sort((a,b) => b[1] - a[1])
+    .slice(0,6)
+    .map(([key]) => RESEARCH_LABELS[key]);
 }
 
 function computeCompleteness(
