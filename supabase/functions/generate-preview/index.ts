@@ -542,18 +542,24 @@ function sanitizeVerifiedImages(value: unknown, maxItems = 20): VerifiedImage[] 
     .slice(0, maxItems);
 }
 
+function safeConfirmedChannelUrl(value: unknown) {
+  const url = safeUrl(value);
+  if (!url) return null;
+  return safePublicWebsite(url)?.toString() ?? null;
+}
+
 function sanitizeConfirmedChannels(value: unknown): ConfirmedChannels {
   const channels =
     value && typeof value === "object"
       ? (value as Record<string, unknown>)
       : {};
   return {
-    whatsappUrl: safeUrl(channels.whatsappUrl),
-    bookingUrl: safeUrl(channels.bookingUrl),
-    deliveryUrl: safeUrl(channels.deliveryUrl),
-    reservationUrl: safeUrl(channels.reservationUrl),
-    ecommerceUrl: safeUrl(channels.ecommerceUrl),
-    menuUrl: safeUrl(channels.menuUrl),
+    whatsappUrl: safeConfirmedChannelUrl(channels.whatsappUrl),
+    bookingUrl: safeConfirmedChannelUrl(channels.bookingUrl),
+    deliveryUrl: safeConfirmedChannelUrl(channels.deliveryUrl),
+    reservationUrl: safeConfirmedChannelUrl(channels.reservationUrl),
+    ecommerceUrl: safeConfirmedChannelUrl(channels.ecommerceUrl),
+    menuUrl: safeConfirmedChannelUrl(channels.menuUrl),
   };
 }
 
