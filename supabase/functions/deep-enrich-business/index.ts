@@ -275,46 +275,124 @@ async function patchRun(id: string, payload: Record<string,unknown>) {
   return rows[0];
 }
 
+function canonicalSourceUrl(value: string) {
+  try {
+    const url = new URL(value);
+    url.hash = "";
+    return url.toString().replace(/\/$/, "");
+  } catch {
+    return value.replace(/\/$/, "");
+  }
+}
+
+function webSearchDiagnostics(candidates: FactCandidate[]): SourceDiagnostic[] {
+  const groups = new Map<string, FactCandidate[]>();
+  for (const fact of candidates.filter((item) => item.sourceType === "web_search")) {
+    const key = canonicalSourceUrl(fact.sourceUrl);
+    const list = groups.get(key) ?? [];
+    list.push(fact);
+    groups.set(key, list);
+  }
+  return Array.from(groups.entries()).map(([url, facts]) => {
+    const score = Math.max(...facts.map((fact) => fact.identityScore), 0);
+    const found = {
+      facts:facts.length,
+      products:facts.filter((fact)=>fact.type==="product").length,
+      menuItems:facts.filter((fact)=>fact.type==="menu_item").length,
+      prices:facts.filter((fact)=>fact.type==="price" || Boolean(fact.value.price)).length,
+      images:facts.filter((fact)=>fact.type.endsWith("_image")).length,
+      services:facts.filter((fact)=>fact.type==="service" || fact.type==="treatment").length,
+      channels:facts.filter((fact)=>fact.type.startsWith("channel_")).length,
+    };
+    return {
+      url:facts[0]?.sourceUrl ?? url,
+      domain:facts[0]?.sourceDomain ?? domainOf(url),
+      title:null,
+      sourceKind:"web_search",
+      linkedFrom:null,
+      method:"web_search",
+      extractionStatus:facts.length >= 3 ? "successful" : "partial",
+      browserlessDecision:"not_needed",
+      browserlessReason:"sufficient_static_content",
+      identityScore:score,
+      confidence:score >= 80 ? "high" : score >= 40 ? "medium" : "low",
+      htmlBytes:0,textLength:0,linkCount:0,scriptCount:0,
+      frameworkSignals:[],jsonLdCount:0,embeddedJsonCount:0,imageCount:0,
+      commercialSignals:0,commercialContentDensity:0,found,
+    } satisfies SourceDiagnostic;
+  });
+}
+
+function allSourceDiagnostics(
+  crawlDiagnostics: SourceDiagnostic[],
+  candidates: FactCandidate[],
+) {
+  const merged = new Map(
+    finalizeSourceDiagnostics(crawlDiagnostics,candidates)
+      .map((item)=>[canonicalSourceUrl(item.url),item]),
+  );
+  for (const item of webSearchDiagnostics(candidates)) {
+    const key = canonicalSourceUrl(item.url);
+    if (!merged.has(key)) merged.set(key,item);
+  }
+  return Array.from(merged.values()).slice(0,30);
+}
+
 async function insertSources(
   runId: string,
   userId: string,
   leadId: string | null,
   candidates: FactCandidate[],
+  diagnostics: SourceDiagnostic[],
 ) {
-  const unique = new Map<string,{url:string;domain:string;type:string;method:string;score:number;confidence:string;title:string;updated:string|null}>();
+  const factByUrl = new Map<string,FactCandidate>();
   for (const fact of candidates) {
-    if (!fact.sourceUrl) continue;
-    const current = unique.get(fact.sourceUrl);
-    const rank = fact.confidence === "high" ? 3 : fact.confidence === "medium" ? 2 : 1;
-    const currentRank = current?.confidence === "high" ? 3 : current?.confidence === "medium" ? 2 : 1;
-    if (!current || rank > currentRank) {
-      unique.set(fact.sourceUrl,{
-        url: fact.sourceUrl,
-        domain: fact.sourceDomain || domainOf(fact.sourceUrl),
-        type: fact.sourceType,
-        method: fact.extractionMethod,
-        score: fact.identityScore,
-        confidence: fact.confidence,
-        title: "",
-        updated: fact.sourceUpdatedAt ?? null,
-      });
-    }
+    const key = canonicalSourceUrl(fact.sourceUrl);
+    const current = factByUrl.get(key);
+    const rank = (value: FactCandidate) =>
+      value.confidence === "high" ? 3 : value.confidence === "medium" ? 2 : 1;
+    if (!current || rank(fact) > rank(current)) factByUrl.set(key,fact);
   }
-  if (!unique.size) return new Map<string,string>();
-  const body = Array.from(unique.values()).map((source)=>({
-    run_id: runId,
-    user_id: userId,
-    lead_id: leadId,
-    source_type: source.type,
-    source_url: source.url,
-    source_domain: source.domain,
-    page_title: source.title || null,
-    extraction_method: source.method,
-    identity_score: source.score,
-    confidence: source.confidence,
-    source_updated_at: source.updated,
-    checked_at: new Date().toISOString(),
-  }));
+
+  const body = diagnostics.map((diagnostic) => {
+    const fact = factByUrl.get(canonicalSourceUrl(diagnostic.url));
+    return {
+      run_id:runId,
+      user_id:userId,
+      lead_id:leadId,
+      source_type:fact?.sourceType ?? diagnostic.sourceKind,
+      source_url:diagnostic.url,
+      source_domain:diagnostic.domain,
+      page_title:diagnostic.title,
+      extraction_method:fact?.extractionMethod ?? diagnostic.method,
+      identity_score:Math.max(diagnostic.identityScore,fact?.identityScore ?? 0),
+      confidence:fact?.confidence ?? diagnostic.confidence,
+      source_updated_at:fact?.sourceUpdatedAt ?? null,
+      checked_at:new Date().toISOString(),
+      source_kind:diagnostic.sourceKind,
+      fetch_method:diagnostic.method,
+      extraction_status:diagnostic.extractionStatus,
+      browserless_decision:diagnostic.browserlessDecision,
+      browserless_reason:diagnostic.browserlessReason,
+      linked_from:diagnostic.linkedFrom,
+      facts_found:diagnostic.found.facts,
+      metadata:{
+        htmlBytes:diagnostic.htmlBytes,
+        textLength:diagnostic.textLength,
+        linkCount:diagnostic.linkCount,
+        scriptCount:diagnostic.scriptCount,
+        frameworkSignals:diagnostic.frameworkSignals,
+        jsonLdCount:diagnostic.jsonLdCount,
+        embeddedJsonCount:diagnostic.embeddedJsonCount,
+        imageCount:diagnostic.imageCount,
+        commercialSignals:diagnostic.commercialSignals,
+        commercialContentDensity:diagnostic.commercialContentDensity,
+        found:diagnostic.found,
+      },
+    };
+  });
+
+  if (!body.length) return new Map<string,string>();
   const response = await adminRest("business_enrichment_sources", {
     method:"POST",
     headers:{Prefer:"return=representation"},
@@ -322,7 +400,12 @@ async function insertSources(
   });
   if (!response.ok) throw new Error("SOURCE_SAVE_FAILED");
   const rows = await response.json() as Array<{id:string;source_url:string}>;
-  return new Map(rows.map((row)=>[row.source_url,row.id]));
+  const ids = new Map<string,string>();
+  for (const row of rows) {
+    ids.set(row.source_url,row.id);
+    ids.set(canonicalSourceUrl(row.source_url),row.id);
+  }
+  return ids;
 }
 
 async function rejectedSignatures(userId: string, key: string) {
@@ -355,7 +438,10 @@ async function insertFacts(
       user_id:userId,
       lead_id:leadId,
       business_key:key,
-      source_id:sourceIds.get(fact.sourceUrl) ?? null,
+      source_id:
+        sourceIds.get(fact.sourceUrl) ??
+        sourceIds.get(canonicalSourceUrl(fact.sourceUrl)) ??
+        null,
       fact_type:fact.type,
       label:fact.label,
       value:fact.value,
