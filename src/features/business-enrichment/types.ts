@@ -6,6 +6,12 @@ export type DeepEnrichmentStatus =
   | "failed";
 
 export type DeepEnrichmentConfidence = "high" | "medium" | "low";
+export type DeepExtractionStatus =
+  | "successful"
+  | "partial"
+  | "inconclusive"
+  | "blocked"
+  | "failed";
 
 export type DeepVerifiedImage = {
   url: string;
@@ -63,6 +69,8 @@ export type DeepEnrichmentApplied = {
 
 export type DeepEnrichmentSnapshot = DeepEnrichmentApplied & {
   runId: string | null;
+  engineVersion: string | null;
+  generatedWithOldEngine: boolean;
   completeness: number | null;
   expiresAt: string | null;
   cached: boolean;
@@ -72,11 +80,13 @@ export type DeepEnrichmentSnapshot = DeepEnrichmentApplied & {
     lowFacts: number;
     services: number;
     products: number;
+    menuItems: number;
     professionals: number;
     portfolioImages: number;
     verifiedImages: number;
     prices: number;
     bookingConfirmed: boolean;
+    deliveryConfirmed: boolean;
     whatsappConfirmed: boolean;
     websiteFound: boolean;
     conflicts: number;
@@ -91,11 +101,36 @@ export type DeepEnrichmentSnapshot = DeepEnrichmentApplied & {
     sourceUrl: string | null;
   }>;
   sources: Array<{
-    type: string;
+    sourceKind: "official_website" | "official_linked_platform" | "web_search";
     url: string;
     domain: string;
     title: string | null;
+    linkedFrom: string | null;
+    method: "http" | "http+browserless" | "browserless" | "web_search";
+    extractionStatus: DeepExtractionStatus;
+    browserlessDecision: "used" | "not_needed" | "unavailable" | "failed";
+    browserlessReason: string;
+    identityScore: number;
     confidence: DeepEnrichmentConfidence;
+    htmlBytes: number;
+    textLength: number;
+    linkCount: number;
+    scriptCount: number;
+    frameworkSignals: string[];
+    jsonLdCount: number;
+    embeddedJsonCount: number;
+    imageCount: number;
+    commercialSignals: number;
+    commercialContentDensity: number;
+    found: {
+      facts: number;
+      products: number;
+      menuItems: number;
+      prices: number;
+      images: number;
+      services: number;
+      channels: number;
+    };
   }>;
   metrics: {
     modelCalls: number;
@@ -105,6 +140,19 @@ export type DeepEnrichmentSnapshot = DeepEnrichmentApplied & {
     pagesAnalyzed: number;
     inputTokens: number;
     outputTokens: number;
+    httpPagesFetched: number;
+    browserlessRenders: number;
+    sourcesSuccessful: number;
+    sourcesPartial: number;
+    sourcesInconclusive: number;
+    sourcesBlocked: number;
+    sourcesFailed: number;
+    factsHigh: number;
+    factsMedium: number;
+    factsLow: number;
+    productsFound: number;
+    servicesFound: number;
+    imagesFound: number;
   };
   errorSummary: string | null;
 };

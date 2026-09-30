@@ -6,6 +6,35 @@ export type EnrichmentStatus =
   | "failed";
 
 export type Confidence = "high" | "medium" | "low";
+export type ExtractionStatus =
+  | "successful"
+  | "partial"
+  | "inconclusive"
+  | "blocked"
+  | "failed";
+
+export type EnrichmentSourceKind =
+  | "official_website"
+  | "official_linked_platform"
+  | "web_search";
+
+export type BrowserlessDecision =
+  | "used"
+  | "not_needed"
+  | "unavailable"
+  | "failed";
+
+export type BrowserlessReason =
+  | "dynamic_app_detected"
+  | "commercial_content_missing"
+  | "spa_shell"
+  | "js_render_required"
+  | "html_insufficient"
+  | "sufficient_static_content"
+  | "commercial_content_present"
+  | "browserless_unavailable"
+  | "browserless_failed"
+  | "identity_mismatch";
 export type Resolution =
   | "auto_verified"
   | "needs_review"
@@ -110,6 +139,9 @@ export type PageSnapshot = {
   method: "http" | "browserless";
   checkedAt: string;
   sourceUpdatedAt: string | null;
+  sourceKind?: EnrichmentSourceKind;
+  linkedFrom?: string | null;
+  embeddedJson?: unknown[];
 };
 
 export type FactCandidate = {
@@ -133,6 +165,12 @@ export type FactCandidate = {
     | "official_text"
     | "official_link"
     | "official_image"
+    | "official_platform_schema"
+    | "official_platform_text"
+    | "official_platform_link"
+    | "official_platform_image"
+    | "official_platform_embedded_data"
+    | "official_embedded_data"
     | "web_search"
     | "manual";
   extractionMethod: string;
@@ -156,10 +194,58 @@ export type UsageMetrics = {
   pagesAnalyzed: number;
   inputTokens: number;
   outputTokens: number;
+  httpPagesFetched: number;
+  browserlessRenders: number;
+  sourcesSuccessful: number;
+  sourcesPartial: number;
+  sourcesInconclusive: number;
+  sourcesBlocked: number;
+  sourcesFailed: number;
+  factsHigh: number;
+  factsMedium: number;
+  factsLow: number;
+  productsFound: number;
+  servicesFound: number;
+  imagesFound: number;
+};
+
+export type SourceDiagnostic = {
+  url: string;
+  domain: string;
+  title: string | null;
+  sourceKind: EnrichmentSourceKind;
+  linkedFrom: string | null;
+  method: "http" | "http+browserless" | "browserless" | "web_search";
+  extractionStatus: ExtractionStatus;
+  browserlessDecision: BrowserlessDecision;
+  browserlessReason: BrowserlessReason;
+  identityScore: number;
+  confidence: Confidence;
+  htmlBytes: number;
+  textLength: number;
+  linkCount: number;
+  scriptCount: number;
+  frameworkSignals: string[];
+  jsonLdCount: number;
+  embeddedJsonCount: number;
+  imageCount: number;
+  commercialSignals: number;
+  commercialContentDensity: number;
+  found: {
+    facts: number;
+    products: number;
+    menuItems: number;
+    prices: number;
+    images: number;
+    services: number;
+    channels: number;
+  };
 };
 
 export type EnrichmentSnapshot = {
   runId: string | null;
+  engineVersion: string | null;
+  generatedWithOldEngine: boolean;
   status: EnrichmentStatus;
   quality: Confidence | null;
   completeness: number | null;
@@ -172,11 +258,13 @@ export type EnrichmentSnapshot = {
     lowFacts: number;
     services: number;
     products: number;
+    menuItems: number;
     professionals: number;
     portfolioImages: number;
     verifiedImages: number;
     prices: number;
     bookingConfirmed: boolean;
+    deliveryConfirmed: boolean;
     whatsappConfirmed: boolean;
     websiteFound: boolean;
     conflicts: number;
@@ -197,13 +285,7 @@ export type EnrichmentSnapshot = {
     evidenceSummary: string | null;
     sourceUrl: string | null;
   }>;
-  sources: Array<{
-    type: string;
-    url: string;
-    domain: string;
-    title: string | null;
-    confidence: Confidence;
-  }>;
+  sources: SourceDiagnostic[];
   metrics: UsageMetrics;
   errorSummary: string | null;
 };
