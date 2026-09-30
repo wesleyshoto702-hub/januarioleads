@@ -24,6 +24,7 @@ import {
   crawlOfficialWebsite,
   deterministicOfficialFacts,
   finalizeSourceDiagnostics,
+  isCommercialPlatformUrl,
 } from "../_shared/business-enrichment/website.ts";
 import {
   extractOfficialTextFacts,
@@ -800,9 +801,14 @@ async function snapshotFromRun(row: Record<string,unknown>, cached: boolean): Pr
       return {
         sourceKind:
           source.source_kind === "official_website" ||
-          source.source_kind === "official_linked_platform"
+          source.source_kind === "official_linked_platform" ||
+          source.source_kind === "web_search"
             ? source.source_kind
-            : "web_search",
+            : String(source.source_type ?? "") === "web_search"
+              ? "web_search"
+              : isCommercialPlatformUrl(String(source.source_url ?? ""))
+                ? "official_linked_platform"
+                : "official_website",
         url:String(source.source_url ?? ""),
         domain:String(source.source_domain ?? ""),
         title:typeof source.page_title==="string" ? source.page_title : null,
@@ -852,7 +858,12 @@ async function snapshotFromRun(row: Record<string,unknown>, cached: boolean): Pr
         },
       } as EnrichmentSnapshot["sources"][number];
     }),
-    metrics:(row.metrics && typeof row.metrics==="object" ? row.metrics : baseMetrics()) as UsageMetrics,
+    metrics:{
+      ...baseMetrics(),
+      ...(row.metrics && typeof row.metrics==="object"
+        ? row.metrics as Partial<UsageMetrics>
+        : {}),
+    },
     errorSummary:typeof row.error_summary==="string" ? row.error_summary : null,
   };
 }
