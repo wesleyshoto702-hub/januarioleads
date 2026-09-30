@@ -204,13 +204,31 @@ export function SearchLeadsView({
       const next: BusinessSearchResult = {
         ...business,
         instagramCheckedAt: presence.instagramCheckedAt,
+        instagramUsername: presence.instagramUsername,
+        instagramCandidates: presence.instagramCandidates,
+        instagramRejectedUrls: presence.instagramRejectedUrls,
+        instagramSearchSignature: presence.instagramSearchSignature,
+        instagramNeedsReview: presence.instagramNeedsReview,
         ...(presence.instagramUrl
           ? {
               instagram: presence.instagramUrl,
               instagramConfidence: presence.instagramConfidence,
               instagramSource: presence.instagramSource,
             }
-          : {}),
+          : {
+              instagram:
+                business.instagramConfidence === "high"
+                  ? business.instagram
+                  : null,
+              instagramConfidence:
+                business.instagramConfidence === "high"
+                  ? business.instagramConfidence
+                  : null,
+              instagramSource:
+                business.instagramConfidence === "high"
+                  ? business.instagramSource
+                  : null,
+            }),
       };
 
       return {
