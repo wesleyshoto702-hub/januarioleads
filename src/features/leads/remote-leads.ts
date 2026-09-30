@@ -1,4 +1,8 @@
 import { getValidSession } from "../../lib/auth";
+import type {
+  InstagramCandidate,
+  InstagramSource,
+} from "../business-presence/types";
 
 const SUPABASE_URL = "https://czkazbianiflhldenhcj.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY =
@@ -23,8 +27,13 @@ export type PersistedLead = {
   googleMapsUrl?: string | undefined;
   instagram?: string | undefined;
   instagramConfidence?: "high" | "medium" | "low" | undefined;
-  instagramSource?: "google_places" | "official_website" | "web_search" | undefined;
+  instagramSource?: InstagramSource | undefined;
   instagramCheckedAt?: string | undefined;
+  instagramUsername?: string | undefined;
+  instagramCandidates?: InstagramCandidate[] | undefined;
+  instagramRejectedUrls?: string[] | undefined;
+  instagramSearchSignature?: string | undefined;
+  instagramNeedsReview?: boolean | undefined;
   factualDescription?: string | undefined;
   primaryCategory?: string | undefined;
   categories?: string[] | undefined;
@@ -81,8 +90,13 @@ type RemoteLead = {
   google_maps_url: string | null;
   instagram: string | null;
   instagram_confidence: "high" | "medium" | "low" | null;
-  instagram_source: "google_places" | "official_website" | "web_search" | null;
+  instagram_source: InstagramSource | null;
   instagram_checked_at: string | null;
+  instagram_username: string | null;
+  instagram_candidates: InstagramCandidate[];
+  instagram_rejected_urls: string[];
+  instagram_search_signature: string | null;
+  instagram_needs_review: boolean;
   factual_description: string | null;
   primary_category: string | null;
   categories: string[];
@@ -163,6 +177,11 @@ function toRemote(lead: PersistedLead, userId: string) {
     instagram_confidence: lead.instagramConfidence,
     instagram_source: lead.instagramSource,
     instagram_checked_at: lead.instagramCheckedAt,
+    instagram_username: lead.instagramUsername,
+    instagram_candidates: lead.instagramCandidates ?? [],
+    instagram_rejected_urls: lead.instagramRejectedUrls ?? [],
+    instagram_search_signature: lead.instagramSearchSignature,
+    instagram_needs_review: lead.instagramNeedsReview ?? false,
     factual_description: lead.factualDescription,
     primary_category: lead.primaryCategory,
     categories: lead.categories ?? [],
@@ -204,6 +223,11 @@ function fromRemote(row: RemoteLead): PersistedLead {
     instagramConfidence: row.instagram_confidence ?? undefined,
     instagramSource: row.instagram_source ?? undefined,
     instagramCheckedAt: row.instagram_checked_at ?? undefined,
+    instagramUsername: row.instagram_username ?? undefined,
+    instagramCandidates: row.instagram_candidates ?? [],
+    instagramRejectedUrls: row.instagram_rejected_urls ?? [],
+    instagramSearchSignature: row.instagram_search_signature ?? undefined,
+    instagramNeedsReview: row.instagram_needs_review ?? false,
     factualDescription: row.factual_description ?? undefined,
     primaryCategory: row.primary_category ?? undefined,
     categories: row.categories ?? [],
