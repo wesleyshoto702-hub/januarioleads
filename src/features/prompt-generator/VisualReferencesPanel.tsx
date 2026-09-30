@@ -483,7 +483,16 @@ export function VisualReferencesPanel({
   }
 
   async function removeReference(reference: VisualReferenceItem) {
-    if (!value || disabled || recapturingId || removingId) return;
+    if (
+      !value ||
+      disabled ||
+      uploading ||
+      urlLoading ||
+      recapturingId ||
+      removingId
+    ) {
+      return;
+    }
     if (!window.confirm("Remover esta referência?")) return;
 
     const previous = value;
@@ -637,7 +646,7 @@ export function VisualReferencesPanel({
               <ReferenceThumbnail
                 key={reference.id}
                 reference={reference}
-                disabled={disabled || removingId === reference.id}
+                disabled={busy || removingId === reference.id}
                 recapturing={recapturingId === reference.id}
                 onView={() => void openPreview(reference)}
                 onRecapture={() => void recapture(reference)}
