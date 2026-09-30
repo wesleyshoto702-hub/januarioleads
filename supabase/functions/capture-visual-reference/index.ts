@@ -600,6 +600,7 @@ Deno.serve(async (request) => {
       "id,set_id,user_id,reference_type,original_name,note,sort_order,created_at,source_url,source_domain,capture_status,capture_error,capture_hash,capture_final_url,capture_title,captured_at",
     id: `eq.${body.referenceId}`,
     user_id: `eq.${authorized.userId}`,
+    active: "eq.true",
     limit: "1",
   });
 

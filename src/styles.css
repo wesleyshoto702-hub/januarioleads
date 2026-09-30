@@ -5836,6 +5836,28 @@ a {
   color: var(--primary);
 }
 
+.visual-reference-card-actions .visual-reference-remove-action {
+  color: var(--faint);
+}
+
+.visual-reference-card-actions .visual-reference-remove-action:hover {
+  color: var(--rejected);
+}
+
+.visual-reference-analysis-stale {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 9px;
+  border: 1px solid color-mix(in srgb, var(--primary) 24%, var(--border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--primary-soft) 55%, transparent);
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.4;
+}
+
 .visual-reference-inline-error {
   margin: 0;
   color: var(--rejected);

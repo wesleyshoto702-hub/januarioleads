@@ -479,6 +479,7 @@ Deno.serve(async (request) => {
       "id,reference_type,file_hash,storage_path,original_name,note,sort_order,byte_size,width,height,source_url,source_domain,capture_status,capture_hash,capture_final_url,capture_title,captured_at",
     set_id: `eq.${set.id}`,
     user_id: `eq.${authorized.userId}`,
+    active: "eq.true",
     order: "sort_order.asc",
   });
   const refsResponse = await fetch(

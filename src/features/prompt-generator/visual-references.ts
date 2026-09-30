@@ -34,7 +34,7 @@ type RemoteReference = {
   width: number | null;
   height: number | null;
   note: string;
-  sort_order: number;
+  sort_order: number | null;
   created_at: string;
   source_url: string | null;
   source_domain: string | null;
@@ -116,7 +116,7 @@ function mapAsset(row: RemoteAsset): VisualReferenceAsset {
     width: row.width,
     height: row.height,
     segmentKind: row.segment_kind,
-    sortOrder: row.sort_order,
+    sortOrder: row.sort_order ?? 0,
     createdAt: row.created_at,
   };
 }
@@ -232,6 +232,7 @@ export async function getVisualReferenceSet(
     select:
       "id,set_id,reference_type,file_hash,storage_path,original_name,mime_type,byte_size,width,height,note,sort_order,created_at,source_url,source_domain,capture_status,capture_error,capture_hash,capture_final_url,capture_title,captured_at",
     set_id: `eq.${set.id}`,
+    active: "eq.true",
     order: "sort_order.asc",
   });
 
@@ -381,6 +382,51 @@ export async function uploadVisualReference(input: {
   const { session, headers } = await auth();
   const storagePath = `${session.user.id}/${input.set.id}/${input.hash}.webp`;
 
+  const cachedParams = new URLSearchParams({
+    select:
+      "id,set_id,reference_type,file_hash,storage_path,original_name,mime_type,byte_size,width,height,note,sort_order,created_at,source_url,source_domain,capture_status,capture_error,capture_hash,capture_final_url,capture_title,captured_at",
+    set_id: `eq.${input.set.id}`,
+    user_id: `eq.${session.user.id}`,
+    reference_type: "eq.image",
+    file_hash: `eq.${input.hash}`,
+    active: "eq.false",
+    limit: "1",
+  });
+  const cachedResponse = await fetch(
+    `${SUPABASE_URL}/rest/v1/prompt_visual_references?${cachedParams}`,
+    { headers },
+  );
+
+  if (cachedResponse.ok) {
+    const cachedRows = (await cachedResponse.json()) as RemoteReference[];
+    const cached = cachedRows[0];
+    if (cached) {
+      const reactivateResponse = await fetch(
+        `${SUPABASE_URL}/rest/v1/prompt_visual_references?id=eq.${encodeURIComponent(cached.id)}`,
+        {
+          method: "PATCH",
+          headers: {
+            ...headers,
+            "Content-Type": "application/json",
+            Prefer: "return=representation",
+          },
+          body: JSON.stringify({
+            active: true,
+            removed_at: null,
+            sort_order: input.sortOrder,
+          }),
+        },
+      );
+      if (!reactivateResponse.ok) {
+        throw new Error("REFERENCE_METADATA_FAILED");
+      }
+
+      await invalidateVisualAnalysis(input.set.id);
+      const rows = (await reactivateResponse.json()) as RemoteReference[];
+      return rows[0] ? mapReference(rows[0]) : null;
+    }
+  }
+
   const uploadResponse = await fetch(
     `${SUPABASE_URL}/storage/v1/object/${BUCKET}/${storagePath}`,
     {
@@ -452,6 +498,51 @@ export async function createUrlVisualReference(input: {
   const normalized = normalizeVisualReferenceUrl(input.url);
   const { session, headers } = await auth();
 
+  const cachedParams = new URLSearchParams({
+    select:
+      "id,set_id,reference_type,file_hash,storage_path,original_name,mime_type,byte_size,width,height,note,sort_order,created_at,source_url,source_domain,capture_status,capture_error,capture_hash,capture_final_url,capture_title,captured_at",
+    set_id: `eq.${input.set.id}`,
+    user_id: `eq.${session.user.id}`,
+    reference_type: "eq.url",
+    source_url: `eq.${normalized.url}`,
+    active: "eq.false",
+    limit: "1",
+  });
+  const cachedResponse = await fetch(
+    `${SUPABASE_URL}/rest/v1/prompt_visual_references?${cachedParams}`,
+    { headers },
+  );
+
+  if (cachedResponse.ok) {
+    const cachedRows = (await cachedResponse.json()) as RemoteReference[];
+    const cached = cachedRows[0];
+    if (cached) {
+      const reactivateResponse = await fetch(
+        `${SUPABASE_URL}/rest/v1/prompt_visual_references?id=eq.${encodeURIComponent(cached.id)}`,
+        {
+          method: "PATCH",
+          headers: {
+            ...headers,
+            "Content-Type": "application/json",
+            Prefer: "return=representation",
+          },
+          body: JSON.stringify({
+            active: true,
+            removed_at: null,
+            sort_order: input.sortOrder,
+          }),
+        },
+      );
+      if (!reactivateResponse.ok) {
+        throw new Error("REFERENCE_URL_CREATE_FAILED");
+      }
+
+      await invalidateVisualAnalysis(input.set.id);
+      const rows = (await reactivateResponse.json()) as RemoteReference[];
+      return rows[0] ? mapReference(rows[0]) : null;
+    }
+  }
+
   const response = await fetch(
     `${SUPABASE_URL}/rest/v1/prompt_visual_references`,
     {
@@ -517,30 +608,24 @@ export async function captureUrlVisualReference(
   return payload as CaptureUrlReferenceResponse;
 }
 
-export async function deleteVisualReference(reference: VisualReferenceItem) {
+export async function removeVisualReference(reference: VisualReferenceItem) {
   const { headers } = await auth();
-
-  const storagePaths = [
-    ...(reference.storagePath ? [reference.storagePath] : []),
-    ...reference.assets.map((asset) => asset.storagePath),
-  ];
-
-  for (const storagePath of storagePaths) {
-    const storageResponse = await fetch(
-      `${SUPABASE_URL}/storage/v1/object/${BUCKET}/${storagePath}`,
-      { method: "DELETE", headers },
-    );
-    if (!storageResponse.ok && storageResponse.status !== 404) return false;
-  }
+  const removedAt = new Date().toISOString();
 
   const metadataResponse = await fetch(
     `${SUPABASE_URL}/rest/v1/prompt_visual_references?id=eq.${encodeURIComponent(reference.id)}`,
     {
-      method: "DELETE",
+      method: "PATCH",
       headers: {
         ...headers,
+        "Content-Type": "application/json",
         Prefer: "return=minimal",
       },
+      body: JSON.stringify({
+        active: false,
+        removed_at: removedAt,
+        sort_order: null,
+      }),
     },
   );
   if (!metadataResponse.ok) return false;

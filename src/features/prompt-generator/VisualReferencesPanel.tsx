@@ -21,7 +21,7 @@ import type {
 import {
   captureUrlVisualReference,
   createUrlVisualReference,
-  deleteVisualReference,
+  removeVisualReference,
   ensureVisualReferenceSet,
   fetchReferencePreview,
   fetchReferencePreviewAssets,
@@ -159,17 +159,6 @@ function ReferenceThumbnail({
         )}
       </button>
 
-      <button
-        type="button"
-        className="visual-reference-remove"
-        aria-label={`Remover ${reference.originalName}`}
-        title="Remover referência"
-        disabled={disabled || recapturing}
-        onClick={onRemove}
-      >
-        <Trash2 size={13} />
-      </button>
-
       <div className="visual-reference-meta">
         <div className="visual-reference-name-row">
           {isUrl ? <Globe2 size={12} /> : <ImagePlus size={12} />}
@@ -214,36 +203,47 @@ function ReferenceThumbnail({
         }
       />
 
-      {isUrl && (
-        <div className="visual-reference-card-actions">
-          <button
-            type="button"
-            disabled={disabled || recapturing}
-            onClick={onRecapture}
-          >
-            <RefreshCw size={12} />
-            {reference.captureStatus === "ready"
-              ? "Analisar novamente"
-              : "Tentar novamente"}
-          </button>
-          {reference.captureStatus !== "ready" && (
+      <div className="visual-reference-card-actions">
+        {isUrl && (
+          <>
             <button
               type="button"
               disabled={disabled || recapturing}
-              onClick={onScreenshotFallback}
+              onClick={onRecapture}
             >
-              <ImagePlus size={12} />
-              Enviar screenshot
+              <RefreshCw size={12} />
+              {reference.captureStatus === "ready"
+                ? "Analisar novamente"
+                : "Tentar novamente"}
             </button>
-          )}
-          {reference.sourceUrl && (
-            <a href={reference.sourceUrl} target="_blank" rel="noreferrer">
-              <ExternalLink size={12} />
-              Abrir site
-            </a>
-          )}
-        </div>
-      )}
+            {reference.captureStatus !== "ready" && (
+              <button
+                type="button"
+                disabled={disabled || recapturing}
+                onClick={onScreenshotFallback}
+              >
+                <ImagePlus size={12} />
+                Enviar screenshot
+              </button>
+            )}
+            {reference.sourceUrl && (
+              <a href={reference.sourceUrl} target="_blank" rel="noreferrer">
+                <ExternalLink size={12} />
+                Abrir site
+              </a>
+            )}
+          </>
+        )}
+        <button
+          type="button"
+          className="visual-reference-remove-action"
+          disabled={disabled || recapturing}
+          onClick={onRemove}
+        >
+          <Trash2 size={12} />
+          Remover
+        </button>
+      </div>
 
       {isUrl && reference.captureError && (
         <p className="visual-reference-inline-error">
@@ -274,6 +274,7 @@ export function VisualReferencesPanel({
   const [urlInput, setUrlInput] = useState("");
   const [urlLoading, setUrlLoading] = useState(false);
   const [recapturingId, setRecapturingId] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
   const [uploadErrors, setUploadErrors] = useState<string[]>([]);
   const [previewReference, setPreviewReference] =
     useState<VisualReferenceItem | null>(null);
@@ -482,40 +483,41 @@ export function VisualReferencesPanel({
   }
 
   async function removeReference(reference: VisualReferenceItem) {
-    if (!value || disabled || recapturingId) return;
-    if (
-      !window.confirm(
-        `Remover a referência "${
-          reference.sourceDomain ?? reference.originalName
-        }"?`,
-      )
-    ) {
-      return;
-    }
+    if (!value || disabled || recapturingId || removingId) return;
+    if (!window.confirm("Remover esta referência?")) return;
+
+    const previous = value;
+    const next = invalidateLocalAnalysis({
+      ...value,
+      references: value.references.filter((item) => item.id !== reference.id),
+    });
+
+    onChange(next);
+    setRemovingId(reference.id);
+    setUploadErrors([]);
 
     let ok = false;
     try {
-      ok = await deleteVisualReference(reference);
+      ok = await removeVisualReference(reference);
     } catch {
       ok = false;
-    }
-    if (!ok) {
-      setUploadErrors(["Não foi possível remover esta referência agora."]);
-      return;
+    } finally {
+      setRemovingId(null);
     }
 
-    onChange(
-      invalidateLocalAnalysis({
-        ...value,
-        references: value.references.filter(
-          (item) => item.id !== reference.id,
-        ),
-      }),
-    );
+    if (!ok) {
+      onChange(previous);
+      setUploadErrors(["Não foi possível remover esta referência agora."]);
+    }
   }
 
   const count = value?.references.length ?? 0;
-  const busy = disabled || uploading || urlLoading || Boolean(recapturingId);
+  const busy =
+    disabled ||
+    uploading ||
+    urlLoading ||
+    Boolean(recapturingId) ||
+    Boolean(removingId);
 
   return (
     <section className="visual-references-panel" aria-label="Referências visuais">
@@ -523,9 +525,9 @@ export function VisualReferencesPanel({
         <div>
           <span className="detail-kicker">REFERÊNCIAS VISUAIS · OPCIONAL</span>
           <strong>
-            {count > 0
-              ? `${count} ${count === 1 ? "referência adicionada" : "referências adicionadas"}`
-              : "Use sites ou screenshots como direção de design"}
+            {`${count}/${MAX_VISUAL_REFERENCES} ${
+              count === 1 ? "referência adicionada" : "referências adicionadas"
+            }`}
           </strong>
           <p>
             Use sites que você considera boas referências de design. A análise
@@ -544,6 +546,13 @@ export function VisualReferencesPanel({
           </button>
         )}
       </div>
+
+      {value && count > 0 && !value.analysis && (
+        <p className="visual-reference-analysis-stale" role="status">
+          <RefreshCw size={12} />
+          Referências alteradas — a análise será atualizada antes do próximo prompt.
+        </p>
+      )}
 
       <div className="visual-reference-source-grid">
         <div className="visual-reference-source-block">
@@ -628,7 +637,7 @@ export function VisualReferencesPanel({
               <ReferenceThumbnail
                 key={reference.id}
                 reference={reference}
-                disabled={disabled}
+                disabled={disabled || removingId === reference.id}
                 recapturing={recapturingId === reference.id}
                 onView={() => void openPreview(reference)}
                 onRecapture={() => void recapture(reference)}
