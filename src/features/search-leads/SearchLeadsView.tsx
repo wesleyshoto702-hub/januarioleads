@@ -21,6 +21,7 @@ import {
 } from "../lead-chance/lead-chance";
 import {
   businessAlreadyExists,
+  findBusinessDuplicate,
   normalizeBrazilianPhone,
   type ExistingLeadIdentity,
 } from "./identity";
@@ -29,6 +30,7 @@ import { normalizeSearchText, SEGMENT_GROUPS } from "./segments";
 import type { BusinessSearchResult } from "./types";
 
 export type SearchMessageTarget = {
+  id?: string;
   company: string;
   phone: string;
 };
@@ -109,11 +111,15 @@ export function SearchLeadsView({
 
   const resultWithExisting = useMemo(
     () =>
-      results.map((business) => ({
-        business,
-        alreadyAdded: businessAlreadyExists(business, existingLeads),
-        chance: calculateLeadChance(business, resultsSegment),
-      })),
+      results.map((business) => {
+        const existingLead = findBusinessDuplicate(business, existingLeads);
+        return {
+          business,
+          alreadyAdded: Boolean(existingLead),
+          existingLeadId: existingLead?.id,
+          chance: calculateLeadChance(business, resultsSegment),
+        };
+      }),
     [results, existingLeads, resultsSegment],
   );
 
@@ -374,12 +380,13 @@ export function SearchLeadsView({
         </div>
       ) : (
         <div className="business-results">
-          {visibleResults.map(({ business, alreadyAdded, chance }) => (
+          {visibleResults.map(({ business, alreadyAdded, existingLeadId, chance }) => (
             <BusinessCard
               key={business.placeId}
               business={business}
               chance={chance}
               alreadyAdded={alreadyAdded}
+              existingLeadId={existingLeadId}
               onDetails={setDetails}
               onWhatsApp={openWhatsApp}
               onMessage={onMessage}
@@ -410,7 +417,12 @@ export function SearchLeadsView({
           alreadyAdded={businessAlreadyExists(details, existingLeads)}
           onClose={() => setDetails(null)}
           onWhatsApp={openWhatsApp}
-          onMessage={onMessage}
+          onMessage={(target) =>
+            onMessage({
+              ...target,
+              id: findBusinessDuplicate(details, existingLeads)?.id,
+            })
+          }
           onGeneratePrompt={(item) => {
             setDetails(null);
             onGeneratePrompt(
@@ -437,6 +449,7 @@ function BusinessCard({
   business,
   chance,
   alreadyAdded,
+  existingLeadId,
   onDetails,
   onWhatsApp,
   onMessage,
@@ -446,6 +459,7 @@ function BusinessCard({
   business: BusinessSearchResult;
   chance: LeadChanceResult;
   alreadyAdded: boolean;
+  existingLeadId?: string;
   onDetails: (business: BusinessSearchResult) => void;
   onWhatsApp: (business: BusinessSearchResult) => void;
   onMessage: (target: SearchMessageTarget) => void;
@@ -525,7 +539,13 @@ function BusinessCard({
             <button
               type="button"
               className="message-button compact-button"
-              onClick={() => onMessage({ company: business.name, phone: business.phone ?? "" })}
+              onClick={() =>
+                onMessage({
+                  id: existingLeadId,
+                  company: business.name,
+                  phone: business.phone ?? "",
+                })
+              }
             >
               <MessageCircle size={14} />
               Mandar mensagem
