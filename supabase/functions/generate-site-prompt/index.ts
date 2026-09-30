@@ -10,8 +10,92 @@ type PromptObjective =
   | "IA decidir";
 
 
+type StructuralVisualDNA = {
+  hero: {
+    relativeHeight: "compact" | "medium" | "high" | "tall" | "unknown";
+    dominantAxis: "left" | "center" | "right" | "split" | "mixed" | "unknown";
+    contentPosition:
+      | "left"
+      | "center"
+      | "center_left"
+      | "center_right"
+      | "split"
+      | "mixed"
+      | "unknown";
+    headlineDominance: "low" | "medium" | "high" | "very_high" | "unknown";
+    layering:
+      | "flat"
+      | "stacked"
+      | "vertical_layers"
+      | "overlap"
+      | "layered_overlap"
+      | "mixed"
+      | "unknown";
+    negativeSpace: "low" | "medium" | "high" | "unknown";
+    imageRelationship: string;
+    supportingInfoPosition: string;
+  };
+  typography: {
+    headlineToBodyContrast: "low" | "medium" | "high" | "extreme" | "unknown";
+    headlineWidth: "narrow" | "medium" | "wide" | "unknown";
+    bodyDensity: "low" | "medium" | "compact" | "unknown";
+    microTypography: "absent" | "present" | "unknown";
+    heroAlignment: "left" | "center" | "right" | "mixed" | "unknown";
+    contentAlignment:
+      | "left"
+      | "center"
+      | "right"
+      | "alternating"
+      | "mixed"
+      | "unknown";
+  };
+  layout: {
+    symmetry: "symmetric" | "asymmetric" | "mixed" | "unknown";
+    gridBehavior:
+      | "rigid"
+      | "fluid"
+      | "controlled_breaks"
+      | "overlapping"
+      | "mixed"
+      | "unknown";
+    sectionAlignmentPattern: string;
+    contentWidthPattern: string;
+    overlaps: string;
+    elementsBreakingGrid: string;
+  };
+  sectionFlow: {
+    backgroundSequence: string[];
+    transitionFrequency: "none" | "single" | "few" | "repeated" | "unknown";
+    transitionTypes: string[];
+    densityPattern: string[];
+  };
+  cta: {
+    quantity: "low" | "medium" | "high" | "unknown";
+    hierarchy:
+      | "single_dominant_action"
+      | "primary_secondary"
+      | "distributed"
+      | "unknown";
+    placement: string;
+    shape: string;
+    relativeScale: "small" | "medium" | "large" | "unknown";
+  };
+  decorativeSystem: {
+    amount: "none" | "low" | "low_to_medium" | "medium" | "high" | "unknown";
+    recurringMotifs: string[];
+    texture: "none" | "subtle" | "pronounced" | "mixed" | "unknown";
+  };
+  imagery: {
+    role: "structural" | "supporting" | "decorative" | "absent" | "mixed" | "unknown";
+    cropStrategy: string;
+    placementPattern: string;
+    textImageRelationship: string;
+  };
+};
+
 type VisualReferenceAnalysis = {
   overallDirection: string;
+  structuralVisualDNA?: StructuralVisualDNA;
   composition: {
     hero: string;
     grid: string;
@@ -357,6 +441,76 @@ function limitedStrings(value: unknown, maxItems = 8, maxLength = 900) {
   );
 }
 
+function isValidStructuralVisualDNA(value: unknown): value is StructuralVisualDNA {
+  if (!value || typeof value !== "object") return false;
+  const dna = value as Record<string, unknown>;
+  const hero = dna.hero as Record<string, unknown> | null;
+  const typography = dna.typography as Record<string, unknown> | null;
+  const layout = dna.layout as Record<string, unknown> | null;
+  const sectionFlow = dna.sectionFlow as Record<string, unknown> | null;
+  const cta = dna.cta as Record<string, unknown> | null;
+  const decorative = dna.decorativeSystem as Record<string, unknown> | null;
+  const imagery = dna.imagery as Record<string, unknown> | null;
+
+  const text = (target: Record<string, unknown> | null, key: string) =>
+    Boolean(
+      target &&
+        typeof target[key] === "string" &&
+        (target[key] as string).trim().length > 0 &&
+        (target[key] as string).length <= 500,
+    );
+  const stringList = (
+    target: Record<string, unknown> | null,
+    key: string,
+    max: number,
+  ) =>
+    Boolean(
+      target &&
+        Array.isArray(target[key]) &&
+        (target[key] as unknown[]).length <= max &&
+        (target[key] as unknown[]).every(
+          (item) =>
+            typeof item === "string" &&
+            item.trim().length > 0 &&
+            item.length <= 120,
+        ),
+    );
+
+  return Boolean(
+    hero &&
+      ["relativeHeight", "dominantAxis", "contentPosition", "headlineDominance", "layering", "negativeSpace"].every(
+        (key) => text(hero, key),
+      ) &&
+      text(hero, "imageRelationship") &&
+      text(hero, "supportingInfoPosition") &&
+      typography &&
+      ["headlineToBodyContrast", "headlineWidth", "bodyDensity", "microTypography", "heroAlignment", "contentAlignment"].every(
+        (key) => text(typography, key),
+      ) &&
+      layout &&
+      ["symmetry", "gridBehavior", "sectionAlignmentPattern", "contentWidthPattern", "overlaps", "elementsBreakingGrid"].every(
+        (key) => text(layout, key),
+      ) &&
+      sectionFlow &&
+      text(sectionFlow, "transitionFrequency") &&
+      stringList(sectionFlow, "backgroundSequence", 5) &&
+      stringList(sectionFlow, "transitionTypes", 4) &&
+      stringList(sectionFlow, "densityPattern", 5) &&
+      cta &&
+      ["quantity", "hierarchy", "placement", "shape", "relativeScale"].every(
+        (key) => text(cta, key),
+      ) &&
+      decorative &&
+      text(decorative, "amount") &&
+      text(decorative, "texture") &&
+      stringList(decorative, "recurringMotifs", 5) &&
+      imagery &&
+      ["role", "cropStrategy", "placementPattern", "textImageRelationship"].every(
+        (key) => text(imagery, key),
+      )
+  );
+}
+
 function isValidVisualReferenceAnalysis(
   value: unknown,
 ): value is VisualReferenceAnalysis {
@@ -396,7 +550,9 @@ function isValidVisualReferenceAnalysis(
       limitedStrings(analysis.meaningfulDifferences) &&
       limitedStrings(analysis.conflicts) &&
       limitedStrings(analysis.visualMechanismsToReuse) &&
-      limitedStrings(analysis.avoidCopying)
+      limitedStrings(analysis.avoidCopying) &&
+      (analysis.structuralVisualDNA === undefined ||
+        isValidStructuralVisualDNA(analysis.structuralVisualDNA))
   );
 }
 
@@ -562,34 +718,537 @@ REFERÊNCIAS VISUAIS OPCIONAIS
 - Não converta observações como "Hero 60/40" em medida rígida; traduza para lógica compositiva adaptativa.
 - Se houver conflitos entre referências, escolha uma direção coerente em vez de misturar tudo.
 - Faça a influência aparecer de forma concreta principalmente em visualDirection, sections e lovablePrompt.
+- structuralVisualDNA é a fonte primária para decisões ESTRUTURAIS; qualitativeDirection e evidências textuais explicam contexto e intenção.
+- Traduza o DNA em instruções concretas. Prefira "Hero alta, eixo central dominante, headline de alta dominância e informação secundária em camada inferior" a "Hero impactante".
+- Preserve explicitamente alinhamento, grid, escala relativa, ritmo, sobreposição, mudanças de fundo, transições e hierarquia de CTA quando estiverem presentes.
+- Valores "unknown" ou campos ausentes NÃO autorizam inferência. Não invente precisão.
+- Se a referência usa fotografia mas a empresa não possui imagem real confirmada, preserve o MECANISMO (protagonismo, camada, contraste, posição) usando tipografia, informação ou geometria; nunca invente a foto.
+- Uma decisão estrutural sustentada pela referência pode superar alertas anti-template genéricos, desde que continue adequada aos dados reais e não copie o layout literalmente.
 - Em "## Direção visual" do lovablePrompt, explicite os mecanismos que devem orientar a implementação e por que funcionam para ESTA empresa.
 - Em "## Estrutura sugerida", permita que a análise visual altere ritmo, densidade, alternância e composição das seções, sem inventar conteúdo comercial.
+- Não despeje o JSON no prompt final. Converta-o em poucas instruções estruturais de alta informação.
 `;
+
+function compactText(value: string, max = 360) {
+  return value.replace(/\s+/g, " ").trim().slice(0, max);
+}
+
+function normalized(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function containsAny(value: string, terms: string[]) {
+  const text = normalized(value);
+  return terms.some((term) => text.includes(normalized(term)));
+}
+
+const STRUCTURAL_KEYWORDS: Array<[string, number]> = [
+  ["hero", 16],
+  ["compos", 14],
+  ["grid", 13],
+  ["alinh", 13],
+  ["eixo", 13],
+  ["axis", 13],
+  ["hierar", 12],
+  ["headline", 12],
+  ["tipograf", 11],
+  ["escala", 11],
+  ["ritm", 11],
+  ["transi", 11],
+  ["section", 10],
+  ["secao", 10],
+  ["fundo", 9],
+  ["background", 9],
+  ["sobrepos", 10],
+  ["overlap", 10],
+  ["romp", 9],
+  ["invad", 9],
+  ["espaco negativo", 9],
+  ["respiro", 8],
+  ["imagem", 8],
+  ["foto", 8],
+  ["cta", 8],
+  ["bot", 8],
+  ["navega", 7],
+  ["assim", 7],
+  ["largura", 7],
+  ["dens", 7],
+  ["circul", 4],
+  ["curva", 6],
+  ["textur", 4],
+  ["borda", 3],
+  ["card", 2],
+];
+
+function structuralScore(value: string, sourceBoost = 0) {
+  const text = normalized(value);
+  let score = sourceBoost;
+  for (const [term, weight] of STRUCTURAL_KEYWORDS) {
+    if (text.includes(term)) score += weight;
+  }
+  return score;
+}
+
+function selectRelevant(
+  values: string[],
+  limit: number,
+  sourceBoost = 0,
+  maxLength = 360,
+) {
+  const seen = new Set<string>();
+  return values
+    .map((value, index) => ({
+      value: compactText(value, maxLength),
+      score: structuralScore(value, sourceBoost),
+      index,
+    }))
+    .filter((item) => {
+      if (!item.value) return false;
+      const key = normalized(item.value);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .slice(0, limit)
+    .map((item) => item.value);
+}
+
+function legacyStructuralVisualDNA(
+  analysis: VisualReferenceAnalysis,
+): StructuralVisualDNA {
+  const heroText = [
+    analysis.composition.hero,
+    analysis.composition.grid,
+    analysis.composition.alignment,
+    analysis.composition.density,
+    analysis.typography.scale,
+    analysis.typography.alignment,
+  ].join(" ");
+  const flowText = [
+    analysis.composition.sectionRhythm,
+    ...analysis.commonPatterns,
+    ...analysis.meaningfulDifferences,
+    ...analysis.visualMechanismsToReuse,
+  ].join(" ");
+  const interfaceText = [
+    analysis.interface.buttons,
+    analysis.interface.navigation,
+    ...analysis.commonPatterns,
+  ].join(" ");
+  const imageryText = [
+    analysis.imagery.usage,
+    analysis.imagery.crop,
+    analysis.imagery.placement,
+    analysis.composition.hero,
+  ].join(" ");
+  const allText = [
+    heroText,
+    flowText,
+    interfaceText,
+    imageryText,
+    analysis.interface.borders,
+    analysis.interface.cards,
+  ].join(" ");
+
+  const heroCenter = containsAny(heroText, [
+    "eixo central",
+    "centro como eixo",
+    "centralizada",
+    "centralizado",
+  ]);
+  const lateralAlternation = containsAny(flowText, [
+    "alternam de lado",
+    "alternancia lateral",
+    "zigue-zague",
+    "zig zag",
+  ]);
+  const hasLayering = containsAny(heroText, [
+    "camadas",
+    "estratificada",
+    "layer",
+  ]);
+  const hasOverlap = containsAny(allText, [
+    "sobrepos",
+    "invadir a fronteira",
+    "avanca sobre o limite",
+    "ultrapass",
+    "primeiro plano",
+  ]);
+  const highNegativeSpace = containsAny(heroText, [
+    "ampla area negativa",
+    "amplo espaco negativo",
+    "ampla area de respiro",
+    "amplo respiro",
+  ]);
+  const hasMicro = containsAny(analysis.typography.scale, ["microtipografia"]);
+  const largeType = containsAny(
+    [analysis.typography.scale, analysis.typography.hierarchy].join(" "),
+    ["escala grande", "grande presenca", "muito grande", "dominante"],
+  );
+  const curves = containsAny(flowText, ["curva"]);
+  const fieldChanges = containsAny(flowText, [
+    "mudancas de tonalidade",
+    "alternancia de fundos",
+    "campos de cor",
+    "fundos claros",
+    "fundos quentes",
+  ]);
+  const fewCtas = containsAny(interfaceText, ["unico cta", "poucos ctas"]);
+  const capsule = containsAny(analysis.interface.buttons, [
+    "capsula",
+    "pill",
+    "arredondado",
+  ]);
+  const circles = containsAny(allText, ["circulo", "circulares", "arcos"]);
+  const dots = containsAny(allText, ["pontilh", "pontos"]);
+  const subtleTexture = containsAny(allText, [
+    "baixo contraste",
+    "baixa opacidade",
+    "textura discreta",
+    "sutil",
+  ]);
+  const imageStructural = containsAny(analysis.imagery.usage, [
+    "papel estrutural",
+    "estrutural",
+  ]);
+  const circularCrop = containsAny(analysis.imagery.crop, ["circular"]);
+  const cutout = containsAny(analysis.imagery.crop, ["recort"]);
+  const fullWidth = containsAny(
+    [analysis.imagery.placement, analysis.composition.hero].join(" "),
+    ["largura total", "largura inteira", "full width"],
+  );
+
+  const backgroundSequence: string[] = [];
+  if (containsAny(flowText, ["contraste fotografico", "abertura usa contraste fotografico"])) {
+    backgroundSequence.push("photographic_opening");
+  }
+  if (containsAny(flowText, ["fundos claros e quentes", "painel grafico", "fundos internos"])) {
+    backgroundSequence.push("warm_graphic_fields");
+  }
+  if (containsAny(flowText, ["campo branco", "fechamento utilitario", "final reduz imagens"])) {
+    backgroundSequence.push("light_utility_close");
+  }
+
+  const transitionTypes: string[] = [];
+  if (curves) transitionTypes.push("large_curve");
+  if (fieldChanges) transitionTypes.push("solid_field_change");
+
+  const densityPattern: string[] = [];
+  if (containsAny(heroText, ["impacto no terco superior", "concentra impacto"])) {
+    densityPattern.push("impact_concentrated");
+  }
+  if (highNegativeSpace) densityPattern.push("spacious_release");
+  if (containsAny(flowText, ["intercala trechos densos", "densidade variavel"])) {
+    densityPattern.push("alternating_density");
+  }
+
+  const motifs: string[] = [];
+  if (circles) motifs.push("outline_circles");
+  if (dots) motifs.push("dot_pattern");
+  if (curves) motifs.push("large_curves");
+  if (containsAny(allText, ["contornos finos", "linhas curvas"])) {
+    motifs.push("thin_outlines");
+  }
+
+  return {
+    hero: {
+      relativeHeight:
+        highNegativeSpace && containsAny(heroText, ["vertical"])
+          ? "high"
+          : "unknown",
+      dominantAxis: heroCenter
+        ? "center"
+        : containsAny(heroText, ["split", "dividida"])
+          ? "split"
+          : "unknown",
+      contentPosition: heroCenter ? "center" : "unknown",
+      headlineDominance:
+        hasMicro && largeType ? "very_high" : largeType ? "high" : "unknown",
+      layering:
+        hasLayering && hasOverlap
+          ? "layered_overlap"
+          : hasLayering
+            ? "vertical_layers"
+            : hasOverlap
+              ? "overlap"
+              : "unknown",
+      negativeSpace: highNegativeSpace
+        ? "high"
+        : containsAny(heroText, ["respiro", "espaco negativo"])
+          ? "medium"
+          : "unknown",
+      imageRelationship:
+        imageStructural && hasOverlap
+          ? "context_background_with_foreground_subject_crossing_layers"
+          : imageStructural
+            ? "image_is_structural"
+            : "unknown",
+      supportingInfoPosition: containsAny(heroText, ["abaixo", "inferior"])
+        ? "below_primary_impact"
+        : "unknown",
+    },
+    typography: {
+      headlineToBodyContrast:
+        hasMicro && largeType
+          ? "extreme"
+          : containsAny(analysis.typography.scale, ["contraste forte", "grande"])
+            ? "high"
+            : "unknown",
+      headlineWidth: containsAny(
+        [analysis.typography.scale, analysis.typography.hierarchy].join(" "),
+        ["larga", "wide", "grande parte da largura"],
+      )
+        ? "wide"
+        : "unknown",
+      bodyDensity: containsAny(analysis.typography.hierarchy, [
+        "paragrafos menores",
+        "compact",
+      ])
+        ? "compact"
+        : "unknown",
+      microTypography: hasMicro ? "present" : "unknown",
+      heroAlignment: heroCenter ? "center" : "unknown",
+      contentAlignment: lateralAlternation
+        ? "alternating"
+        : heroCenter &&
+            containsAny(analysis.typography.alignment, ["lateral"])
+          ? "mixed"
+          : "unknown",
+    },
+    layout: {
+      symmetry: heroCenter && lateralAlternation
+        ? "mixed"
+        : containsAny(allText, ["assimetr"])
+          ? "asymmetric"
+          : "unknown",
+      gridBehavior: containsAny(allText, [
+        "extrapol",
+        "fora do quadro",
+        "rompe",
+      ])
+        ? "controlled_breaks"
+        : hasOverlap
+          ? "overlapping"
+          : "unknown",
+      sectionAlignmentPattern:
+        heroCenter && lateralAlternation
+          ? "hero_center_then_alternating_lateral"
+          : heroCenter
+            ? "hero_center_dominant"
+            : "unknown",
+      contentWidthPattern:
+        fullWidth && containsAny(flowText, ["blocos", "texto"])
+          ? "full_width_context_then_constrained_content"
+          : "unknown",
+      overlaps: hasOverlap ? "foreground_crosses_section_boundary" : "unknown",
+      elementsBreakingGrid: containsAny(allText, [
+        "extrapol",
+        "fora do quadro",
+        "ultrapass",
+      ])
+        ? "protagonist_or_contours_extend_beyond_content_bounds"
+        : "unknown",
+    },
+    sectionFlow: {
+      backgroundSequence,
+      transitionFrequency: curves
+        ? containsAny(flowText, ["transicoes", "entre secoes", "mudancas"])
+          ? "few"
+          : "single"
+        : fieldChanges
+          ? "few"
+          : "unknown",
+      transitionTypes,
+      densityPattern,
+    },
+    cta: {
+      quantity: fewCtas ? "low" : "unknown",
+      hierarchy: containsAny(interfaceText, ["unico cta"])
+        ? "single_dominant_action"
+        : fewCtas
+          ? "primary_secondary"
+          : "unknown",
+      placement: containsAny(interfaceText, ["momentos de decisao"])
+        ? "decision_points"
+        : "unknown",
+      shape: capsule ? "wide_capsule" : "unknown",
+      relativeScale: "unknown",
+    },
+    decorativeSystem: {
+      amount:
+        (circles || dots || curves) && subtleTexture
+          ? "low_to_medium"
+          : circles || dots || curves
+            ? "medium"
+            : "unknown",
+      recurringMotifs: motifs.slice(0, 5),
+      texture: subtleTexture
+        ? "subtle"
+        : containsAny(allText, ["textura", "pattern"])
+          ? "pronounced"
+          : "unknown",
+    },
+    imagery: {
+      role: imageStructural ? "structural" : "unknown",
+      cropStrategy:
+        cutout && circularCrop
+          ? "foreground_cutout_plus_circular_crops"
+          : cutout
+            ? "foreground_cutout"
+            : "unknown",
+      placementPattern:
+        fullWidth && hasOverlap
+          ? "full_width_context_with_overlapping_foreground"
+          : fullWidth
+            ? "full_width_context"
+            : "unknown",
+      textImageRelationship:
+        imageStructural && hasOverlap
+          ? "message_layered_between_context_and_foreground_subject"
+          : imageStructural
+            ? "text_and_image_share_primary_hierarchy"
+            : "unknown",
+    },
+  };
+}
+
+function compactStructuralDNA(dna: StructuralVisualDNA) {
+  const clean = (value: string, max = 160) =>
+    value === "unknown" ? undefined : compactText(value, max);
+  const cleanArray = (values: string[], max = 5) =>
+    values
+      .filter((value) => value && value !== "unknown")
+      .slice(0, max)
+      .map((value) => compactText(value, 90));
+
+  return {
+    hero: {
+      relativeHeight: clean(dna.hero.relativeHeight),
+      dominantAxis: clean(dna.hero.dominantAxis),
+      contentPosition: clean(dna.hero.contentPosition),
+      headlineDominance: clean(dna.hero.headlineDominance),
+      layering: clean(dna.hero.layering),
+      negativeSpace: clean(dna.hero.negativeSpace),
+      imageRelationship: clean(dna.hero.imageRelationship, 220),
+      supportingInfoPosition: clean(dna.hero.supportingInfoPosition, 160),
+    },
+    typography: {
+      headlineToBodyContrast: clean(dna.typography.headlineToBodyContrast),
+      headlineWidth: clean(dna.typography.headlineWidth),
+      bodyDensity: clean(dna.typography.bodyDensity),
+      microTypography: clean(dna.typography.microTypography),
+      heroAlignment: clean(dna.typography.heroAlignment),
+      contentAlignment: clean(dna.typography.contentAlignment),
+    },
+    layout: {
+      symmetry: clean(dna.layout.symmetry),
+      gridBehavior: clean(dna.layout.gridBehavior),
+      sectionAlignmentPattern: clean(dna.layout.sectionAlignmentPattern, 200),
+      contentWidthPattern: clean(dna.layout.contentWidthPattern, 200),
+      overlaps: clean(dna.layout.overlaps, 200),
+      elementsBreakingGrid: clean(dna.layout.elementsBreakingGrid, 200),
+    },
+    sectionFlow: {
+      backgroundSequence: cleanArray(dna.sectionFlow.backgroundSequence),
+      transitionFrequency: clean(dna.sectionFlow.transitionFrequency),
+      transitionTypes: cleanArray(dna.sectionFlow.transitionTypes, 4),
+      densityPattern: cleanArray(dna.sectionFlow.densityPattern),
+    },
+    cta: {
+      quantity: clean(dna.cta.quantity),
+      hierarchy: clean(dna.cta.hierarchy),
+      placement: clean(dna.cta.placement, 160),
+      shape: clean(dna.cta.shape, 120),
+      relativeScale: clean(dna.cta.relativeScale),
+    },
+    decorativeSystem: {
+      amount: clean(dna.decorativeSystem.amount),
+      recurringMotifs: cleanArray(dna.decorativeSystem.recurringMotifs),
+      texture: clean(dna.decorativeSystem.texture),
+    },
+    imagery: {
+      role: clean(dna.imagery.role),
+      cropStrategy: clean(dna.imagery.cropStrategy, 160),
+      placementPattern: clean(dna.imagery.placementPattern, 200),
+      textImageRelationship: clean(dna.imagery.textImageRelationship, 200),
+    },
+  };
+}
+
+function compactInterfaceSignals(analysis: VisualReferenceAnalysis) {
+  const candidates = [
+    ["buttons", analysis.interface.buttons, 9],
+    ["navigation", analysis.interface.navigation, 8],
+    ["borders", analysis.interface.borders, 3],
+    ["cards", analysis.interface.cards, 2],
+  ] as const;
+
+  return Object.fromEntries(
+    candidates
+      .map(([key, value, boost]) => ({
+        key,
+        value: compactText(value, 280),
+        score: structuralScore(value, boost),
+      }))
+      .filter((item) => item.value && item.score >= 8)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 4)
+      .map((item) => [item.key, item.value]),
+  );
+}
 
 function compactVisualReferenceAnalysis(
   analysis: VisualReferenceAnalysis | null,
 ) {
   if (!analysis) return null;
 
+  const dna =
+    analysis.structuralVisualDNA && isValidStructuralVisualDNA(analysis.structuralVisualDNA)
+      ? analysis.structuralVisualDNA
+      : legacyStructuralVisualDNA(analysis);
+
   return {
-    overallDirection: analysis.overallDirection,
-    hero: analysis.composition.hero,
-    grid: analysis.composition.grid,
-    density: analysis.composition.density,
-    sectionRhythm: analysis.composition.sectionRhythm,
-    typography: {
-      style: analysis.typography.style,
-      hierarchy: analysis.typography.hierarchy,
-      scale: analysis.typography.scale,
+    qualitativeDirection: compactText(analysis.overallDirection, 420),
+    structuralVisualDNA: compactStructuralDNA(dna),
+    structuralDNASource: analysis.structuralVisualDNA
+      ? "native"
+      : "derived_from_legacy_analysis",
+    compositionEvidence: {
+      hero: compactText(analysis.composition.hero, 360),
+      alignment: compactText(analysis.composition.alignment, 280),
+      grid: compactText(analysis.composition.grid, 320),
+      sectionRhythm: compactText(analysis.composition.sectionRhythm, 320),
     },
-    imagery: {
-      usage: analysis.imagery.usage,
-      placement: analysis.imagery.placement,
+    typographyEvidence: {
+      hierarchy: compactText(analysis.typography.hierarchy, 280),
+      scale: compactText(analysis.typography.scale, 260),
+      alignment: compactText(analysis.typography.alignment, 240),
     },
-    commonPatterns: analysis.commonPatterns.slice(0, 4),
-    conflicts: analysis.conflicts.slice(0, 3),
-    mechanismsToAdapt: analysis.visualMechanismsToReuse.slice(0, 6),
-    elementsNotToCopy: analysis.avoidCopying.slice(0, 4),
+    imageryEvidence: {
+      usage: compactText(analysis.imagery.usage, 260),
+      crop: compactText(analysis.imagery.crop, 220),
+      placement: compactText(analysis.imagery.placement, 240),
+    },
+    interfaceSignals: compactInterfaceSignals(analysis),
+    priorityPatterns: selectRelevant(analysis.commonPatterns, 5, 2, 300),
+    meaningfulDifferences: selectRelevant(
+      analysis.meaningfulDifferences,
+      4,
+      4,
+      300,
+    ),
+    conflicts: selectRelevant(analysis.conflicts, 3, 3, 280),
+    mechanismsToAdapt: selectRelevant(
+      analysis.visualMechanismsToReuse,
+      6,
+      5,
+      320,
+    ),
+    elementsNotToCopy: selectRelevant(analysis.avoidCopying, 3, 0, 260),
   };
 }
 
@@ -823,7 +1482,7 @@ Deno.serve(async (request) => {
       "Mantenha direção forte sem prescrever pixels, frações de grid, fontes exatas ou numeração sem necessidade.",
       ...(input.visualReferenceAnalysis
         ? [
-            "Use visualReferenceAnalysis para tornar composição, hierarquia, tipografia, ritmo, densidade, tratamento de imagens e estrutura mais específicos. Reaproveite os mecanismos, nunca o conteúdo ou layout literal das referências.",
+            "Use structuralVisualDNA como resumo estrutural primário da referência. Converta eixo, alinhamento, layering, escala, ritmo, transições, CTAs, sobreposições e distribuição em instruções concretas. Use as evidências qualitativas apenas para contexto. Reaproveite mecanismos, nunca conteúdo ou layout literal.",
           ]
         : []),
     ],

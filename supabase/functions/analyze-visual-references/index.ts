@@ -5,8 +5,92 @@ type OpenAIResponse = {
   }>;
 };
 
+type StructuralVisualDNA = {
+  hero: {
+    relativeHeight: "compact" | "medium" | "high" | "tall" | "unknown";
+    dominantAxis: "left" | "center" | "right" | "split" | "mixed" | "unknown";
+    contentPosition:
+      | "left"
+      | "center"
+      | "center_left"
+      | "center_right"
+      | "split"
+      | "mixed"
+      | "unknown";
+    headlineDominance: "low" | "medium" | "high" | "very_high" | "unknown";
+    layering:
+      | "flat"
+      | "stacked"
+      | "vertical_layers"
+      | "overlap"
+      | "layered_overlap"
+      | "mixed"
+      | "unknown";
+    negativeSpace: "low" | "medium" | "high" | "unknown";
+    imageRelationship: string;
+    supportingInfoPosition: string;
+  };
+  typography: {
+    headlineToBodyContrast: "low" | "medium" | "high" | "extreme" | "unknown";
+    headlineWidth: "narrow" | "medium" | "wide" | "unknown";
+    bodyDensity: "low" | "medium" | "compact" | "unknown";
+    microTypography: "absent" | "present" | "unknown";
+    heroAlignment: "left" | "center" | "right" | "mixed" | "unknown";
+    contentAlignment:
+      | "left"
+      | "center"
+      | "right"
+      | "alternating"
+      | "mixed"
+      | "unknown";
+  };
+  layout: {
+    symmetry: "symmetric" | "asymmetric" | "mixed" | "unknown";
+    gridBehavior:
+      | "rigid"
+      | "fluid"
+      | "controlled_breaks"
+      | "overlapping"
+      | "mixed"
+      | "unknown";
+    sectionAlignmentPattern: string;
+    contentWidthPattern: string;
+    overlaps: string;
+    elementsBreakingGrid: string;
+  };
+  sectionFlow: {
+    backgroundSequence: string[];
+    transitionFrequency: "none" | "single" | "few" | "repeated" | "unknown";
+    transitionTypes: string[];
+    densityPattern: string[];
+  };
+  cta: {
+    quantity: "low" | "medium" | "high" | "unknown";
+    hierarchy:
+      | "single_dominant_action"
+      | "primary_secondary"
+      | "distributed"
+      | "unknown";
+    placement: string;
+    shape: string;
+    relativeScale: "small" | "medium" | "large" | "unknown";
+  };
+  decorativeSystem: {
+    amount: "none" | "low" | "low_to_medium" | "medium" | "high" | "unknown";
+    recurringMotifs: string[];
+    texture: "none" | "subtle" | "pronounced" | "mixed" | "unknown";
+  };
+  imagery: {
+    role: "structural" | "supporting" | "decorative" | "absent" | "mixed" | "unknown";
+    cropStrategy: string;
+    placementPattern: string;
+    textImageRelationship: string;
+  };
+};
+
 type VisualAnalysis = {
   overallDirection: string;
+  structuralVisualDNA?: StructuralVisualDNA;
   composition: {
     hero: string;
     grid: string;
@@ -249,6 +333,76 @@ function stringArray(value: unknown, max = 8) {
     value.every((item) => typeof item === "string" && item.trim().length > 0);
 }
 
+function isValidStructuralVisualDNA(value: unknown): value is StructuralVisualDNA {
+  if (!value || typeof value !== "object") return false;
+  const dna = value as Record<string, unknown>;
+  const hero = dna.hero as Record<string, unknown> | null;
+  const typography = dna.typography as Record<string, unknown> | null;
+  const layout = dna.layout as Record<string, unknown> | null;
+  const sectionFlow = dna.sectionFlow as Record<string, unknown> | null;
+  const cta = dna.cta as Record<string, unknown> | null;
+  const decorative = dna.decorativeSystem as Record<string, unknown> | null;
+  const imagery = dna.imagery as Record<string, unknown> | null;
+
+  const text = (target: Record<string, unknown> | null, key: string) =>
+    Boolean(
+      target &&
+        typeof target[key] === "string" &&
+        (target[key] as string).trim().length > 0 &&
+        (target[key] as string).length <= 500,
+    );
+  const stringList = (
+    target: Record<string, unknown> | null,
+    key: string,
+    max: number,
+  ) =>
+    Boolean(
+      target &&
+        Array.isArray(target[key]) &&
+        (target[key] as unknown[]).length <= max &&
+        (target[key] as unknown[]).every(
+          (item) =>
+            typeof item === "string" &&
+            item.trim().length > 0 &&
+            item.length <= 120,
+        ),
+    );
+
+  return Boolean(
+    hero &&
+      ["relativeHeight", "dominantAxis", "contentPosition", "headlineDominance", "layering", "negativeSpace"].every(
+        (key) => text(hero, key),
+      ) &&
+      text(hero, "imageRelationship") &&
+      text(hero, "supportingInfoPosition") &&
+      typography &&
+      ["headlineToBodyContrast", "headlineWidth", "bodyDensity", "microTypography", "heroAlignment", "contentAlignment"].every(
+        (key) => text(typography, key),
+      ) &&
+      layout &&
+      ["symmetry", "gridBehavior", "sectionAlignmentPattern", "contentWidthPattern", "overlaps", "elementsBreakingGrid"].every(
+        (key) => text(layout, key),
+      ) &&
+      sectionFlow &&
+      text(sectionFlow, "transitionFrequency") &&
+      stringList(sectionFlow, "backgroundSequence", 5) &&
+      stringList(sectionFlow, "transitionTypes", 4) &&
+      stringList(sectionFlow, "densityPattern", 5) &&
+      cta &&
+      ["quantity", "hierarchy", "placement", "shape", "relativeScale"].every(
+        (key) => text(cta, key),
+      ) &&
+      decorative &&
+      text(decorative, "amount") &&
+      text(decorative, "texture") &&
+      stringList(decorative, "recurringMotifs", 5) &&
+      imagery &&
+      ["role", "cropStrategy", "placementPattern", "textImageRelationship"].every(
+        (key) => text(imagery, key),
+      )
+  );
+}
+
 function isValidAnalysis(value: unknown): value is VisualAnalysis {
   if (!value || typeof value !== "object") return false;
   const analysis = value as Record<string, unknown>;
@@ -279,7 +433,9 @@ function isValidAnalysis(value: unknown): value is VisualAnalysis {
       stringArray(analysis.meaningfulDifferences) &&
       stringArray(analysis.conflicts) &&
       stringArray(analysis.visualMechanismsToReuse) &&
-      stringArray(analysis.avoidCopying),
+      stringArray(analysis.avoidCopying) &&
+      (analysis.structuralVisualDNA === undefined ||
+        isValidStructuralVisualDNA(analysis.structuralVisualDNA)),
   );
 }
 
@@ -288,6 +444,7 @@ const RESPONSE_SCHEMA = {
   additionalProperties: false,
   required: [
     "overallDirection",
+    "structuralVisualDNA",
     "composition",
     "typography",
     "imagery",
@@ -300,6 +457,260 @@ const RESPONSE_SCHEMA = {
   ],
   properties: {
     overallDirection: { type: "string" },
+    structuralVisualDNA: {
+      type: "object",
+      additionalProperties: false,
+      required: [
+        "hero",
+        "typography",
+        "layout",
+        "sectionFlow",
+        "cta",
+        "decorativeSystem",
+        "imagery",
+      ],
+      properties: {
+        hero: {
+          type: "object",
+          additionalProperties: false,
+          required: [
+            "relativeHeight",
+            "dominantAxis",
+            "contentPosition",
+            "headlineDominance",
+            "layering",
+            "negativeSpace",
+            "imageRelationship",
+            "supportingInfoPosition",
+          ],
+          properties: {
+            relativeHeight: {
+              type: "string",
+              enum: ["compact", "medium", "high", "tall", "unknown"],
+            },
+            dominantAxis: {
+              type: "string",
+              enum: ["left", "center", "right", "split", "mixed", "unknown"],
+            },
+            contentPosition: {
+              type: "string",
+              enum: [
+                "left",
+                "center",
+                "center_left",
+                "center_right",
+                "split",
+                "mixed",
+                "unknown",
+              ],
+            },
+            headlineDominance: {
+              type: "string",
+              enum: ["low", "medium", "high", "very_high", "unknown"],
+            },
+            layering: {
+              type: "string",
+              enum: [
+                "flat",
+                "stacked",
+                "vertical_layers",
+                "overlap",
+                "layered_overlap",
+                "mixed",
+                "unknown",
+              ],
+            },
+            negativeSpace: {
+              type: "string",
+              enum: ["low", "medium", "high", "unknown"],
+            },
+            imageRelationship: { type: "string", maxLength: 260 },
+            supportingInfoPosition: { type: "string", maxLength: 180 },
+          },
+        },
+        typography: {
+          type: "object",
+          additionalProperties: false,
+          required: [
+            "headlineToBodyContrast",
+            "headlineWidth",
+            "bodyDensity",
+            "microTypography",
+            "heroAlignment",
+            "contentAlignment",
+          ],
+          properties: {
+            headlineToBodyContrast: {
+              type: "string",
+              enum: ["low", "medium", "high", "extreme", "unknown"],
+            },
+            headlineWidth: {
+              type: "string",
+              enum: ["narrow", "medium", "wide", "unknown"],
+            },
+            bodyDensity: {
+              type: "string",
+              enum: ["low", "medium", "compact", "unknown"],
+            },
+            microTypography: {
+              type: "string",
+              enum: ["absent", "present", "unknown"],
+            },
+            heroAlignment: {
+              type: "string",
+              enum: ["left", "center", "right", "mixed", "unknown"],
+            },
+            contentAlignment: {
+              type: "string",
+              enum: ["left", "center", "right", "alternating", "mixed", "unknown"],
+            },
+          },
+        },
+        layout: {
+          type: "object",
+          additionalProperties: false,
+          required: [
+            "symmetry",
+            "gridBehavior",
+            "sectionAlignmentPattern",
+            "contentWidthPattern",
+            "overlaps",
+            "elementsBreakingGrid",
+          ],
+          properties: {
+            symmetry: {
+              type: "string",
+              enum: ["symmetric", "asymmetric", "mixed", "unknown"],
+            },
+            gridBehavior: {
+              type: "string",
+              enum: [
+                "rigid",
+                "fluid",
+                "controlled_breaks",
+                "overlapping",
+                "mixed",
+                "unknown",
+              ],
+            },
+            sectionAlignmentPattern: { type: "string", maxLength: 220 },
+            contentWidthPattern: { type: "string", maxLength: 220 },
+            overlaps: { type: "string", maxLength: 220 },
+            elementsBreakingGrid: { type: "string", maxLength: 220 },
+          },
+        },
+        sectionFlow: {
+          type: "object",
+          additionalProperties: false,
+          required: [
+            "backgroundSequence",
+            "transitionFrequency",
+            "transitionTypes",
+            "densityPattern",
+          ],
+          properties: {
+            backgroundSequence: {
+              type: "array",
+              maxItems: 5,
+              items: { type: "string", maxLength: 80 },
+            },
+            transitionFrequency: {
+              type: "string",
+              enum: ["none", "single", "few", "repeated", "unknown"],
+            },
+            transitionTypes: {
+              type: "array",
+              maxItems: 4,
+              items: { type: "string", maxLength: 80 },
+            },
+            densityPattern: {
+              type: "array",
+              maxItems: 5,
+              items: { type: "string", maxLength: 80 },
+            },
+          },
+        },
+        cta: {
+          type: "object",
+          additionalProperties: false,
+          required: ["quantity", "hierarchy", "placement", "shape", "relativeScale"],
+          properties: {
+            quantity: {
+              type: "string",
+              enum: ["low", "medium", "high", "unknown"],
+            },
+            hierarchy: {
+              type: "string",
+              enum: [
+                "single_dominant_action",
+                "primary_secondary",
+                "distributed",
+                "unknown",
+              ],
+            },
+            placement: { type: "string", maxLength: 180 },
+            shape: { type: "string", maxLength: 120 },
+            relativeScale: {
+              type: "string",
+              enum: ["small", "medium", "large", "unknown"],
+            },
+          },
+        },
+        decorativeSystem: {
+          type: "object",
+          additionalProperties: false,
+          required: ["amount", "recurringMotifs", "texture"],
+          properties: {
+            amount: {
+              type: "string",
+              enum: [
+                "none",
+                "low",
+                "low_to_medium",
+                "medium",
+                "high",
+                "unknown",
+              ],
+            },
+            recurringMotifs: {
+              type: "array",
+              maxItems: 5,
+              items: { type: "string", maxLength: 80 },
+            },
+            texture: {
+              type: "string",
+              enum: ["none", "subtle", "pronounced", "mixed", "unknown"],
+            },
+          },
+        },
+        imagery: {
+          type: "object",
+          additionalProperties: false,
+          required: [
+            "role",
+            "cropStrategy",
+            "placementPattern",
+            "textImageRelationship",
+          ],
+          properties: {
+            role: {
+              type: "string",
+              enum: [
+                "structural",
+                "supporting",
+                "decorative",
+                "absent",
+                "mixed",
+                "unknown",
+              ],
+            },
+            cropStrategy: { type: "string", maxLength: 180 },
+            placementPattern: { type: "string", maxLength: 220 },
+            textImageRelationship: { type: "string", maxLength: 220 },
+          },
+        },
+      },
+    },
     composition: {
       type: "object",
       additionalProperties: false,
@@ -398,6 +809,16 @@ O QUE ANALISAR
 - bordas, cards e elementos decorativos;
 - alternância entre seções;
 - quando for full page, sequência e ritmo global.
+
+STRUCTURAL VISUAL DNA
+Além da descrição qualitativa, normalize a estrutura observável em structuralVisualDNA.
+- Use categorias relativas; nunca invente pixels, porcentagens ou medidas exatas.
+- Quando algo não puder ser inferido com segurança, use "unknown" ou array vazio.
+- Priorize Hero, eixo dominante, posição do conteúdo, contraste de escala, alinhamento, grid, sobreposição, ritmo, transições, densidade, CTAs e relação texto/imagem.
+- backgroundSequence deve descrever tipos de campo observáveis (por exemplo: photographic_context, warm_flat_field, light_utility_field), não inventar cores ausentes.
+- sectionAlignmentPattern, contentWidthPattern, overlaps e elementos que rompem o grid devem ser frases curtas e estruturais, não adjetivos.
+- O DNA deve representar padrões coerentes quando houver várias referências; diferenças e conflitos continuam nos campos próprios.
+- A orientação explícita do usuário continua tendo prioridade. Se ele pedir somente a Hero, o DNA das demais áreas não deve dominar a recomendação.
 
 MÚLTIPLAS REFERÊNCIAS
 Não misture tudo indiscriminadamente. Identifique padrões em comum, diferenças, conflitos e quais mecanismos combinam de forma coerente.
