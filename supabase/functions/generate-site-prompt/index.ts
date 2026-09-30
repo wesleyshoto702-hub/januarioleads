@@ -1431,7 +1431,7 @@ const RESPONSE_SCHEMA = {
     sections: {
       type: "array",
       minItems: 3,
-      maxItems: 6,
+      maxItems: 8,
       items: {
         type: "object",
         additionalProperties: false,

@@ -32,7 +32,7 @@ export async function getSavedPreview(
   const params = new URLSearchParams();
   params.set(
     "select",
-    "business_key,company,prompt_version,preview_version,preview_spec,generated_at",
+    "business_key,company,prompt_version,preview_version,preview_engine_version,preview_spec,generated_at",
   );
   params.set("business_key", `eq.${businessKey}`);
   params.set("limit", "1");
@@ -48,6 +48,7 @@ export async function getSavedPreview(
     company: string;
     prompt_version: string;
     preview_version: string;
+    preview_engine_version: string | null;
     preview_spec: SavedPreviewRecord["spec"];
     generated_at: string;
   }>;
@@ -60,6 +61,7 @@ export async function getSavedPreview(
     company: row.company,
     promptVersion: row.prompt_version,
     previewVersion: row.preview_version,
+    previewEngineVersion: row.preview_engine_version,
     generatedAt: row.generated_at,
     spec: row.preview_spec,
   };
@@ -83,6 +85,7 @@ export async function savePreview(preview: SavedPreviewRecord) {
         company: preview.company,
         prompt_version: preview.promptVersion,
         preview_version: preview.previewVersion,
+        preview_engine_version: preview.previewEngineVersion ?? null,
         preview_spec: preview.spec,
         generated_at: preview.generatedAt,
         updated_at: new Date().toISOString(),

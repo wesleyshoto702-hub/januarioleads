@@ -4460,12 +4460,14 @@ export function compactPagePlan(plan: ReturnType<typeof buildLandingPagePlan>) {
     primaryAction: {
       kind: plan.primaryAction.kind,
       label: plan.primaryAction.label,
+      href: plan.primaryAction.href,
       reason: plan.primaryAction.reason,
     },
     depth: plan.depth,
     sections: plan.sections.map((section: any) => ({
       type: section.type,
       purpose: section.purpose,
+      priority: section.priority,
       evidence: section.evidence,
       visualRole: section.visualRole,
     })),
@@ -4516,7 +4518,14 @@ export function buildNichePlanningContext(
       primaryAction: {
         kind: primaryAction.kind,
         label: primaryAction.label,
+        href: primaryAction.href,
       },
+      sections: pagePlan.sections.map((section: any) => ({
+        type: section.type,
+        purpose: section.purpose,
+        priority: section.priority,
+        visualRole: section.visualRole,
+      })),
       includedSections: pagePlan.sections.map((section: any) => section.type),
       omittedSections: pagePlan.omittedSections,
     },

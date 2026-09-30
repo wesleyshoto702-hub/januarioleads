@@ -140,7 +140,14 @@ export type GeneratedSitePrompt = {
     primaryAction: {
       kind: string;
       label: string;
+      href: string;
     };
+    sections: Array<{
+      type: string;
+      purpose: string;
+      priority: number;
+      visualRole: string;
+    }>;
     includedSections: string[];
     omittedSections: Array<{
       type: string;

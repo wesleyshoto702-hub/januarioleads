@@ -4,6 +4,8 @@ import type {
   SavedPromptRecord,
 } from "../prompt-generator/types";
 
+export const PREVIEW_ENGINE_VERSION = "2026-09-30.1";
+
 export type PreviewViewport = "desktop" | "mobile";
 
 export type PreviewTheme = {
@@ -36,6 +38,9 @@ export type PreviewSectionKind =
 
 export type PreviewSection = {
   id: string;
+  // New previews bind each visual section to the Page Planner section that
+  // authorized it. Optional keeps already-saved legacy previews compatible.
+  sourceSectionType?: string;
   kind: PreviewSectionKind;
   variant:
     | "text"
@@ -78,6 +83,7 @@ export type SavedPreviewRecord = {
   company: string;
   promptVersion: string;
   previewVersion: string;
+  previewEngineVersion?: string | null;
   generatedAt: string;
   spec: PreviewSpec;
 };
@@ -117,7 +123,8 @@ export function isPreviewCurrent(
   return Boolean(
     preview &&
       prompt &&
-      preview.promptVersion === promptVersionOf(prompt),
+      preview.promptVersion === promptVersionOf(prompt) &&
+      preview.previewEngineVersion === PREVIEW_ENGINE_VERSION,
   );
 }
 

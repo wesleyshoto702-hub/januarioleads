@@ -9,6 +9,47 @@ type PromptObjective =
   | "Levar pessoas ao estabelecimento"
   | "IA decidir";
 
+type VerifiedImage = {
+  url?: string;
+  alt?: string | null;
+  source?: string | null;
+};
+
+type ConfirmedChannels = {
+  whatsappUrl?: string | null;
+  bookingUrl?: string | null;
+  deliveryUrl?: string | null;
+  reservationUrl?: string | null;
+  ecommerceUrl?: string | null;
+  menuUrl?: string | null;
+};
+
+type VerifiedContent = {
+  portfolioImages?: VerifiedImage[];
+  beforeAfterImages?: VerifiedImage[];
+};
+
+type PlannerSection = {
+  type: string;
+  purpose: string;
+  priority: number;
+  visualRole: string;
+};
+
+type PreviewPlanning = {
+  nicheKey: string;
+  family: string;
+  pageDepth: "ESSENTIAL" | "STANDARD" | "RICH";
+  primaryAction: {
+    kind: string;
+    label: string;
+    href: string;
+  };
+  sections: PlannerSection[];
+  includedSections: string[];
+  omittedSections: Array<{ type: string; reason: string }>;
+};
+
 type BusinessContext = {
   key?: string;
   company?: string;
@@ -32,11 +73,9 @@ type BusinessContext = {
   latitude?: number | null;
   longitude?: number | null;
   notes?: string | null;
-  verifiedImages?: Array<{
-    url?: string;
-    alt?: string;
-    source?: string;
-  }>;
+  verifiedImages?: VerifiedImage[];
+  confirmedChannels?: ConfirmedChannels;
+  verifiedContent?: VerifiedContent;
 };
 
 type SavedPrompt = {
@@ -50,6 +89,7 @@ type SavedPrompt = {
 
 type PreviewSection = {
   id: string;
+  sourceSectionType: string;
   kind:
     | "hero"
     | "proof"
@@ -118,6 +158,7 @@ type OpenAIResponse = {
 };
 
 const MODEL = "gpt-5.6-terra";
+const PREVIEW_ENGINE_VERSION = "2026-09-30.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -481,19 +522,56 @@ async function withOfficialWebsiteImages(business: BusinessContext) {
   };
 }
 
+function sanitizeVerifiedImages(value: unknown, maxItems = 20): VerifiedImage[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const image = item as Record<string, unknown>;
+      const url = safeUrl(image.url);
+      if (!url) return null;
+      return {
+        url,
+        alt: textOrNull(image.alt, 200),
+        source: textOrNull(image.source, 300),
+      };
+    })
+    .filter((image): image is { url: string; alt: string | null; source: string | null } =>
+      Boolean(image?.url),
+    )
+    .slice(0, maxItems);
+}
+
+function sanitizeConfirmedChannels(value: unknown): ConfirmedChannels {
+  const channels =
+    value && typeof value === "object"
+      ? (value as Record<string, unknown>)
+      : {};
+  return {
+    whatsappUrl: safeUrl(channels.whatsappUrl),
+    bookingUrl: safeUrl(channels.bookingUrl),
+    deliveryUrl: safeUrl(channels.deliveryUrl),
+    reservationUrl: safeUrl(channels.reservationUrl),
+    ecommerceUrl: safeUrl(channels.ecommerceUrl),
+    menuUrl: safeUrl(channels.menuUrl),
+  };
+}
+
+function sanitizeVerifiedContent(value: unknown): VerifiedContent {
+  const content =
+    value && typeof value === "object"
+      ? (value as Record<string, unknown>)
+      : {};
+  return {
+    portfolioImages: sanitizeVerifiedImages(content.portfolioImages, 20),
+    beforeAfterImages: sanitizeVerifiedImages(content.beforeAfterImages, 20),
+  };
+}
+
 function sanitizeBusiness(input: BusinessContext): BusinessContext {
-  const verifiedImages = Array.isArray(input.verifiedImages)
-    ? input.verifiedImages
-        .map((image) => ({
-          url: safeUrl(image?.url),
-          alt: textOrNull(image?.alt, 200),
-          source: textOrNull(image?.source, 300),
-        }))
-        .filter((image): image is { url: string; alt: string | null; source: string | null } =>
-          Boolean(image.url),
-        )
-        .slice(0, 12)
-    : [];
+  const verifiedImages = sanitizeVerifiedImages(input.verifiedImages, 12);
+  const confirmedChannels = sanitizeConfirmedChannels(input.confirmedChannels);
+  const verifiedContent = sanitizeVerifiedContent(input.verifiedContent);
 
   return {
     key: textOrNull(input.key, 500),
@@ -519,6 +597,8 @@ function sanitizeBusiness(input: BusinessContext): BusinessContext {
     longitude: typeof input.longitude === "number" ? input.longitude : null,
     notes: null,
     verifiedImages,
+    confirmedChannels,
+    verifiedContent,
   };
 }
 
@@ -562,6 +642,91 @@ function validateInput(value: unknown) {
   };
 }
 
+function canonicalSectionType(value: unknown) {
+  return typeof value === "string"
+    ? value
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9_]+/g, "_")
+        .replace(/^_+|_+$/g, "")
+        .slice(0, 80)
+    : "";
+}
+
+function sanitizePreviewPlanning(result: Record<string, unknown>): PreviewPlanning | null {
+  const raw =
+    result.planning && typeof result.planning === "object"
+      ? (result.planning as Record<string, unknown>)
+      : null;
+  if (!raw || !Array.isArray(raw.sections) || raw.sections.length === 0) {
+    // Legacy prompts (including early v15 records) keep the old Preview path.
+    return null;
+  }
+
+  const pageDepth =
+    raw.pageDepth === "ESSENTIAL" ||
+    raw.pageDepth === "STANDARD" ||
+    raw.pageDepth === "RICH"
+      ? raw.pageDepth
+      : null;
+  if (!pageDepth) return null;
+
+  const sections = raw.sections
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const section = item as Record<string, unknown>;
+      const type = canonicalSectionType(section.type);
+      const purpose = textOrNull(section.purpose, 500);
+      const visualRole = textOrNull(section.visualRole, 120);
+      const priority =
+        typeof section.priority === "number" && Number.isFinite(section.priority)
+          ? Math.max(0, Math.min(100, section.priority))
+          : null;
+      if (!type || !purpose || !visualRole || priority === null) return null;
+      return { type, purpose, priority, visualRole };
+    })
+    .filter((item): item is PlannerSection => Boolean(item))
+    .slice(0, 8);
+
+  if (sections.length === 0) return null;
+
+  const primary =
+    raw.primaryAction && typeof raw.primaryAction === "object"
+      ? (raw.primaryAction as Record<string, unknown>)
+      : {};
+  const primaryAction = {
+    kind: textOrNull(primary.kind, 60) ?? "none",
+    label: textOrNull(primary.label, 100) ?? "",
+    href: textOrNull(primary.href, 1200) ?? "",
+  };
+
+  const omittedSections = Array.isArray(raw.omittedSections)
+    ? raw.omittedSections
+        .map((item) => {
+          if (!item || typeof item !== "object") return null;
+          const omitted = item as Record<string, unknown>;
+          const type = canonicalSectionType(omitted.type);
+          if (!type) return null;
+          return {
+            type,
+            reason: textOrNull(omitted.reason, 500) ?? "",
+          };
+        })
+        .filter((item): item is { type: string; reason: string } => Boolean(item))
+        .slice(0, 30)
+    : [];
+
+  return {
+    nicheKey: textOrNull(raw.nicheKey, 120) ?? "unknown",
+    family: textOrNull(raw.family, 120) ?? "unknown",
+    pageDepth,
+    primaryAction,
+    sections,
+    includedSections: sections.map((section) => section.type),
+    omittedSections,
+  };
+}
+
 const SYSTEM_PROMPT = `
 Você materializa uma prévia visual a partir de um prompt de landing page JÁ GERADO pelo JanuarioLeads.
 Você NÃO cria uma nova estratégia independente. Sua fonte de verdade é, nesta ordem:
@@ -572,24 +737,35 @@ Você NÃO cria uma nova estratégia independente. Sua fonte de verdade é, nest
 OBJETIVO
 Converter essa direção existente em um PreviewSpec seguro para um renderer React controlado. O resultado deve parecer uma landing page plausível, não documento, dashboard, slide, wireframe ou mockup.
 
+CONTRATO COM O PAGE PLANNER
+Quando previewPlan existir, o Page Planner JÁ decidiu O QUE entra na página.
+Você materializa COMO essas áreas aparecem dentro do renderer disponível.
+- Produza exatamente uma seção visual para cada previewPlan.sections, na mesma ordem.
+- Em sourceSectionType, copie exatamente o type da seção correspondente do previewPlan.
+- Não adicione seção comercial que não esteja em previewPlan.sections.
+- Nunca recrie um type presente em previewPlan.omittedSections.
+- Use purpose para orientar o conteúdo e visualRole para orientar o protagonismo visual.
+- Respeite pageDepth: ESSENTIAL deve permanecer concisa; STANDARD deve desenvolver a narrativa planejada; RICH deve preservar toda a profundidade do plano e não pode ser compactada para a mesma arquitetura de ESSENTIAL.
+- primaryAction do previewPlan é a conversão principal já resolvida. Preserve kind, label e href; não escolha outra conversão.
+- Não reclassifique o nicho e não crie um segundo Page Planner.
+- Se previewPlan não existir, use o comportamento legado baseado no prompt salvo.
+
 FIDELIDADE
 - Preserve objetivo, CTA principal, estrutura, direção visual, hierarquia, ritmo e copy que já estejam definidos.
 - Se o prompt não definiu copy exata, escreva somente copy factual derivada dos dados reais.
 - Não invente produtos, serviços, preços, equipe, depoimentos, promoções, diferenciais ou história.
 - [INFORMAÇÃO A CONFIRMAR], [FOTO], instruções técnicas e comentários de desenvolvimento NUNCA aparecem como grandes elementos visuais.
 - Não crie seções vazias só porque o nicho costuma tê-las.
-- Se uma seção do prompt depende inteiramente de conteúdo ausente, omita ou integre a intenção em outra seção menor.
 
 SEM TEMPLATE FIXO
-- Escolha somente os kinds necessários.
+- O Page Plan define as áreas; você escolhe apenas o kind/variant/tone apropriado para materializá-las.
 - A Hero pode ser text, split, editorial, compact ou full conforme o prompt.
 - Não force 3 cards, Sobre, Serviços, Depoimentos, Galeria ou Footer grande.
-- A ordem das seções deve seguir o prompt salvo.
-- Use entre 3 e 7 seções visuais na maioria dos casos.
+- Quando não houver previewPlan, use entre 3 e 7 seções visuais na maioria dos casos.
 
 IMAGENS
-- Só use imageUrl que apareça EXATAMENTE em verifiedImages.
-- Se verifiedImages estiver vazio, TODOS os imageUrl devem ser string vazia.
+- Só use imageUrl que apareça EXATAMENTE na whitelist real fornecida em verifiedBusinessData, incluindo verifiedImages, verifiedContent.portfolioImages e verifiedContent.beforeAfterImages.
+- Se a whitelist estiver vazia, TODOS os imageUrl devem ser string vazia.
 - Nunca gere URL de banco de imagens nem imagem fictícia.
 - Sem imagem real, prefira Hero tipográfica, estatísticas reais, horário, localização, telefone, divisórias e composição editorial.
 - Não reserve área vazia para imagem futura.
@@ -686,6 +862,7 @@ const RESPONSE_SCHEMA = {
         additionalProperties: false,
         required: [
           "id",
+          "sourceSectionType",
           "kind",
           "variant",
           "tone",
@@ -703,6 +880,7 @@ const RESPONSE_SCHEMA = {
         ],
         properties: {
           id: { type: "string" },
+          sourceSectionType: { type: "string" },
           kind: {
             type: "string",
             enum: [
@@ -782,6 +960,23 @@ function normalizeDigits(value: string | null | undefined) {
   return (value ?? "").replace(/\D/g, "");
 }
 
+function trustedHttpUrls(business: BusinessContext) {
+  const channels = business.confirmedChannels ?? {};
+  return new Set(
+    [
+      business.website,
+      business.instagram,
+      business.googleMapsUrl,
+      channels.whatsappUrl,
+      channels.bookingUrl,
+      channels.deliveryUrl,
+      channels.reservationUrl,
+      channels.ecommerceUrl,
+      channels.menuUrl,
+    ].filter((item): item is string => typeof item === "string" && Boolean(item)),
+  );
+}
+
 function safeHref(value: unknown, business: BusinessContext) {
   if (typeof value !== "string" || !value.trim()) return "";
   const href = value.trim();
@@ -805,32 +1000,146 @@ function safeHref(value: unknown, business: BusinessContext) {
     if (requested && allowed.has(requested)) {
       return "tel:+" + (requested.startsWith("55") ? requested : "55" + requested);
     }
-
     return "";
   }
 
-  const trusted = new Set(
-    [
-      business.website,
-      business.instagram,
-      business.googleMapsUrl,
-    ].filter((item): item is string => typeof item === "string" && Boolean(item)),
-  );
-
-  if (trusted.has(href)) return href;
-  return "";
+  // All non-tel actions must exactly match a URL that survived safeUrl()
+  // sanitization from a confirmed business channel. javascript:, data: and
+  // model-invented URLs can never enter this set.
+  const trusted = trustedHttpUrls(business);
+  return trusted.has(href) ? href : "";
 }
 
-function sanitizeSpec(value: unknown, business: BusinessContext): PreviewSpec | null {
+function verifiedImageUrlSet(business: BusinessContext) {
+  const sources = [
+    ...(business.verifiedImages ?? []),
+    ...(business.verifiedContent?.portfolioImages ?? []),
+    ...(business.verifiedContent?.beforeAfterImages ?? []),
+  ];
+  return new Set(
+    sources
+      .map((item) => item.url)
+      .filter((item): item is string => typeof item === "string" && Boolean(item)),
+  );
+}
+
+function materializeSection(
+  section: PreviewSection,
+  index: number,
+  business: BusinessContext,
+  verifiedUrls: Set<string>,
+  sourceSectionType: string,
+) {
+  return {
+    id: textOrNull(section.id, 80) ?? `section-${index + 1}`,
+    sourceSectionType,
+    kind: section.kind,
+    variant: section.variant,
+    tone:
+      section.tone === "surface" ||
+      section.tone === "accent" ||
+      section.tone === "inverse"
+        ? section.tone
+        : "background",
+    eyebrow: visualText(section.eyebrow, 120),
+    title: visualText(section.title, 220),
+    body: visualText(section.body, 800),
+    items: visualStringArray(section.items, 8, 240),
+    primaryCtaLabel: visualText(section.primaryCtaLabel, 100),
+    primaryCtaHref: safeHref(section.primaryCtaHref, business),
+    secondaryCtaLabel: visualText(section.secondaryCtaLabel, 100),
+    secondaryCtaHref: safeHref(section.secondaryCtaHref, business),
+    emphasize: visualText(section.emphasize, 180),
+    imageUrl:
+      typeof section.imageUrl === "string" && verifiedUrls.has(section.imageUrl)
+        ? section.imageUrl
+        : "",
+    imageAlt: visualText(section.imageAlt, 220),
+  };
+}
+
+function sanitizeSpec(
+  value: unknown,
+  business: BusinessContext,
+  planning: PreviewPlanning | null,
+): PreviewSpec | null {
   if (!value || typeof value !== "object") return null;
   const input = value as PreviewSpec;
   if (!Array.isArray(input.sections) || input.sections.length < 3) return null;
 
-  const verifiedUrls = new Set(
-    (business.verifiedImages ?? [])
-      .map((item) => item.url)
-      .filter((item): item is string => typeof item === "string" && Boolean(item)),
-  );
+  const verifiedUrls = verifiedImageUrlSet(business);
+
+  let sections: ReturnType<typeof materializeSection>[];
+
+  if (planning) {
+    const omitted = new Set(
+      planning.omittedSections.map((section) => canonicalSectionType(section.type)),
+    );
+    const generatedBySource = new Map<string, PreviewSection>();
+
+    for (const section of input.sections.slice(0, 8)) {
+      const sourceType = canonicalSectionType(section.sourceSectionType);
+      if (!sourceType || omitted.has(sourceType)) continue;
+      if (!planning.includedSections.includes(sourceType)) continue;
+      if (!generatedBySource.has(sourceType)) {
+        generatedBySource.set(sourceType, section);
+      }
+    }
+
+    // Every planned commercial area must survive generation. We reject rather
+    // than invent a missing area in the Preview layer.
+    if (
+      planning.sections.some(
+        (section) => !generatedBySource.has(canonicalSectionType(section.type)),
+      )
+    ) {
+      return null;
+    }
+
+    sections = planning.sections.map((planned, index) =>
+      materializeSection(
+        generatedBySource.get(canonicalSectionType(planned.type))!,
+        index,
+        business,
+        verifiedUrls,
+        canonicalSectionType(planned.type),
+      ),
+    );
+  } else {
+    // Legacy prompts keep the previous behavior.
+    sections = input.sections.slice(0, 8).map((section, index) =>
+      materializeSection(
+        section,
+        index,
+        business,
+        verifiedUrls,
+        canonicalSectionType(section.sourceSectionType) || "legacy",
+      ),
+    );
+  }
+
+  const resolvedPrimaryHref = planning
+    ? safeHref(planning.primaryAction.href, business)
+    : "";
+  const resolvedPrimaryLabel = planning
+    ? visualText(planning.primaryAction.label, 100)
+    : "";
+
+  if (planning && resolvedPrimaryLabel) {
+    for (let index = 0; index < sections.length; index += 1) {
+      const planned = planning.sections[index];
+      if (
+        planned.type === "hero" ||
+        planned.visualRole.toLowerCase() === "conversion"
+      ) {
+        sections[index] = {
+          ...sections[index],
+          primaryCtaLabel: resolvedPrimaryLabel,
+          primaryCtaHref: resolvedPrimaryHref,
+        };
+      }
+    }
+  }
 
   const fallbackTheme = {
     background: "#111111",
@@ -867,35 +1176,16 @@ function sanitizeSpec(value: unknown, business: BusinessContext): PreviewSpec | 
         ? input.density
         : "balanced",
     contrast: input.contrast === "soft" ? "soft" : "strong",
-    primaryAction: {
-      label: visualText(input.primaryAction?.label, 100),
-      href: safeHref(input.primaryAction?.href, business),
-    },
-    sections: input.sections.slice(0, 8).map((section, index) => ({
-      id: textOrNull(section.id, 80) ?? `section-${index + 1}`,
-      kind: section.kind,
-      variant: section.variant,
-      tone:
-        section.tone === "surface" ||
-        section.tone === "accent" ||
-        section.tone === "inverse"
-          ? section.tone
-          : "background",
-      eyebrow: visualText(section.eyebrow, 120),
-      title: visualText(section.title, 220),
-      body: visualText(section.body, 800),
-      items: visualStringArray(section.items, 8, 240),
-      primaryCtaLabel: visualText(section.primaryCtaLabel, 100),
-      primaryCtaHref: safeHref(section.primaryCtaHref, business),
-      secondaryCtaLabel: visualText(section.secondaryCtaLabel, 100),
-      secondaryCtaHref: safeHref(section.secondaryCtaHref, business),
-      emphasize: visualText(section.emphasize, 180),
-      imageUrl:
-        typeof section.imageUrl === "string" && verifiedUrls.has(section.imageUrl)
-          ? section.imageUrl
-          : "",
-      imageAlt: visualText(section.imageAlt, 220),
-    })),
+    primaryAction: planning && resolvedPrimaryLabel
+      ? {
+          label: resolvedPrimaryLabel,
+          href: resolvedPrimaryHref,
+        }
+      : {
+          label: visualText(input.primaryAction?.label, 100),
+          href: safeHref(input.primaryAction?.href, business),
+        },
+    sections,
     footerNote: "Prévia conceitual",
   };
 }
@@ -934,6 +1224,7 @@ Deno.serve(async (request) => {
   }
 
   const materializationBusiness = await withOfficialWebsiteImages(input.business);
+  const previewPlan = sanitizePreviewPlanning(input.prompt.result);
 
   const userPayload = {
     verifiedBusinessData: {
@@ -941,6 +1232,12 @@ Deno.serve(async (request) => {
       notes: null,
     },
     savedPromptVersion: input.prompt.generatedAt,
+    previewPlan,
+    structuralVisualDirection:
+      input.prompt.result.visualDirection &&
+      typeof input.prompt.result.visualDirection === "object"
+        ? input.prompt.result.visualDirection
+        : null,
     promptResult: input.prompt.result,
     lovablePrompt:
       typeof input.prompt.result.lovablePrompt === "string"
@@ -948,9 +1245,12 @@ Deno.serve(async (request) => {
         : "",
     instructions: [
       "Materialize o prompt salvo, não crie uma estratégia concorrente.",
+      "Quando previewPlan existir, trate-o como contrato comercial já decidido pelo Page Planner.",
+      "Cada seção deve declarar sourceSectionType igual ao type correspondente do previewPlan.",
       "Não exiba instruções técnicas como conteúdo visual.",
-      "Omitir visualmente conteúdo ausente é melhor que criar placeholder.",
-      "Sem verifiedImages, nenhuma seção pode reservar espaço para foto.",
+      "Não recrie omittedSections.",
+      "Use purpose e visualRole para diferenciar importância e função das áreas planejadas.",
+      "Sem imagem real na whitelist, nenhuma seção pode reservar espaço para foto.",
       "O preview deve parecer uma landing page finalizada e responsiva.",
     ],
   };
@@ -1018,7 +1318,7 @@ Deno.serve(async (request) => {
       return failure("INVALID_AI_RESPONSE", "A prévia retornada não pôde ser validada.", 502);
     }
 
-    const spec = sanitizeSpec(parsed, materializationBusiness);
+    const spec = sanitizeSpec(parsed, materializationBusiness, previewPlan);
     if (!spec) {
       return failure(
         "INVALID_AI_RESPONSE",
@@ -1035,6 +1335,7 @@ Deno.serve(async (request) => {
         company: input.business.company,
         promptVersion: input.prompt.generatedAt,
         previewVersion: crypto.randomUUID(),
+        previewEngineVersion: PREVIEW_ENGINE_VERSION,
         generatedAt,
         spec,
       },
