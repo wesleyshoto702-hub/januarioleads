@@ -65,6 +65,73 @@ export async function finalizeCandidates(
     }
   }
 
+  const conflictSensitive = new Set([
+    "price",
+    "channel_whatsapp",
+    "channel_booking",
+    "channel_delivery",
+    "channel_reservation",
+    "channel_menu",
+    "channel_ecommerce",
+  ]);
+  const sourceRank = (item: PersistedFact) =>
+    item.sourceType === "manual" ? 100 :
+    item.sourceType === "official_schema" ? 80 :
+    item.sourceType === "official_text" ? 70 :
+    item.sourceType === "official_link" ? 60 :
+    item.sourceType === "web_search" ? 30 : 20;
+
+  const conflictGroups = new Map<string, PersistedFact[]>();
+  for (const item of staged) {
+    if (
+      item.resolution === "rejected" ||
+      item.resolution === "low_confidence" ||
+      !conflictSensitive.has(item.type)
+    ) continue;
+
+    const subject =
+      item.type === "price"
+        ? normalizeText(item.value.name || item.label)
+        : item.type;
+    const key = `${item.type}|${subject}`;
+    const list = conflictGroups.get(key) ?? [];
+    list.push(item);
+    conflictGroups.set(key, list);
+  }
+
+  for (const group of conflictGroups.values()) {
+    const distinct = new Set(group.map((item) => item.normalizedValue));
+    if (distinct.size <= 1) continue;
+
+    const auto = group.filter((item) => item.resolution === "auto_verified");
+    if (auto.length <= 1) continue;
+
+    const ranked = auto.slice().sort((a,b) => {
+      const sourceDelta = sourceRank(b) - sourceRank(a);
+      if (sourceDelta !== 0) return sourceDelta;
+      const aDate = a.sourceUpdatedAt ? Date.parse(a.sourceUpdatedAt) : 0;
+      const bDate = b.sourceUpdatedAt ? Date.parse(b.sourceUpdatedAt) : 0;
+      return bDate - aDate;
+    });
+
+    const best = ranked[0];
+    const second = ranked[1];
+    const uniqueStrongerSource =
+      sourceRank(best) > sourceRank(second);
+    const bestDate = best.sourceUpdatedAt ? Date.parse(best.sourceUpdatedAt) : 0;
+    const secondDate = second.sourceUpdatedAt ? Date.parse(second.sourceUpdatedAt) : 0;
+    const clearlyNewer =
+      bestDate > 0 &&
+      secondDate > 0 &&
+      bestDate - secondDate > 24 * 60 * 60 * 1000;
+
+    for (const item of auto) {
+      if (item === best && (uniqueStrongerSource || clearlyNewer)) continue;
+      item.confidence = "medium";
+      item.resolution = "needs_review";
+    }
+  }
+
   const dedupe = new Map<string, PersistedFact>();
   const rank = (item: PersistedFact) =>
     item.resolution === "manual_verified" ? 5 :

@@ -5,6 +5,7 @@ import type {
   UsageMetrics,
 } from "./types.ts";
 import {
+  branchIdentityScoreFromText,
   domainOf,
   hostnameResolvesPublicly,
   identityScoreFromText,
@@ -279,7 +280,9 @@ async function fetchWithBrowserless(value: string, token: string) {
 }
 
 function meaningful(page: PageSnapshot | null) {
-  return Boolean(page && (page.text.length >= 500 || page.jsonLd.length > 0 || page.links.length >= 5));
+  // A navigation shell with several links is not enough to skip rendering.
+  // JS-heavy sites usually expose little real text/structured data initially.
+  return Boolean(page && (page.text.length >= 500 || page.jsonLd.length > 0));
 }
 
 const COMMON_RELEVANT = [
@@ -448,6 +451,11 @@ export function deterministicOfficialFacts(
       `${page.title} ${page.metaDescription} ${page.text.slice(0,8000)}`,
     );
 
+    const localIdentityScore = branchIdentityScoreFromText(
+      fingerprint,
+      `${page.title} ${page.metaDescription} ${page.text.slice(0,12000)}`,
+    );
+
     for (const link of page.links) {
       const url = safePublicUrl(link.url);
       if (!url) continue;
@@ -462,7 +470,35 @@ export function deterministicOfficialFacts(
       else if (/checkout|ecommerce|e-commerce|comprar|shop|store/.test(hay)) type = "channel_ecommerce";
       else if (host === "instagram.com" && url.pathname.split("/").filter(Boolean).length === 1) type = "official_instagram";
       if (!type) continue;
-      facts.push(fact(type, link.text || type, { url: url.toString() }, page, "official_link", "html_anchor", link.text || url.toString(), identityScore));
+
+      let linkIdentityScore = identityScore;
+      if (
+        type === "channel_booking" ||
+        type === "channel_reservation" ||
+        type === "channel_whatsapp"
+      ) {
+        linkIdentityScore = localIdentityScore;
+
+        if (type === "channel_whatsapp" && fingerprint.phone) {
+          const targetDigits = url.toString().replace(/\D/g, "");
+          if (targetDigits.includes(fingerprint.phone.slice(-10))) {
+            linkIdentityScore = 100;
+          }
+        }
+      }
+
+      facts.push(
+        fact(
+          type,
+          link.text || type,
+          { url: url.toString() },
+          page,
+          "official_link",
+          "html_anchor",
+          link.text || url.toString(),
+          linkIdentityScore,
+        ),
+      );
     }
 
     for (const image of page.images) {
@@ -475,7 +511,22 @@ export function deterministicOfficialFacts(
       else if (/ambiente|fachada|interior|clinica|salao|loja|oficina|facility/.test(hay)) type = "facility_image";
       else if (/produto|product|burger|pizza|prato|dish|roupa|shoe/.test(hay)) type = "product_image";
       if (!type) continue;
-      facts.push(fact(type, image.alt || type, { imageUrl: image.url }, page, "official_image", "html_img", image.alt || image.url, identityScore));
+      const imageIdentityScore =
+        type === "professional_image" || type === "facility_image"
+          ? localIdentityScore
+          : identityScore;
+      facts.push(
+        fact(
+          type,
+          image.alt || type,
+          { imageUrl: image.url },
+          page,
+          "official_image",
+          "html_img",
+          image.alt || image.url,
+          imageIdentityScore,
+        ),
+      );
     }
 
     for (const root of page.jsonLd) {
@@ -490,7 +541,18 @@ export function deterministicOfficialFacts(
         }
         if (types.some((t) => /Person/i.test(t)) && name) {
           const role = typeof row.jobTitle === "string" ? row.jobTitle.slice(0,180) : "";
-          facts.push(fact("professional", name, { name, role }, page, "official_schema", "json_ld", [name,role].filter(Boolean).join(" — "), identityScore));
+          facts.push(
+            fact(
+              "professional",
+              name,
+              { name, role },
+              page,
+              "official_schema",
+              "json_ld",
+              [name,role].filter(Boolean).join(" — "),
+              localIdentityScore,
+            ),
+          );
         }
         if (types.some((t) => /Offer/i.test(t))) {
           const price = typeof row.price === "string" || typeof row.price === "number" ? String(row.price) : "";

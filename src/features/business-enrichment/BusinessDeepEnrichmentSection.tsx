@@ -149,6 +149,8 @@ export function BusinessDeepEnrichmentSection({
 
   const notStarted =
     !snapshot || snapshot.status === "not_started";
+  const hasPriceToReview =
+    snapshot?.reviewFacts.some((fact) => fact.type === "price") ?? false;
   const done =
     snapshot &&
     (snapshot.status === "completed" ||
@@ -253,7 +255,9 @@ export function BusinessDeepEnrichmentSection({
               <strong>
                 {snapshot.summary.prices > 0
                   ? `${snapshot.summary.prices} encontrados`
-                  : "Não encontrados"}
+                  : hasPriceToReview
+                    ? "Parcialmente encontrados"
+                    : "Não encontrados"}
               </strong>
             </div>
             <div>

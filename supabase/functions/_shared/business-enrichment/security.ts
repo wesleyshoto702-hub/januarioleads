@@ -155,6 +155,32 @@ export function tokenSimilarity(a: string, b: string) {
   return shared / Math.max(left.size, right.size);
 }
 
+export function branchIdentityScoreFromText(
+  fingerprint: BusinessIdentityFingerprint,
+  text: string,
+) {
+  const normalized = normalizeText(text);
+  let score = 0;
+
+  const nameSimilarity = tokenSimilarity(fingerprint.canonicalName, text);
+  if (nameSimilarity >= 0.6) score += 20;
+  else if (nameSimilarity >= 0.35) score += 10;
+
+  if (fingerprint.phone) {
+    const digits = String(text).replace(/\D/g, "");
+    if (digits.includes(fingerprint.phone.slice(-10))) score += 60;
+  }
+
+  if (fingerprint.city && normalized.includes(normalizeText(fingerprint.city))) {
+    score += 20;
+  }
+
+  const number = fingerprint.address.match(/\b\d{1,6}\b/)?.[0];
+  if (number && String(text).includes(number)) score += 20;
+
+  return Math.min(100, score);
+}
+
 export function identityScoreFromText(
   fingerprint: BusinessIdentityFingerprint,
   sourceUrl: string,
