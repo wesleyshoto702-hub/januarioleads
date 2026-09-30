@@ -876,7 +876,22 @@ Deno.serve(async (request)=>{
     const key = await businessKey(fingerprint);
 
     if (mode === "status") {
-      const latest = await latestRun(authorized.userId,key);
+      let latest = await latestRun(authorized.userId,key);
+
+      if (
+        latest &&
+        latest.status === "researching" &&
+        Date.now() - Date.parse(String(latest.started_at ?? "")) > 10 * 60 * 1000
+      ) {
+        latest = await patchRun(String(latest.id), {
+          status: "failed",
+          error_summary:
+            "A pesquisa anterior foi interrompida antes de concluir. Você pode tentar novamente.",
+          completed_at: new Date().toISOString(),
+          checked_at: new Date().toISOString(),
+        }).catch(() => latest);
+      }
+
       const identityChanged =
         Boolean(latest) && String(latest.identity_signature) !== signature;
 

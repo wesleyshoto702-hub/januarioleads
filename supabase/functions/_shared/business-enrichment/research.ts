@@ -103,6 +103,28 @@ function applyUsage(payload: OpenAIResponse, metrics: UsageMetrics, web = false)
   metrics.outputTokens += payload.usage?.output_tokens ?? 0;
 }
 
+async function openAiRequest(
+  apiKey: string,
+  payload: Record<string, unknown>,
+  timeoutMs = 40_000,
+) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(payload),
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 function parseFacts(text: string) {
   try {
     const parsed = JSON.parse(text) as { facts?: unknown };
@@ -194,10 +216,7 @@ export async function extractOfficialTextFacts(
     title: page.title,
     text: page.text.slice(0, 6500),
   }));
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
+  const response = await openAiRequest(apiKey, {
       model: "gpt-5.6-terra",
       reasoning: { effort: "low" },
       max_output_tokens: 3400,
@@ -227,8 +246,7 @@ export async function extractOfficialTextFacts(
           schema: FACT_SCHEMA,
         },
       },
-    }),
-  });
+    });
   const payload = await response.json() as OpenAIResponse;
   if (!response.ok) return [] as FactCandidate[];
   applyUsage(payload, metrics, false);
@@ -253,10 +271,7 @@ export async function researchMissingFacts(
   metrics: UsageMetrics,
 ) {
   if (!apiKey || !priorities.length) return [] as FactCandidate[];
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
+  const response = await openAiRequest(apiKey, {
       model: "gpt-5.6-terra",
       reasoning: { effort: "low" },
       max_output_tokens: 3000,
@@ -297,8 +312,7 @@ export async function researchMissingFacts(
           schema: FACT_SCHEMA,
         },
       },
-    }),
-  });
+    });
   const payload = await response.json() as OpenAIResponse;
   if (!response.ok) return [] as FactCandidate[];
   applyUsage(payload, metrics, true);

@@ -20,18 +20,34 @@ async function request(payload: Record<string, unknown>) {
     import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"]?.trim() ||
     PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-  const response = await fetch(
-    `${url.replace(/\/$/, "")}/functions/v1/deep-enrich-business`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: publishableKey,
-        Authorization: `Bearer ${accessToken}`,
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 150_000);
+
+  let response: Response;
+  try {
+    response = await fetch(
+      `${url.replace(/\/$/, "")}/functions/v1/deep-enrich-business`,
+      {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          "Content-Type": "application/json",
+          apikey: publishableKey,
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(payload),
       },
-      body: JSON.stringify(payload),
-    },
-  );
+    );
+  } catch (cause) {
+    if (cause instanceof DOMException && cause.name === "AbortError") {
+      throw new Error(
+        "A pesquisa excedeu o tempo esperado. Verifique o resultado novamente antes de repetir.",
+      );
+    }
+    throw cause;
+  } finally {
+    window.clearTimeout(timeout);
+  }
 
   let result: ResponsePayload;
   try {

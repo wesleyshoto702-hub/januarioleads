@@ -70,6 +70,7 @@ export function BusinessDeepEnrichmentSection({
   const [reviewingId, setReviewingId] = useState("");
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [error, setError] = useState("");
+  const [pollTimedOut, setPollTimedOut] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -77,6 +78,7 @@ export function BusinessDeepEnrichmentSection({
     setSnapshot(null);
     setError("");
     setDetailsOpen(false);
+    setPollTimedOut(false);
 
     void getDeepEnrichmentStatus({ business, segment, leadId })
       .then((result) => {
@@ -98,7 +100,46 @@ export function BusinessDeepEnrichmentSection({
     };
   }, [business.placeId, leadId, segment]);
 
-  async function run(force: boolean) {
+  useEffect(() => {
+    if (snapshot?.status !== "researching" || researching) return;
+
+    let active = true;
+    let attempts = 0;
+    const timer = window.setInterval(() => {
+      attempts += 1;
+      if (attempts > 36) {
+        window.clearInterval(timer);
+        if (active) setPollTimedOut(true);
+        return;
+      }
+
+      void getDeepEnrichmentStatus({ business, segment, leadId })
+        .then((result) => {
+          if (!active) return;
+          setSnapshot(result.snapshot);
+          if (
+            result.snapshot.status === "completed" ||
+            result.snapshot.status === "needs_review" ||
+            result.snapshot.status === "failed"
+          ) {
+            window.clearInterval(timer);
+            if (result.snapshot.runId) {
+              onApply?.(applied(result.snapshot));
+            }
+          }
+        })
+        .catch(() => {
+          // Keep polling within the bounded window.
+        });
+    }, 5_000);
+
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [snapshot?.status, researching, business.placeId, leadId, segment]);
+
+    async function run(force: boolean) {
     if (researching) return;
     setResearching(true);
     setError("");
@@ -385,6 +426,32 @@ export function BusinessDeepEnrichmentSection({
             </div>
           )}
         </>
+      ) : pollTimedOut ? (
+        <div className="deep-enrichment-empty">
+          <p>
+            A pesquisa está demorando mais que o esperado. Verifique o estado
+            novamente antes de iniciar outra.
+          </p>
+          <button
+            type="button"
+            className="secondary-button deep-enrichment-run"
+            onClick={() => {
+              setPollTimedOut(false);
+              setSnapshot(null);
+              setLoadingStatus(true);
+              void getDeepEnrichmentStatus({ business, segment, leadId })
+                .then((result) => {
+                  setSnapshot(result.snapshot);
+                  if (result.snapshot.runId) onApply?.(applied(result.snapshot));
+                })
+                .catch(() => setError("Não foi possível verificar o estado da pesquisa."))
+                .finally(() => setLoadingStatus(false));
+            }}
+          >
+            <RefreshCw size={14} />
+            Verificar novamente
+          </button>
+        </div>
       ) : (
         <div className="deep-enrichment-loading">
           <Loader2 size={15} className="auth-spinner" />
