@@ -1005,37 +1005,75 @@ function instagramUsername(value: string | null | undefined) {
   return new URL(profile).pathname.split("/").filter(Boolean)[0] ?? null;
 }
 
-function isBlockedWebsiteHost(hostname: string) {
-  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+function blockedIpv4(host: string) {
+  const match = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (!match) return false;
 
-  if (
-    host === "localhost" ||
-    host.endsWith(".localhost") ||
-    host.endsWith(".local") ||
-    host === "metadata.google.internal"
-  ) {
-    return true;
-  }
+  const [a, b, c, d] = match.slice(1).map(Number);
+  if ([a, b, c, d].some((part) => part > 255)) return true;
 
-  if (host === "::1" || host.startsWith("fc") || host.startsWith("fd")) {
-    return true;
-  }
-
-  const ipv4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-  if (!ipv4) return false;
-
-  const octets = ipv4.slice(1).map(Number);
-  if (octets.some((item) => item > 255)) return true;
-
-  const [a, b] = octets;
   return (
     a === 0 ||
     a === 10 ||
+    (a === 100 && b >= 64 && b <= 127) ||
     a === 127 ||
     (a === 169 && b === 254) ||
     (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 0 && c === 0) ||
+    (a === 192 && b === 0 && c === 2) ||
+    (a === 192 && b === 88 && c === 99) ||
     (a === 192 && b === 168) ||
+    (a === 198 && (b === 18 || b === 19)) ||
+    (a === 198 && b === 51 && c === 100) ||
+    (a === 203 && b === 0 && c === 113) ||
     a >= 224
+  );
+}
+
+function blockedIpv6(host: string) {
+  const value = host.toLowerCase().replace(/^\[|\]$/g, "");
+  return (
+    value === "::" ||
+    value === "::1" ||
+    value.startsWith("fc") ||
+    value.startsWith("fd") ||
+    value.startsWith("fe8") ||
+    value.startsWith("fe9") ||
+    value.startsWith("fea") ||
+    value.startsWith("feb") ||
+    value.startsWith("2001:db8")
+  );
+}
+
+function isBlockedWebsiteHost(hostname: string) {
+  const host = hostname.toLowerCase().replace(/\.$/, "");
+  return (
+    host === "localhost" ||
+    host.endsWith(".localhost") ||
+    host.endsWith(".local") ||
+    host.endsWith(".internal") ||
+    host === "metadata.google.internal" ||
+    host === "metadata.google" ||
+    host === "instance-data" ||
+    blockedIpv4(host) ||
+    blockedIpv6(host)
+  );
+}
+
+async function hostnameResolvesPublicly(hostname: string) {
+  if (blockedIpv4(hostname) || blockedIpv6(hostname)) return false;
+
+  const results = await Promise.allSettled([
+    Deno.resolveDns(hostname, "A"),
+    Deno.resolveDns(hostname, "AAAA"),
+  ]);
+  const addresses = results.flatMap((result) =>
+    result.status === "fulfilled" ? result.value : [],
+  );
+
+  if (addresses.length === 0) return false;
+  return addresses.every(
+    (address) => !blockedIpv4(address) && !blockedIpv6(address),
   );
 }
 
@@ -1090,6 +1128,8 @@ async function fetchOfficialHtml(value: string) {
   if (!current) return null;
 
   for (let redirect = 0; redirect <= 3; redirect += 1) {
+    if (!(await hostnameResolvesPublicly(current.hostname))) return null;
+
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 6_000);
 
