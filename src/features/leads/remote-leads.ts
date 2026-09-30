@@ -4,13 +4,15 @@ const SUPABASE_URL = "https://czkazbianiflhldenhcj.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY =
   "sb_publishable_rDtFwPmhh93xceOpvf9hUg_PSlvpB8p";
 
+export type LeadStatus = "send_message" | "waiting" | "accepted" | "rejected";
+
 export type PersistedLead = {
   id: string;
   company: string;
   segment: string;
   phone: string;
   previousPhone?: string | undefined;
-  status: "waiting" | "accepted" | "rejected";
+  status: LeadStatus;
   firstContact: string;
   lastContact?: string | undefined;
   notes: string;
@@ -68,7 +70,7 @@ type RemoteLead = {
   segment: string;
   phone: string;
   previous_phone: string | null;
-  status: "waiting" | "accepted" | "rejected";
+  status: LeadStatus;
   first_contact: string;
   last_contact: string | null;
   notes: string;
