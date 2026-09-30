@@ -2,6 +2,7 @@ import {
   buildFingerprint,
   branchIdentityScoreFromText,
   identitySignature,
+  withVerifiedIdentityUpdates,
 } from "./security.ts";
 import {
   buildVerifiedSnapshot,
@@ -186,4 +187,39 @@ Deno.test("explicit before-after is required to populate beforeAfterImages", asy
   const facts = await finalizeCandidates([normal],new Set());
   const snapshot = buildVerifiedSnapshot(facts);
   assert(!(snapshot.verifiedContent.beforeAfterImages?.length), "Generic portfolio image cannot become before/after.");
+});
+
+
+Deno.test("verified website and Instagram update the cached identity signature", async () => {
+  const initial = buildFingerprint(
+    {
+      placeId: "place-123",
+      company: "Empresa Exemplo",
+      segment: "Barbearia",
+      phone: "(35) 99999-1111",
+      address: "Rua A, 10",
+      city: "Lavras",
+    },
+    "barbershop",
+  );
+
+  const finalIdentity = withVerifiedIdentityUpdates(initial, {
+    website: "https://empresaexemplo.com.br/",
+    instagram: "https://www.instagram.com/empresaexemplo/",
+  });
+
+  assert(
+    finalIdentity.officialDomain === "empresaexemplo.com.br",
+    "Verified website must become part of the final fingerprint.",
+  );
+  assert(
+    finalIdentity.confirmedInstagram ===
+      "https://www.instagram.com/empresaexemplo/",
+    "Verified Instagram must become part of the final fingerprint.",
+  );
+  assert(
+    (await identitySignature(initial)) !==
+      (await identitySignature(finalIdentity)),
+    "The run must persist the final signature after identity enrichment.",
+  );
 });

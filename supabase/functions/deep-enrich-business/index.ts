@@ -3,6 +3,7 @@ import {
   resolveNicheStrategy,
 } from "../_shared/niche-strategies.ts";
 import type {
+  BusinessIdentityFingerprint,
   BusinessInput,
   EnrichmentSnapshot,
   FactCandidate,
@@ -15,6 +16,7 @@ import {
   domainOf,
   identitySignature,
   safePublicUrl,
+  withVerifiedIdentityUpdates,
 } from "../_shared/business-enrichment/security.ts";
 import {
   crawlOfficialWebsite,
@@ -733,6 +735,11 @@ async function runEnrichment(
       confirmedChannels:rawBusiness.confirmedChannels,
     });
     const enrichedBusiness = mergeExistingBusiness(rawBusiness,snapshot);
+    const finalFingerprint = withVerifiedIdentityUpdates(
+      fingerprint,
+      snapshot.identityUpdates,
+    );
+    const finalIdentitySignature = await identitySignature(finalFingerprint);
     const completeness = computeCompleteness(enrichedBusiness,strategy);
     const summary = summaryOf(facts,snapshot);
     const officialSources = new Set(
@@ -748,6 +755,8 @@ async function runEnrichment(
       status,
       quality,
       completeness,
+      identity_signature:finalIdentitySignature,
+      identity:finalFingerprint,
       verified_content:snapshot.verifiedContent,
       verified_images:snapshot.verifiedImages,
       confirmed_channels:snapshot.confirmedChannels,
@@ -823,8 +832,25 @@ async function reviewFact(
   });
   const summary = summaryOf(facts,snapshot);
   const status = summary.reviewFacts > 0 ? "needs_review" : "completed";
+  const storedIdentity =
+    run.identity && typeof run.identity === "object"
+      ? run.identity as BusinessIdentityFingerprint
+      : null;
+  const finalIdentity = storedIdentity
+    ? withVerifiedIdentityUpdates(storedIdentity,snapshot.identityUpdates)
+    : null;
+  const finalIdentitySignature = finalIdentity
+    ? await identitySignature(finalIdentity)
+    : String(run.identity_signature ?? "");
+
   const updated = await patchRun(runId,{
     status,
+    ...(finalIdentity
+      ? {
+          identity:finalIdentity,
+          identity_signature:finalIdentitySignature,
+        }
+      : {}),
     verified_content:snapshot.verifiedContent,
     verified_images:snapshot.verifiedImages,
     confirmed_channels:snapshot.confirmedChannels,

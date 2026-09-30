@@ -123,6 +123,22 @@ export function buildFingerprint(
   };
 }
 
+export function withVerifiedIdentityUpdates(
+  fingerprint: BusinessIdentityFingerprint,
+  updates: { website?: string | null; instagram?: string | null },
+): BusinessIdentityFingerprint {
+  const website = safePublicUrl(updates.website);
+  const instagram = canonicalInstagram(updates.instagram);
+
+  return {
+    ...fingerprint,
+    officialDomain:
+      website?.hostname.toLowerCase().replace(/^www\./, "") ||
+      fingerprint.officialDomain,
+    confirmedInstagram: instagram || fingerprint.confirmedInstagram,
+  };
+}
+
 export async function identitySignature(fingerprint: BusinessIdentityFingerprint) {
   return sha256Text(JSON.stringify({
     version: "business-deep-enrichment-v1",
