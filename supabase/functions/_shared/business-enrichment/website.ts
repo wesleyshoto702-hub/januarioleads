@@ -751,6 +751,7 @@ async function materializePage(
     decision.use ? "unavailable" : "not_needed";
   let browserlessReason = decision.reason;
   let method: SourceDiagnostic["method"] = "http";
+  let browserlessBlocked = false;
 
   if (
     decision.use &&
@@ -776,10 +777,9 @@ async function materializePage(
             );
       page.sourceIdentityScore = identityScore;
     } else {
-      browserlessDecision = rendered.blocked ? "failed" : "failed";
-      browserlessReason = rendered.blocked
-        ? "browserless_failed"
-        : "browserless_failed";
+      browserlessDecision = "failed";
+      browserlessBlocked = rendered.blocked;
+      browserlessReason = "browserless_failed";
     }
   } else if (decision.use && !browserlessToken) {
     browserlessDecision = "unavailable";
@@ -787,6 +787,35 @@ async function materializePage(
   }
 
   if (!page) {
+    if (browserlessBlocked) {
+      const safe = safePublicUrl(url);
+      const domain = safe ? domainOf(safe.toString()) : "";
+      const diagnostic: SourceDiagnostic = {
+        url:safe?.toString() ?? url,
+        domain,
+        title:null,
+        sourceKind,
+        linkedFrom,
+        method:"browserless",
+        extractionStatus:"blocked",
+        browserlessDecision:"failed",
+        browserlessReason:"browserless_failed",
+        identityScore:0,
+        confidence:"low",
+        htmlBytes:0,
+        textLength:0,
+        linkCount:0,
+        scriptCount:0,
+        frameworkSignals:[],
+        jsonLdCount:0,
+        embeddedJsonCount:0,
+        imageCount:0,
+        commercialSignals:0,
+        commercialContentDensity:0,
+        found:emptyFound(),
+      };
+      return { page:null, diagnostic, error:"source_blocked" };
+    }
     return {
       page: null,
       diagnostic: null as SourceDiagnostic | null,
@@ -804,6 +833,9 @@ async function materializePage(
     browserlessReason,
     method,
   );
+  if (browserlessBlocked) {
+    diagnostic.extractionStatus = "blocked";
+  }
 
   if (sourceKind === "official_linked_platform" && identityScore < 45) {
     diagnostic.extractionStatus = "failed";
