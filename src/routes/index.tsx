@@ -18,7 +18,10 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { buildFactualBusinessDescription } from "../features/business-presence/business-description";
 import { discoverBusinessPresence } from "../features/business-presence/discover-business-presence";
 import { presenceFromBusiness } from "../features/business-presence/storage";
-import type { BusinessPresence } from "../features/business-presence/types";
+import type {
+  BusinessPresence,
+  InstagramSource,
+} from "../features/business-presence/types";
 import { LeadEnrichmentModal } from "../features/lead-enrichment/LeadEnrichmentModal";
 import { createLeadActivity } from "../features/lead-activities/lead-activities";
 import { ChanceBadge } from "../features/lead-chance/ChanceBadge";
@@ -163,6 +166,11 @@ function leadToBusinessSearchResult(lead: Lead): BusinessSearchResult {
     instagramConfidence: lead.instagramConfidence ?? null,
     instagramSource: lead.instagramSource ?? null,
     instagramCheckedAt: lead.instagramCheckedAt ?? null,
+    instagramUsername: lead.instagramUsername ?? null,
+    instagramCandidates: lead.instagramCandidates ?? [],
+    instagramRejectedUrls: lead.instagramRejectedUrls ?? [],
+    instagramSearchSignature: lead.instagramSearchSignature ?? null,
+    instagramNeedsReview: lead.instagramNeedsReview ?? false,
     factualDescription: lead.factualDescription ?? null,
     googleMapsUrl: lead.googleMapsUrl ?? null,
     businessStatus: lead.businessStatus ?? null,
@@ -177,6 +185,23 @@ const STATUS_LABEL: Record<Status, string> = {
   accepted: "Aceito",
   rejected: "Recusado",
 };
+
+const INSTAGRAM_SOURCE_LABEL: Record<InstagramSource, string> = {
+  google_places: "Google Places",
+  official_website: "Website oficial",
+  web_search: "Busca pública",
+  manual_confirmation: "Confirmação manual",
+  existing_data: "Dados existentes",
+};
+
+function confirmedInstagram(
+  value: string | null | undefined,
+  confidence: "high" | "medium" | "low" | null | undefined,
+) {
+  return value && confidence !== "medium" && confidence !== "low"
+    ? value
+    : null;
+}
 
 function LeadFlowApp() {
   const navigate = useNavigate();
@@ -773,7 +798,10 @@ function LeadFlowApp() {
       openingHours: business.openingHours,
       businessStatus: business.businessStatus,
       website: business.website,
-      instagram: business.instagram,
+      instagram: confirmedInstagram(
+        business.instagram,
+        business.instagramConfidence,
+      ),
       googleMapsUrl: business.googleMapsUrl,
       latitude: business.latitude,
       longitude: business.longitude,
@@ -805,7 +833,10 @@ function LeadFlowApp() {
       openingHours: lead.openingHours ?? [],
       businessStatus: lead.businessStatus ?? null,
       website: lead.website ?? null,
-      instagram: lead.instagram ?? null,
+      instagram: confirmedInstagram(
+        lead.instagram,
+        lead.instagramConfidence,
+      ),
       googleMapsUrl: lead.googleMapsUrl ?? null,
       latitude: lead.latitude ?? null,
       longitude: lead.longitude ?? null,
@@ -817,28 +848,76 @@ function LeadFlowApp() {
     leadId: string,
     presence: BusinessPresence,
   ) {
-    updateLeadLocally(leadId, (lead) => {
-      if (
-        !presence.instagramUrl &&
-        lead.instagram &&
-        lead.instagramConfidence === "high"
-      ) {
-        return lead;
-      }
+    const previous = leads.find((lead) => lead.id === leadId);
+    if (!previous) return;
 
-      return {
-        ...lead,
-        instagramCheckedAt: presence.instagramCheckedAt,
-        ...(presence.instagramUrl
-          ? {
-              instagram: presence.instagramUrl,
-              instagramConfidence: presence.instagramConfidence ?? "high",
-              instagramSource:
-                presence.instagramSource ?? "official_website",
-            }
-          : {}),
-      };
-    });
+    const keepConfirmedInstagram =
+      !presence.instagramUrl &&
+      previous.instagram &&
+      previous.instagramConfidence === "high";
+
+    const nextLead: Lead = {
+      ...previous,
+      instagramCheckedAt: presence.instagramCheckedAt,
+      instagramUsername:
+        presence.instagramUsername ??
+        (keepConfirmedInstagram ? previous.instagramUsername : undefined),
+      instagramCandidates: presence.instagramCandidates,
+      instagramRejectedUrls: presence.instagramRejectedUrls,
+      instagramSearchSignature:
+        presence.instagramSearchSignature ?? previous.instagramSearchSignature,
+      instagramNeedsReview: presence.instagramNeedsReview,
+      ...(presence.instagramUrl
+        ? {
+            instagram: presence.instagramUrl,
+            instagramConfidence: presence.instagramConfidence ?? "high",
+            instagramSource:
+              presence.instagramSource ?? "official_website",
+          }
+        : keepConfirmedInstagram
+          ? {}
+          : {
+              instagram: undefined,
+              instagramConfidence: undefined,
+              instagramSource: undefined,
+              instagramUsername: undefined,
+            }),
+    };
+
+    updateLeadLocally(leadId, () => nextLead);
+
+    const becameConfirmed =
+      Boolean(presence.instagramUrl) &&
+      presence.instagramConfidence === "high" &&
+      (
+        previous.instagram !== presence.instagramUrl ||
+        previous.instagramConfidence !== "high" ||
+        previous.instagramSource !== presence.instagramSource
+      );
+
+    if (becameConfirmed && presence.instagramUrl) {
+      const manual = presence.instagramSource === "manual_confirmation";
+      recordActivity(leadId, {
+        type: "company_updated",
+        title: manual ? "Instagram confirmado" : "Instagram identificado",
+        description: [
+          presence.instagramUsername
+            ? `@${presence.instagramUsername}`
+            : presence.instagramUrl,
+          presence.instagramSource
+            ? `Fonte: ${INSTAGRAM_SOURCE_LABEL[presence.instagramSource]}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" · "),
+        metadata: {
+          instagramUrl: presence.instagramUrl,
+          instagramUsername: presence.instagramUsername,
+          confidence: "high",
+          source: presence.instagramSource,
+        },
+      });
+    }
   }
 
   function openBusinessWhatsApp(
@@ -864,10 +943,19 @@ function LeadFlowApp() {
     leadId: string,
     business: BusinessSearchResult,
     force = false,
+    allowWebSearch = false,
   ) {
-    const presence = await discoverBusinessPresence(business, { force });
-    if (!presence) return;
-    applyPresenceToLead(leadId, presence);
+    try {
+      const presence = await discoverBusinessPresence(business, {
+        force,
+        allowWebSearch,
+      });
+      if (!presence) return;
+      applyPresenceToLead(leadId, presence);
+    } catch {
+      setActivityError("Não foi possível buscar Instagram agora.");
+      window.setTimeout(() => setActivityError(""), 5000);
+    }
   }
 
   function applyEnrichment(leadId: string, business: BusinessSearchResult) {
@@ -933,6 +1021,16 @@ function LeadFlowApp() {
         : {}),
     };
 
+    const presenceIdentityChanged =
+      previous.company !== nextLead.company ||
+      previous.phone !== nextLead.phone ||
+      previous.address !== nextLead.address ||
+      previous.website !== nextLead.website;
+
+    if (presenceIdentityChanged && previous.instagramCheckedAt) {
+      nextLead.instagramNeedsReview = true;
+    }
+
     const changed = enrichmentChanges(previous, nextLead);
     updateLeadLocally(leadId, () => nextLead);
 
@@ -954,7 +1052,17 @@ function LeadFlowApp() {
     }
 
     setEnrichmentLead(null);
-    void refreshLeadPresence(leadId, business, Boolean(previous.placeId));
+
+    // Keep the existing first-enrichment behavior, now with the deeper
+    // discovery layer. Updates only mark old Instagram data for review.
+    if (!previous.placeId) {
+      void refreshLeadPresence(
+        leadId,
+        leadToBusinessSearchResult(nextLead),
+        false,
+        true,
+      );
+    }
   }
 
   function addFoundLead(business: BusinessSearchResult, selectedSegment: string) {
