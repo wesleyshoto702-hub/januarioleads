@@ -429,8 +429,14 @@ async function insertSources(
       source_domain:diagnostic.domain,
       page_title:diagnostic.title,
       extraction_method:fact?.extractionMethod ?? diagnostic.method,
-      identity_score:Math.max(diagnostic.identityScore,fact?.identityScore ?? 0),
-      confidence:fact?.confidence ?? diagnostic.confidence,
+      identity_score:
+        diagnostic.sourceKind === "web_search"
+          ? fact?.identityScore ?? diagnostic.identityScore
+          : diagnostic.identityScore,
+      confidence:
+        diagnostic.sourceKind === "web_search"
+          ? fact?.confidence ?? diagnostic.confidence
+          : diagnostic.confidence,
       source_updated_at:fact?.sourceUpdatedAt ?? null,
       checked_at:new Date().toISOString(),
       source_kind:diagnostic.sourceKind,
