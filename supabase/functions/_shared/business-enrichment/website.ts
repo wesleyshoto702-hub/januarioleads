@@ -287,7 +287,15 @@ export default async ({ page, context }) => {
   } catch {
     return { data: { ok: false, error: "NAVIGATION_FAILED" } };
   }
-  await new Promise((resolve) => setTimeout(resolve, 1200));
+  try {
+    if (typeof page.waitForNetworkIdle === "function") {
+      await page.waitForNetworkIdle({ idleTime: 500, timeout: 3500 });
+    } else {
+      await new Promise((resolve) => setTimeout(resolve, 1800));
+    }
+  } catch {
+    await new Promise((resolve) => setTimeout(resolve, 700));
+  }
   const protectedPage = await page.evaluate(() => {
     const title = (document.title || "").toLowerCase();
     const text = (document.body?.innerText || "").slice(0, 5000).toLowerCase();
