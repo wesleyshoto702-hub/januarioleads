@@ -1201,7 +1201,12 @@ export function finalizeSourceDiagnostics(
   }
 
   for (const item of byUrl.values()) {
-    if (item.extractionStatus === "failed" || item.extractionStatus === "blocked") {
+    if (
+      item.extractionStatus === "failed" ||
+      item.extractionStatus === "blocked" ||
+      item.identityStatus === "mismatch" ||
+      item.rejectionReason
+    ) {
       continue;
     }
     const commercialFacts =
