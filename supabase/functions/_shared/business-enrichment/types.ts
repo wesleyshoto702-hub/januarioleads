@@ -13,6 +13,12 @@ export type ExtractionStatus =
   | "blocked"
   | "failed";
 
+export type IdentityStatus =
+  | "confirmed"
+  | "probable"
+  | "insufficient"
+  | "mismatch";
+
 export type EnrichmentSourceKind =
   | "official_website"
   | "official_linked_platform"
@@ -34,6 +40,7 @@ export type BrowserlessReason =
   | "commercial_content_present"
   | "browserless_unavailable"
   | "browserless_failed"
+  | "identity_insufficient_dynamic"
   | "identity_mismatch";
 export type Resolution =
   | "auto_verified"
@@ -142,6 +149,8 @@ export type PageSnapshot = {
   sourceKind?: EnrichmentSourceKind;
   linkedFrom?: string | null;
   sourceIdentityScore?: number;
+  sourceIdentityStatus?: IdentityStatus;
+  sourceIdentityReason?: string | null;
   embeddedJson?: unknown[];
 };
 
@@ -202,6 +211,7 @@ export type UsageMetrics = {
   sourcesInconclusive: number;
   sourcesBlocked: number;
   sourcesFailed: number;
+  sourcesRejected: number;
   factsHigh: number;
   factsMedium: number;
   factsLow: number;
@@ -218,6 +228,9 @@ export type SourceDiagnostic = {
   linkedFrom: string | null;
   method: "http" | "http+browserless" | "browserless" | "web_search";
   extractionStatus: ExtractionStatus;
+  identityStatus: IdentityStatus;
+  identityReason: string;
+  rejectionReason: string | null;
   browserlessDecision: BrowserlessDecision;
   browserlessReason: BrowserlessReason;
   identityScore: number;
@@ -241,6 +254,12 @@ export type SourceDiagnostic = {
     services: number;
     channels: number;
   };
+};
+
+export type EnrichmentSummaryIndicator = {
+  key: string;
+  label: string;
+  value: string;
 };
 
 export type EnrichmentSnapshot = {
@@ -277,6 +296,7 @@ export type EnrichmentSnapshot = {
     website?: string | null;
     instagram?: string | null;
   };
+  summaryIndicators: EnrichmentSummaryIndicator[];
   reviewFacts: Array<{
     id: string;
     type: string;

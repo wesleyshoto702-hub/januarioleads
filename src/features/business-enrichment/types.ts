@@ -13,6 +13,12 @@ export type DeepExtractionStatus =
   | "blocked"
   | "failed";
 
+export type DeepIdentityStatus =
+  | "confirmed"
+  | "probable"
+  | "insufficient"
+  | "mismatch";
+
 export type DeepVerifiedImage = {
   url: string;
   alt?: string | null;
@@ -62,6 +68,11 @@ export type DeepEnrichmentApplied = {
     website?: string | null;
     instagram?: string | null;
   };
+  summaryIndicators: Array<{
+    key: string;
+    label: string;
+    value: string;
+  }>;
   status: DeepEnrichmentStatus;
   quality: DeepEnrichmentConfidence | null;
   checkedAt: string | null;
@@ -108,6 +119,9 @@ export type DeepEnrichmentSnapshot = DeepEnrichmentApplied & {
     linkedFrom: string | null;
     method: "http" | "http+browserless" | "browserless" | "web_search";
     extractionStatus: DeepExtractionStatus;
+    identityStatus: DeepIdentityStatus;
+    identityReason: string;
+    rejectionReason: string | null;
     browserlessDecision: "used" | "not_needed" | "unavailable" | "failed";
     browserlessReason: string;
     identityScore: number;
@@ -147,6 +161,7 @@ export type DeepEnrichmentSnapshot = DeepEnrichmentApplied & {
     sourcesInconclusive: number;
     sourcesBlocked: number;
     sourcesFailed: number;
+    sourcesRejected: number;
     factsHigh: number;
     factsMedium: number;
     factsLow: number;
