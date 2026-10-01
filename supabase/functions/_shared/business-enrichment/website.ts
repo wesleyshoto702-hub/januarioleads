@@ -371,7 +371,7 @@ async function fetchWithBrowserless(
 }
 
 const COMMERCIAL_URL_RE =
-  /(?:^|[./_-])(pedido|pedidos|cardapio|menu|delivery|order|ordering|booking|agendamento|reservas?|shop|store|loja)(?:[./_-]|$)/i;
+  /(?:^|[./_-])(pedido|pedidos|cardapio|menu|delivery|order|ordering|booking|agendamento|reservas?|shop|store|loja|restaurante|restaurant|food|fome)(?:[./_-]|$)/i;
 
 export function isCommercialPlatformUrl(value: string) {
   const url = safePublicUrl(value);
