@@ -1,3 +1,6 @@
+alter table public.business_enrichment_runs
+  add column if not exists summary_indicators jsonb not null default '[]'::jsonb;
+
 alter table public.business_enrichment_sources
   add column if not exists identity_status text,
   add column if not exists identity_reason text,
