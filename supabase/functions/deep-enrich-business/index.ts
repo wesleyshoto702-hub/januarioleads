@@ -38,7 +38,7 @@ import {
 } from "../_shared/business-enrichment/consolidate.ts";
 
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-const DEEP_ENRICHMENT_ENGINE_VERSION = "2026-09-30.2";
+const DEEP_ENRICHMENT_ENGINE_VERSION = "2026-10-01.1";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -292,10 +292,11 @@ function webSearchDiagnostics(candidates: FactCandidate[]): SourceDiagnostic[] {
     const key = canonicalSourceUrl(fact.sourceUrl);
     const list = groups.get(key) ?? [];
     list.push(fact);
-    groups.set(key, list);
+    groups.set(key,list);
   }
-  return Array.from(groups.entries()).map(([url, facts]) => {
-    const score = Math.max(...facts.map((fact) => fact.identityScore), 0);
+
+  return Array.from(groups.entries()).map(([url,facts]) => {
+    const score = Math.max(...facts.map((fact)=>fact.identityScore),0);
     const found = {
       facts:facts.length,
       products:facts.filter((fact)=>fact.type==="product").length,
@@ -305,21 +306,56 @@ function webSearchDiagnostics(candidates: FactCandidate[]): SourceDiagnostic[] {
       services:facts.filter((fact)=>fact.type==="service" || fact.type==="treatment").length,
       channels:facts.filter((fact)=>fact.type.startsWith("channel_")).length,
     };
+    const commercialFactCount =
+      found.products + found.menuItems + found.prices + found.channels;
+    const specificCommercialPlatform =
+      isCommercialPlatformUrl(url) &&
+      score >= 45 &&
+      commercialFactCount > 0 &&
+      (() => {
+        try {
+          const parsed = new URL(url);
+          return parsed.pathname.split("/").filter(Boolean).length >= 2 ||
+            parsed.hostname.split(".").length >= 4;
+        } catch {
+          return false;
+        }
+      })();
+
     return {
       url:facts[0]?.sourceUrl ?? url,
       domain:facts[0]?.sourceDomain ?? domainOf(url),
       title:null,
-      sourceKind:"web_search",
+      sourceKind:specificCommercialPlatform
+        ? "official_linked_platform"
+        : "web_search",
       linkedFrom:null,
       method:"web_search",
       extractionStatus:facts.length >= 3 ? "successful" : "partial",
+      identityStatus:
+        score >= 80 ? "confirmed" : score >= 45 ? "probable" : "insufficient",
+      identityReason:
+        specificCommercialPlatform
+          ? "specific_commercial_platform_supported_by_public_identity_evidence"
+          : score >= 45
+            ? "public_source_identity_probable"
+            : "public_source_identity_insufficient",
+      rejectionReason:null,
       browserlessDecision:"not_needed",
       browserlessReason:"sufficient_static_content",
       identityScore:score,
       confidence:score >= 80 ? "high" : score >= 40 ? "medium" : "low",
-      htmlBytes:0,textLength:0,linkCount:0,scriptCount:0,
-      frameworkSignals:[],jsonLdCount:0,embeddedJsonCount:0,imageCount:0,
-      commercialSignals:0,commercialContentDensity:0,found,
+      htmlBytes:0,
+      textLength:0,
+      linkCount:0,
+      scriptCount:0,
+      frameworkSignals:[],
+      jsonLdCount:0,
+      embeddedJsonCount:0,
+      imageCount:0,
+      commercialSignals:0,
+      commercialContentDensity:0,
+      found,
     } satisfies SourceDiagnostic;
   });
 }
@@ -347,12 +383,35 @@ async function insertSources(
   diagnostics: SourceDiagnostic[],
 ) {
   const factByUrl = new Map<string,FactCandidate>();
+  const sourceAuthority = (value: FactCandidate) =>
+    value.sourceType === "manual" ? 100 :
+    value.sourceType === "official_schema" ? 95 :
+    value.sourceType === "official_embedded_data" ? 92 :
+    value.sourceType === "official_text" ? 90 :
+    value.sourceType === "official_link" ? 88 :
+    value.sourceType === "official_platform_schema" ? 84 :
+    value.sourceType === "official_platform_embedded_data" ? 82 :
+    value.sourceType === "official_platform_text" ? 80 :
+    value.sourceType === "official_platform_link" ? 78 :
+    value.sourceType === "official_image" ? 76 :
+    value.sourceType === "official_platform_image" ? 74 :
+    value.sourceType === "web_search" ? 30 : 10;
+  const confidenceRank = (value: FactCandidate) =>
+    value.confidence === "high" ? 3 : value.confidence === "medium" ? 2 : 1;
+
   for (const fact of candidates) {
     const key = canonicalSourceUrl(fact.sourceUrl);
     const current = factByUrl.get(key);
-    const rank = (value: FactCandidate) =>
-      value.confidence === "high" ? 3 : value.confidence === "medium" ? 2 : 1;
-    if (!current || rank(fact) > rank(current)) factByUrl.set(key,fact);
+    if (
+      !current ||
+      sourceAuthority(fact) > sourceAuthority(current) ||
+      (
+        sourceAuthority(fact) === sourceAuthority(current) &&
+        confidenceRank(fact) > confidenceRank(current)
+      )
+    ) {
+      factByUrl.set(key,fact);
+    }
   }
 
   const body = diagnostics.map((diagnostic) => {
@@ -373,6 +432,9 @@ async function insertSources(
       source_kind:diagnostic.sourceKind,
       fetch_method:diagnostic.method,
       extraction_status:diagnostic.extractionStatus,
+      identity_status:diagnostic.identityStatus,
+      identity_reason:diagnostic.identityReason,
+      rejection_reason:diagnostic.rejectionReason,
       browserless_decision:diagnostic.browserlessDecision,
       browserless_reason:diagnostic.browserlessReason,
       linked_from:diagnostic.linkedFrom,
@@ -389,6 +451,9 @@ async function insertSources(
         commercialSignals:diagnostic.commercialSignals,
         commercialContentDensity:diagnostic.commercialContentDensity,
         found:diagnostic.found,
+        identityStatus:diagnostic.identityStatus,
+        identityReason:diagnostic.identityReason,
+        rejectionReason:diagnostic.rejectionReason,
       },
     };
   });
@@ -559,9 +624,36 @@ async function addHistory(
   }).catch(()=>undefined);
 }
 
-function qualityFrom(completeness: number, verified: number, officialSources: number) {
-  if (completeness >= 0.55 && verified >= 5 && officialSources > 0) return "high";
-  if (completeness >= 0.25 || verified >= 2) return "medium";
+function evidenceQualityFrom(
+  facts: PersistedFact[],
+  diagnostics: SourceDiagnostic[],
+) {
+  const usable = facts.filter((fact)=>
+    fact.resolution !== "rejected" &&
+    fact.resolution !== "low_confidence"
+  );
+  if (!usable.length) return "low";
+
+  const manuallyVerified = usable.some(
+    (fact)=>fact.resolution === "manual_verified"
+  );
+  const strongOfficial = usable.some((fact)=>
+    fact.resolution === "auto_verified" &&
+    fact.confidence === "high" &&
+    fact.identityScore >= 80 &&
+    fact.sourceType !== "web_search"
+  );
+  if (manuallyVerified || strongOfficial) return "high";
+
+  const probableSources = diagnostics.filter((source)=>
+    source.identityStatus === "confirmed" ||
+    source.identityStatus === "probable"
+  ).length;
+  const mediumOrBetter = usable.filter((fact)=>
+    fact.confidence === "high" || fact.confidence === "medium"
+  ).length;
+
+  if (mediumOrBetter >= 2 || probableSources >= 1) return "medium";
   return "low";
 }
 
@@ -581,6 +673,7 @@ function baseMetrics(): UsageMetrics {
     sourcesInconclusive:0,
     sourcesBlocked:0,
     sourcesFailed:0,
+    sourcesRejected:0,
     factsHigh:0,
     factsMedium:0,
     factsLow:0,
@@ -600,6 +693,7 @@ function finalizeMetrics(
   metrics.sourcesInconclusive = diagnostics.filter((item)=>item.extractionStatus==="inconclusive").length;
   metrics.sourcesBlocked = diagnostics.filter((item)=>item.extractionStatus==="blocked").length;
   metrics.sourcesFailed = diagnostics.filter((item)=>item.extractionStatus==="failed").length;
+  metrics.sourcesRejected = diagnostics.filter((item)=>Boolean(item.rejectionReason)).length;
   metrics.factsHigh = facts.filter((item)=>item.confidence==="high").length;
   metrics.factsMedium = facts.filter((item)=>item.confidence==="medium").length;
   metrics.factsLow = facts.filter((item)=>item.confidence==="low").length;
@@ -731,6 +825,159 @@ function researchGaps(
     .map(([key]) => RESEARCH_LABELS[key]);
 }
 
+function countValue(count: number) {
+  return count > 0 ? `${count} encontrados` : "Não encontrado";
+}
+
+function confirmationValue(value: boolean) {
+  return value ? "Confirmado" : "Não confirmado";
+}
+
+function buildSummaryIndicators(
+  business: BusinessInput,
+  strategy: ReturnType<typeof resolveNicheStrategy>,
+  summary: ReturnType<typeof summaryOf>,
+  snapshot: ReturnType<typeof buildVerifiedSnapshot>,
+) {
+  const indicators: Array<{key:string;label:string;value:string}> = [];
+  const seen = new Set<string>();
+  const add = (key:string,label:string,value:string) => {
+    if (seen.has(key) || indicators.length >= 6) return;
+    seen.add(key);
+    indicators.push({key,label,value});
+  };
+
+  const content = snapshot.verifiedContent;
+  const channels = snapshot.confirmedChannels;
+  const contentCount = (key: keyof typeof content) =>
+    Array.isArray(content[key]) ? (content[key] as unknown[]).length : 0;
+
+  const applyPriority = (raw: string) => {
+    const value = normalizeText(raw);
+    if (/produto|cardap|menu|pizza|sabor|lanche/.test(value)) {
+      add(
+        "products_menu",
+        "Produtos / Cardápio",
+        countValue(summary.products + summary.menuItems),
+      );
+      add("prices","Preços",countValue(summary.prices));
+      return;
+    }
+    if (/preco|valor/.test(value)) {
+      add("prices","Preços",countValue(summary.prices));
+      return;
+    }
+    if (/tratamento/.test(value)) {
+      add("treatments","Tratamentos",countValue(contentCount("treatments")));
+      return;
+    }
+    if (/servic|procediment/.test(value)) {
+      add("services","Serviços",countValue(summary.services));
+      return;
+    }
+    if (/credencial|especializacao|formacao|registro/.test(value)) {
+      add("credentials","Credenciais",countValue(contentCount("credentials")));
+      return;
+    }
+    if (/profission|equipe|artista|barbeir|dentist/.test(value)) {
+      add("professionals","Profissionais",countValue(summary.professionals));
+      return;
+    }
+    if (/portfolio|trabalho|resultado/.test(value)) {
+      add(
+        "portfolio",
+        "Portfólio",
+        summary.portfolioImages > 0 ? "Disponível" : "Não encontrado",
+      );
+      return;
+    }
+    if (/estilo|especialidade/.test(value)) {
+      add("specialties","Estilos / Especialidades",countValue(contentCount("specialties")));
+      return;
+    }
+    if (/estrutura|ambiente|oficina|clinica/.test(value)) {
+      add("facilities","Estrutura",countValue(contentCount("facilities")));
+      return;
+    }
+    if (/veiculo|carro|moto/.test(value)) {
+      add("vehicles","Veículos atendidos",countValue(contentCount("vehicleTypes")));
+      return;
+    }
+    if (/foto|fotografia|imagem/.test(value)) {
+      add("images","Imagens",countValue(summary.verifiedImages));
+      return;
+    }
+    if (/delivery|pedido|entrega|retirada/.test(value)) {
+      add(
+        "order",
+        "Pedido / Delivery",
+        confirmationValue(Boolean(channels.deliveryUrl || channels.menuUrl)),
+      );
+      return;
+    }
+    if (/agend|booking|reserva/.test(value)) {
+      add(
+        "booking",
+        "Agendamento",
+        confirmationValue(Boolean(channels.bookingUrl || channels.reservationUrl)),
+      );
+      return;
+    }
+    if (/instagram/.test(value)) {
+      add("instagram","Instagram",business.instagram ? "Confirmado" : "Não confirmado");
+      return;
+    }
+    if (/orcamento/.test(value)) {
+      add(
+        "quote",
+        "Orçamento / contato",
+        confirmationValue(Boolean(channels.whatsappUrl || business.phone)),
+      );
+    }
+  };
+
+  for (const priority of strategy.contentPriorities) applyPriority(priority);
+
+  for (const [key] of strategy.visualContentPriorities) {
+    applyPriority(key);
+  }
+
+  for (const section of strategy.idealSections) {
+    for (const key of section.requiresAny) applyPriority(key);
+  }
+
+  for (const action of strategy.preferredPrimaryActions) {
+    if (action === "delivery") applyPriority("delivery pedido");
+    else if (action === "booking") applyPriority("agendamento");
+    else if (action === "whatsapp") {
+      add(
+        "whatsapp",
+        "WhatsApp",
+        confirmationValue(Boolean(channels.whatsappUrl)),
+      );
+    } else if (action === "instagram") applyPriority("Instagram");
+  }
+
+  if (indicators.length < 6 && summary.verifiedImages > 0) {
+    add("images","Imagens",countValue(summary.verifiedImages));
+  }
+
+  if (
+    indicators.length < 6 &&
+    (business.address || business.openingHours?.length)
+  ) {
+    add(
+      "location_hours",
+      "Localização / horários",
+      business.address && business.openingHours?.length
+        ? "Confirmados"
+        : "Parcialmente confirmados",
+    );
+  }
+
+  return indicators.slice(0,6);
+}
+
 function computeCompleteness(
   business: BusinessInput,
   strategy: ReturnType<typeof resolveNicheStrategy>,
@@ -765,7 +1012,7 @@ async function snapshotFromRun(row: Record<string,unknown>, cached: boolean): Pr
     sourceUrl:fact.sourceUrl || null,
   }));
   const sourceResponse = runId ? await adminRest(
-    `business_enrichment_sources?select=source_type,source_url,source_domain,page_title,confidence,source_kind,fetch_method,extraction_status,browserless_decision,browserless_reason,linked_from,facts_found,identity_score,metadata&run_id=eq.${encodeURIComponent(runId)}&order=created_at.asc&limit=30`
+    `business_enrichment_sources?select=source_type,source_url,source_domain,page_title,confidence,source_kind,fetch_method,extraction_status,identity_status,identity_reason,rejection_reason,browserless_decision,browserless_reason,linked_from,facts_found,identity_score,metadata&run_id=eq.${encodeURIComponent(runId)}&order=created_at.asc&limit=30`
   ) : null;
   const sourceRows = sourceResponse?.ok ? await sourceResponse.json() as Array<Record<string,unknown>> : [];
   const engineVersion =
@@ -788,6 +1035,9 @@ async function snapshotFromRun(row: Record<string,unknown>, cached: boolean): Pr
     verifiedImages:Array.isArray(row.verified_images) ? row.verified_images as EnrichmentSnapshot["verifiedImages"] : [],
     confirmedChannels:(row.confirmed_channels && typeof row.confirmed_channels==="object" ? row.confirmed_channels : {}) as EnrichmentSnapshot["confirmedChannels"],
     identityUpdates:(row.identity_updates && typeof row.identity_updates==="object" ? row.identity_updates : {}) as EnrichmentSnapshot["identityUpdates"],
+    summaryIndicators:Array.isArray(row.summary_indicators)
+      ? row.summary_indicators as EnrichmentSnapshot["summaryIndicators"]
+      : [],
     reviewFacts,
     sources:sourceRows.map((source)=>{
       const metadata =
@@ -826,6 +1076,22 @@ async function snapshotFromRun(row: Record<string,unknown>, cached: boolean): Pr
           source.extraction_status === "failed"
             ? source.extraction_status
             : "partial",
+        identityStatus:
+          source.identity_status === "confirmed" ||
+          source.identity_status === "probable" ||
+          source.identity_status === "mismatch"
+            ? source.identity_status
+            : "insufficient",
+        identityReason:String(
+          source.identity_reason ??
+          (engineVersion === DEEP_ENRICHMENT_ENGINE_VERSION
+            ? "identity_not_recorded"
+            : "legacy_engine_identity_not_available")
+        ),
+        rejectionReason:
+          typeof source.rejection_reason === "string"
+            ? source.rejection_reason
+            : null,
         browserlessDecision:
           source.browserless_decision === "used" ||
           source.browserless_decision === "unavailable" ||
@@ -943,7 +1209,12 @@ async function runEnrichment(
       );
       officialPages = crawled.pages;
       crawlDiagnostics = crawled.diagnostics;
-      stageErrors.push(...crawled.errors);
+      stageErrors.push(
+        ...crawled.errors.filter((error)=>
+          error !== "linked_platform_identity_mismatch" &&
+          error !== "source_blocked"
+        ),
+      );
       candidates.push(...deterministicOfficialFacts(crawled.pages,fingerprint));
     }
 
@@ -1012,10 +1283,13 @@ async function runEnrichment(
     const finalIdentitySignature = await identitySignature(finalFingerprint);
     const completeness = computeCompleteness(enrichedBusiness,strategy);
     const summary = summaryOf(facts,snapshot);
-    const officialSources = new Set(
-      facts.filter((fact)=>fact.sourceType.startsWith("official_")).map((fact)=>fact.sourceUrl)
-    ).size;
-    const quality = qualityFrom(completeness,summary.verifiedFacts,officialSources);
+    const quality = evidenceQualityFrom(facts,diagnostics);
+    const summaryIndicators = buildSummaryIndicators(
+      enrichedBusiness,
+      strategy,
+      summary,
+      snapshot,
+    );
     const needsReview = summary.reviewFacts > 0;
     const status = needsReview ? "needs_review" : "completed";
     const now = new Date();
@@ -1032,6 +1306,7 @@ async function runEnrichment(
       confirmed_channels:snapshot.confirmedChannels,
       identity_updates:snapshot.identityUpdates,
       summary,
+      summary_indicators:summaryIndicators,
       metrics,
       error_summary:stageErrors.length ? stageErrors.join(" · ").slice(0,1500) : null,
       checked_at:now.toISOString(),
@@ -1210,6 +1485,7 @@ Deno.serve(async (request)=>{
           verifiedImages:identityChanged ? [] : business.verifiedImages ?? [],
           confirmedChannels:identityChanged ? {} : business.confirmedChannels ?? {},
           identityUpdates:{},
+          summaryIndicators:[],
           reviewFacts:[],sources:[],metrics:baseMetrics(),errorSummary:null,
         };
         return json({ok:true,snapshot:empty,identityChanged});
