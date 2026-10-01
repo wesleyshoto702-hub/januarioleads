@@ -5,18 +5,27 @@ import {
   safePublicUrl,
   withVerifiedIdentityUpdates,
 } from "./security.ts";
-import { buildContentAvailabilityMatrix } from "../niche-strategies.ts";
+import {
+  buildContentAvailabilityMatrix,
+  resolveNicheStrategy,
+} from "../niche-strategies.ts";
 import {
   buildVerifiedSnapshot,
   finalizeCandidates,
+  summaryOf,
 } from "./consolidate.ts";
 import {
+  assessLinkedPlatformIdentity,
   deterministicOfficialFacts,
   isCommercialPlatformUrl,
   selectInternalLinks,
   shouldUseBrowserless,
 } from "./website.ts";
 import { planWebResearchQueries } from "./research.ts";
+import {
+  buildSummaryIndicators,
+  evidenceQualityFrom,
+} from "./presentation.ts";
 import type {
   BusinessInput,
   FactCandidate,
@@ -475,4 +484,214 @@ Deno.test("commercial source with dynamic signals and no facts is inconclusive b
     [],
   );
   assert(decision.use,"Inconclusive commercial extraction must request the bounded renderer fallback.");
+});
+
+
+Deno.test("Dakkar-like thin linked platform is insufficient, not mismatch, and can render", () => {
+  const fingerprint = buildFingerprint(
+    {
+      company:"Dakkar Burguers",
+      segment:"Hamburgueria",
+      phone:"(35) 99858-1002",
+      address:"R. Lourenço Menicucci, 355 - Centro, Lavras - MG",
+      city:"Lavras",
+      website:"https://dakkarburguers.sisfood.com.br/loja/cardapio",
+    },
+    "hamburger",
+  );
+  const page = pageFixture({
+    url:"https://dakkarburguers.sisfood.com.br/loja/cardapio",
+    sourceKind:"official_linked_platform",
+    linkedFrom:"google_places_website",
+    title:"Cardápio digital por SisFood",
+    text:"Faça seu pedido agora. Carregando cardápio. Consulte os itens disponíveis online.",
+    html:`<html><body><div id="app"></div><script src="/runtime.js"></script><script src="/vendor.js"></script><script src="/app.js"></script><script>window.appReady=true</script></body></html>`,
+  });
+  const identity = assessLinkedPlatformIdentity(fingerprint,page);
+  assert(identity.status === "insufficient","Missing visible identity cannot become mismatch.");
+  const decision = shouldUseBrowserless(
+    page,
+    ["produtos","cardápio","preços","pedido"],
+    [],
+    identity.status,
+    "official_linked_platform",
+  );
+  assert(decision.use,"Thin dynamic linked platform with insufficient identity should use bounded Browserless.");
+});
+
+Deno.test("real contradictory identity becomes mismatch without spending Browserless", () => {
+  const fingerprint = buildFingerprint(
+    {
+      company:"Empresa A",
+      segment:"Hamburgueria",
+      phone:"(35) 99999-1111",
+      address:"Rua A, 10",
+      city:"Lavras",
+    },
+    "hamburger",
+  );
+  const page = pageFixture({
+    url:"https://pedido.example.com/empresa-b",
+    sourceKind:"official_linked_platform",
+    linkedFrom:"google_places_website",
+    title:"Empresa B",
+    text:"Empresa B em Varginha. Rua B, 999. Telefone (35) 98888-2222.",
+    html:`<html><body><h1>Empresa B</h1><p>Varginha Rua B 999 (35) 98888-2222</p><script src="/app.js"></script></body></html>`,
+  });
+  const identity = assessLinkedPlatformIdentity(fingerprint,page);
+  assert(identity.status === "mismatch","Contradictory business name plus phone/address must be mismatch.");
+  const decision = shouldUseBrowserless(
+    page,
+    ["cardápio","preços"],
+    [],
+    identity.status,
+    "official_linked_platform",
+  );
+  assert(!decision.use,"Confirmed mismatch must not spend Browserless budget.");
+  assert(decision.reason === "identity_mismatch","Mismatch decision must be explicit.");
+});
+
+Deno.test("identity is revalidated after rendered DOM reveals matching branch signals", () => {
+  const fingerprint = buildFingerprint(
+    {
+      company:"Dakkar Burguers",
+      segment:"Hamburgueria",
+      phone:"(35) 99858-1002",
+      address:"R. Lourenço Menicucci, 355 - Centro, Lavras - MG",
+      city:"Lavras",
+    },
+    "hamburger",
+  );
+  const before = pageFixture({
+    url:"https://dakkarburguers.sisfood.com.br/loja/cardapio",
+    sourceKind:"official_linked_platform",
+    linkedFrom:"google_places_website",
+    title:"Cardápio digital por SisFood",
+    text:"Carregando cardápio...",
+  });
+  const after = pageFixture({
+    url:"https://dakkarburguers.sisfood.com.br/loja/cardapio",
+    sourceKind:"official_linked_platform",
+    linkedFrom:"google_places_website",
+    method:"browserless",
+    title:"Dakkar Burguers",
+    text:"Dakkar Burguers em Lavras. R. Lourenço Menicucci, 355. Telefone (35) 99858-1002.",
+  });
+  assert(
+    assessLinkedPlatformIdentity(fingerprint,before).status === "insufficient",
+    "Static shell should remain insufficient.",
+  );
+  assert(
+    assessLinkedPlatformIdentity(fingerprint,after).status === "confirmed",
+    "Rendered matching local signals should confirm identity.",
+  );
+});
+
+Deno.test("identity is revalidated to mismatch when rendered DOM reveals another company", () => {
+  const fingerprint = buildFingerprint(
+    {
+      company:"Empresa A",
+      segment:"Hamburgueria",
+      phone:"(35) 99999-1111",
+      address:"Rua A, 10",
+      city:"Lavras",
+    },
+    "hamburger",
+  );
+  const rendered = pageFixture({
+    url:"https://pedido.example.com/empresa-a",
+    sourceKind:"official_linked_platform",
+    linkedFrom:"google_places_website",
+    method:"browserless",
+    title:"Empresa B",
+    text:"Empresa B em Varginha. Rua B, 999. Telefone (35) 98888-2222.",
+  });
+  assert(
+    assessLinkedPlatformIdentity(fingerprint,rendered).status === "mismatch",
+    "Rendered contradictory identity must reject the source.",
+  );
+});
+
+Deno.test("niche-aware summary follows the resolved existing strategy", () => {
+  const cases = [
+    {
+      segment:"Hamburgueria",
+      expected:["Produtos / Cardápio","Preços","Pedido / Delivery"],
+      forbidden:["Profissionais"],
+    },
+    {
+      segment:"Barbearia",
+      expected:["Serviços","Preços","Portfólio"],
+      forbidden:["Produtos / Cardápio"],
+    },
+    {
+      segment:"Dentista",
+      expected:["Profissionais","Tratamentos","Credenciais"],
+      forbidden:["Produtos / Cardápio"],
+    },
+    {
+      segment:"Estúdio de Tatuagem",
+      expected:["Profissionais","Estilos / Especialidades","Portfólio"],
+      forbidden:["Produtos / Cardápio"],
+    },
+    {
+      segment:"Oficina Mecânica",
+      expected:["Serviços","Veículos atendidos"],
+      forbidden:["Produtos / Cardápio"],
+    },
+  ];
+
+  for (const item of cases) {
+    const business: BusinessInput = {
+      company:"Fixture",
+      segment:item.segment,
+      phone:"(35) 99999-1111",
+      city:"Lavras",
+    };
+    const strategy = resolveNicheStrategy(business);
+    const snapshot = buildVerifiedSnapshot([]);
+    const summary = summaryOf([],snapshot);
+    const labels = buildSummaryIndicators(
+      business,
+      strategy,
+      summary,
+      snapshot,
+    ).map((entry)=>entry.label);
+
+    for (const expected of item.expected) {
+      assert(
+        labels.includes(expected),
+        `${item.segment} should include ${expected}; got ${labels.join(", ")}`,
+      );
+    }
+    for (const forbidden of item.forbidden) {
+      assert(
+        !labels.includes(forbidden),
+        `${item.segment} should not prioritize ${forbidden}`,
+      );
+    }
+  }
+});
+
+Deno.test("evidence quality can be high while commercial coverage remains sparse", async () => {
+  const fact = candidate(
+    "service",
+    "serviço explicitamente publicado",
+    "high",
+    "empresa.example",
+    "official_text",
+  );
+  const facts = await finalizeCandidates([fact],new Set());
+  assert(
+    evidenceQualityFrom(facts,[]) === "high",
+    "One strongly verified official fact can have high evidence quality independently of coverage.",
+  );
+
+  const a = candidate("service","serviço a","medium","directory-a.example","web_search");
+  const b = candidate("professional","profissional b","medium","directory-b.example","web_search");
+  const mediumFacts = await finalizeCandidates([a,b],new Set());
+  assert(
+    evidenceQualityFrom(mediumFacts,[]) === "medium",
+    "Several medium public facts should remain medium evidence quality.",
+  );
 });
