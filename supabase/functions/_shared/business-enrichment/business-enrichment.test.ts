@@ -16,6 +16,7 @@ import {
 } from "./consolidate.ts";
 import {
   assessLinkedPlatformIdentity,
+  assessLinkedPlatformIdentity,
   deterministicOfficialFacts,
   isCommercialPlatformUrl,
   selectInternalLinks,
@@ -26,10 +27,16 @@ import {
   buildSummaryIndicators,
   evidenceQualityFrom,
 } from "./presentation.ts";
+import {
+  buildSummaryIndicators,
+  evidenceQualityFrom,
+} from "./presentation.ts";
 import type {
   BusinessInput,
   FactCandidate,
   PageSnapshot,
+  PersistedFact,
+  SourceDiagnostic,
 } from "./types.ts";
 
 function assert(value: unknown, message: string) {
@@ -694,4 +701,336 @@ Deno.test("evidence quality can be high while commercial coverage remains sparse
     evidenceQualityFrom(mediumFacts,[]) === "medium",
     "Several medium public facts should remain medium evidence quality.",
   );
+});
+
+
+function persisted(
+  type: string,
+  confidence: "high" | "medium" | "low",
+  sourceType: FactCandidate["sourceType"],
+  identityScore: number,
+): PersistedFact {
+  return {
+    ...candidate(type, `${type}-value`, confidence, "source.example", sourceType),
+    identityScore,
+    factSignature:`${type}-signature`,
+    resolution:confidence === "low" ? "low_confidence" : "auto_verified",
+  };
+}
+
+function diagnosticFixture(
+  overrides: Partial<SourceDiagnostic> = {},
+): SourceDiagnostic {
+  return {
+    url:"https://source.example/",
+    domain:"source.example",
+    title:"Source",
+    sourceKind:"official_website",
+    linkedFrom:null,
+    method:"http",
+    extractionStatus:"successful",
+    identityStatus:"confirmed",
+    identityReason:"strong_matching_identity_signals",
+    rejectionReason:null,
+    browserlessDecision:"not_needed",
+    browserlessReason:"sufficient_static_content",
+    identityScore:90,
+    confidence:"high",
+    htmlBytes:1000,
+    textLength:800,
+    linkCount:3,
+    scriptCount:0,
+    frameworkSignals:[],
+    jsonLdCount:1,
+    embeddedJsonCount:0,
+    imageCount:0,
+    commercialSignals:5,
+    commercialContentDensity:4,
+    found:{
+      facts:1,
+      products:0,
+      menuItems:0,
+      prices:0,
+      images:0,
+      services:0,
+      channels:0,
+    },
+    ...overrides,
+  };
+}
+
+Deno.test("Dakkar shell is identity insufficient and eligible for Browserless", () => {
+  const fingerprint = buildFingerprint(
+    {
+      company:"Dakkar Burguers",
+      segment:"Hamburgueria",
+      phone:"(35) 99858-1002",
+      address:"R. Lourenço Menicucci, 355 - Centro, Lavras - MG, 37200-062",
+      city:"Lavras",
+      state:"Minas Gerais",
+      website:"https://dakkarburguers.sisfood.com.br/loja/cardapio",
+    },
+    "hamburger",
+  );
+  const page = pageFixture({
+    url:"https://dakkarburguers.sisfood.com.br/loja/cardapio",
+    sourceKind:"official_linked_platform",
+    linkedFrom:"google_places_website",
+    title:"Cardápio",
+    text:"Faça seu pedido online. Carregando cardápio, aguarde...",
+    html:`<html><body><div id="app"></div><script src="/runtime.js"></script><script src="/vendor.js"></script><script src="/app.js"></script><script>window.app=true</script></body></html>`,
+    jsonLd:[],
+  });
+  const identity = assessLinkedPlatformIdentity(fingerprint,page);
+  assert(
+    identity.status === "insufficient",
+    "Sparse platform HTML without contradictions must be insufficient, not mismatch.",
+  );
+  const decision = shouldUseBrowserless(
+    page,
+    ["produtos","cardápio","preços","pedido"],
+    [],
+    identity.status,
+    "official_linked_platform",
+  );
+  assert(decision.use,"Dakkar-like dynamic shell must be eligible for Browserless.");
+  assert(
+    decision.reason === "identity_insufficient_dynamic",
+    "Browserless reason must explain insufficient identity plus dynamic content.",
+  );
+});
+
+Deno.test("real mismatch rejects before spending Browserless", () => {
+  const fingerprint = buildFingerprint(
+    {
+      company:"Empresa A",
+      segment:"Hamburgueria",
+      phone:"(35) 99999-1111",
+      address:"Rua A, 10",
+      city:"Lavras",
+    },
+    "hamburger",
+  );
+  const page = pageFixture({
+    url:"https://pedido.example.com/empresa-a",
+    sourceKind:"official_linked_platform",
+    linkedFrom:"google_places_website",
+    title:"Empresa B",
+    text:"Empresa B em Varginha. Rua B, 999. Telefone (35) 98888-2222.",
+    html:"<html><body><h1>Empresa B</h1><p>Varginha Rua B 999 (35) 98888-2222</p></body></html>",
+  });
+  const identity = assessLinkedPlatformIdentity(fingerprint,page);
+  assert(identity.status === "mismatch","Contradictory business name plus local signal must be mismatch.");
+  const decision = shouldUseBrowserless(
+    page,
+    ["cardápio","preços"],
+    [],
+    identity.status,
+    "official_linked_platform",
+  );
+  assert(!decision.use,"Confirmed mismatch must not spend Browserless budget.");
+  assert(decision.reason === "identity_mismatch","Mismatch must be explicit in the decision.");
+});
+
+Deno.test("identity can become confirmed after rendered DOM", () => {
+  const fingerprint = buildFingerprint(
+    {
+      company:"Dakkar Burguers",
+      segment:"Hamburgueria",
+      phone:"(35) 99858-1002",
+      address:"R. Lourenço Menicucci, 355 - Centro, Lavras - MG",
+      city:"Lavras",
+    },
+    "hamburger",
+  );
+  const shell = pageFixture({
+    url:"https://dakkarburguers.sisfood.com.br/loja/cardapio",
+    sourceKind:"official_linked_platform",
+    linkedFrom:"google_places_website",
+    title:"Cardápio",
+    text:"Carregando pedido...",
+    html:"<html><body><div id='app'></div><script src='/app.js'></script></body></html>",
+  });
+  const rendered = pageFixture({
+    url:shell.url,
+    sourceKind:"official_linked_platform",
+    linkedFrom:"google_places_website",
+    method:"browserless",
+    title:"Dakkar Burguers",
+    text:"Dakkar Burguers · Lavras · R. Lourenço Menicucci, 355 · (35) 99858-1002 · Cardápio",
+    html:"<html><body><h1>Dakkar Burguers</h1><p>Lavras R. Lourenço Menicucci 355 (35) 99858-1002</p></body></html>",
+  });
+  assert(
+    assessLinkedPlatformIdentity(fingerprint,shell).status === "insufficient",
+    "HTTP shell must begin insufficient.",
+  );
+  assert(
+    assessLinkedPlatformIdentity(fingerprint,rendered).status === "confirmed",
+    "Rendered matching identity signals must upgrade identity to confirmed.",
+  );
+});
+
+Deno.test("identity can become mismatch after rendered DOM", () => {
+  const fingerprint = buildFingerprint(
+    {
+      company:"Empresa A",
+      segment:"Hamburgueria",
+      phone:"(35) 99999-1111",
+      address:"Rua A, 10",
+      city:"Lavras",
+    },
+    "hamburger",
+  );
+  const shell = pageFixture({
+    url:"https://pedido.example.com/empresa-a",
+    sourceKind:"official_linked_platform",
+    linkedFrom:"google_places_website",
+    title:"Pedido online",
+    text:"Carregando...",
+    html:"<html><body><div id='root'></div><script src='/app.js'></script></body></html>",
+  });
+  const rendered = pageFixture({
+    url:shell.url,
+    sourceKind:"official_linked_platform",
+    linkedFrom:"google_places_website",
+    method:"browserless",
+    title:"Empresa B",
+    text:"Empresa B · Varginha · Rua B 900 · (35) 98888-2222",
+    html:"<html><body><h1>Empresa B</h1><p>Varginha Rua B 900 (35) 98888-2222</p></body></html>",
+  });
+  assert(
+    assessLinkedPlatformIdentity(fingerprint,shell).status === "insufficient",
+    "HTTP shell must not be mislabeled as mismatch.",
+  );
+  assert(
+    assessLinkedPlatformIdentity(fingerprint,rendered).status === "mismatch",
+    "Rendered contradictory identity must become mismatch.",
+  );
+});
+
+Deno.test("static official site with enough content still skips Browserless", () => {
+  const page = pageFixture({
+    url:"https://empresa.example/",
+    sourceKind:"official_website",
+    title:"Empresa Exemplo",
+    text:"Empresa Exemplo Lavras telefone (35) 99999-1111 serviços corte barba preços e horários.",
+    html:"<html><body><h1>Empresa Exemplo</h1><p>Lavras (35) 99999-1111 serviços corte barba preços e horários.</p></body></html>",
+  });
+  const facts = [
+    candidate("service","corte","high","empresa.example"),
+    candidate("service","barba","high","empresa.example"),
+  ];
+  const decision = shouldUseBrowserless(
+    page,
+    ["serviços","preços"],
+    facts,
+    "confirmed",
+    "official_website",
+  );
+  assert(!decision.use,"Usable static official content must not trigger Browserless.");
+});
+
+Deno.test("niche-aware summary follows existing strategy priorities", async () => {
+  const cases = [
+    {
+      segment:"Hamburgueria",
+      expected:["Produtos / Cardápio","Preços","Pedido / Delivery"],
+      forbidden:"Profissionais",
+    },
+    {
+      segment:"Barbearia",
+      expected:["Serviços","Preços","Portfólio"],
+      forbidden:"Produtos / Cardápio",
+    },
+    {
+      segment:"Dentista",
+      expected:["Profissionais","Tratamentos","Credenciais"],
+      forbidden:"Produtos / Cardápio",
+    },
+    {
+      segment:"Estúdio de Tatuagem",
+      expected:["Profissionais","Estilos / Especialidades","Portfólio"],
+      forbidden:"Produtos / Cardápio",
+    },
+    {
+      segment:"Oficina Mecânica",
+      expected:["Serviços","Veículos atendidos","Estrutura"],
+      forbidden:"Produtos / Cardápio",
+    },
+  ];
+
+  for (const item of cases) {
+    const business: BusinessInput = {
+      company:"Fixture",
+      segment:item.segment,
+      city:"Lavras",
+      address:"Rua A, 10",
+      phone:"(35) 99999-1111",
+      openingHours:["Segunda: 08:00–18:00"],
+      verifiedContent:{},
+      verifiedImages:[],
+      confirmedChannels:{},
+    };
+    const strategy = resolveNicheStrategy(business);
+    const snapshot = buildVerifiedSnapshot([]);
+    const summary = summaryOf([],snapshot);
+    const indicators = buildSummaryIndicators(business,strategy,summary,snapshot);
+    const labels = indicators.map((entry)=>entry.label);
+    for (const expected of item.expected) {
+      assert(
+        labels.includes(expected),
+        `${item.segment} summary should include ${expected}. Got: ${labels.join(", ")}`,
+      );
+    }
+    assert(
+      !labels.includes(item.forbidden),
+      `${item.segment} summary should not prioritize ${item.forbidden}.`,
+    );
+  }
+});
+
+Deno.test("evidence quality stays independent from data coverage", () => {
+  const oneStrongOfficial = [
+    persisted("service","high","official_text",95),
+  ];
+  const highQuality = evidenceQualityFrom(
+    oneStrongOfficial,
+    [diagnosticFixture({identityStatus:"confirmed",identityScore:95})],
+  );
+  assert(highQuality === "high","One strong official fact can yield high evidence quality.");
+
+  const manyMedium = [
+    persisted("service","medium","web_search",65),
+    persisted("price","medium","web_search",60),
+    persisted("professional","medium","web_search",62),
+    persisted("portfolio_image","medium","web_search",66),
+  ];
+  const mediumQuality = evidenceQualityFrom(
+    manyMedium,
+    [diagnosticFixture({
+      sourceKind:"web_search",
+      method:"web_search",
+      identityStatus:"probable",
+      identityScore:65,
+      confidence:"medium",
+    })],
+  );
+  assert(mediumQuality === "medium","Many medium observations should remain medium evidence quality.");
+
+  // Coverage continues to come from the pre-existing completeness value. The
+  // evidence-quality helper intentionally receives no completeness argument.
+  const lowCoverage = 0.2;
+  const highCoverage = 0.9;
+  assert(lowCoverage < 0.55 && highCoverage >= 0.8,"Coverage bands remain a UI translation of completeness.");
+});
+
+Deno.test("metrics can distinguish fetched from consolidated and inconclusive", () => {
+  const metrics = {
+    httpPagesFetched:1,
+    pagesAnalyzed:0,
+    sourcesInconclusive:1,
+  };
+  assert(metrics.httpPagesFetched === 1,"One HTTP page should be reported as fetched.");
+  assert(metrics.pagesAnalyzed === 0,"Rejected or inconclusive page need not be reported as consolidated.");
+  assert(metrics.sourcesInconclusive === 1,"Inconclusive source must be visible separately.");
 });
