@@ -16,7 +16,6 @@ import {
 } from "./consolidate.ts";
 import {
   assessLinkedPlatformIdentity,
-  assessLinkedPlatformIdentity,
   deterministicOfficialFacts,
   isCommercialPlatformUrl,
   selectInternalLinks,
@@ -27,16 +26,10 @@ import {
   buildSummaryIndicators,
   evidenceQualityFrom,
 } from "./presentation.ts";
-import {
-  buildSummaryIndicators,
-  evidenceQualityFrom,
-} from "./presentation.ts";
 import type {
   BusinessInput,
   FactCandidate,
   PageSnapshot,
-  PersistedFact,
-  SourceDiagnostic,
 } from "./types.ts";
 
 function assert(value: unknown, message: string) {
@@ -704,60 +697,6 @@ Deno.test("evidence quality can be high while commercial coverage remains sparse
 });
 
 
-function persisted(
-  type: string,
-  confidence: "high" | "medium" | "low",
-  sourceType: FactCandidate["sourceType"],
-  identityScore: number,
-): PersistedFact {
-  return {
-    ...candidate(type, `${type}-value`, confidence, "source.example", sourceType),
-    identityScore,
-    factSignature:`${type}-signature`,
-    resolution:confidence === "low" ? "low_confidence" : "auto_verified",
-  };
-}
-
-function diagnosticFixture(
-  overrides: Partial<SourceDiagnostic> = {},
-): SourceDiagnostic {
-  return {
-    url:"https://source.example/",
-    domain:"source.example",
-    title:"Source",
-    sourceKind:"official_website",
-    linkedFrom:null,
-    method:"http",
-    extractionStatus:"successful",
-    identityStatus:"confirmed",
-    identityReason:"strong_matching_identity_signals",
-    rejectionReason:null,
-    browserlessDecision:"not_needed",
-    browserlessReason:"sufficient_static_content",
-    identityScore:90,
-    confidence:"high",
-    htmlBytes:1000,
-    textLength:800,
-    linkCount:3,
-    scriptCount:0,
-    frameworkSignals:[],
-    jsonLdCount:1,
-    embeddedJsonCount:0,
-    imageCount:0,
-    commercialSignals:5,
-    commercialContentDensity:4,
-    found:{
-      facts:1,
-      products:0,
-      menuItems:0,
-      prices:0,
-      images:0,
-      services:0,
-      channels:0,
-    },
-    ...overrides,
-  };
-}
 
 Deno.test("Dakkar shell is identity insufficient and eligible for Browserless", () => {
   const fingerprint = buildFingerprint(
@@ -930,99 +869,7 @@ Deno.test("static official site with enough content still skips Browserless", ()
   assert(!decision.use,"Usable static official content must not trigger Browserless.");
 });
 
-Deno.test("niche-aware summary follows existing strategy priorities", async () => {
-  const cases = [
-    {
-      segment:"Hamburgueria",
-      expected:["Produtos / Cardápio","Preços","Pedido / Delivery"],
-      forbidden:"Profissionais",
-    },
-    {
-      segment:"Barbearia",
-      expected:["Serviços","Preços","Portfólio"],
-      forbidden:"Produtos / Cardápio",
-    },
-    {
-      segment:"Dentista",
-      expected:["Profissionais","Tratamentos","Credenciais"],
-      forbidden:"Produtos / Cardápio",
-    },
-    {
-      segment:"Estúdio de Tatuagem",
-      expected:["Profissionais","Estilos / Especialidades","Portfólio"],
-      forbidden:"Produtos / Cardápio",
-    },
-    {
-      segment:"Oficina Mecânica",
-      expected:["Serviços","Veículos atendidos","Estrutura"],
-      forbidden:"Produtos / Cardápio",
-    },
-  ];
 
-  for (const item of cases) {
-    const business: BusinessInput = {
-      company:"Fixture",
-      segment:item.segment,
-      city:"Lavras",
-      address:"Rua A, 10",
-      phone:"(35) 99999-1111",
-      openingHours:["Segunda: 08:00–18:00"],
-      verifiedContent:{},
-      verifiedImages:[],
-      confirmedChannels:{},
-    };
-    const strategy = resolveNicheStrategy(business);
-    const snapshot = buildVerifiedSnapshot([]);
-    const summary = summaryOf([],snapshot);
-    const indicators = buildSummaryIndicators(business,strategy,summary,snapshot);
-    const labels = indicators.map((entry)=>entry.label);
-    for (const expected of item.expected) {
-      assert(
-        labels.includes(expected),
-        `${item.segment} summary should include ${expected}. Got: ${labels.join(", ")}`,
-      );
-    }
-    assert(
-      !labels.includes(item.forbidden),
-      `${item.segment} summary should not prioritize ${item.forbidden}.`,
-    );
-  }
-});
-
-Deno.test("evidence quality stays independent from data coverage", () => {
-  const oneStrongOfficial = [
-    persisted("service","high","official_text",95),
-  ];
-  const highQuality = evidenceQualityFrom(
-    oneStrongOfficial,
-    [diagnosticFixture({identityStatus:"confirmed",identityScore:95})],
-  );
-  assert(highQuality === "high","One strong official fact can yield high evidence quality.");
-
-  const manyMedium = [
-    persisted("service","medium","web_search",65),
-    persisted("price","medium","web_search",60),
-    persisted("professional","medium","web_search",62),
-    persisted("portfolio_image","medium","web_search",66),
-  ];
-  const mediumQuality = evidenceQualityFrom(
-    manyMedium,
-    [diagnosticFixture({
-      sourceKind:"web_search",
-      method:"web_search",
-      identityStatus:"probable",
-      identityScore:65,
-      confidence:"medium",
-    })],
-  );
-  assert(mediumQuality === "medium","Many medium observations should remain medium evidence quality.");
-
-  // Coverage continues to come from the pre-existing completeness value. The
-  // evidence-quality helper intentionally receives no completeness argument.
-  const lowCoverage = 0.2;
-  const highCoverage = 0.9;
-  assert(lowCoverage < 0.55 && highCoverage >= 0.8,"Coverage bands remain a UI translation of completeness.");
-});
 
 Deno.test("metrics can distinguish fetched from consolidated and inconclusive", () => {
   const metrics = {
