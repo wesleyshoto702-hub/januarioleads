@@ -6286,6 +6286,19 @@ a {
   color: var(--waiting);
 }
 
+.deep-coverage {
+  padding: 3px 7px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted) !important;
+  font-size: 8px !important;
+  font-weight: 720 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  white-space: nowrap;
+}
+
 .deep-enrichment-empty,
 .deep-enrichment-loading {
   display: flex;
@@ -6513,6 +6526,12 @@ a {
 .deep-source-diagnostics b {
   color: var(--text);
   font-weight: 700;
+}
+
+.deep-source-rejection {
+  color: var(--rejected);
+  font-size: 8px;
+  line-height: 1.35;
 }
 
 .deep-source-found span {
