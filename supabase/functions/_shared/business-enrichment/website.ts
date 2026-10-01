@@ -2,6 +2,7 @@ import type {
   BrowserlessReason,
   BusinessIdentityFingerprint,
   EnrichmentSourceKind,
+  IdentityStatus,
   FactCandidate,
   PageSnapshot,
   SourceDiagnostic,
@@ -14,6 +15,7 @@ import {
   identityScoreFromText,
   normalizeText,
   safePublicUrl,
+  tokenSimilarity,
 } from "./security.ts";
 
 const BROWSERLESS_ENDPOINT =
@@ -376,6 +378,16 @@ export function isCommercialPlatformUrl(value: string) {
   if (!url) return false;
   const hay = `${url.hostname}${url.pathname}`;
   if (COMMERCIAL_URL_RE.test(hay)) return true;
+
+  const host = url.hostname.toLowerCase();
+  if (
+    /(?:^|[.-])(pedido|delivery|cardapio|menu|booking|agend|reserv|order|food|fome)(?:[.-]|$)/i.test(
+      host,
+    )
+  ) {
+    return true;
+  }
+
   const domain = domainOf(url.toString());
   return [
     "ifood.com.br",
@@ -508,6 +520,8 @@ export function shouldUseBrowserless(
   page: PageSnapshot | null,
   priorities: string[],
   deterministicFacts: FactCandidate[] = [],
+  identityStatus: IdentityStatus = "confirmed",
+  sourceKind: EnrichmentSourceKind = "official_website",
 ): { use: boolean; reason: BrowserlessReason } {
   if (!page) return { use: true, reason: "html_insufficient" };
 
@@ -529,6 +543,29 @@ export function shouldUseBrowserless(
     profile.routeCommercial ||
     profile.commercialSignals >= 4 ||
     profile.explicitPriceSignals > 0;
+  const thinDynamicHtml =
+    page.text.length < 300 &&
+    profile.scriptCount >= 2;
+
+  if (identityStatus === "mismatch") {
+    return { use:false, reason:"identity_mismatch" };
+  }
+
+  if (
+    identityStatus === "insufficient" &&
+    sourceKind === "official_linked_platform" &&
+    commerciallyRelevant &&
+    commercialFacts <= 1 &&
+    (
+      thinDynamicHtml ||
+      profile.spaShell ||
+      profile.scriptDominance ||
+      profile.clientSideSignals ||
+      profile.loadingShell
+    )
+  ) {
+    return { use:true, reason:"identity_insufficient_dynamic" };
+  }
 
   if (
     page.text.length < 350 &&
@@ -671,6 +708,12 @@ function sourceDiagnostic(
     linkedFrom,
     method,
     extractionStatus: "partial",
+    identityStatus:
+      page.sourceIdentityStatus ??
+      (identityScore >= 80 ? "confirmed" : identityScore >= 45 ? "probable" : "insufficient"),
+    identityReason:
+      page.sourceIdentityReason ?? "identity_not_explicitly_assessed",
+    rejectionReason:null,
     browserlessDecision: decision,
     browserlessReason: reason,
     identityScore,
@@ -690,25 +733,201 @@ function sourceDiagnostic(
   };
 }
 
-function platformIdentityScore(
+export type IdentityAssessment = {
+  status: IdentityStatus;
+  score: number;
+  reason: string;
+  positiveSignals: string[];
+  conflictSignals: string[];
+};
+
+function phoneCandidates(value: string) {
+  const matches =
+    value.match(/(?:\+?55\s*)?(?:\(?\d{2}\)?[\s.-]*)?9?\d{4}[\s.-]*\d{4}/g) ?? [];
+  return Array.from(
+    new Set(matches.map((item)=>item.replace(/\D/g,"")).filter((item)=>item.length >= 10)),
+  );
+}
+
+function genericPlatformTitle(value: string) {
+  const text = normalizeText(value);
+  if (!text) return true;
+  return /cardapio|pedido|delivery|loja|sistema|plataforma|sisfood|aiqfome|menu digital|faca seu pedido/.test(text);
+}
+
+export function assessLinkedPlatformIdentity(
   fingerprint: BusinessIdentityFingerprint,
   page: PageSnapshot,
-) {
-  const text =
-    `${page.title} ${page.metaDescription} ${page.text.slice(0, 16000)}`;
-  let score = branchIdentityScoreFromText(fingerprint,text);
-  const exactName =
-    normalizeText(text).includes(normalizeText(fingerprint.canonicalName));
+): IdentityAssessment {
+  const text = `${page.title} ${page.metaDescription} ${page.text.slice(0, 18000)}`;
+  const normalized = normalizeText(text);
+  const positiveSignals: string[] = [];
+  const conflictSignals: string[] = [];
 
-  // A URL explicitly supplied by Google Places or linked from the verified
-  // official site is meaningful provenance, but never enough by itself to
-  // produce HIGH. It only helps a page that already names the business.
-  if (exactName && page.linkedFrom === "google_places_website") {
-    score = Math.min(100,score + 25);
-  } else if (exactName && page.linkedFrom) {
-    score = Math.min(100,score + 30);
+  const nameSimilarity = tokenSimilarity(fingerprint.canonicalName,text);
+  const exactName =
+    Boolean(normalizeText(fingerprint.canonicalName)) &&
+    normalized.includes(normalizeText(fingerprint.canonicalName));
+  if (exactName || nameSimilarity >= 0.6) positiveSignals.push("name_match");
+
+  const expectedPhone = fingerprint.phone.slice(-10);
+  const phones = phoneCandidates(text);
+  const phoneMatch =
+    Boolean(expectedPhone) &&
+    phones.some((phone)=>phone.endsWith(expectedPhone));
+  if (phoneMatch) positiveSignals.push("phone_match");
+
+  const cityMatch =
+    Boolean(fingerprint.city) &&
+    normalized.includes(normalizeText(fingerprint.city));
+  if (cityMatch) positiveSignals.push("city_match");
+
+  const addressNumber = fingerprint.address.match(/\b\d{1,6}\b/)?.[0] ?? "";
+  const addressMatch =
+    Boolean(addressNumber) &&
+    new RegExp(`\\b${addressNumber}\\b`).test(text);
+  if (addressMatch) positiveSignals.push("address_match");
+
+  const routeHay = normalizeText(
+    `${page.domain} ${new URL(page.finalUrl).pathname}`,
+  );
+  const nameTokens = normalizeText(fingerprint.canonicalName)
+    .split(" ")
+    .filter((token)=>token.length >= 4);
+  const routeNameMatch =
+    nameTokens.length > 0 &&
+    nameTokens.filter((token)=>routeHay.includes(token)).length >=
+      Math.max(1,Math.ceil(nameTokens.length * 0.6));
+  if (routeNameMatch) positiveSignals.push("route_name_match");
+
+  if (page.linkedFrom === "google_places_website") {
+    positiveSignals.push("google_places_provenance");
+  } else if (page.linkedFrom) {
+    positiveSignals.push("official_link_provenance");
   }
-  return score;
+
+  const foreignPhones =
+    Boolean(expectedPhone) &&
+    phones.filter((phone)=>!phone.endsWith(expectedPhone));
+  if (
+    expectedPhone &&
+    !phoneMatch &&
+    foreignPhones &&
+    foreignPhones.length > 0
+  ) {
+    conflictSignals.push("different_phone");
+  }
+
+  const titleNameConflict =
+    Boolean(page.title) &&
+    !genericPlatformTitle(page.title) &&
+    !exactName &&
+    tokenSimilarity(fingerprint.canonicalName,page.title) < 0.2;
+  if (titleNameConflict) conflictSignals.push("different_business_name");
+
+  const addressNumbers = Array.from(
+    new Set(
+      (text.match(/\b\d{2,6}\b/g) ?? [])
+        .filter((value)=>value !== addressNumber),
+    ),
+  );
+  if (
+    addressNumber &&
+    !addressMatch &&
+    addressNumbers.length > 0 &&
+    normalized.includes("rua ")
+  ) {
+    conflictSignals.push("different_address");
+  }
+
+  // Mismatch requires positive contradictory evidence. Mere absence of
+  // expected identity signals is never enough.
+  const strongMismatch =
+    conflictSignals.includes("different_business_name") &&
+    (
+      conflictSignals.includes("different_phone") ||
+      conflictSignals.includes("different_address")
+    );
+
+  if (strongMismatch) {
+    return {
+      status:"mismatch",
+      score:0,
+      reason:conflictSignals.join("+"),
+      positiveSignals,
+      conflictSignals,
+    };
+  }
+
+  let score = branchIdentityScoreFromText(fingerprint,text);
+  if (routeNameMatch) score += 10;
+  if (page.linkedFrom === "google_places_website") score += 10;
+  else if (page.linkedFrom) score += 15;
+  score = Math.min(100,score);
+
+  const confirmed =
+    phoneMatch && (exactName || cityMatch || addressMatch) ||
+    exactName && cityMatch && addressMatch;
+
+  if (confirmed) {
+    return {
+      status:"confirmed",
+      score:Math.max(80,score),
+      reason:"strong_matching_identity_signals",
+      positiveSignals,
+      conflictSignals,
+    };
+  }
+
+  const probable =
+    exactName && (cityMatch || addressMatch) ||
+    phoneMatch ||
+    (exactName && page.linkedFrom && score >= 45);
+
+  if (probable) {
+    return {
+      status:"probable",
+      score:Math.max(45,Math.min(79,score)),
+      reason:"matching_identity_signals_without_full_branch_confirmation",
+      positiveSignals,
+      conflictSignals,
+    };
+  }
+
+  return {
+    status:"insufficient",
+    score:Math.min(44,score),
+    reason:"insufficient_visible_identity",
+    positiveSignals,
+    conflictSignals,
+  };
+}
+
+function identityForSource(
+  fingerprint: BusinessIdentityFingerprint,
+  page: PageSnapshot,
+  sourceKind: EnrichmentSourceKind,
+): IdentityAssessment {
+  if (sourceKind === "official_linked_platform") {
+    return assessLinkedPlatformIdentity(fingerprint,page);
+  }
+  const score = identityScoreFromText(
+    fingerprint,
+    page.finalUrl,
+    `${page.title} ${page.metaDescription} ${page.text.slice(0, 12000)}`,
+  );
+  return {
+    status:score >= 80 ? "confirmed" : score >= 45 ? "probable" : "insufficient",
+    score,
+    reason:
+      score >= 80
+        ? "official_source_identity_confirmed"
+        : score >= 45
+          ? "official_source_identity_probable"
+          : "official_source_identity_insufficient",
+    positiveSignals:[],
+    conflictSignals:[],
+  };
 }
 
 async function materializePage(
@@ -730,23 +949,32 @@ async function materializePage(
     ? assignSource(http.page, sourceKind, linkedFrom)
     : null;
 
-  let identityScore =
-    page && sourceKind === "official_linked_platform"
-      ? platformIdentityScore(fingerprint, page)
-      : page
-        ? identityScoreFromText(
-            fingerprint,
-            page.finalUrl,
-            `${page.title} ${page.metaDescription} ${page.text.slice(0, 12000)}`,
-          )
-        : 0;
+  let identity = page
+    ? identityForSource(fingerprint,page,sourceKind)
+    : {
+        status:"insufficient" as const,
+        score:0,
+        reason:"source_unavailable",
+        positiveSignals:[] as string[],
+        conflictSignals:[] as string[],
+      };
 
-  if (page) page.sourceIdentityScore = identityScore;
+  if (page) {
+    page.sourceIdentityScore = identity.score;
+    page.sourceIdentityStatus = identity.status;
+    page.sourceIdentityReason = identity.reason;
+  }
 
   const initialFacts = page
     ? deterministicOfficialFacts([page], fingerprint)
     : [];
-  const decision = shouldUseBrowserless(page, priorities, initialFacts);
+  const decision = shouldUseBrowserless(
+    page,
+    priorities,
+    initialFacts,
+    identity.status,
+    sourceKind,
+  );
   let browserlessDecision: SourceDiagnostic["browserlessDecision"] =
     decision.use ? "unavailable" : "not_needed";
   let browserlessReason = decision.reason;
@@ -767,15 +995,10 @@ async function materializePage(
       page = assignSource(rendered.page, sourceKind, linkedFrom);
       method = http?.page ? "http+browserless" : "browserless";
       browserlessDecision = "used";
-      identityScore =
-        sourceKind === "official_linked_platform"
-          ? platformIdentityScore(fingerprint, page)
-          : identityScoreFromText(
-              fingerprint,
-              page.finalUrl,
-              `${page.title} ${page.metaDescription} ${page.text.slice(0, 12000)}`,
-            );
-      page.sourceIdentityScore = identityScore;
+      identity = identityForSource(fingerprint,page,sourceKind);
+      page.sourceIdentityScore = identity.score;
+      page.sourceIdentityStatus = identity.status;
+      page.sourceIdentityReason = identity.reason;
     } else {
       browserlessDecision = "failed";
       browserlessBlocked = rendered.blocked;
@@ -798,6 +1021,9 @@ async function materializePage(
         linkedFrom,
         method:"browserless",
         extractionStatus:"blocked",
+        identityStatus:"insufficient",
+        identityReason:"source_blocked_before_identity_confirmation",
+        rejectionReason:"blocked",
         browserlessDecision:"failed",
         browserlessReason:"browserless_failed",
         identityScore:0,
@@ -828,26 +1054,38 @@ async function materializePage(
     priorities,
     sourceKind,
     linkedFrom,
-    identityScore,
+    identity.score,
     browserlessDecision,
     browserlessReason,
     method,
   );
+  diagnostic.identityStatus = identity.status;
+  diagnostic.identityReason = identity.reason;
+  diagnostic.rejectionReason =
+    identity.status === "mismatch" ? "identity_mismatch" : null;
+
   if (browserlessBlocked) {
     diagnostic.extractionStatus = "blocked";
   }
 
-  if (sourceKind === "official_linked_platform" && identityScore < 45) {
-    diagnostic.extractionStatus = "failed";
+  if (sourceKind === "official_linked_platform" && identity.status === "mismatch") {
+    diagnostic.extractionStatus = "partial";
     diagnostic.browserlessReason = "identity_mismatch";
     return {
-      page: null,
+      page:null,
       diagnostic,
-      error: "linked_platform_identity_mismatch",
+      error:"linked_platform_identity_mismatch",
     };
   }
 
-  return { page, diagnostic, error: null };
+  if (
+    sourceKind === "official_linked_platform" &&
+    identity.status === "insufficient"
+  ) {
+    diagnostic.extractionStatus = "inconclusive";
+  }
+
+  return { page, diagnostic, error:null };
 }
 
 export async function crawlOfficialWebsite(
