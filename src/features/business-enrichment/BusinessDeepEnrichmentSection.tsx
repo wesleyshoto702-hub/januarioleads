@@ -58,9 +58,53 @@ function browserlessReasonLabel(value: string) {
     commercial_content_present: "Conteúdo comercial já presente no HTML",
     browserless_unavailable: "Browserless indisponível",
     browserless_failed: "Renderização não concluída",
+    identity_insufficient_dynamic:
+      "Identidade insuficiente e conteúdo dinâmico provável",
     identity_mismatch: "Identidade da plataforma não correspondeu",
   };
   return labels[value] ?? value.replaceAll("_", " ");
+}
+
+function identityLabel(
+  value: DeepEnrichmentSnapshot["sources"][number]["identityStatus"],
+) {
+  if (value === "confirmed") return "Confirmada";
+  if (value === "probable") return "Provável";
+  if (value === "mismatch") return "Incompatível";
+  return "Insuficiente";
+}
+
+function identityReasonLabel(value: string) {
+  const labels: Record<string,string> = {
+    strong_matching_identity_signals: "Nome e sinais locais correspondem.",
+    matching_identity_signals_without_full_branch_confirmation:
+      "Há sinais correspondentes, mas ainda não confirmação completa da unidade.",
+    insufficient_visible_identity:
+      "O conteúdo observado ainda não mostra sinais suficientes de identidade.",
+    official_source_identity_confirmed: "Fonte oficial com identidade confirmada.",
+    official_source_identity_probable: "Fonte oficial com identidade provável.",
+    official_source_identity_insufficient:
+      "A fonte ainda não expõe identidade suficiente no conteúdo observado.",
+    specific_commercial_platform_supported_by_public_identity_evidence:
+      "Página comercial específica com evidência pública correspondente.",
+    public_source_identity_probable: "Busca pública com sinais de identidade correspondentes.",
+    public_source_identity_insufficient:
+      "Busca pública sem sinais suficientes para confirmar a empresa.",
+    "different_business_name+different_phone":
+      "Nome e telefone observados indicam outra empresa.",
+    "different_business_name+different_address":
+      "Nome e endereço observados indicam outra empresa.",
+    source_blocked_before_identity_confirmation:
+      "A fonte foi bloqueada antes de permitir confirmação de identidade.",
+  };
+  return labels[value] ?? value.replaceAll("_", " ");
+}
+
+function coverageLabel(value: number | null) {
+  if (value === null) return "Ainda não avaliada";
+  if (value >= 0.8) return "Alta";
+  if (value >= 0.55) return "Média";
+  return "Baixa";
 }
 
 function qualityLabel(value: DeepEnrichmentSnapshot["quality"]) {
@@ -253,7 +297,10 @@ export function BusinessDeepEnrichmentSection({
         {done && (
           <div className="deep-quality-wrap">
             <span className={`deep-quality ${snapshot.quality ?? "low"}`}>
-              Qualidade {qualityLabel(snapshot.quality)}
+              Evidências {qualityLabel(snapshot.quality)}
+            </span>
+            <span className="deep-coverage">
+              Cobertura {coverageLabel(snapshot.completeness)}
             </span>
             {snapshot.generatedWithOldEngine && (
               <small>Resultado gerado com versão anterior da pesquisa.</small>
@@ -303,68 +350,39 @@ export function BusinessDeepEnrichmentSection({
       ) : done ? (
         <>
           <div className="deep-enrichment-summary">
-            <div>
-              <span>Serviços</span>
-              <strong>{snapshot.summary.services} encontrados</strong>
-            </div>
-            <div>
-              <span>Profissionais</span>
-              <strong>{snapshot.summary.professionals} encontrados</strong>
-            </div>
-            {snapshot.summary.menuItems > 0 && (
-              <div>
-                <span>Itens de menu</span>
-                <strong>{snapshot.summary.menuItems} encontrados</strong>
-              </div>
+            {snapshot.summaryIndicators.length > 0 ? (
+              snapshot.summaryIndicators.map((item) => (
+                <div key={item.key}>
+                  <span>{item.label}</span>
+                  <strong>{item.value}</strong>
+                </div>
+              ))
+            ) : (
+              <>
+                <div>
+                  <span>Serviços</span>
+                  <strong>{snapshot.summary.services} encontrados</strong>
+                </div>
+                <div>
+                  <span>Profissionais</span>
+                  <strong>{snapshot.summary.professionals} encontrados</strong>
+                </div>
+                <div>
+                  <span>Imagens verificadas</span>
+                  <strong>{snapshot.summary.verifiedImages}</strong>
+                </div>
+                <div>
+                  <span>Preços</span>
+                  <strong>
+                    {snapshot.summary.prices > 0
+                      ? `${snapshot.summary.prices} encontrados`
+                      : hasPriceToReview
+                        ? "Parcialmente encontrados"
+                        : "Não encontrados"}
+                  </strong>
+                </div>
+              </>
             )}
-            <div>
-              <span>Portfólio</span>
-              <strong>
-                {snapshot.summary.portfolioImages > 0
-                  ? "Disponível"
-                  : "Não encontrado"}
-              </strong>
-            </div>
-            <div>
-              <span>Imagens verificadas</span>
-              <strong>{snapshot.summary.verifiedImages}</strong>
-            </div>
-            <div>
-              <span>Agendamento</span>
-              <strong>
-                {snapshot.summary.bookingConfirmed
-                  ? "Confirmado"
-                  : "Não confirmado"}
-              </strong>
-            </div>
-            <div>
-              <span>WhatsApp</span>
-              <strong>
-                {snapshot.summary.whatsappConfirmed
-                  ? "Confirmado"
-                  : "Não confirmado"}
-              </strong>
-            </div>
-            {snapshot.summary.deliveryConfirmed && (
-              <div>
-                <span>Delivery / pedido</span>
-                <strong>Confirmado</strong>
-              </div>
-            )}
-            <div>
-              <span>Preços</span>
-              <strong>
-                {snapshot.summary.prices > 0
-                  ? `${snapshot.summary.prices} encontrados`
-                  : hasPriceToReview
-                    ? "Parcialmente encontrados"
-                    : "Não encontrados"}
-              </strong>
-            </div>
-            <div>
-              <span>Qualidade dos dados</span>
-              <strong>{qualityLabel(snapshot.quality)}</strong>
-            </div>
           </div>
 
           {snapshot.status === "needs_review" &&
@@ -473,10 +491,13 @@ export function BusinessDeepEnrichmentSection({
                         <>
                           <div className="deep-source-diagnostics">
                             <span>
-                              Método <b>{methodLabel(source.method)}</b>
+                              Identidade <b>{identityLabel(source.identityStatus)}</b>
                             </span>
                             <span>
                               Extração <b>{extractionLabel(source.extractionStatus)}</b>
+                            </span>
+                            <span>
+                              Método <b>{methodLabel(source.method)}</b>
                             </span>
                             <span>
                               Browserless{" "}
@@ -492,8 +513,18 @@ export function BusinessDeepEnrichmentSection({
                             </span>
                           </div>
                           <small className="deep-source-reason">
-                            {browserlessReasonLabel(source.browserlessReason)}
+                            {identityReasonLabel(source.identityReason)}
                           </small>
+                          {source.browserlessReason !== "sufficient_static_content" && (
+                            <small className="deep-source-reason">
+                              {browserlessReasonLabel(source.browserlessReason)}
+                            </small>
+                          )}
+                          {source.rejectionReason && (
+                            <small className="deep-source-rejection">
+                              Rejeição: {source.rejectionReason.replaceAll("_", " ")}
+                            </small>
+                          )}
                         </>
                       )}
                       {source.found.facts > 0 && (
@@ -538,18 +569,31 @@ export function BusinessDeepEnrichmentSection({
 
               <div className="deep-enrichment-metrics">
                 <span>
-                  {snapshot.metrics.pagesAnalyzed} páginas analisadas
+                  {snapshot.metrics.httpPagesFetched} páginas HTTP buscadas
                 </span>
                 <span>
-                  {snapshot.metrics.webSearchCalls} buscas públicas
+                  {snapshot.metrics.pagesAnalyzed} páginas consolidadas
                 </span>
                 <span>
                   {snapshot.metrics.browserlessRenders ??
                     snapshot.metrics.browserlessCalls} renderizações Browserless
                 </span>
+                <span>
+                  {snapshot.metrics.webSearchCalls} buscas públicas
+                </span>
                 {snapshot.metrics.sourcesInconclusive > 0 && (
                   <span>
-                    {snapshot.metrics.sourcesInconclusive} extrações inconclusivas
+                    {snapshot.metrics.sourcesInconclusive} fontes inconclusivas
+                  </span>
+                )}
+                {snapshot.metrics.sourcesRejected > 0 && (
+                  <span>
+                    {snapshot.metrics.sourcesRejected} fontes rejeitadas
+                  </span>
+                )}
+                {snapshot.metrics.sourcesFailed > 0 && (
+                  <span>
+                    {snapshot.metrics.sourcesFailed} falhas técnicas
                   </span>
                 )}
                 {snapshot.summary.conflicts > 0 && (

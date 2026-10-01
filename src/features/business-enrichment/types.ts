@@ -68,11 +68,6 @@ export type DeepEnrichmentApplied = {
     website?: string | null;
     instagram?: string | null;
   };
-  summaryIndicators: Array<{
-    key: string;
-    label: string;
-    value: string;
-  }>;
   status: DeepEnrichmentStatus;
   quality: DeepEnrichmentConfidence | null;
   checkedAt: string | null;
@@ -85,6 +80,11 @@ export type DeepEnrichmentSnapshot = DeepEnrichmentApplied & {
   completeness: number | null;
   expiresAt: string | null;
   cached: boolean;
+  summaryIndicators: Array<{
+    key: string;
+    label: string;
+    value: string;
+  }>;
   summary: {
     verifiedFacts: number;
     reviewFacts: number;
