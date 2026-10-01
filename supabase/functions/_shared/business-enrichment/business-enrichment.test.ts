@@ -642,7 +642,7 @@ Deno.test("niche-aware summary follows the resolved existing strategy", () => {
       forbidden:["Produtos / Cardápio"],
     },
     {
-      segment:"Oficina Mecânica",
+      segment:"Mecânica Automotiva",
       expected:["Serviços","Veículos atendidos"],
       forbidden:["Produtos / Cardápio"],
     },
