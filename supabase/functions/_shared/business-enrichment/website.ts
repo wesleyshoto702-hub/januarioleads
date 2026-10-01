@@ -1304,7 +1304,11 @@ export function deterministicOfficialFacts(
       platformType: FactCandidate["sourceType"],
     ) => isPlatform ? platformType : websiteType;
     const identityScore = isPlatform
-      ? platformIdentityScore(fingerprint, page)
+      ? (
+          typeof page.sourceIdentityScore === "number"
+            ? page.sourceIdentityScore
+            : assessLinkedPlatformIdentity(fingerprint,page).score
+        )
       : identityScoreFromText(
           fingerprint,
           page.finalUrl,
@@ -1412,7 +1416,7 @@ export function deterministicOfficialFacts(
               name,
               { name, role },
               page,
-              "official_schema",
+              sourceType("official_schema", "official_platform_schema"),
               "json_ld",
               [name,role].filter(Boolean).join(" — "),
               localIdentityScore,
