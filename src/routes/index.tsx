@@ -1585,7 +1585,7 @@ function LeadFlowApp() {
             <div className="filter-row financial-filter-row">
               <span className="filter-row-label">Financeiro</span>
               {([
-                ["all", "Todos", financeByLead.size],
+                ["all", "Todos", leads.length],
                 ["pending", "Pendente", financialOverview.pendingProjects],
                 ["partial", "Parcial", financialOverview.partialProjects],
                 ["paid", "Pago", financialOverview.paidProjects],
