@@ -42,6 +42,7 @@ import {
   hasEnoughDataForLeadChance,
 } from "../features/lead-chance/lead-chance";
 import { PromptGenerator } from "../features/prompt-generator/PromptGenerator";
+import { OpenNowNichesView } from "../features/open-now-niches/OpenNowNichesView";
 import { makePromptBusinessKey } from "../features/prompt-generator/storage";
 import type { PromptBusinessContext } from "../features/prompt-generator/types";
 import { BusinessDetailsModal } from "../features/search-leads/BusinessDetailsModal";
@@ -219,7 +220,9 @@ function LeadFlowApp() {
   const [remoteReady, setRemoteReady] = useState(false);
   const [remoteError, setRemoteError] = useState("");
   const [leadUpdates, setLeadUpdates] = useState<LeadUpdateRecord[]>([]);
-  const [view, setView] = useState<"leads" | "search" | "messages">("leads");
+  const [view, setView] = useState<
+    "leads" | "search" | "open-now" | "messages"
+  >("leads");
   const [leadModal, setLeadModal] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [form, setForm] = useState<LeadForm>(EMPTY_FORM);
@@ -1164,7 +1167,9 @@ function LeadFlowApp() {
     if (duplicate) return;
 
     const details = [
-      "Lead encontrado através do buscador de empresas em Lavras.",
+      business.city
+        ? `Lead encontrado através do buscador de empresas em ${business.city}${business.state ? ` - ${business.state}` : ""}.`
+        : "Lead encontrado através do buscador de empresas.",
       business.address ? `Endereço: ${business.address}` : "",
       business.website ? `Site: ${business.website}` : "",
       business.instagram ? `Instagram: ${business.instagram}` : "",
@@ -1275,6 +1280,14 @@ function LeadFlowApp() {
               type="button"
             >
               Buscar leads
+            </button>
+            <button
+              className={view === "open-now" ? "nav-link active" : "nav-link"}
+              onClick={() => setView("open-now")}
+              type="button"
+            >
+              <span className="open-now-nav-full">Nichos abertos agora</span>
+              <span className="open-now-nav-short">Abertos</span>
             </button>
             <button
               className={view === "messages" ? "nav-link active" : "nav-link"}
@@ -1499,6 +1512,17 @@ function LeadFlowApp() {
         </section>
       ) : view === "search" ? (
         <SearchLeadsView
+          existingLeads={leads}
+          onAddLead={addFoundLead}
+          onDeepEnrichmentApplied={applyDeepEnrichmentToLead}
+          onMessage={(target) => {
+            setSelectedMessage(0);
+            setMessageLead(target);
+          }}
+          onGeneratePrompt={openPromptForBusiness}
+        />
+      ) : view === "open-now" ? (
+        <OpenNowNichesView
           existingLeads={leads}
           onAddLead={addFoundLead}
           onDeepEnrichmentApplied={applyDeepEnrichmentToLead}
