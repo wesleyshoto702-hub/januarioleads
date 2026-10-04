@@ -686,6 +686,22 @@
 }
 
 @media (max-width: 760px) {
+  .topnav {
+    min-width: 0;
+    max-width: 100%;
+    justify-content: flex-start;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .topnav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .topnav .nav-link {
+    flex: 0 0 auto;
+  }
+
   .open-now-nav-full {
     display: none;
   }
