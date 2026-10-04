@@ -19,9 +19,11 @@ import type {
   InstagramSource,
 } from "../business-presence/types";
 import { LeadActivityTimeline } from "../lead-activities/LeadActivityTimeline";
+import { LeadFinancialSection } from "../lead-finance/LeadFinancialSection";
+import type { LeadPayment } from "../lead-finance/finance";
 import { ChanceBadge } from "../lead-chance/ChanceBadge";
 import type { LeadChanceResult } from "../lead-chance/lead-chance";
-import type { LeadUpdateRecord } from "../leads/remote-leads";
+import type { LeadUpdateRecord, PersistedLead } from "../leads/remote-leads";
 import type { BusinessSearchResult } from "./types";
 
 export type BusinessDetailsMessageTarget = {
@@ -76,6 +78,10 @@ export function BusinessDetailsModal({
   onGeneratePrompt,
   onPresenceUpdate,
   onDeepEnrichmentUpdate,
+  financeLead,
+  financePayments = [],
+  onFinanceUpdate,
+  onPaymentSaved,
   onAdd,
 }: {
   business: BusinessSearchResult;
@@ -91,6 +97,13 @@ export function BusinessDetailsModal({
   onGeneratePrompt: (business: BusinessSearchResult) => void;
   onPresenceUpdate?: (presence: BusinessPresence) => void;
   onDeepEnrichmentUpdate?: (value: DeepEnrichmentApplied) => void;
+  financeLead?: PersistedLead | null;
+  financePayments?: LeadPayment[];
+  onFinanceUpdate?: (
+    leadId: string,
+    patch: Pick<PersistedLead, "projectValue" | "financialNotes">,
+  ) => void;
+  onPaymentSaved?: (payment: LeadPayment) => void;
   onAdd?: (business: BusinessSearchResult) => void;
 }) {
   const [presenceLoading, setPresenceLoading] = useState(false);
@@ -314,6 +327,15 @@ export function BusinessDetailsModal({
             <h3>Sobre a empresa</h3>
             <p>{factualDescription}</p>
           </div>
+
+          {financeLead && onFinanceUpdate && onPaymentSaved && (
+            <LeadFinancialSection
+              lead={financeLead}
+              payments={financePayments}
+              onFinanceUpdate={onFinanceUpdate}
+              onPaymentSaved={onPaymentSaved}
+            />
+          )}
 
           <div className="detail-section">
             <h3>Presença online</h3>
