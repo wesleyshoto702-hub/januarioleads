@@ -29,6 +29,7 @@ import {
 import { searchBusinesses } from "./search-businesses";
 import { normalizeSearchText, SEGMENT_GROUPS } from "./segments";
 import type { BusinessSearchResult } from "./types";
+import { storeRecentBusinessSearch } from "../open-now-niches/local-cache";
 
 export type SearchMessageTarget = {
   id?: string;
@@ -197,6 +198,11 @@ export function SearchLeadsView({
       const combined = append ? [...current, ...response.results] : response.results;
       const unique = new Map(combined.map((item) => [item.placeId, item]));
       return Array.from(unique.values());
+    });
+    storeRecentBusinessSearch(segment,response.results,{
+      city:"Lavras",
+      state:"MG",
+      append,
     });
     setNextPageToken(response.nextPageToken);
     setResultsSegment(segment);

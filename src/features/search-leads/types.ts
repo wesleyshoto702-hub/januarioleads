@@ -1,3 +1,4 @@
+import type { OpeningHoursSnapshot } from "../../../supabase/functions/_shared/open-now.ts";
 import type { InstagramCandidate, InstagramSource } from "../business-presence/types";
 import type {
   DeepConfirmedChannels,
@@ -23,6 +24,8 @@ export type BusinessSearchResult = {
   reviewCount: number | null;
   isOpenNow: boolean | null;
   openingHours: string[];
+  currentOpeningHours?: OpeningHoursSnapshot | null;
+  regularOpeningHours?: OpeningHoursSnapshot | null;
   website: string | null;
   instagram: string | null;
   instagramConfidence?: "high" | "medium" | "low" | null;

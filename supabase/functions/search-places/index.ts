@@ -1,3 +1,4 @@
+import type { OpeningHoursSnapshot } from "../_shared/open-now.ts";
 type BusinessSearchResult = {
   placeId: string;
   name: string;
@@ -14,6 +15,8 @@ type BusinessSearchResult = {
   reviewCount: number | null;
   isOpenNow: boolean | null;
   openingHours: string[];
+  currentOpeningHours: OpeningHoursSnapshot | null;
+  regularOpeningHours: OpeningHoursSnapshot | null;
   website: string | null;
   instagram: string | null;
   googleMapsUrl: string | null;
@@ -28,10 +31,7 @@ type GoogleAddressComponent = {
   shortText?: string;
   types?: string[];
 };
-type GoogleOpeningHours = {
-  openNow?: boolean;
-  weekdayDescriptions?: string[];
-};
+type GoogleOpeningHours = OpeningHoursSnapshot;
 type GooglePlace = {
   id?: string;
   displayName?: GoogleText;
@@ -256,6 +256,8 @@ function parsePlace(place: GooglePlace): BusinessSearchResult | null {
       place.regularOpeningHours?.weekdayDescriptions ??
       place.currentOpeningHours?.weekdayDescriptions ??
       [],
+    currentOpeningHours: place.currentOpeningHours ?? null,
+    regularOpeningHours: place.regularOpeningHours ?? null,
     website: online.website,
     instagram: online.instagram,
     googleMapsUrl: place.googleMapsUri?.trim() || null,
