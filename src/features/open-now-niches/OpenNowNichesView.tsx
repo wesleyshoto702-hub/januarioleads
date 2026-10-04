@@ -2,7 +2,6 @@ import {
   AlertCircle,
   Check,
   ChevronDown,
-  Clock3,
   Loader2,
   MessageCircle,
   RefreshCw,
@@ -11,6 +10,7 @@ import {
   Square,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import "./open-now.css";
 import {
   brazilClock,
   evaluateOpenNow,
@@ -198,7 +198,7 @@ function hasWhatsapp(business: OpenNowBusiness) {
   );
 }
 
-function openWhatsapp(business: OpenNowBusiness) {
+function openWhatsapp(business: BusinessSearchResult) {
   const confirmed = business.confirmedChannels?.whatsappUrl;
   if (confirmed) {
     window.open(confirmed, "_blank", "noopener,noreferrer");
