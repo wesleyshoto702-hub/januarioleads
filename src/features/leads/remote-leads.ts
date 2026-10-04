@@ -68,6 +68,8 @@ export type PersistedLead = {
   deepEnrichmentStatus?: DeepEnrichmentStatus | undefined;
   deepEnrichmentQuality?: DeepEnrichmentConfidence | undefined;
   deepEnrichmentCheckedAt?: string | undefined;
+  projectValue?: number | undefined;
+  financialNotes?: string | undefined;
 };
 
 export type LeadUpdateRecord = {
@@ -137,6 +139,8 @@ type RemoteLead = {
   deep_enrichment_status: DeepEnrichmentStatus | null;
   deep_enrichment_quality: DeepEnrichmentConfidence | null;
   deep_enrichment_checked_at: string | null;
+  project_value: number | string | null;
+  financial_notes: string | null;
 };
 
 type RemoteLeadUpdate = {
@@ -225,6 +229,8 @@ function toRemote(lead: PersistedLead, userId: string) {
     deep_enrichment_status: lead.deepEnrichmentStatus,
     deep_enrichment_quality: lead.deepEnrichmentQuality,
     deep_enrichment_checked_at: lead.deepEnrichmentCheckedAt,
+    project_value: lead.projectValue,
+    financial_notes: lead.financialNotes,
   });
 }
 
@@ -280,6 +286,13 @@ function fromRemote(row: RemoteLead): PersistedLead {
     deepEnrichmentStatus: row.deep_enrichment_status ?? undefined,
     deepEnrichmentQuality: row.deep_enrichment_quality ?? undefined,
     deepEnrichmentCheckedAt: row.deep_enrichment_checked_at ?? undefined,
+    projectValue:
+      row.project_value === null
+        ? undefined
+        : typeof row.project_value === "number"
+          ? row.project_value
+          : Number(row.project_value),
+    financialNotes: row.financial_notes ?? undefined,
   };
 }
 
