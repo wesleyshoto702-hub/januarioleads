@@ -57,7 +57,7 @@ export type PersistedLead = {
   latitude?: number | undefined;
   longitude?: number | undefined;
   enrichedAt?: string | undefined;
-  source?: "manual" | "lavras-search" | undefined;
+  source?: "manual" | "lavras-search" | "places-search" | undefined;
   autoSyncEnabled?: boolean | undefined;
   lastSyncedAt?: string | undefined;
   lastSyncError?: string | undefined;
@@ -126,7 +126,7 @@ type RemoteLead = {
   latitude: number | null;
   longitude: number | null;
   enriched_at: string | null;
-  source: "manual" | "lavras-search" | null;
+  source: "manual" | "lavras-search" | "places-search" | null;
   auto_sync_enabled: boolean;
   last_synced_at: string | null;
   last_sync_error: string | null;

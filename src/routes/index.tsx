@@ -1189,7 +1189,10 @@ function LeadFlowApp() {
       notes: details.join("\n"),
       createdAt: new Date().toISOString(),
       placeId: business.placeId,
-      source: "lavras-search",
+      source:
+        business.city?.trim().toLocaleLowerCase("pt-BR") === "lavras"
+          ? "lavras-search"
+          : "places-search",
       factualDescription,
       ...(discoveredPresence
         ? {
@@ -1836,7 +1839,7 @@ function LeadRow({
             Mandar mensagem
           </button>
         )}
-        {lead.source !== "lavras-search" && (
+        {lead.source !== "lavras-search" && lead.source !== "places-search" && (
           <button className="enrichment-button" onClick={() => onEnrich(lead)} type="button">
             <Search size={15} />
             {lead.placeId ? "Atualizar informações" : "Buscar informações"}
@@ -1921,7 +1924,7 @@ function LeadCard({
             Mandar mensagem
           </button>
         )}
-        {lead.source !== "lavras-search" && (
+        {lead.source !== "lavras-search" && lead.source !== "places-search" && (
           <button className="enrichment-button" onClick={() => onEnrich(lead)} type="button">
             <Search size={15} />
             {lead.placeId ? "Atualizar informações" : "Buscar informações"}
