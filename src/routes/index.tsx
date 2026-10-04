@@ -231,6 +231,8 @@ function LeadFlowApp() {
   const [remoteError, setRemoteError] = useState("");
   const [leadUpdates, setLeadUpdates] = useState<LeadUpdateRecord[]>([]);
   const [leadPayments, setLeadPayments] = useState<LeadPayment[]>([]);
+  const [financeLoaded, setFinanceLoaded] = useState(false);
+  const [financeError, setFinanceError] = useState("");
   const [view, setView] = useState<
     "leads" | "search" | "open-now" | "messages"
   >("leads");
@@ -296,8 +298,14 @@ function LeadFlowApp() {
         setLeadUpdates(await fetchLeadUpdates());
         try {
           setLeadPayments(await fetchLeadPayments());
+          setFinanceLoaded(true);
+          setFinanceError("");
         } catch {
           setLeadPayments([]);
+          setFinanceLoaded(false);
+          setFinanceError(
+            "Não foi possível carregar os recebimentos agora. O restante do CRM continua disponível.",
+          );
         }
         setRemoteReady(true);
         setRemoteError("");
@@ -339,8 +347,12 @@ function LeadFlowApp() {
         setLeadUpdates(updates);
         try {
           setLeadPayments(await fetchLeadPayments());
+          setFinanceLoaded(true);
+          setFinanceError("");
         } catch {
-          // Finance is auxiliary and must not block the CRM refresh.
+          setFinanceError(
+            "Não foi possível atualizar os recebimentos agora. Os dados financeiros exibidos podem estar desatualizados.",
+          );
         }
         setRemoteError("");
       } catch {
@@ -397,6 +409,7 @@ function LeadFlowApp() {
 
   const financeByLead = useMemo(() => {
     const map = new Map<string, LeadFinanceSummary>();
+    if (!financeLoaded) return map;
     for (const lead of leads) {
       const summary = summarizeLeadFinance(
         lead,
@@ -405,7 +418,7 @@ function LeadFlowApp() {
       if (summary) map.set(lead.id, summary);
     }
     return map;
-  }, [leads, paymentsByLead]);
+  }, [leads, paymentsByLead, financeLoaded]);
 
   const financialOverview = useMemo(() => {
     const currentMonth = monthKey();
@@ -1455,26 +1468,34 @@ function LeadFlowApp() {
             <Stat label="Recusados" value={counts.rejected} tone="rejected" />
           </div>
 
-          <section className="finance-summary-strip" aria-label="Resumo financeiro">
-            <FinanceStat
-              label="Recebido no mês"
-              value={formatCurrency(financialOverview.receivedThisMonth)}
-            />
-            <FinanceStat
-              label="A receber"
-              value={formatCurrency(financialOverview.receivable)}
-            />
-            <FinanceStat
-              label="Projetos pagos"
-              value={String(financialOverview.paidProjects)}
-              tone="paid"
-            />
-            <FinanceStat
-              label="Pagamento parcial"
-              value={String(financialOverview.partialProjects)}
-              tone="partial"
-            />
-          </section>
+          {financeLoaded && (
+            <section className="finance-summary-strip" aria-label="Resumo financeiro">
+              <FinanceStat
+                label="Recebido no mês"
+                value={formatCurrency(financialOverview.receivedThisMonth)}
+              />
+              <FinanceStat
+                label="A receber"
+                value={formatCurrency(financialOverview.receivable)}
+              />
+              <FinanceStat
+                label="Projetos pagos"
+                value={String(financialOverview.paidProjects)}
+                tone="paid"
+              />
+              <FinanceStat
+                label="Pagamento parcial"
+                value={String(financialOverview.partialProjects)}
+                tone="partial"
+              />
+            </section>
+          )}
+
+          {financeError && (
+            <p className="activity-inline-error finance-load-error" role="status">
+              {financeError}
+            </p>
+          )}
 
           <section className="recent-updates-panel" aria-label="Atualizações recentes">
             <div className="recent-updates-heading">
@@ -1848,7 +1869,7 @@ function LeadFlowApp() {
             onDeepEnrichmentUpdate={(value) =>
               applyDeepEnrichmentToLead(lead.id, value)
             }
-            financeLead={lead}
+            financeLead={financeLoaded ? lead : null}
             financePayments={paymentsByLead.get(lead.id) ?? []}
             onFinanceUpdate={(leadId, patch) =>
               updateLeadLocally(leadId, (current) => ({
