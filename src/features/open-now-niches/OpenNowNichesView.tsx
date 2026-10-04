@@ -319,6 +319,7 @@ export function OpenNowNichesView({
     errors: number;
   }>({ running: false, done: 0, total: 0, errors: 0 });
   const globalAbort = useRef<AbortController | null>(null);
+  const businessPanelRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const timer = window.setInterval(() => setClock(new Date()), 60_000);
@@ -331,6 +332,19 @@ export function OpenNowNichesView({
       globalAbort.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    if (!expandedSegment) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      businessPanelRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [expandedSegment]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -1088,7 +1102,7 @@ export function OpenNowNichesView({
       </section>
 
       {expandedSegment && expandedStats && (
-        <section className="open-now-business-panel">
+        <section ref={businessPanelRef} className="open-now-business-panel">
           <div className="open-now-business-heading">
             <div>
               <span>{expandedSegment.toUpperCase()}</span>
