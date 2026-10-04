@@ -21,7 +21,10 @@ export const NICHE_FAMILY_LABELS: Record<NicheFamily,string> = {
   creative:"Criativo",
 };
 
-const coverageBySegment = new Map(
+const coverageBySegment = new Map<
+  string,
+  (typeof CURRENT_NICHE_COVERAGE)[number]
+>(
   CURRENT_NICHE_COVERAGE.map((item)=>[item.segment,item]),
 );
 

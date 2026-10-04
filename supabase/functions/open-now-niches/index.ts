@@ -101,8 +101,11 @@ const corsHeaders = {
   "Content-Type": "application/json; charset=utf-8",
 };
 
-const familyBySegment = new Map(
-  CURRENT_NICHE_COVERAGE.map((item) => [item.segment, item.family]),
+const familyBySegment = new Map<string, NicheFamily>(
+  CURRENT_NICHE_COVERAGE.map((item) => [
+    item.segment,
+    item.family as NicheFamily,
+  ]),
 );
 
 function json(body: unknown, status = 200) {

@@ -131,11 +131,16 @@ function mergeBusinessWithLead(
   };
 }
 
+function cacheIsStale(cache: OpenNowNicheCache | undefined, now: Date) {
+  return !cache?.checkedAt || !isOpenNowCacheFresh(cache.checkedAt, now);
+}
+
 function evaluationFor(
   business: OpenNowBusiness,
   cache: OpenNowNicheCache,
   now: Date,
 ) {
+  const stale = cacheIsStale(cache, now);
   if (business.currentOpeningHours || business.regularOpeningHours) {
     return evaluateOpenNow(
       business.currentOpeningHours,
@@ -144,9 +149,9 @@ function evaluationFor(
     );
   }
 
-  if (!cache.stale && business.openNow) return business.openNow;
+  if (!stale && business.openNow) return business.openNow;
 
-  if (!cache.stale && typeof business.isOpenNow === "boolean") {
+  if (!stale && typeof business.isOpenNow === "boolean") {
     return {
       state: business.isOpenNow ? "OPEN" : "CLOSED",
       isOpen: business.isOpenNow,
@@ -423,7 +428,7 @@ export function OpenNowNichesView({
       const stats = nicheStats.get(item.segment)!;
       if (
         hideZero &&
-        stats.cache?.status !== "not_checked" &&
+        Boolean(stats.cache?.checkedAt) &&
         stats.cache?.status !== "checking" &&
         stats.cache?.status !== "error" &&
         stats.openCount === 0
@@ -448,9 +453,11 @@ export function OpenNowNichesView({
     () =>
       OPEN_NOW_CATALOG.filter((item) => {
         const value = cache.get(item.segment);
-        return Boolean(value?.checkedAt && !value.stale);
+        return Boolean(
+          value?.checkedAt && isOpenNowCacheFresh(value.checkedAt, clock),
+        );
       }).length,
-    [cache],
+    [cache, clock],
   );
   const errorCount = useMemo(
     () =>
@@ -473,7 +480,9 @@ export function OpenNowNichesView({
       const entries = OPEN_NOW_CATALOG.filter((item) => item.family === familyKey);
       const checked = entries.filter((item) => {
         const value = cache.get(item.segment);
-        return Boolean(value?.checkedAt && !value.stale);
+        return Boolean(
+          value?.checkedAt && isOpenNowCacheFresh(value.checkedAt, clock),
+        );
       });
       const open = checked.reduce(
         (sum, item) => sum + (nicheStats.get(item.segment)?.openCount ?? 0),
@@ -487,13 +496,13 @@ export function OpenNowNichesView({
         open,
       };
     }).filter((item) => item.checked > 0);
-  }, [cache, nicheStats]);
+  }, [cache, nicheStats, clock]);
 
   const prospectNow = useMemo(() => {
     const unique = new Map<string, OpenBusinessRow>();
     for (const item of OPEN_NOW_CATALOG) {
       const nicheCache = cache.get(item.segment);
-      if (!nicheCache || nicheCache.stale) continue;
+      if (!nicheCache || cacheIsStale(nicheCache, clock)) continue;
       for (const row of nicheStats.get(item.segment)?.openRows ?? []) {
         if (!hasWhatsapp(row.business) && !row.business.phone) continue;
         const previous = unique.get(row.business.placeId);
@@ -505,7 +514,7 @@ export function OpenNowNichesView({
     return Array.from(unique.values())
       .sort((a, b) => b.chance.score - a.chance.score)
       .slice(0, 8);
-  }, [cache, nicheStats]);
+  }, [cache, nicheStats, clock]);
 
   async function refreshOne(
     segment: string,
@@ -545,7 +554,11 @@ export function OpenNowNichesView({
     const segments = OPEN_NOW_CATALOG.filter((item) => {
       const value = cache.get(item.segment);
       if (onlyErrors) return value?.status === "error";
-      return !value?.checkedAt || value.stale || value.status === "error";
+      return (
+        !value?.checkedAt ||
+        cacheIsStale(value, clock) ||
+        value.status === "error"
+      );
     }).map((item) => item.segment);
 
     if (!segments.length) return;
@@ -957,7 +970,7 @@ export function OpenNowNichesView({
                       <small>{item.familyLabel}</small>
                       <h3>{item.segment}</h3>
                     </div>
-                    {nicheCache?.stale && nicheCache.checkedAt && (
+                    {nicheCache?.checkedAt && cacheIsStale(nicheCache, clock) && (
                       <span className="open-now-stale">Desatualizado</span>
                     )}
                   </div>
