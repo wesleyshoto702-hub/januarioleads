@@ -520,6 +520,16 @@ async function runRefresh(
     );
   }
 
+  const allowedByRateLimit = await claimRefreshBudget(userId, location.key);
+  if (!allowedByRateLimit) {
+    return failure(
+      "RATE_LIMIT",
+      "Muitas atualizações foram iniciadas nesta localidade. Aguarde alguns minutos.",
+      429,
+      current ? { cache: serializeCacheRow(current) } : undefined,
+    );
+  }
+
   const family =
     (familyBySegment.get(segment) ?? "generic_local_business") as NicheFamily;
   const now = new Date();
@@ -537,16 +547,6 @@ async function runRefresh(
     updated_at: now.toISOString(),
     ...(current ? {} : { results: [] }),
   });
-
-  const allowedByRateLimit = await claimRefreshBudget(userId, location.key);
-  if (!allowedByRateLimit) {
-    return failure(
-      "RATE_LIMIT",
-      "Muitas atualizações foram iniciadas nesta localidade. Aguarde alguns minutos.",
-      429,
-      current ? { cache: serializeCacheRow(current) } : undefined,
-    );
-  }
 
   const googleApiKey = Deno.env.get("GOOGLE_PLACES_API_KEY")?.trim();
   if (!googleApiKey) {
