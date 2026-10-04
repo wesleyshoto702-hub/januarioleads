@@ -146,6 +146,7 @@ function evaluationFor(
       business.currentOpeningHours,
       business.regularOpeningHours,
       now,
+      { preferReportedOpenNow: false },
     );
   }
 
@@ -228,6 +229,7 @@ function localCacheRows(city: string, state: string): OpenNowNicheCache[] {
         business.currentOpeningHours,
         business.regularOpeningHours,
         now,
+        { preferReportedOpenNow: false },
       );
       return { ...business, openNow } as OpenNowBusiness;
     });

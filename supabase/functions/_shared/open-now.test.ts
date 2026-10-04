@@ -106,3 +106,18 @@ Deno.test("cache is fresh before TTL and stale afterwards", () => {
     "16 minutes should be stale.",
   );
 });
+
+
+Deno.test("structured current periods can recalculate after reported openNow becomes stale", () => {
+  const hours = {
+    openNow:true,
+    periods:[{open:{day:1,hour:9},close:{day:1,hour:10}}],
+  };
+  const value = evaluateOpenNow(
+    hours,
+    null,
+    saoPauloUtc(2026,10,5,10,5),
+    {preferReportedOpenNow:false},
+  );
+  assert(value.state === "CLOSED","After 10:00 the structured period must close locally.");
+});

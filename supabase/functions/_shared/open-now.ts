@@ -212,11 +212,23 @@ function evaluateOpenHours(
   hours: OpeningHoursSnapshot,
   now: Date,
   source: "current" | "regular",
+  preferReportedOpenNow: boolean,
 ): OpenNowEvaluation | null {
   const current = nowMinuteIndex(now);
   const active = activePeriod(hours, now);
+  const hasUsablePeriods = (hours.periods ?? []).some(
+    (period) =>
+      Boolean(period.open) &&
+      (
+        typeof period.open?.day === "number" ||
+        explicitDateIndex(period.open!) !== null
+      ),
+  );
 
-  if (typeof hours.openNow === "boolean") {
+  if (
+    preferReportedOpenNow &&
+    typeof hours.openNow === "boolean"
+  ) {
     if (!hours.openNow) {
       return {
         state: "CLOSED",
@@ -241,10 +253,21 @@ function evaluateOpenHours(
       };
     }
   } else if (!active) {
-    if ((hours.periods ?? []).length > 0) {
+    if (hasUsablePeriods) {
       return {
         state: "CLOSED",
         isOpen: false,
+        source,
+        is24Hours: false,
+        closingAt: null,
+        minutesUntilClose: null,
+        evaluatedAt: now.toISOString(),
+      };
+    }
+    if (typeof hours.openNow === "boolean") {
+      return {
+        state: hours.openNow ? "OPEN" : "CLOSED",
+        isOpen: hours.openNow,
         source,
         is24Hours: false,
         closingAt: null,
@@ -295,14 +318,26 @@ export function evaluateOpenNow(
   currentOpeningHours: OpeningHoursSnapshot | null | undefined,
   regularOpeningHours: OpeningHoursSnapshot | null | undefined,
   now = new Date(),
+  options: { preferReportedOpenNow?: boolean } = {},
 ): OpenNowEvaluation {
+  const preferReportedOpenNow = options.preferReportedOpenNow !== false;
   if (currentOpeningHours) {
-    const current = evaluateOpenHours(currentOpeningHours, now, "current");
+    const current = evaluateOpenHours(
+      currentOpeningHours,
+      now,
+      "current",
+      preferReportedOpenNow,
+    );
     if (current) return current;
   }
 
   if (regularOpeningHours) {
-    const regular = evaluateOpenHours(regularOpeningHours, now, "regular");
+    const regular = evaluateOpenHours(
+      regularOpeningHours,
+      now,
+      "regular",
+      preferReportedOpenNow,
+    );
     if (regular) return regular;
   }
 
