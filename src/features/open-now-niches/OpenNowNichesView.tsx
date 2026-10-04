@@ -135,13 +135,21 @@ function cacheIsStale(cache: OpenNowNicheCache | undefined, now: Date) {
   return !cache?.checkedAt || !isOpenNowCacheFresh(cache.checkedAt, now);
 }
 
+function hasStructuredPeriods(business: OpenNowBusiness) {
+  return Boolean(
+    business.currentOpeningHours?.periods?.length ||
+      business.regularOpeningHours?.periods?.length,
+  );
+}
+
 function evaluationFor(
   business: OpenNowBusiness,
   cache: OpenNowNicheCache,
   now: Date,
 ) {
   const stale = cacheIsStale(cache, now);
-  if (business.currentOpeningHours || business.regularOpeningHours) {
+
+  if (hasStructuredPeriods(business)) {
     return evaluateOpenNow(
       business.currentOpeningHours,
       business.regularOpeningHours,
@@ -150,7 +158,21 @@ function evaluationFor(
     );
   }
 
-  if (!stale && business.openNow) return business.openNow;
+  // A point-in-time openNow boolean is only trustworthy inside the short TTL.
+  // Without structured periods we cannot advance it safely with the clock.
+  if (stale) {
+    return {
+      state: "UNKNOWN",
+      isOpen: null,
+      source: "unknown",
+      is24Hours: false,
+      closingAt: null,
+      minutesUntilClose: null,
+      evaluatedAt: now.toISOString(),
+    } satisfies OpenNowEvaluation;
+  }
+
+  if (business.openNow) return business.openNow;
 
   if (!stale && typeof business.isOpenNow === "boolean") {
     return {
@@ -993,7 +1015,7 @@ export function OpenNowNichesView({
                     ) : stats.openCount > 0 ? (
                       <>
                         <strong>{stats.openCount}</strong>
-                        <span>abertas agora</span>
+                        <span>abertas encontradas agora</span>
                       </>
                     ) : (
                       <strong>Nenhuma aberta encontrada</strong>
@@ -1052,7 +1074,7 @@ export function OpenNowNichesView({
           <div className="open-now-business-heading">
             <div>
               <span>{expandedSegment.toUpperCase()}</span>
-              <h2>{expandedStats.openCount} abertas agora</h2>
+              <h2>{expandedStats.openCount} abertas encontradas agora</h2>
               <p>
                 {expandedStats.cache?.nextPageToken
                   ? "Há mais resultados do Google disponíveis para este nicho."
