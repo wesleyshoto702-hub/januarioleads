@@ -388,6 +388,31 @@ async function adminRest(path: string, init: RequestInit = {}) {
   });
 }
 
+async function claimRefreshBudget(userId: string, key: string) {
+  const response = await adminRest("rpc/claim_open_now_refresh", {
+    method: "POST",
+    body: JSON.stringify({
+      p_user_id: userId,
+      p_location_key: key,
+      p_limit: 140,
+      p_window_seconds: 900,
+    }),
+  });
+  if (!response.ok) throw new Error("RATE_LIMIT_CHECK_FAILED");
+  return Boolean(await response.json());
+}
+
+async function cleanupExpiredCache(userId: string) {
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  await adminRest(
+    `open_now_niche_cache?user_id=eq.${encodeURIComponent(userId)}&updated_at=lt.${encodeURIComponent(cutoff)}`,
+    {
+      method: "DELETE",
+      headers: { Prefer: "return=minimal" },
+    },
+  ).catch(() => undefined);
+}
+
 async function readCache(
   userId: string,
   key: string,
@@ -512,6 +537,16 @@ async function runRefresh(
     updated_at: now.toISOString(),
     ...(current ? {} : { results: [] }),
   });
+
+  const allowedByRateLimit = await claimRefreshBudget(userId, location.key);
+  if (!allowedByRateLimit) {
+    return failure(
+      "RATE_LIMIT",
+      "Muitas atualizações foram iniciadas nesta localidade. Aguarde alguns minutos.",
+      429,
+      current ? { cache: serializeCacheRow(current) } : undefined,
+    );
+  }
 
   const googleApiKey = Deno.env.get("GOOGLE_PLACES_API_KEY")?.trim();
   if (!googleApiKey) {
@@ -640,6 +675,7 @@ Deno.serve(async (request) => {
       return await runRefresh(userId, location, body);
     }
 
+    await cleanupExpiredCache(userId);
     const rows = await readCache(userId, location.key);
     return json({
       ok: true,
