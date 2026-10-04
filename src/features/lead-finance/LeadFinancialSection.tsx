@@ -80,13 +80,13 @@ export function LeadFinancialSection({
   function saveProject(event: FormEvent) {
     event.preventDefault();
     const parsed = parseMoneyInput(projectValue);
-    if (projectValue.trim() && (parsed === null || parsed < 0)) {
-      setProjectError("Informe um valor de projeto válido.");
+    if (parsed === null || parsed <= 0) {
+      setProjectError("Informe um valor de projeto maior que zero.");
       return;
     }
     onFinanceUpdate(lead.id, {
-      projectValue: parsed && parsed > 0 ? parsed : undefined,
-      financialNotes: financialNotes.trim() || undefined,
+      projectValue: parsed,
+      financialNotes: financialNotes.trim(),
     });
     setProjectError("");
     setEditingProject(false);
