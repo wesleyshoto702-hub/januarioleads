@@ -326,6 +326,13 @@ export function OpenNowNichesView({
   }, []);
 
   useEffect(() => {
+    return () => {
+      globalAbort.current?.abort();
+      globalAbort.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
     const controller = new AbortController();
     setLoadingCache(true);
     setPageError("");
