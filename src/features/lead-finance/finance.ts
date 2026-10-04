@@ -89,14 +89,12 @@ function cents(value: number) {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
-function paymentTimestamp(payment: LeadPayment) {
-  return `${payment.paymentDate}T${payment.createdAt.split("T")[1] ?? "00:00:00"}`;
-}
-
 export function sortPaymentsNewestFirst(payments: LeadPayment[]) {
-  return [...payments].sort((a, b) =>
-    paymentTimestamp(b).localeCompare(paymentTimestamp(a)),
-  );
+  return [...payments].sort((a, b) => {
+    const byDate = b.paymentDate.localeCompare(a.paymentDate);
+    if (byDate !== 0) return byDate;
+    return b.createdAt.localeCompare(a.createdAt);
+  });
 }
 
 export function summarizeLeadFinance(
@@ -149,15 +147,30 @@ export function formatPaymentMethod(payment: LeadPayment | null) {
   return label;
 }
 
-export function monthKey(date = new Date()) {
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-  return local.toISOString().slice(0, 7);
+function brazilDateParts(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+  return {
+    year: value("year"),
+    month: value("month"),
+    day: value("day"),
+  };
 }
 
-export function localToday() {
-  const now = new Date();
-  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
-  return local.toISOString().slice(0, 10);
+export function monthKey(date = new Date()) {
+  const { year, month } = brazilDateParts(date);
+  return `${year}-${month}`;
+}
+
+export function localToday(date = new Date()) {
+  const { year, month, day } = brazilDateParts(date);
+  return `${year}-${month}-${day}`;
 }
 
 export async function fetchLeadPayments() {
