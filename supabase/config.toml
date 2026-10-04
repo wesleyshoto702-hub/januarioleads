@@ -18,3 +18,7 @@ verify_jwt = true
 
 [functions.capture-visual-reference]
 verify_jwt = true
+
+
+[functions.open-now-niches]
+verify_jwt = true
