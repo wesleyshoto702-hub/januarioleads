@@ -542,7 +542,12 @@ export function OpenNowNichesView({
 
   async function refreshOne(
     segment: string,
-    options: { force?: boolean; pageToken?: string | null; signal?: AbortSignal } = {},
+    options: {
+      force?: boolean;
+      pageToken?: string | null;
+      signal?: AbortSignal;
+      silent?: boolean;
+    } = {},
   ) {
     setRefreshingSegments((current) => new Set(current).add(segment));
     try {
@@ -558,12 +563,17 @@ export function OpenNowNichesView({
       );
       if (response.cache) updateCache(response.cache);
       if (!response.ok) {
-        if (response.code !== "COOLDOWN" && response.code !== "ALREADY_REFRESHING") {
-          throw new Error(response.message);
-        }
+        if (!options.silent) setPageError(response.message);
         return false;
       }
+      if (!options.silent) setPageError("");
       return true;
+    } catch (error) {
+      if ((error as Error)?.name === "AbortError") return false;
+      if (!options.silent) {
+        setPageError("Não foi possível atualizar este nicho agora.");
+      }
+      return false;
     } finally {
       setRefreshingSegments((current) => {
         const next = new Set(current);
@@ -606,6 +616,7 @@ export function OpenNowNichesView({
         try {
           ok = await refreshOne(segments[index], {
             signal: controller.signal,
+            silent: true,
           });
         } catch (error) {
           if ((error as Error)?.name === "AbortError") break;
