@@ -25,6 +25,16 @@ import type {
 } from "../features/business-presence/types";
 import { LeadEnrichmentModal } from "../features/lead-enrichment/LeadEnrichmentModal";
 import { createLeadActivity } from "../features/lead-activities/lead-activities";
+import {
+  fetchLeadPayments,
+  FINANCIAL_STATUS_LABEL,
+  formatCurrency,
+  monthKey,
+  summarizeLeadFinance,
+  type FinancialStatus,
+  type LeadFinanceSummary,
+  type LeadPayment,
+} from "../features/lead-finance/finance";
 import { ChanceBadge } from "../features/lead-chance/ChanceBadge";
 import {
   deleteRemoteLead,
@@ -220,6 +230,7 @@ function LeadFlowApp() {
   const [remoteReady, setRemoteReady] = useState(false);
   const [remoteError, setRemoteError] = useState("");
   const [leadUpdates, setLeadUpdates] = useState<LeadUpdateRecord[]>([]);
+  const [leadPayments, setLeadPayments] = useState<LeadPayment[]>([]);
   const [view, setView] = useState<
     "leads" | "search" | "open-now" | "messages"
   >("leads");
@@ -228,6 +239,9 @@ function LeadFlowApp() {
   const [form, setForm] = useState<LeadForm>(EMPTY_FORM);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | Status>("all");
+  const [financialFilter, setFinancialFilter] = useState<
+    "all" | FinancialStatus
+  >("all");
   const [segmentFilter, setSegmentFilter] = useState("all");
   const [sort, setSort] = useState("recent");
   const [messageLead, setMessageLead] = useState<{ id?: string; company: string; phone: string } | null>(null);
@@ -280,6 +294,11 @@ function LeadFlowApp() {
 
         setLeads(remoteLeads);
         setLeadUpdates(await fetchLeadUpdates());
+        try {
+          setLeadPayments(await fetchLeadPayments());
+        } catch {
+          setLeadPayments([]);
+        }
         setRemoteReady(true);
         setRemoteError("");
       } catch {
@@ -318,6 +337,11 @@ function LeadFlowApp() {
         if (!active) return;
         setLeads(remoteLeads);
         setLeadUpdates(updates);
+        try {
+          setLeadPayments(await fetchLeadPayments());
+        } catch {
+          // Finance is auxiliary and must not block the CRM refresh.
+        }
         setRemoteError("");
       } catch {
         if (!active) return;
@@ -361,6 +385,55 @@ function LeadFlowApp() {
     [leads],
   );
 
+  const paymentsByLead = useMemo(() => {
+    const map = new Map<string, LeadPayment[]>();
+    for (const payment of leadPayments) {
+      const current = map.get(payment.leadId) ?? [];
+      current.push(payment);
+      map.set(payment.leadId, current);
+    }
+    return map;
+  }, [leadPayments]);
+
+  const financeByLead = useMemo(() => {
+    const map = new Map<string, LeadFinanceSummary>();
+    for (const lead of leads) {
+      const summary = summarizeLeadFinance(
+        lead,
+        paymentsByLead.get(lead.id) ?? [],
+      );
+      if (summary) map.set(lead.id, summary);
+    }
+    return map;
+  }, [leads, paymentsByLead]);
+
+  const financialOverview = useMemo(() => {
+    const currentMonth = monthKey();
+    const receivedThisMonth = leadPayments
+      .filter((payment) => payment.paymentDate.slice(0, 7) === currentMonth)
+      .reduce((total, payment) => total + payment.amount, 0);
+
+    let receivable = 0;
+    let paidProjects = 0;
+    let partialProjects = 0;
+    let pendingProjects = 0;
+
+    for (const summary of financeByLead.values()) {
+      if (summary.status === "paid") paidProjects += 1;
+      if (summary.status === "partial") partialProjects += 1;
+      if (summary.status === "pending") pendingProjects += 1;
+      if (summary.status !== "paid") receivable += summary.remainingValue;
+    }
+
+    return {
+      receivedThisMonth,
+      receivable,
+      paidProjects,
+      partialProjects,
+      pendingProjects,
+    };
+  }, [financeByLead, leadPayments]);
+
   const visibleLeads = useMemo(() => {
     const query = search.trim().toLowerCase();
     const filtered = leads.filter((lead) => {
@@ -371,16 +444,44 @@ function LeadFlowApp() {
         lead.phone.replace(/\D/g, "").includes(query.replace(/\D/g, ""));
       const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
       const matchesSegment = segmentFilter === "all" || lead.segment === segmentFilter;
-      return matchesSearch && matchesStatus && matchesSegment;
+      const finance = financeByLead.get(lead.id);
+      const matchesFinancial =
+        financialFilter === "all" || finance?.status === financialFilter;
+      return matchesSearch && matchesStatus && matchesSegment && matchesFinancial;
     });
 
     return [...filtered].sort((a, b) => {
       if (sort === "oldest") return a.createdAt.localeCompare(b.createdAt);
       if (sort === "az") return a.company.localeCompare(b.company, "pt-BR");
       if (sort === "za") return b.company.localeCompare(a.company, "pt-BR");
+      if (sort === "project-value") {
+        return (
+          (financeByLead.get(b.id)?.projectValue ?? 0) -
+          (financeByLead.get(a.id)?.projectValue ?? 0)
+        );
+      }
+      if (sort === "remaining-value") {
+        return (
+          (financeByLead.get(b.id)?.remainingValue ?? 0) -
+          (financeByLead.get(a.id)?.remainingValue ?? 0)
+        );
+      }
+      if (sort === "payment-recent") {
+        const right = financeByLead.get(b.id)?.lastPayment?.paymentDate ?? "";
+        const left = financeByLead.get(a.id)?.lastPayment?.paymentDate ?? "";
+        return right.localeCompare(left) || b.createdAt.localeCompare(a.createdAt);
+      }
       return b.createdAt.localeCompare(a.createdAt);
     });
-  }, [leads, search, statusFilter, segmentFilter, sort]);
+  }, [
+    leads,
+    search,
+    statusFilter,
+    financialFilter,
+    segmentFilter,
+    sort,
+    financeByLead,
+  ]);
 
   const unseenUpdatesByLead = useMemo(() => {
     const counts = new Map<string, number>();
@@ -1354,6 +1455,27 @@ function LeadFlowApp() {
             <Stat label="Recusados" value={counts.rejected} tone="rejected" />
           </div>
 
+          <section className="finance-summary-strip" aria-label="Resumo financeiro">
+            <FinanceStat
+              label="Recebido no mês"
+              value={formatCurrency(financialOverview.receivedThisMonth)}
+            />
+            <FinanceStat
+              label="A receber"
+              value={formatCurrency(financialOverview.receivable)}
+            />
+            <FinanceStat
+              label="Projetos pagos"
+              value={String(financialOverview.paidProjects)}
+              tone="paid"
+            />
+            <FinanceStat
+              label="Pagamento parcial"
+              value={String(financialOverview.partialProjects)}
+              tone="partial"
+            />
+          </section>
+
           <section className="recent-updates-panel" aria-label="Atualizações recentes">
             <div className="recent-updates-heading">
               <div>
@@ -1433,6 +1555,9 @@ function LeadFlowApp() {
                     ["oldest", "Mais antigos"],
                     ["az", "Nome A-Z"],
                     ["za", "Nome Z-A"],
+                    ["project-value", "Maior valor do projeto"],
+                    ["remaining-value", "Maior valor a receber"],
+                    ["payment-recent", "Recebidos recentemente"],
                   ]}
                 />
               </div>
@@ -1457,6 +1582,29 @@ function LeadFlowApp() {
               ))}
             </div>
 
+            <div className="filter-row financial-filter-row">
+              <span className="filter-row-label">Financeiro</span>
+              {([
+                ["all", "Todos", financeByLead.size],
+                ["pending", "Pendente", financialOverview.pendingProjects],
+                ["partial", "Parcial", financialOverview.partialProjects],
+                ["paid", "Pago", financialOverview.paidProjects],
+              ] as const).map(([value, label, count]) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={
+                    financialFilter === value
+                      ? "filter-chip active"
+                      : "filter-chip"
+                  }
+                  onClick={() => setFinancialFilter(value)}
+                >
+                  {label} <span>{count}</span>
+                </button>
+              ))}
+            </div>
+
             <div className="desktop-table">
               <div className="table-head">
                 <span>Empresa</span>
@@ -1470,6 +1618,7 @@ function LeadFlowApp() {
                   <LeadRow
                     key={lead.id}
                     lead={lead}
+                    finance={financeByLead.get(lead.id) ?? null}
                     onStatus={changeStatus}
                     onMessage={(item) => {
                       setSelectedMessage(0);
@@ -1494,6 +1643,7 @@ function LeadFlowApp() {
                   <LeadCard
                     key={lead.id}
                     lead={lead}
+                    finance={financeByLead.get(lead.id) ?? null}
                     onStatus={changeStatus}
                     onMessage={(item) => {
                       setSelectedMessage(0);
@@ -1698,6 +1848,17 @@ function LeadFlowApp() {
             onDeepEnrichmentUpdate={(value) =>
               applyDeepEnrichmentToLead(lead.id, value)
             }
+            financeLead={lead}
+            financePayments={paymentsByLead.get(lead.id) ?? []}
+            onFinanceUpdate={(leadId, patch) =>
+              updateLeadLocally(leadId, (current) => ({
+                ...current,
+                ...patch,
+              }))
+            }
+            onPaymentSaved={(payment) =>
+              setLeadPayments((current) => [payment, ...current])
+            }
           />
         );
       })()}
@@ -1776,8 +1937,40 @@ function Stat({
   );
 }
 
+function FinanceStat({
+  label,
+  value,
+  tone = "neutral",
+}: {
+  label: string;
+  value: string;
+  tone?: "neutral" | "partial" | "paid";
+}) {
+  return (
+    <div className={`finance-summary-item ${tone}`}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function LeadFinanceMarker({ summary }: { summary: LeadFinanceSummary }) {
+  return (
+    <div className="lead-finance-marker">
+      <span className={`financial-status-badge ${summary.status}`}>
+        {FINANCIAL_STATUS_LABEL[summary.status]}
+      </span>
+      <strong>{formatCurrency(summary.projectValue)}</strong>
+      {summary.status !== "paid" && (
+        <small>{formatCurrency(summary.remainingValue)} restante</small>
+      )}
+    </div>
+  );
+}
+
 function LeadRow({
   lead,
+  finance,
   onStatus,
   onMessage,
   onGeneratePrompt,
@@ -1788,6 +1981,7 @@ function LeadRow({
   onDelete,
 }: {
   lead: Lead;
+  finance: LeadFinanceSummary | null;
   onStatus: (id: string, status: Status) => void;
   onMessage: (lead: Lead) => void;
   onGeneratePrompt: (lead: Lead) => void;
@@ -1809,6 +2003,7 @@ function LeadRow({
           {chance && <ChanceBadge chance={chance} />}
         </div>
         <span>{lead.segment}</span>
+        {finance && <LeadFinanceMarker summary={finance} />}
         {lead.enrichedAt && <small className="enriched-badge">Dados enriquecidos</small>}
         {updateCount > 0 && (
           <small className="lead-update-badge">
@@ -1862,6 +2057,7 @@ function LeadRow({
 
 function LeadCard({
   lead,
+  finance,
   onStatus,
   onMessage,
   onGeneratePrompt,
@@ -1872,6 +2068,7 @@ function LeadCard({
   onDelete,
 }: {
   lead: Lead;
+  finance: LeadFinanceSummary | null;
   onStatus: (id: string, status: Status) => void;
   onMessage: (lead: Lead) => void;
   onGeneratePrompt: (lead: Lead) => void;
@@ -1904,6 +2101,7 @@ function LeadCard({
         <span className={`status-badge ${lead.status}`}>{STATUS_LABEL[lead.status]}</span>
       </div>
       <div className="card-phone">{lead.phone || "Sem telefone disponível"}</div>
+      {finance && <LeadFinanceMarker summary={finance} />}
       <StatusControl lead={lead} onStatus={onStatus} />
       <div className="card-meta">
         <span>Primeiro contato: {formatDate(lead.firstContact)}</span>
