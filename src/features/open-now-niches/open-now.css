@@ -880,3 +880,136 @@
     grid-template-columns: 1fr 1fr;
   }
 }
+
+
+/* Mobile responsiveness audit — 2026-10-04 */
+@media (max-width: 760px) {
+  .open-now-page,
+  .open-now-heading,
+  .open-now-control-panel,
+  .open-now-location,
+  .open-now-coverage,
+  .open-now-refresh-actions,
+  .prospect-now,
+  .open-now-catalog-section,
+  .open-now-toolbar,
+  .open-now-niche-grid,
+  .open-now-niche-card,
+  .open-now-business-panel,
+  .open-now-business-row,
+  .open-now-business-name,
+  .open-now-business-actions {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .open-now-location input,
+  .open-now-toolbar .select-wrap select {
+    min-height: 44px;
+  }
+
+  .open-now-location .secondary-button,
+  .open-now-refresh-actions button,
+  .open-now-niche-actions button,
+  .open-now-business-actions button,
+  .prospect-actions button,
+  .open-now-load-more button {
+    min-height: 44px;
+  }
+
+  .open-now-family-summary button,
+  .open-now-filter-row button {
+    min-height: 40px;
+  }
+
+  .open-now-family-summary,
+  .open-now-filter-row {
+    overscroll-behavior-x: contain;
+    scroll-padding-inline: 2px;
+  }
+
+  .open-now-section-heading h2,
+  .open-now-section-heading small,
+  .open-now-business-heading h2,
+  .open-now-business-heading p,
+  .open-now-niche-top h3,
+  .open-now-niche-meta,
+  .open-now-status,
+  .open-now-business-proof,
+  .prospect-company {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .open-now-business-panel {
+    scroll-margin-top: calc(122px + env(safe-area-inset-top));
+  }
+}
+
+@media (max-width: 520px) {
+  .open-now-heading h1 {
+    overflow-wrap: anywhere;
+  }
+
+  .open-now-location {
+    grid-template-columns: minmax(0, 1fr) 68px;
+  }
+
+  .prospect-company strong,
+  .open-now-business-name strong,
+  .open-now-business-name > span,
+  .open-now-niche-top h3 {
+    max-width: 100%;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .prospect-actions,
+  .open-now-business-actions {
+    gap: 8px;
+  }
+
+  .prospect-actions button,
+  .open-now-business-actions button {
+    min-width: 0;
+    min-height: 44px;
+    white-space: normal;
+  }
+
+  .open-now-niche-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .open-now-niche-actions button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 360px) {
+  .open-now-control-panel,
+  .prospect-now,
+  .open-now-catalog-section,
+  .open-now-business-panel {
+    padding: 10px;
+  }
+
+  .open-now-coverage {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  .open-now-coverage > div {
+    min-width: 0;
+    padding-inline: 5px;
+  }
+
+  .open-now-coverage span {
+    overflow-wrap: anywhere;
+  }
+
+  .prospect-actions,
+  .open-now-business-actions {
+    grid-template-columns: 1fr;
+  }
+}
