@@ -23,12 +23,35 @@ import { LeadFinancialSection } from "../lead-finance/LeadFinancialSection";
 import type { LeadPayment } from "../lead-finance/finance";
 import { ChanceBadge } from "../lead-chance/ChanceBadge";
 import type { LeadChanceResult } from "../lead-chance/lead-chance";
-import type { LeadUpdateRecord, PersistedLead } from "../leads/remote-leads";
+import type {
+  LeadStatus,
+  LeadUpdateRecord,
+  PersistedLead,
+} from "../leads/remote-leads";
+import { normalizeBrazilianPhone } from "./identity";
 import type { BusinessSearchResult } from "./types";
 
 export type BusinessDetailsMessageTarget = {
+  id?: string;
   company: string;
   phone: string;
+};
+
+export type BusinessAddResult =
+  | { ok: true; leadId: string }
+  | { ok: false; message: string };
+
+export type BusinessCommercialLead = {
+  id: string;
+  status: LeadStatus;
+  phone: string;
+};
+
+const COMMERCIAL_STATUS_LABEL: Record<LeadStatus, string> = {
+  send_message: "Enviar mensagem",
+  waiting: "Aguardando",
+  accepted: "Aceito",
+  rejected: "Recusado",
 };
 
 function formatGoogleType(value: string) {
@@ -69,6 +92,7 @@ export function BusinessDetailsModal({
   chance,
   segmentLabel,
   alreadyAdded = false,
+  commercialLead,
   lastSyncedAt,
   updates = [],
   activityLeadId,
@@ -88,6 +112,7 @@ export function BusinessDetailsModal({
   chance?: LeadChanceResult | null;
   segmentLabel?: string | null;
   alreadyAdded?: boolean;
+  commercialLead?: BusinessCommercialLead | null;
   lastSyncedAt?: string | null;
   updates?: LeadUpdateRecord[];
   activityLeadId?: string | null;
@@ -104,11 +129,15 @@ export function BusinessDetailsModal({
     patch: Pick<PersistedLead, "projectValue" | "financialNotes">,
   ) => void;
   onPaymentSaved?: (payment: LeadPayment) => void;
-  onAdd?: (business: BusinessSearchResult) => void;
+  onAdd?: (
+    business: BusinessSearchResult,
+  ) => Promise<BusinessAddResult> | BusinessAddResult;
 }) {
   const [presenceLoading, setPresenceLoading] = useState(false);
   const [presenceError, setPresenceError] = useState("");
   const [activeTab, setActiveTab] = useState<"info" | "history">("info");
+  const [addingLead, setAddingLead] = useState(false);
+  const [commercialError, setCommercialError] = useState("");
 
   const factualDescription =
     business.factualDescription ?? buildFactualBusinessDescription(business);
@@ -121,6 +150,16 @@ export function BusinessDetailsModal({
   const candidates = (business.instagramCandidates ?? []).filter(
     (candidate) => candidate.confidence === "medium",
   );
+  const commercialPhone =
+    commercialLead?.phone ||
+    business.phone ||
+    business.internationalPhone ||
+    "";
+  const normalizedCommercialPhone =
+    normalizeBrazilianPhone(commercialPhone);
+  const canOpenCommercialWhatsApp =
+    normalizedCommercialPhone.length === 12 ||
+    normalizedCommercialPhone.length === 13;
 
   async function verifyPresence(force = false) {
     setPresenceLoading(true);
@@ -187,11 +226,36 @@ export function BusinessDetailsModal({
     });
   }
 
+  async function addToLeads() {
+    if (!onAdd || addingLead || alreadyAdded) return;
+
+    setAddingLead(true);
+    setCommercialError("");
+    try {
+      const result = await onAdd(business);
+      if (result && !result.ok) {
+        setCommercialError(result.message);
+      }
+    } catch {
+      setCommercialError(
+        "Não foi possível adicionar esta empresa aos leads agora.",
+      );
+    } finally {
+      setAddingLead(false);
+    }
+  }
+
   useEffect(() => {
     setActiveTab("info");
     setPresenceError("");
     setPresenceLoading(false);
+    setAddingLead(false);
+    setCommercialError("");
   }, [business.placeId]);
+
+  useEffect(() => {
+    if (alreadyAdded) setCommercialError("");
+  }, [alreadyAdded]);
 
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
@@ -530,28 +594,79 @@ export function BusinessDetailsModal({
           )}
 
           <div className="detail-actions">
-            {business.phone && (
+            {commercialLead ? (
               <>
                 <button
                   type="button"
-                  className="secondary-button"
-                  onClick={() => onWhatsApp(business)}
+                  className="secondary-button added-button"
+                  disabled
                 >
-                  WhatsApp
+                  Já adicionado
                 </button>
-                <button
-                  type="button"
-                  className="message-button"
-                  onClick={() =>
-                    onMessage({
-                      company: business.name,
-                      phone: business.phone ?? "",
-                    })
-                  }
+                <span
+                  className={`status-badge commercial-status-badge ${commercialLead.status}`}
+                  aria-label={`Status: ${COMMERCIAL_STATUS_LABEL[commercialLead.status]}`}
                 >
-                  <MessageCircle size={15} />
-                  Mandar mensagem
-                </button>
+                  {COMMERCIAL_STATUS_LABEL[commercialLead.status]}
+                </span>
+                {canOpenCommercialWhatsApp ? (
+                  <button
+                    type="button"
+                    className={
+                      commercialLead.status === "send_message"
+                        ? "message-button"
+                        : "secondary-button"
+                    }
+                    onClick={() =>
+                      onMessage({
+                        id: commercialLead.id,
+                        company: business.name,
+                        phone: commercialPhone,
+                      })
+                    }
+                  >
+                    <MessageCircle size={15} />
+                    {commercialLead.status === "send_message"
+                      ? "Enviar mensagem"
+                      : "Abrir WhatsApp"}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    disabled
+                    title="Este lead não possui telefone válido."
+                  >
+                    Sem telefone
+                  </button>
+                )}
+              </>
+            ) : (
+              <>
+                {business.phone && (
+                  <>
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => onWhatsApp(business)}
+                    >
+                      WhatsApp
+                    </button>
+                    <button
+                      type="button"
+                      className="message-button"
+                      onClick={() =>
+                        onMessage({
+                          company: business.name,
+                          phone: business.phone ?? "",
+                        })
+                      }
+                    >
+                      <MessageCircle size={15} />
+                      Mandar mensagem
+                    </button>
+                  </>
+                )}
               </>
             )}
             <button
@@ -562,17 +677,26 @@ export function BusinessDetailsModal({
               <Sparkles size={15} />
               Gerar prompt
             </button>
-            {(onAdd || alreadyAdded) && (
+            {!commercialLead && (onAdd || alreadyAdded) && (
               <button
                 type="button"
                 className={alreadyAdded ? "secondary-button added-button" : "primary-button"}
-                disabled={alreadyAdded}
-                onClick={() => onAdd?.(business)}
+                disabled={alreadyAdded || addingLead}
+                onClick={() => void addToLeads()}
               >
-                {alreadyAdded ? "Já está nos seus leads" : "Adicionar aos meus leads"}
+                {alreadyAdded
+                  ? "Já está nos seus leads"
+                  : addingLead
+                    ? "Adicionando..."
+                    : "Adicionar aos meus leads"}
               </button>
             )}
           </div>
+          {commercialError && (
+            <p className="detail-action-error" role="status">
+              {commercialError}
+            </p>
+          )}
         </div>
         ) : activityLeadId ? (
           <div className="business-detail-content business-history-content">
