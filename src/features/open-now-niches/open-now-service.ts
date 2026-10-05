@@ -4,6 +4,22 @@ import type {
   OpenNowRefreshResponse,
 } from "./types";
 
+export class OpenNowServiceError extends Error {
+  code: string;
+
+  constructor(code: string, message: string) {
+    super(message);
+    this.name = "OpenNowServiceError";
+    this.code = code;
+  }
+}
+
+export function openNowServiceErrorMessage(error: unknown) {
+  if (error instanceof OpenNowServiceError) return error.message;
+  if ((error as Error)?.name === "AbortError") return "";
+  return "Não foi possível acessar Nichos Abertos Agora.";
+}
+
 const PUBLIC_SUPABASE_URL = "https://czkazbianiflhldenhcj.supabase.co";
 const PUBLIC_SUPABASE_PUBLISHABLE_KEY =
   "sb_publishable_rDtFwPmhh93xceOpvf9hUg_PSlvpB8p";
@@ -39,11 +55,11 @@ async function callOpenNow<T>(
     body: JSON.stringify(body),
   });
 
-  let payload: unknown;
+  let payload: unknown = null;
   try {
     payload = await response.json();
   } catch {
-    throw new Error("REQUEST_FAILED");
+    // Some platform-level failures can return a non-JSON body.
   }
 
   if (
@@ -54,7 +70,24 @@ async function callOpenNow<T>(
     return payload as T;
   }
 
-  throw new Error("REQUEST_FAILED");
+  if (response.status === 401) {
+    throw new OpenNowServiceError(
+      "AUTH_REQUIRED",
+      "Sua sessão expirou. Entre novamente para continuar.",
+    );
+  }
+
+  if (response.status === 403) {
+    throw new OpenNowServiceError(
+      "PRIVATE_ACCESS_DENIED",
+      "Sua conta não possui acesso a este recurso.",
+    );
+  }
+
+  throw new OpenNowServiceError(
+    "REQUEST_FAILED",
+    "Não foi possível acessar Nichos Abertos Agora.",
+  );
 }
 
 export function fetchOpenNowCache(
