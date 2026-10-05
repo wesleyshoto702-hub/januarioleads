@@ -436,7 +436,7 @@ export function SearchLeadsView({
           <div>
             <p className="eyebrow">MINAS GERAIS · MG</p>
             <h1>
-              Encontre empresas em {selectedCity ?? cityInput.trim() || searchLocation.city}
+              Encontre empresas em {(selectedCity ?? cityInput.trim()) || searchLocation.city}
             </h1>
             <p className="subtitle">
               Escolha a cidade e o segmento para encontrar possíveis clientes.
