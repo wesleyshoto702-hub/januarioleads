@@ -249,10 +249,21 @@ export function SearchLeadsView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const selectedCity = useMemo(
-    () => resolveMunicipality(cityInput, municipalities),
-    [cityInput, municipalities],
-  );
+  const selectedCity = useMemo(() => {
+    const official = resolveMunicipality(cityInput, municipalities);
+    if (official) return official;
+
+    if (
+      municipalitiesError &&
+      cityInput.trim().localeCompare(searchLocation.city, "pt-BR", {
+        sensitivity: "base",
+      }) === 0
+    ) {
+      return searchLocation.city;
+    }
+
+    return null;
+  }, [cityInput, municipalities, municipalitiesError, searchLocation.city]);
 
   const filteredGroups = useMemo(() => {
     const query = normalizeSearchText(categoryQuery);
