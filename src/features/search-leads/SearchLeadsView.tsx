@@ -15,7 +15,10 @@ import { buildFactualBusinessDescription } from "../business-presence/business-d
 import type { DeepEnrichmentApplied } from "../business-enrichment/types";
 import type { BusinessPresence } from "../business-presence/types";
 import { ChanceBadge } from "../lead-chance/ChanceBadge";
-import { BusinessDetailsModal } from "./BusinessDetailsModal";
+import {
+  BusinessDetailsModal,
+  type BusinessAddResult,
+} from "./BusinessDetailsModal";
 import {
   calculateLeadChance,
   type LeadChanceResult,
@@ -154,7 +157,10 @@ export function SearchLeadsView({
   onDeepEnrichmentApplied,
 }: {
   existingLeads: ExistingLeadIdentity[];
-  onAddLead: (business: BusinessSearchResult, selectedSegment: string) => void;
+  onAddLead: (
+    business: BusinessSearchResult,
+    selectedSegment: string,
+  ) => Promise<BusinessAddResult>;
   onMessage: (target: SearchMessageTarget) => void;
   onGeneratePrompt: (business: BusinessSearchResult, selectedSegment: string) => void;
   onDeepEnrichmentApplied?: (
@@ -681,7 +687,9 @@ export function SearchLeadsView({
               onWhatsApp={openWhatsApp}
               onMessage={onMessage}
               onGeneratePrompt={(item) => onGeneratePrompt(item, resultsSegment)}
-              onAdd={(item) => onAddLead(item, resultsSegment)}
+              onAdd={(item) => {
+                void onAddLead(item, resultsSegment);
+              }}
             />
           ))}
         </div>
@@ -710,13 +718,24 @@ export function SearchLeadsView({
           chance={calculateLeadChance(details, resultsSegment)}
           segmentLabel={resultsSegment}
           alreadyAdded={Boolean(duplicate)}
+          commercialLead={
+            duplicate?.id && duplicate.status
+              ? {
+                  id: duplicate.id,
+                  status: duplicate.status,
+                  phone: duplicate.phone,
+                }
+              : null
+          }
           activityLeadId={duplicate?.id ?? null}
           onClose={() => setDetails(null)}
           onWhatsApp={openWhatsApp}
           onMessage={(target) =>
             onMessage({
               ...target,
-              id: findBusinessDuplicate(details, existingLeads)?.id,
+              id:
+                target.id ??
+                findBusinessDuplicate(details, existingLeads)?.id,
             })
           }
           onGeneratePrompt={(item) => {
