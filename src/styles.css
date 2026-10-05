@@ -7177,7 +7177,6 @@ a {
   }
 }
 
-
 /* Mobile responsiveness audit — 2026-10-04 */
 @media (max-width: 760px) {
   .app-shell,
@@ -7185,12 +7184,9 @@ a {
   .lead-panel,
   .search-leads-page,
   .messages-page,
-  .business-card,
   .lead-card,
-  .modal-card,
-  .prompt-generator-modal,
-  .enrichment-modal,
-  .business-detail-modal {
+  .business-card,
+  .modal-card {
     min-width: 0;
     max-width: 100%;
   }
@@ -7203,11 +7199,7 @@ a {
     min-height: 108px;
     height: auto;
     padding: 8px 12px 6px;
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas:
-      "brand actions"
-      "nav nav";
-    align-items: center;
+    grid-template: "brand actions" auto "nav nav" auto / minmax(0, 1fr) auto;
     column-gap: 10px;
     row-gap: 6px;
   }
@@ -7216,10 +7208,6 @@ a {
     grid-area: brand;
     min-width: 0;
     font-size: inherit;
-  }
-
-  .brand-word {
-    min-width: 0;
   }
 
   .topbar-actions {
@@ -7235,17 +7223,17 @@ a {
     justify-self: stretch;
     justify-content: flex-start;
     gap: 4px;
+    padding: 2px 0;
     overflow-x: auto;
     overscroll-behavior-x: contain;
-    scroll-padding-inline: 2px;
     scrollbar-width: none;
-    padding: 2px 0;
     border: 0;
     border-radius: 0;
     background: transparent;
   }
 
-  .topnav::-webkit-scrollbar {
+  .topnav::-webkit-scrollbar,
+  .business-detail-tabs::-webkit-scrollbar {
     display: none;
   }
 
@@ -7263,7 +7251,9 @@ a {
   }
 
   .topbar .icon-button,
-  .logout-button {
+  .logout-button,
+  .modal-header .icon-button,
+  .finance-payment-modal-heading .icon-button {
     width: 44px;
     height: 44px;
     min-height: 44px;
@@ -7283,17 +7273,51 @@ a {
     padding: 30px 0 max(52px, env(safe-area-inset-bottom));
   }
 
-  .page-heading {
+  .page-heading,
+  .page-heading > div,
+  .card-top,
+  .card-top > div,
+  .lead-company-name-line,
+  .business-title-row,
+  .business-title-row > div,
+  .business-card-main,
+  .recent-update-item,
+  .recent-update-item > span,
+  .detail-section,
+  .detail-links,
+  .lead-finance-section {
     min-width: 0;
-  }
-
-  .page-heading > div {
-    min-width: 0;
+    max-width: 100%;
   }
 
   .page-heading h1,
-  .results-heading h1 {
+  .results-heading h1,
+  .lead-company-name-line > strong,
+  .business-title-row h2,
+  .business-facts span,
+  .recent-update-item strong,
+  .recent-update-item small,
+  .detail-item strong,
+  .detail-note,
+  .business-about p,
+  .detail-links a,
+  .detail-links > span,
+  .category-tags span,
+  .card-phone,
+  .card-notes,
+  .lead-finance-marker strong,
+  .lead-finance-marker small,
+  .lead-finance-notes,
+  .lead-payment-list span,
+  .lead-payment-list strong {
     overflow-wrap: anywhere;
+  }
+
+  .lead-company-name-line > strong {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    line-height: 1.35;
   }
 
   .primary-button,
@@ -7303,7 +7327,13 @@ a {
   .message-button,
   .lead-details-button,
   .prompt-button,
-  .enrichment-button {
+  .enrichment-button,
+  .business-actions button,
+  .enrichment-candidate-actions button,
+  .lead-finance-actions > *,
+  .lead-finance-form-actions > *,
+  .finance-payment-actions > *,
+  .site-preview-toolbar-actions > * {
     min-height: 44px;
   }
 
@@ -7313,8 +7343,12 @@ a {
     max-width: 100%;
   }
 
-  .select-wrap select {
-    height: 44px;
+  .select-wrap select,
+  .prompt-config-grid select,
+  .lead-finance-project-form input,
+  .finance-payment-form input,
+  .finance-payment-form select {
+    min-height: 44px;
   }
 
   .filter-row,
@@ -7322,7 +7356,6 @@ a {
   .prompt-tabs,
   .business-detail-tabs {
     overscroll-behavior-x: contain;
-    scroll-padding-inline: 12px;
   }
 
   .filter-chip,
@@ -7331,36 +7364,24 @@ a {
     min-height: 40px;
   }
 
-  .stats-strip,
-  .finance-summary-strip {
-    min-width: 0;
-  }
-
-  .stat-item,
-  .finance-summary-item {
+  .finance-summary-item,
+  .lead-finance-summary > div {
     min-width: 0;
   }
 
   .finance-summary-item > strong,
   .lead-finance-summary strong {
-    min-width: 0;
     font-variant-numeric: tabular-nums;
-    line-height: 1.15;
     overflow-wrap: anywhere;
   }
 
-  .recent-updates-heading,
-  .recent-update-item,
-  .recent-update-item > span,
-  .auto-sync-status {
+  .recent-updates-heading {
     min-width: 0;
-    max-width: 100%;
   }
 
-  .recent-update-item strong,
-  .recent-update-item small,
   .recent-updates-heading strong,
-  .recent-updates-heading span {
+  .recent-updates-heading span,
+  .auto-sync-status {
     overflow-wrap: anywhere;
   }
 
@@ -7368,32 +7389,14 @@ a {
     padding: 14px;
   }
 
-  .card-top,
-  .card-top > div,
-  .lead-company-name-line,
-  .lead-finance-marker,
-  .card-phone,
-  .card-meta,
-  .card-notes {
-    min-width: 0;
-    max-width: 100%;
-  }
-
-  .lead-company-name-line > strong {
-    white-space: normal;
-    overflow: visible;
-    text-overflow: clip;
-    overflow-wrap: anywhere;
-    line-height: 1.35;
-  }
-
-  .card-top span:not(.status-badge),
   .card-phone,
   .card-notes,
   .lead-finance-marker strong,
-  .lead-finance-marker small {
+  .lead-finance-marker small,
+  .lead-payment-list span {
     white-space: normal;
-    overflow-wrap: anywhere;
+    overflow: visible;
+    text-overflow: clip;
   }
 
   .inline-status {
@@ -7450,37 +7453,17 @@ a {
     min-height: 44px;
   }
 
-  .segment-option span {
-    min-width: 0;
-    overflow-wrap: anywhere;
-  }
-
-  .business-card-main,
-  .business-title-row,
-  .business-title-row > div,
-  .business-facts,
+  .segment-option span,
   .business-facts span {
     min-width: 0;
-    max-width: 100%;
-  }
-
-  .business-title-row h2,
-  .business-title-row > div > span,
-  .business-facts span {
-    overflow-wrap: anywhere;
   }
 
   .business-facts span:first-child {
     max-width: 100%;
   }
 
-  .business-actions button,
-  .business-actions a {
-    min-width: 0;
-    min-height: 44px;
-  }
-
-  .modal-backdrop {
+  .modal-backdrop,
+  .finance-payment-backdrop {
     padding:
       max(12px, env(safe-area-inset-top))
       12px
@@ -7490,8 +7473,10 @@ a {
   .modal-card,
   .prompt-generator-modal,
   .enrichment-modal,
-  .business-detail-modal {
+  .business-detail-modal,
+  .finance-payment-modal {
     width: 100%;
+    max-width: 100%;
     max-height: calc(100dvh - 24px);
     overflow-x: hidden;
     overflow-y: auto;
@@ -7513,15 +7498,9 @@ a {
   .modal-header h2,
   .prompt-generator-header h2,
   .enrichment-header h2,
-  .enrichment-header p {
+  .enrichment-header p,
+  .prompt-generator-header p {
     overflow-wrap: anywhere;
-  }
-
-  .modal-header .icon-button,
-  .finance-payment-modal-heading .icon-button {
-    width: 44px;
-    height: 44px;
-    flex: 0 0 44px;
   }
 
   .business-detail-tabs {
@@ -7529,31 +7508,9 @@ a {
     scrollbar-width: none;
   }
 
-  .business-detail-tabs::-webkit-scrollbar {
-    display: none;
-  }
-
   .business-detail-content {
     min-width: 0;
     padding: 14px;
-  }
-
-  .detail-grid,
-  .detail-section,
-  .detail-item,
-  .detail-links,
-  .detail-actions {
-    min-width: 0;
-    max-width: 100%;
-  }
-
-  .detail-item strong,
-  .detail-note,
-  .business-about p,
-  .detail-links a,
-  .detail-links > span,
-  .category-tags span {
-    overflow-wrap: anywhere;
   }
 
   .detail-links a,
@@ -7574,10 +7531,7 @@ a {
 
   .chance-popover {
     position: fixed;
-    left: 12px;
-    right: 12px;
-    top: auto;
-    bottom: max(12px, env(safe-area-inset-bottom));
+    inset: auto 12px max(12px, env(safe-area-inset-bottom));
     width: auto;
     max-height: min(70dvh, 520px);
     overflow-y: auto;
@@ -7587,10 +7541,9 @@ a {
 
   .prompt-generator-header p {
     max-width: 100%;
-    white-space: normal;
     overflow: visible;
     text-overflow: clip;
-    overflow-wrap: anywhere;
+    white-space: normal;
   }
 
   .prompt-generator-content,
@@ -7604,104 +7557,20 @@ a {
   .visual-reference-analysis-preview,
   .prompt-result-grid,
   .prompt-item-card,
-  .prompt-section-row {
-    min-width: 0;
-    max-width: 100%;
-  }
-
-  .prompt-config-grid select {
-    height: 44px;
-  }
-
-  .prompt-generate-row,
-  .prompt-copy-heading {
-    gap: 12px;
-  }
-
-  .prompt-generate-button,
-  .prompt-preview-actions > button,
-  .prompt-preview-actions > a {
-    min-height: 44px;
-  }
-
-  .lovable-prompt-view pre {
-    max-width: 100%;
-    max-height: min(52dvh, 520px);
-    overflow: auto;
-    overflow-wrap: anywhere;
-    word-break: break-word;
-  }
-
-  .prompt-section-row > div,
-  .prompt-item-card,
-  .result-block {
-    min-width: 0;
-  }
-
-  .prompt-section-row h3,
-  .prompt-section-row p,
-  .prompt-section-row small,
-  .prompt-item-card h3,
-  .prompt-item-card p,
-  .result-block {
-    overflow-wrap: anywhere;
-  }
-
+  .prompt-section-row,
   .enrichment-content,
   .enrichment-candidate,
   .enrichment-candidate-top,
-  .enrichment-candidate-top > div,
   .enrichment-facts,
   .enrichment-conflict,
   .enrichment-duplicate,
   .enrichment-links,
-  .enrichment-hours {
-    min-width: 0;
-    max-width: 100%;
-  }
-
-  .enrichment-candidate h3,
-  .enrichment-candidate p,
-  .enrichment-method,
-  .enrichment-facts span,
-  .enrichment-reasons span,
-  .enrichment-conflict,
-  .enrichment-duplicate,
-  .enrichment-links a,
-  .enrichment-hours {
-    overflow-wrap: anywhere;
-  }
-
-  .enrichment-candidate-actions button {
-    min-height: 44px;
-  }
-
+  .enrichment-hours,
   .deep-enrichment-heading,
   .deep-enrichment-summary,
   .deep-review-item,
   .deep-source-item,
-  .deep-enrichment-metrics {
-    min-width: 0;
-    max-width: 100%;
-  }
-
-  .deep-enrichment-heading strong,
-  .deep-enrichment-heading small,
-  .deep-review-item strong,
-  .deep-review-item span,
-  .deep-review-item small,
-  .deep-source-item,
-  .deep-enrichment-metrics {
-    overflow-wrap: anywhere;
-  }
-
-  .deep-enrichment-actions button,
-  .deep-review-actions button {
-    min-height: 40px;
-    padding: 0 4px;
-  }
-
-  .lead-finance-section,
+  .deep-enrichment-metrics,
   .lead-finance-summary,
   .lead-finance-meta,
   .lead-finance-project-form,
@@ -7712,44 +7581,50 @@ a {
     max-width: 100%;
   }
 
-  .lead-payment-list span,
-  .lead-payment-list strong,
-  .lead-finance-notes {
-    white-space: normal;
-    overflow: visible;
-    text-overflow: clip;
+  .lovable-prompt-view pre {
+    max-width: 100%;
+    max-height: min(52dvh, 520px);
+    overflow: auto;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .prompt-section-row h3,
+  .prompt-section-row p,
+  .prompt-section-row small,
+  .prompt-item-card h3,
+  .prompt-item-card p,
+  .enrichment-candidate h3,
+  .enrichment-candidate p,
+  .enrichment-method,
+  .enrichment-facts span,
+  .enrichment-reasons span,
+  .enrichment-conflict,
+  .enrichment-duplicate,
+  .enrichment-links a,
+  .enrichment-hours,
+  .deep-enrichment-heading strong,
+  .deep-enrichment-heading small,
+  .deep-review-item,
+  .deep-source-item,
+  .deep-enrichment-metrics {
     overflow-wrap: anywhere;
   }
 
-  .lead-finance-project-form input,
-  .finance-payment-form input,
-  .finance-payment-form select {
-    min-height: 44px;
-  }
-
-  .lead-finance-actions > *,
-  .lead-finance-form-actions > *,
-  .finance-payment-actions > * {
-    min-height: 44px;
-  }
-
-  .finance-payment-backdrop {
-    padding:
-      max(12px, env(safe-area-inset-top))
-      12px
-      max(12px, env(safe-area-inset-bottom));
+  .deep-enrichment-actions button,
+  .deep-review-actions button {
+    min-height: 40px;
+    padding-inline: 4px;
   }
 
   .finance-payment-modal {
-    max-width: 100%;
-    max-height: calc(100dvh - 24px);
-    overflow-y: auto;
     overscroll-behavior: contain;
   }
 
   .site-preview-overlay {
-    min-width: 0;
     width: 100%;
+    min-width: 0;
     height: 100dvh;
     min-height: 100dvh;
   }
@@ -7771,10 +7646,6 @@ a {
     overflow: visible;
     text-overflow: clip;
     overflow-wrap: anywhere;
-  }
-
-  .site-preview-toolbar-actions > * {
-    min-height: 44px;
   }
 
   .site-preview-stage {
@@ -7819,18 +7690,19 @@ a {
     font-size: 14px;
   }
 
-  .topnav .nav-link {
-    padding-inline: 11px;
-  }
-
   .page-wrap {
     width: min(calc(100% - 20px), 1240px);
     padding-top: 24px;
   }
 
-  .page-heading {
+  .page-heading,
+  .card-top,
+  .recent-update-item {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .page-heading {
     gap: 14px;
   }
 
@@ -7839,21 +7711,12 @@ a {
     min-width: 0;
   }
 
-  .recent-update-item {
-    flex-direction: column;
-    gap: 7px;
-  }
-
-  .recent-update-item > b {
-    align-self: flex-start;
-  }
-
   .card-top {
-    flex-direction: column;
     gap: 8px;
   }
 
-  .card-top > .status-badge {
+  .card-top > .status-badge,
+  .recent-update-item > b {
     align-self: flex-start;
   }
 
@@ -7861,16 +7724,17 @@ a {
     grid-template-columns: 1fr 1fr;
   }
 
-  .card-actions .lead-details-button {
-    grid-column: auto;
-  }
-
+  .card-actions .lead-details-button,
   .card-actions .enrichment-button,
   .card-actions .prompt-button {
     grid-column: auto;
   }
 
-  .business-actions {
+  .business-actions,
+  .prompt-preview-actions,
+  .enrichment-candidate-actions,
+  .detail-actions {
+    display: grid;
     grid-template-columns: 1fr;
   }
 
@@ -7878,39 +7742,15 @@ a {
   .business-actions .message-button,
   .business-actions .prompt-button,
   .business-actions .primary-button,
-  .business-actions .added-button {
+  .business-actions .added-button,
+  .prompt-preview-actions > *,
+  .detail-actions > * {
     grid-column: 1;
     width: 100%;
   }
 
-  .selection-bar {
-    padding: 11px;
-  }
-
-  .prompt-preview-actions {
-    display: grid;
-    grid-template-columns: 1fr;
-  }
-
-  .prompt-preview-actions > * {
-    width: 100%;
-  }
-
-  .enrichment-candidate-actions {
-    grid-template-columns: 1fr;
-  }
-
-  .detail-actions {
-    display: grid;
-    grid-template-columns: 1fr;
-  }
-
-  .detail-actions > * {
-    width: 100%;
-  }
-
-  .finance-payment-backdrop,
-  .modal-backdrop {
+  .modal-backdrop,
+  .finance-payment-backdrop {
     align-items: end;
     padding-left: 0;
     padding-right: 0;
@@ -7940,11 +7780,6 @@ a {
     font-size: 30px;
   }
 
-  .stats-strip,
-  .finance-summary-strip {
-    grid-template-columns: 1fr 1fr;
-  }
-
   .stat-item,
   .finance-summary-item {
     padding-inline: 10px;
@@ -7955,7 +7790,9 @@ a {
     font-size: 13px;
   }
 
-  .lead-finance-summary {
+  .lead-finance-summary,
+  .lead-payment-list article,
+  .card-actions {
     grid-template-columns: 1fr;
   }
 
@@ -7971,22 +7808,8 @@ a {
     border-top: 0;
   }
 
-  .lead-payment-list article {
-    grid-template-columns: 1fr;
-    gap: 6px;
-  }
-
-  .card-actions {
-    grid-template-columns: 1fr;
-  }
-
   .status-text {
     flex-basis: 100%;
     margin-left: 0;
-  }
-
-  .topnav .nav-link {
-    min-height: 42px;
-    padding-inline: 10px;
   }
 }
