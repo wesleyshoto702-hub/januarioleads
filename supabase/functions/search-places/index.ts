@@ -305,8 +305,11 @@ function normalizeCityInput(value: unknown) {
 
 function normalizeStateInput(value: unknown) {
   if (typeof value !== "string") return null;
-  const state = value.trim().toUpperCase();
-  return state === SUPPORTED_SEARCH_STATE.code ? state : null;
+  const state = normalize(value);
+  if (state === "mg" || state === "minas gerais") {
+    return SUPPORTED_SEARCH_STATE.code;
+  }
+  return null;
 }
 
 function addressHasState(
