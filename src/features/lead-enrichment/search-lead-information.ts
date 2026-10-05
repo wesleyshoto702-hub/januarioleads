@@ -40,6 +40,8 @@ export async function searchLeadInformation(
             segment: lead.segment,
             phone: lead.phone || null,
             placeId: lead.placeId || null,
+            city: lead.city || null,
+            state: lead.state || null,
           },
         }),
       },
