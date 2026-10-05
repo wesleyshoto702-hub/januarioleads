@@ -7353,6 +7353,13 @@ a {
     min-height: 44px;
   }
 
+  .card-actions button,
+  .business-actions button,
+  .enrichment-candidate-actions button {
+    white-space: normal;
+    text-align: center;
+  }
+
   .select-wrap,
   .select-wrap select {
     min-width: 0;
@@ -7634,6 +7641,54 @@ a {
     padding-inline: 4px;
   }
 
+  .visual-reference-name-row,
+  .visual-reference-title,
+  .visual-reference-meta,
+  .visual-reference-analysis-heading,
+  .visual-reference-preview-modal,
+  .visual-reference-preview-modal > header,
+  .visual-reference-preview-modal > header > div,
+  .visual-reference-preview-assets {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .visual-reference-name-row strong,
+  .visual-reference-title,
+  .visual-reference-meta strong,
+  .visual-reference-analysis-heading strong,
+  .visual-reference-preview-modal > header strong,
+  .deep-source-title > a span {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    overflow-wrap: anywhere;
+  }
+
+  .visual-reference-card-actions button,
+  .visual-reference-card-actions a {
+    min-height: 40px;
+  }
+
+  .visual-reference-preview-backdrop {
+    padding:
+      max(12px, env(safe-area-inset-top))
+      12px
+      max(12px, env(safe-area-inset-bottom));
+  }
+
+  .visual-reference-preview-modal {
+    width: 100%;
+    max-height: calc(100dvh - 24px);
+  }
+
+  .instagram-identified-link {
+    min-height: 44px;
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
   .finance-payment-modal {
     overscroll-behavior: contain;
   }
@@ -7778,11 +7833,19 @@ a {
   .prompt-generator-modal,
   .enrichment-modal,
   .business-detail-modal,
-  .finance-payment-modal {
+  .finance-payment-modal,
+  .visual-reference-preview-modal {
     width: 100%;
     max-height: calc(100dvh - env(safe-area-inset-top));
     border-radius: 16px 16px 0 0;
     border-bottom: 0;
+  }
+
+  .visual-reference-preview-backdrop {
+    align-items: end;
+    padding-left: 0;
+    padding-right: 0;
+    padding-bottom: 0;
   }
 
   .finance-payment-form {
