@@ -334,18 +334,18 @@ function locationMatches(
   const expectedCity = normalize(city);
   const actualCity = normalize(place.city);
   const normalizedAddress = normalize(place.address);
-  const cityMatches =
-    actualCity === expectedCity ||
-    normalizedAddress.includes(expectedCity);
+
+  const cityMatches = actualCity
+    ? actualCity === expectedCity
+    : normalizedAddress.includes(expectedCity);
 
   const actualState = normalize(place.state);
-  const stateMatches =
-    state === "MG" &&
-    (
-      actualState === "minas gerais" ||
-      actualState === "mg" ||
-      addressHasState(place.address, state)
-    );
+  const stateMatches = actualState
+    ? (
+        state === "MG" &&
+        (actualState === "minas gerais" || actualState === "mg")
+      )
+    : addressHasState(place.address, state);
 
   return cityMatches && stateMatches;
 }
