@@ -7198,6 +7198,11 @@ a {
     font-size: inherit;
   }
 
+  .brand-word {
+    display: inline-flex;
+    min-width: 0;
+  }
+
   .topbar-actions {
     grid-area: actions;
     gap: 6px;
