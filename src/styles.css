@@ -7383,8 +7383,14 @@ a {
 
   .filter-chip,
   .result-filters button,
-  .business-detail-tabs button {
+  .business-detail-tabs button,
+  .recent-searches button,
+  .preview-viewport-switch button {
     min-height: 40px;
+  }
+
+  .status-option {
+    min-height: 44px;
   }
 
   .finance-summary-item,
@@ -7850,6 +7856,24 @@ a {
 
   .finance-payment-form {
     padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 760px) and (max-height: 700px) {
+  .login-shell {
+    padding-top: max(56px, calc(env(safe-area-inset-top) + 46px));
+  }
+
+  .login-copy {
+    margin: 24px 0 20px;
+  }
+
+  .login-copy h1 {
+    font-size: 26px;
+  }
+
+  .login-form {
+    gap: 14px;
   }
 }
 
