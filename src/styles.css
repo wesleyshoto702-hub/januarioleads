@@ -7178,19 +7178,7 @@ a {
 }
 
 /* Mobile responsiveness audit — 2026-10-04 */
-@media (max-width: 760px) {
-  .app-shell,
-  .page-wrap,
-  .lead-panel,
-  .search-leads-page,
-  .messages-page,
-  .lead-card,
-  .business-card,
-  .modal-card {
-    min-width: 0;
-    max-width: 100%;
-  }
-
+@media (max-width: 820px) {
   .topbar {
     padding-top: env(safe-area-inset-top);
   }
@@ -7232,8 +7220,7 @@ a {
     background: transparent;
   }
 
-  .topnav::-webkit-scrollbar,
-  .business-detail-tabs::-webkit-scrollbar {
+  .topnav::-webkit-scrollbar {
     display: none;
   }
 
@@ -7251,9 +7238,7 @@ a {
   }
 
   .topbar .icon-button,
-  .logout-button,
-  .modal-header .icon-button,
-  .finance-payment-modal-heading .icon-button {
+  .logout-button {
     width: 44px;
     height: 44px;
     min-height: 44px;
@@ -7264,8 +7249,39 @@ a {
     padding: 0;
   }
 
-  .logout-button span {
+  .logout-button span,
+  .open-now-nav-full {
     display: none;
+  }
+
+  .open-now-nav-short {
+    display: inline;
+  }
+}
+
+@media (max-width: 760px) {
+  .app-shell,
+  .page-wrap,
+  .lead-panel,
+  .search-leads-page,
+  .messages-page,
+  .lead-card,
+  .business-card,
+  .modal-card {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .business-detail-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .modal-header .icon-button,
+  .finance-payment-modal-heading .icon-button {
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+    flex: 0 0 44px;
   }
 
   .page-wrap {
