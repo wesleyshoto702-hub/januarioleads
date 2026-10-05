@@ -133,6 +133,13 @@ const corsHeaders = {
   "Content-Type": "application/json; charset=utf-8",
 };
 
+const SUPPORTED_SEARCH_STATE = {
+  code: "MG",
+  name: "Minas Gerais",
+} as const;
+
+const LEGACY_DEFAULT_CITY = "Lavras";
+
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -283,11 +290,88 @@ function normalize(value: string | null | undefined) {
     .trim();
 }
 
-function isLavras(place: BusinessSearchResult) {
-  return (
-    normalize(place.city) === "lavras" ||
-    normalize(place.address).includes("lavras")
-  );
+function normalizeCityInput(value: unknown) {
+  if (typeof value !== "string") return null;
+  const city = value.trim().replace(/\s+/g, " ");
+  if (
+    city.length < 2 ||
+    city.length > 120 ||
+    !/^[\p{L}\s.'’\-]+$/u.test(city)
+  ) {
+    return null;
+  }
+  return city;
+}
+
+function normalizeStateInput(value: unknown) {
+  if (typeof value !== "string") return null;
+  const state = value.trim().toUpperCase();
+  return state === SUPPORTED_SEARCH_STATE.code ? state : null;
+}
+
+function addressHasState(
+  address: string | null | undefined,
+  state: string,
+) {
+  const normalizedAddress = ` ${normalize(address)} `;
+  if (state === "MG") {
+    return (
+      normalizedAddress.includes(" minas gerais ") ||
+      normalizedAddress.includes(" mg ")
+    );
+  }
+  return false;
+}
+
+function locationMatches(
+  place: BusinessSearchResult,
+  city: string,
+  state: string,
+) {
+  const expectedCity = normalize(city);
+  const actualCity = normalize(place.city);
+  const normalizedAddress = normalize(place.address);
+  const cityMatches =
+    actualCity === expectedCity ||
+    normalizedAddress.includes(expectedCity);
+
+  const actualState = normalize(place.state);
+  const stateMatches =
+    state === "MG" &&
+    (
+      actualState === "minas gerais" ||
+      actualState === "mg" ||
+      addressHasState(place.address, state)
+    );
+
+  return cityMatches && stateMatches;
+}
+
+function requiredSearchLocation(body: Record<string, unknown>) {
+  const city = normalizeCityInput(body.city);
+  const state = normalizeStateInput(body.state);
+  if (!city || !state) return null;
+  return { city, state };
+}
+
+function enrichmentLocation(lead: {
+  city?: unknown;
+  state?: unknown;
+}) {
+  const hasCity =
+    typeof lead.city === "string" && Boolean(lead.city.trim());
+  const hasState =
+    typeof lead.state === "string" && Boolean(lead.state.trim());
+
+  const city = hasCity
+    ? normalizeCityInput(lead.city)
+    : LEGACY_DEFAULT_CITY;
+  const state = hasState
+    ? normalizeStateInput(lead.state)
+    : SUPPORTED_SEARCH_STATE.code;
+
+  if (!city || !state) return null;
+  return { city, state };
 }
 
 function normalizeBrazilianPhone(value: string | null | undefined) {
@@ -380,12 +464,22 @@ function segmentCompatible(segment: string, business: BusinessSearchResult) {
 
 function scoreCandidate(
   business: BusinessSearchResult,
-  lead: { company: string; segment: string; phone?: string | null },
+  lead: {
+    company: string;
+    segment: string;
+    phone?: string | null;
+    city: string;
+    state: string;
+  },
   method: EnrichmentMethod,
 ): EnrichmentCandidate {
   const phone = phoneMatch(lead.phone, business);
   const name = nameScore(lead.company, business.name);
-  const lavras = isLavras(business);
+  const sameLocation = locationMatches(
+    business,
+    lead.city,
+    lead.state,
+  );
   const segment = segmentCompatible(lead.segment, business);
 
   let score = 0;
@@ -417,9 +511,11 @@ function scoreCandidate(
     reasons.push("O nome encontrado possui termos em comum com o lead.");
   }
 
-  if (lavras) {
+  if (sameLocation) {
     score += 1;
-    reasons.push("A empresa encontrada está em Lavras - MG.");
+    reasons.push(
+      `A empresa encontrada está na localização esperada: ${lead.city} - ${lead.state}.`,
+    );
   }
 
   if (segment) {
@@ -664,6 +760,7 @@ async function runSegmentSearch(
 ) {
   const segment = body.segment;
   const pageToken = body.pageToken;
+  const location = requiredSearchLocation(body);
 
   if (
     typeof segment !== "string" ||
@@ -673,6 +770,14 @@ async function runSegmentSearch(
     return failure(
       "INVALID_REQUEST",
       "Informe um segmento válido para realizar a busca.",
+      400,
+    );
+  }
+
+  if (!location) {
+    return failure(
+      "INVALID_REQUEST",
+      "Informe uma cidade válida de Minas Gerais para realizar a busca.",
       400,
     );
   }
@@ -692,7 +797,7 @@ async function runSegmentSearch(
 
   const searched = await textSearch(
     googleApiKey,
-    `${segment.trim()} em Lavras, Minas Gerais, Brasil`,
+    `${segment.trim()} em ${location.city}, ${SUPPORTED_SEARCH_STATE.name}, Brasil`,
     20,
     typeof pageToken === "string" ? pageToken.trim() : undefined,
   );
@@ -701,7 +806,9 @@ async function runSegmentSearch(
 
   return json({
     ok: true,
-    results: searched.results.filter(isLavras),
+    results: searched.results.filter((business) =>
+      locationMatches(business, location.city, location.state)
+    ),
     nextPageToken: searched.nextPageToken,
   });
 }
@@ -724,6 +831,8 @@ async function runLeadEnrichment(
     segment?: unknown;
     phone?: unknown;
     placeId?: unknown;
+    city?: unknown;
+    state?: unknown;
   };
 
   if (
@@ -767,10 +876,21 @@ async function runLeadEnrichment(
     );
   }
 
+  const location = enrichmentLocation(lead);
+  if (!location) {
+    return failure(
+      "INVALID_REQUEST",
+      "A cidade/UF deste lead não é válida para a busca em Minas Gerais.",
+      400,
+    );
+  }
+
   const normalizedLead = {
     company: lead.company.trim(),
     segment: lead.segment.trim(),
     phone: typeof lead.phone === "string" ? lead.phone.trim() : "",
+    city: location.city,
+    state: location.state,
   };
 
   const attemptedLayers: EnrichmentMethod[] = [];
@@ -807,7 +927,13 @@ async function runLeadEnrichment(
     const searched = await textSearch(googleApiKey, phoneQuery, 10);
     if (!searched.ok) return searched.response;
 
-    for (const business of searched.results.filter(isLavras)) {
+    for (const business of searched.results.filter((business) =>
+      locationMatches(
+        business,
+        normalizedLead.city,
+        normalizedLead.state,
+      )
+    )) {
       combined.push(
         scoreCandidate(business, normalizedLead, "phone"),
       );
@@ -830,12 +956,18 @@ async function runLeadEnrichment(
   attemptedLayers.push("name-location");
   const byName = await textSearch(
     googleApiKey,
-    `${normalizedLead.company} em Lavras, Minas Gerais, Brasil`,
+    `${normalizedLead.company} em ${normalizedLead.city}, ${SUPPORTED_SEARCH_STATE.name}, Brasil`,
     10,
   );
   if (!byName.ok) return byName.response;
 
-  for (const business of byName.results.filter(isLavras)) {
+  for (const business of byName.results.filter((business) =>
+      locationMatches(
+        business,
+        normalizedLead.city,
+        normalizedLead.state,
+      )
+    )) {
     combined.push(
       scoreCandidate(business, normalizedLead, "name-location"),
     );
@@ -857,12 +989,18 @@ async function runLeadEnrichment(
   attemptedLayers.push("name-segment-location");
   const bySegment = await textSearch(
     googleApiKey,
-    `${normalizedLead.company} ${normalizedLead.segment} em Lavras, Minas Gerais, Brasil`,
+    `${normalizedLead.company} ${normalizedLead.segment} em ${normalizedLead.city}, ${SUPPORTED_SEARCH_STATE.name}, Brasil`,
     10,
   );
   if (!bySegment.ok) return bySegment.response;
 
-  for (const business of bySegment.results.filter(isLavras)) {
+  for (const business of bySegment.results.filter((business) =>
+      locationMatches(
+        business,
+        normalizedLead.city,
+        normalizedLead.state,
+      )
+    )) {
     combined.push(
       scoreCandidate(
         business,
