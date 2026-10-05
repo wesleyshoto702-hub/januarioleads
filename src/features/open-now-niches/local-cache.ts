@@ -3,6 +3,11 @@ import {
   type OpeningHoursSnapshot,
 } from "../../../supabase/functions/_shared/open-now.ts";
 import type { BusinessSearchResult } from "../search-leads/types";
+import {
+  makeLocationKey,
+  normalizeLocationText,
+  normalizeStateCode,
+} from "../../lib/location";
 
 const PREFIX = "leadflow:open-now-search-cache:";
 const LOCATION_KEY = "leadflow:open-now-location";
@@ -16,7 +21,7 @@ export type LocalOpenNowCache = {
 };
 
 function key(city: string, state: string, segment: string) {
-  return `${PREFIX}${city.trim().toLocaleLowerCase("pt-BR")}|${state.trim().toUpperCase()}|${segment}`;
+  return `${PREFIX}${makeLocationKey(city, state)}|${normalizeLocationText(segment)}`;
 }
 
 function safeHours(value: unknown): OpeningHoursSnapshot | null {
@@ -113,12 +118,21 @@ export function storeRecentBusinessSearch(
 export function loadRecentBusinessSearches(city: string,state: string) {
   if (typeof window === "undefined") return [] as LocalOpenNowCache[];
   const values: LocalOpenNowCache[] = [];
+  const expectedCity = normalizeLocationText(city);
+  const expectedState = normalizeStateCode(state);
+
   for(let index=0;index<localStorage.length;index+=1){
     const storageKey=localStorage.key(index);
     if(!storageKey?.startsWith(PREFIX)) continue;
     try{
       const raw=JSON.parse(localStorage.getItem(storageKey) ?? "null") as LocalOpenNowCache | null;
-      if(!raw || raw.city!==city || raw.state!==state || !isOpenNowCacheFresh(raw.checkedAt)) continue;
+      if(
+        !raw ||
+        normalizeLocationText(raw.city) !== expectedCity ||
+        normalizeStateCode(raw.state) !== expectedState ||
+        !isOpenNowCacheFresh(raw.checkedAt)
+      ) continue;
+
       const results=(Array.isArray(raw.results)?raw.results:[])
         .map(safeBusiness)
         .filter((item):item is BusinessSearchResult=>Boolean(item));
