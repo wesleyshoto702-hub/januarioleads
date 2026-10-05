@@ -1,3 +1,4 @@
+import type { LeadStatus } from "../leads/remote-leads";
 import type { BusinessSearchResult } from "./types";
 import { normalizeSearchText } from "./segments";
 
@@ -7,6 +8,7 @@ export type ExistingLeadIdentity = {
   phone: string;
   placeId?: string;
   address?: string;
+  status?: LeadStatus;
 };
 
 export function normalizeBrazilianPhone(value: string | null | undefined) {
