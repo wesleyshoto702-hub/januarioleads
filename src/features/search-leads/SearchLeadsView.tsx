@@ -27,6 +27,16 @@ import {
   type ExistingLeadIdentity,
 } from "./identity";
 import { searchBusinesses } from "./search-businesses";
+import {
+  DEFAULT_SEARCH_LOCATION,
+  loadMinasGeraisMunicipalities,
+  loadSearchLocation,
+  resolveMunicipality,
+  saveSearchLocation,
+  SEARCH_STATE,
+  searchLocationKey,
+  type SearchLocation,
+} from "./search-location";
 import { normalizeSearchText, SEGMENT_GROUPS } from "./segments";
 import type { BusinessSearchResult } from "./types";
 import { storeRecentBusinessSearch } from "../open-now-niches/local-cache";
@@ -56,18 +66,82 @@ type ResultSort =
 
 const RECENT_SEARCHES_KEY = "leadflow:recent-searches";
 
+type RecentSearch = SearchLocation & {
+  segment: string;
+};
+
+function recentSearchKey(value: RecentSearch) {
+  return `${searchLocationKey(value)}|${normalizeSearchText(value.segment)}`;
+}
+
 function getRecentSearches() {
-  if (typeof window === "undefined") return [] as string[];
+  if (typeof window === "undefined") return [] as RecentSearch[];
+
   try {
-    const value = JSON.parse(localStorage.getItem(RECENT_SEARCHES_KEY) ?? "[]");
-    return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string").slice(0, 5) : [];
+    const stored = JSON.parse(
+      localStorage.getItem(RECENT_SEARCHES_KEY) ?? "[]",
+    ) as unknown;
+    if (!Array.isArray(stored)) return [];
+
+    const parsed: RecentSearch[] = [];
+    let migratedLegacy = false;
+
+    for (const item of stored) {
+      if (typeof item === "string" && item.trim()) {
+        migratedLegacy = true;
+        parsed.push({
+          ...DEFAULT_SEARCH_LOCATION,
+          segment: item.trim(),
+        });
+        continue;
+      }
+
+      if (!item || typeof item !== "object") continue;
+      const row = item as {
+        city?: unknown;
+        state?: unknown;
+        segment?: unknown;
+      };
+      if (
+        typeof row.city !== "string" ||
+        !row.city.trim() ||
+        typeof row.segment !== "string" ||
+        !row.segment.trim() ||
+        row.state !== SEARCH_STATE.code
+      ) {
+        continue;
+      }
+
+      parsed.push({
+        city: row.city.trim(),
+        state: SEARCH_STATE.code,
+        segment: row.segment.trim(),
+      });
+    }
+
+    const unique = new Map<string, RecentSearch>();
+    for (const item of parsed) {
+      const key = recentSearchKey(item);
+      if (!unique.has(key)) unique.set(key, item);
+    }
+
+    const result = Array.from(unique.values()).slice(0, 5);
+    if (migratedLegacy) {
+      localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(result));
+    }
+    return result;
   } catch {
     return [];
   }
 }
 
-function storeRecentSearch(segment: string) {
-  const next = [segment, ...getRecentSearches().filter((item) => item !== segment)].slice(0, 5);
+function storeRecentSearch(search: RecentSearch) {
+  const key = recentSearchKey(search);
+  const next = [
+    search,
+    ...getRecentSearches().filter((item) => recentSearchKey(item) !== key),
+  ].slice(0, 5);
+
   localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
   return next;
 }
@@ -88,6 +162,15 @@ export function SearchLeadsView({
     value: DeepEnrichmentApplied,
   ) => void;
 }) {
+  const initialSearchLocation = useMemo(() => loadSearchLocation(), []);
+  const [searchLocation, setSearchLocation] =
+    useState<SearchLocation>(initialSearchLocation);
+  const [resultsLocation, setResultsLocation] =
+    useState<SearchLocation>(initialSearchLocation);
+  const [cityInput, setCityInput] = useState(initialSearchLocation.city);
+  const [municipalities, setMunicipalities] = useState<string[]>([]);
+  const [municipalitiesLoading, setMunicipalitiesLoading] = useState(true);
+  const [municipalitiesError, setMunicipalitiesError] = useState("");
   const [categoryQuery, setCategoryQuery] = useState("");
   const [selectedSegment, setSelectedSegment] = useState("");
   const [resultsSegment, setResultsSegment] = useState("");
@@ -101,7 +184,7 @@ export function SearchLeadsView({
   const [sort, setSort] = useState<ResultSort>("rating");
   const [onlyNew, setOnlyNew] = useState(false);
   const [details, setDetails] = useState<BusinessSearchResult | null>(null);
-  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([]);
 
   function applyDeepToBusiness(
     current: BusinessSearchResult,
@@ -132,6 +215,44 @@ export function SearchLeadsView({
   useEffect(() => {
     setRecentSearches(getRecentSearches());
   }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setMunicipalitiesLoading(true);
+    setMunicipalitiesError("");
+
+    void loadMinasGeraisMunicipalities(controller.signal)
+      .then((values) => {
+        setMunicipalities(values);
+        const canonical =
+          resolveMunicipality(cityInput, values) ??
+          resolveMunicipality(searchLocation.city, values);
+        if (canonical) {
+          setCityInput(canonical);
+          setSearchLocation({
+            city: canonical,
+            state: SEARCH_STATE.code,
+          });
+        }
+      })
+      .catch((error) => {
+        if ((error as Error)?.name !== "AbortError") {
+          setMunicipalitiesError(
+            "Não foi possível carregar os municípios de Minas Gerais agora.",
+          );
+        }
+      })
+      .finally(() => setMunicipalitiesLoading(false));
+
+    return () => controller.abort();
+    // Load the official municipality catalog once per mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const selectedCity = useMemo(
+    () => resolveMunicipality(cityInput, municipalities),
+    [cityInput, municipalities],
+  );
 
   const filteredGroups = useMemo(() => {
     const query = normalizeSearchText(categoryQuery);
@@ -180,13 +301,21 @@ export function SearchLeadsView({
   const alreadyAddedCount = resultWithExisting.filter((item) => item.alreadyAdded).length;
   const newCount = resultWithExisting.length - alreadyAddedCount;
 
-  async function runSearch(segment: string, pageToken?: string, append = false) {
+  async function runSearch(
+    segment: string,
+    location: SearchLocation,
+    pageToken?: string,
+    append = false,
+  ) {
     append ? setLoadingMore(true) : setLoading(true);
     setError(null);
 
-    const response = await searchBusinesses(
-      pageToken ? { segment, pageToken } : { segment },
-    );
+    const response = await searchBusinesses({
+      segment,
+      city: location.city,
+      state: location.state,
+      ...(pageToken ? { pageToken } : {}),
+    });
 
     if (!response.ok) {
       setError({ code: response.code, message: response.message });
@@ -200,29 +329,50 @@ export function SearchLeadsView({
       return Array.from(unique.values());
     });
     storeRecentBusinessSearch(segment,response.results,{
-      city:"Lavras",
-      state:"MG",
+      city: location.city,
+      state: location.state,
       append,
     });
+    saveSearchLocation(location);
+    setSearchLocation(location);
+    setCityInput(location.city);
+    setResultsLocation(location);
     setNextPageToken(response.nextPageToken);
     setResultsSegment(segment);
     setScreen("results");
-    setRecentSearches(storeRecentSearch(segment));
+    setRecentSearches(
+      storeRecentSearch({
+        ...location,
+        segment,
+      }),
+    );
     append ? setLoadingMore(false) : setLoading(false);
   }
 
   function startSearch() {
-    if (!selectedSegment) return;
+    if (!selectedSegment || !selectedCity) return;
+    const location: SearchLocation = {
+      city: selectedCity,
+      state: SEARCH_STATE.code,
+    };
     setFilter("all");
     setOnlyNew(false);
-    void runSearch(selectedSegment);
+    void runSearch(selectedSegment, location);
   }
 
-  function repeatSearch(segment: string) {
-    setSelectedSegment(segment);
+  function repeatSearch(search: RecentSearch) {
+    setSelectedSegment(search.segment);
+    setCityInput(search.city);
+    setSearchLocation({
+      city: search.city,
+      state: SEARCH_STATE.code,
+    });
     setFilter("all");
     setOnlyNew(false);
-    void runSearch(segment);
+    void runSearch(search.segment, {
+      city: search.city,
+      state: SEARCH_STATE.code,
+    });
   }
 
   function openWhatsApp(business: BusinessSearchResult) {
@@ -284,19 +434,81 @@ export function SearchLeadsView({
       <section className="page-wrap search-leads-page">
         <div className="page-heading search-page-heading">
           <div>
-            <p className="eyebrow">LAVRAS · MINAS GERAIS</p>
-            <h1>Encontre empresas em Lavras</h1>
-            <p className="subtitle">Escolha um segmento para encontrar possíveis clientes.</p>
+            <p className="eyebrow">MINAS GERAIS · MG</p>
+            <h1>
+              Encontre empresas em {selectedCity ?? cityInput.trim() || searchLocation.city}
+            </h1>
+            <p className="subtitle">
+              Escolha a cidade e o segmento para encontrar possíveis clientes.
+            </p>
           </div>
+        </div>
+
+        <div className="search-location-panel">
+          <label className="search-location-field">
+            <span>Estado</span>
+            <div className="search-location-static">
+              <strong>{SEARCH_STATE.name}</strong>
+              <small>{SEARCH_STATE.code}</small>
+            </div>
+          </label>
+
+          <label className="search-location-field">
+            <span>Cidade</span>
+            <div className="search-city-input">
+              <MapPin size={15} />
+              <input
+                list="mg-city-options"
+                value={cityInput}
+                onChange={(event) => setCityInput(event.target.value)}
+                onBlur={() => {
+                  const canonical = resolveMunicipality(
+                    cityInput,
+                    municipalities,
+                  );
+                  if (canonical) setCityInput(canonical);
+                }}
+                placeholder="Digite um município de Minas Gerais"
+                autoComplete="off"
+                aria-label="Cidade de Minas Gerais"
+              />
+              <datalist id="mg-city-options">
+                {municipalities.map((city) => (
+                  <option key={city} value={city} />
+                ))}
+              </datalist>
+            </div>
+            <small
+              className={
+                !municipalitiesLoading &&
+                cityInput.trim() &&
+                !selectedCity
+                  ? "search-location-help error"
+                  : "search-location-help"
+              }
+            >
+              {municipalitiesLoading
+                ? "Carregando municípios do IBGE..."
+                : municipalitiesError
+                  ? municipalitiesError
+                  : cityInput.trim() && !selectedCity
+                    ? "Selecione um município válido de Minas Gerais."
+                    : "Municípios oficiais do IBGE."}
+            </small>
+          </label>
         </div>
 
         {recentSearches.length > 0 && (
           <div className="recent-searches">
             <span>Buscas recentes</span>
             <div>
-              {recentSearches.map((segment) => (
-                <button key={segment} type="button" onClick={() => repeatSearch(segment)}>
-                  {segment}
+              {recentSearches.map((search) => (
+                <button
+                  key={recentSearchKey(search)}
+                  type="button"
+                  onClick={() => repeatSearch(search)}
+                >
+                  {search.segment} · {search.city}
                 </button>
               ))}
             </div>
@@ -342,16 +554,25 @@ export function SearchLeadsView({
 
         <div className="selection-bar">
           <div>
-            <span>Segmento selecionado</span>
-            <strong>{selectedSegment || "Nenhum"}</strong>
+            <span>Busca selecionada</span>
+            <strong>
+              {selectedCity
+                ? `${selectedSegment || "Selecione um segmento"} · ${selectedCity} / MG`
+                : "Selecione uma cidade válida"}
+            </strong>
           </div>
           <button
             type="button"
             className="primary-button"
-            disabled={!selectedSegment || loading}
+            disabled={
+              !selectedSegment ||
+              !selectedCity ||
+              loading ||
+              municipalitiesLoading
+            }
             onClick={startSearch}
           >
-            {loading ? "Buscando empresas..." : "Avançar"}
+            {loading ? "Buscando empresas..." : "Buscar leads"}
             {!loading && <ArrowRight size={17} />}
           </button>
         </div>
@@ -366,10 +587,12 @@ export function SearchLeadsView({
       <div className="results-heading">
         <button type="button" className="back-button" onClick={() => setScreen("segments")}>
           <ArrowLeft size={16} />
-          Alterar segmento
+          Alterar busca
         </button>
         <div>
-          <p className="eyebrow">LAVRAS · MINAS GERAIS</p>
+          <p className="eyebrow">
+            {resultsLocation.city.toLocaleUpperCase("pt-BR")} · MINAS GERAIS
+          </p>
           <h1>{resultsSegment}</h1>
           <p className="subtitle">
             {results.length} {results.length === 1 ? "empresa encontrada" : "empresas encontradas"}.
@@ -459,7 +682,9 @@ export function SearchLeadsView({
             type="button"
             className="secondary-button"
             disabled={loadingMore}
-            onClick={() => void runSearch(resultsSegment, nextPageToken, true)}
+            onClick={() =>
+              void runSearch(resultsSegment, resultsLocation, nextPageToken, true)
+            }
           >
             {loadingMore ? "Buscando mais..." : "Carregar mais"}
           </button>
