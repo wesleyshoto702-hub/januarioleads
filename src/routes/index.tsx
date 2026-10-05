@@ -1419,6 +1419,7 @@ function LeadFlowApp() {
             <button
               className="logout-button"
               type="button"
+              aria-label="Sair"
               onClick={async () => {
                 await signOut();
                 await navigate({ to: "/login", replace: true });
