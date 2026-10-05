@@ -909,7 +909,13 @@ function LeadFlowApp() {
       return;
     }
 
-    const persisted = await saveRemoteLead(nextLead);
+    let persisted = false;
+    try {
+      persisted = await saveRemoteLead(nextLead);
+    } catch {
+      persisted = false;
+    }
+
     if (!persisted) {
       setMessageActionPending(false);
       setMessageActionError(
@@ -1452,7 +1458,12 @@ function LeadFlowApp() {
     }
 
     const newLead = buildFoundLead(business, selectedSegment);
-    const persisted = await saveRemoteLead(newLead);
+    let persisted = false;
+    try {
+      persisted = await saveRemoteLead(newLead);
+    } catch {
+      persisted = false;
+    }
 
     if (!persisted) {
       setRemoteError(
