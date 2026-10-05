@@ -514,6 +514,13 @@
   color: var(--text);
 }
 
+.open-now-card-error {
+  margin: -3px 0 0;
+  color: var(--rejected);
+  font-size: 8.5px;
+  line-height: 1.45;
+}
+
 .open-now-niche-meta {
   min-height: 20px;
   display: flex;
@@ -930,6 +937,7 @@
 
   .open-now-section-heading h2,
   .open-now-section-heading small,
+  .open-now-card-error,
   .open-now-business-heading h2,
   .open-now-business-heading p,
   .open-now-niche-top h3,
