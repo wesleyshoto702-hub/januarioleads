@@ -55,7 +55,10 @@ import { PromptGenerator } from "../features/prompt-generator/PromptGenerator";
 import { OpenNowNichesView } from "../features/open-now-niches/OpenNowNichesView";
 import { makePromptBusinessKey } from "../features/prompt-generator/storage";
 import type { PromptBusinessContext } from "../features/prompt-generator/types";
-import { BusinessDetailsModal } from "../features/search-leads/BusinessDetailsModal";
+import {
+  BusinessDetailsModal,
+  type BusinessAddResult,
+} from "../features/search-leads/BusinessDetailsModal";
 import { SearchLeadsView } from "../features/search-leads/SearchLeadsView";
 import {
   findBusinessDuplicate,
@@ -248,6 +251,8 @@ function LeadFlowApp() {
   const [sort, setSort] = useState("recent");
   const [messageLead, setMessageLead] = useState<{ id?: string; company: string; phone: string } | null>(null);
   const [selectedMessage, setSelectedMessage] = useState(0);
+  const [messageActionPending, setMessageActionPending] = useState(false);
+  const [messageActionError, setMessageActionError] = useState("");
   const [deleteLead, setDeleteLead] = useState<Lead | null>(null);
   const [enrichmentLead, setEnrichmentLead] = useState<Lead | null>(null);
   const [leadDetailsId, setLeadDetailsId] = useState<string | null>(null);
@@ -380,6 +385,11 @@ function LeadFlowApp() {
     localStorage.setItem(STORAGE.theme, theme);
     document.documentElement.classList.toggle("dark", theme === "dark");
   }, [theme, hydrated]);
+
+  useEffect(() => {
+    setMessageActionPending(false);
+    setMessageActionError("");
+  }, [messageLead?.id, messageLead?.company]);
 
   const counts = useMemo(
     () => ({
@@ -833,10 +843,16 @@ function LeadFlowApp() {
     setDeleteLead(null);
   }
 
-  function openWhatsApp() {
-    if (!messageLead) return;
+  async function openWhatsApp() {
+    if (!messageLead || messageActionPending) return;
+
     const phone = normalizeBrazilianPhone(messageLead.phone);
-    if (!phone) return;
+    if (phone.length !== 12 && phone.length !== 13) {
+      setMessageActionError(
+        "Este lead não possui um telefone válido para abrir o WhatsApp.",
+      );
+      return;
+    }
 
     const personalized = (messages[selectedMessage] ?? "").replaceAll(
       "{empresa}",
@@ -844,55 +860,94 @@ function LeadFlowApp() {
     );
     const url = `https://wa.me/${phone}?text=${encodeURIComponent(personalized)}`;
 
-    // Only advance the operational status if the browser actually allows
-    // the WhatsApp tab to open.
+    setMessageActionPending(true);
+    setMessageActionError("");
+
+    // Opening stays synchronous with the click so the browser can authorize
+    // the external tab. Persistence is confirmed immediately afterwards.
     const whatsappWindow = window.open("about:blank", "_blank");
     if (!whatsappWindow) {
-      setActivityError(
+      setMessageActionPending(false);
+      setMessageActionError(
         "O navegador bloqueou a abertura do WhatsApp. O status não foi alterado.",
       );
-      window.setTimeout(() => setActivityError(""), 5000);
       return;
     }
 
     whatsappWindow.opener = null;
     whatsappWindow.location.href = url;
 
-    const today = new Date().toISOString().slice(0, 10);
-    const currentLead = messageLead.id
-      ? leads.find((lead) => lead.id === messageLead.id)
-      : null;
-    const shouldAdvanceToWaiting = currentLead?.status === "send_message";
-
-    if (messageLead.id) {
-      updateLeadLocally(messageLead.id, (lead) => ({
-        ...lead,
-        lastContact: today,
-        ...(lead.status === "send_message" ? { status: "waiting" as Status } : {}),
-      }));
-
-      recordActivity(messageLead.id, {
-        type: "whatsapp_opened",
-        title: "WhatsApp aberto",
-        metadata: {
-          messageTemplate: `Mensagem ${selectedMessage + 1}`,
-        },
-      });
-
-      if (shouldAdvanceToWaiting) {
-        recordActivity(messageLead.id, {
-          type: "status_changed",
-          title: "Status alterado",
-          description: "Enviar mensagem → Aguardando",
-          metadata: {
-            previousStatus: "Enviar mensagem",
-            newStatus: "Aguardando",
-            reason: "whatsapp_opened",
-          },
-        });
-      }
+    if (!messageLead.id) {
+      setMessageActionPending(false);
+      setMessageLead(null);
+      return;
     }
 
+    const currentLead = leads.find((lead) => lead.id === messageLead.id);
+    if (!currentLead) {
+      setMessageActionPending(false);
+      setMessageActionError(
+        "O WhatsApp foi aberto, mas este lead não foi encontrado para atualizar o histórico.",
+      );
+      return;
+    }
+
+    const shouldAdvanceToWaiting = currentLead.status === "send_message";
+    const nextLead: Lead = {
+      ...currentLead,
+      lastContact: new Date().toISOString().slice(0, 10),
+      ...(shouldAdvanceToWaiting ? { status: "waiting" as Status } : {}),
+    };
+
+    if (!remoteReady) {
+      setMessageActionPending(false);
+      setMessageActionError(
+        shouldAdvanceToWaiting
+          ? "O WhatsApp foi aberto, mas não foi possível atualizar o status."
+          : "O WhatsApp foi aberto, mas não foi possível registrar o contato agora.",
+      );
+      return;
+    }
+
+    const persisted = await saveRemoteLead(nextLead);
+    if (!persisted) {
+      setMessageActionPending(false);
+      setMessageActionError(
+        shouldAdvanceToWaiting
+          ? "O WhatsApp foi aberto, mas não foi possível atualizar o status."
+          : "O WhatsApp foi aberto, mas não foi possível registrar o contato agora.",
+      );
+      return;
+    }
+
+    setLeads((current) =>
+      current.map((lead) => (lead.id === nextLead.id ? nextLead : lead)),
+    );
+    setRemoteError("");
+
+    recordActivity(nextLead.id, {
+      type: "whatsapp_opened",
+      title: "WhatsApp aberto",
+      metadata: {
+        messageTemplate: `Mensagem ${selectedMessage + 1}`,
+      },
+    });
+
+    if (shouldAdvanceToWaiting) {
+      recordActivity(nextLead.id, {
+        type: "status_changed",
+        title: "Status alterado",
+        description: "Enviar mensagem → Aguardando",
+        metadata: {
+          previousStatus: "Enviar mensagem",
+          newStatus: "Aguardando",
+          reason: "whatsapp_opened",
+        },
+      });
+    }
+
+    setMessageActionPending(false);
+    setMessageActionError("");
     setMessageLead(null);
   }
 
@@ -1274,101 +1329,156 @@ function LeadFlowApp() {
     }
   }
 
-  function addFoundLead(business: BusinessSearchResult, selectedSegment: string) {
+  function buildFoundLead(
+    business: BusinessSearchResult,
+    selectedSegment: string,
+  ): Lead {
     const foundPhone = business.phone ?? business.internationalPhone ?? "";
-    const duplicate = findBusinessDuplicate(business, leads);
+      const details = [
+        business.city
+          ? `Lead encontrado através do buscador de empresas em ${business.city}${business.state ? ` - ${business.state}` : ""}.`
+          : "Lead encontrado através do buscador de empresas.",
+        business.address ? `Endereço: ${business.address}` : "",
+        business.website ? `Site: ${business.website}` : "",
+        business.instagram ? `Instagram: ${business.instagram}` : "",
+        business.googleMapsUrl ? `Google Maps: ${business.googleMapsUrl}` : "",
+      ].filter(Boolean);
+  
+      const discoveredPresence = presenceFromBusiness(business);
+      const factualDescription = buildFactualBusinessDescription(business);
+  
+      const newLead: Lead = {
+        id: crypto.randomUUID(),
+        company: business.name,
+        segment: selectedSegment,
+        phone: foundPhone,
+        status: "send_message",
+        firstContact: new Date().toISOString().slice(0, 10),
+        notes: details.join("\n"),
+        createdAt: new Date().toISOString(),
+        placeId: business.placeId,
+        source: "places-search",
+        factualDescription,
+        ...(discoveredPresence
+          ? {
+              instagramCheckedAt: discoveredPresence.instagramCheckedAt,
+              instagramUsername:
+                discoveredPresence.instagramUsername ?? undefined,
+              instagramCandidates: discoveredPresence.instagramCandidates,
+              instagramRejectedUrls:
+                discoveredPresence.instagramRejectedUrls,
+              instagramSearchSignature:
+                discoveredPresence.instagramSearchSignature ?? undefined,
+              instagramNeedsReview:
+                discoveredPresence.instagramNeedsReview,
+              ...(discoveredPresence.instagramUrl
+                ? {
+                    instagram: discoveredPresence.instagramUrl,
+                    instagramConfidence:
+                      discoveredPresence.instagramConfidence ?? "high",
+                    instagramSource:
+                      discoveredPresence.instagramSource ?? "existing_data",
+                  }
+                : {}),
+            }
+          : {}),
+        ...(business.address ? { address: business.address } : {}),
+        ...(business.website ? { website: business.website } : {}),
+        ...(business.googleMapsUrl ? { googleMapsUrl: business.googleMapsUrl } : {}),
+        ...(business.instagram && !discoveredPresence?.instagramUrl
+          ? { instagram: business.instagram }
+          : {}),
+        ...(business.primaryCategory ? { primaryCategory: business.primaryCategory } : {}),
+        ...(business.categories.length ? { categories: business.categories } : {}),
+        ...(business.description ? { description: business.description } : {}),
+        ...(business.neighborhood ? { neighborhood: business.neighborhood } : {}),
+        ...(business.city ? { city: business.city } : {}),
+        ...(business.state ? { state: business.state } : {}),
+        ...(business.internationalPhone ? { internationalPhone: business.internationalPhone } : {}),
+        ...(business.rating !== null ? { rating: business.rating } : {}),
+        ...(business.reviewCount !== null ? { reviewCount: business.reviewCount } : {}),
+        ...(business.isOpenNow !== null ? { isOpenNow: business.isOpenNow } : {}),
+        ...(business.openingHours.length ? { openingHours: business.openingHours } : {}),
+        ...(business.businessStatus ? { businessStatus: business.businessStatus } : {}),
+        ...(business.latitude !== null ? { latitude: business.latitude } : {}),
+        ...(business.longitude !== null ? { longitude: business.longitude } : {}),
+        ...(business.verifiedContent
+          ? { verifiedContent: business.verifiedContent }
+          : {}),
+        ...(business.verifiedImages
+          ? { verifiedImages: business.verifiedImages }
+          : {}),
+        ...(business.confirmedChannels
+          ? { confirmedChannels: business.confirmedChannels }
+          : {}),
+        ...(business.deepEnrichmentStatus
+          ? { deepEnrichmentStatus: business.deepEnrichmentStatus }
+          : {}),
+        ...(business.deepEnrichmentQuality
+          ? { deepEnrichmentQuality: business.deepEnrichmentQuality }
+          : {}),
+        ...(business.deepEnrichmentCheckedAt
+          ? { deepEnrichmentCheckedAt: business.deepEnrichmentCheckedAt }
+          : {}),
+      };
+    return newLead;
+  }
 
+  function addFoundLead(
+    business: BusinessSearchResult,
+    selectedSegment: string,
+  ) {
+    const duplicate = findBusinessDuplicate(business, leads);
     if (duplicate) return;
 
-    const details = [
-      business.city
-        ? `Lead encontrado através do buscador de empresas em ${business.city}${business.state ? ` - ${business.state}` : ""}.`
-        : "Lead encontrado através do buscador de empresas.",
-      business.address ? `Endereço: ${business.address}` : "",
-      business.website ? `Site: ${business.website}` : "",
-      business.instagram ? `Instagram: ${business.instagram}` : "",
-      business.googleMapsUrl ? `Google Maps: ${business.googleMapsUrl}` : "",
-    ].filter(Boolean);
+    addLeadLocally(buildFoundLead(business, selectedSegment));
+  }
 
-    const discoveredPresence = presenceFromBusiness(business);
-    const factualDescription = buildFactualBusinessDescription(business);
+  async function addFoundLeadConfirmed(
+    business: BusinessSearchResult,
+    selectedSegment: string,
+  ): Promise<BusinessAddResult> {
+    const duplicate = findBusinessDuplicate(business, leads);
+    if (duplicate?.id) {
+      return { ok: true, leadId: duplicate.id };
+    }
 
-    const newLead: Lead = {
-      id: crypto.randomUUID(),
-      company: business.name,
-      segment: selectedSegment,
-      phone: foundPhone,
-      status: "send_message",
-      firstContact: new Date().toISOString().slice(0, 10),
-      notes: details.join("\n"),
-      createdAt: new Date().toISOString(),
-      placeId: business.placeId,
-      source: "places-search",
-      factualDescription,
-      ...(discoveredPresence
-        ? {
-            instagramCheckedAt: discoveredPresence.instagramCheckedAt,
-            instagramUsername:
-              discoveredPresence.instagramUsername ?? undefined,
-            instagramCandidates: discoveredPresence.instagramCandidates,
-            instagramRejectedUrls:
-              discoveredPresence.instagramRejectedUrls,
-            instagramSearchSignature:
-              discoveredPresence.instagramSearchSignature ?? undefined,
-            instagramNeedsReview:
-              discoveredPresence.instagramNeedsReview,
-            ...(discoveredPresence.instagramUrl
-              ? {
-                  instagram: discoveredPresence.instagramUrl,
-                  instagramConfidence:
-                    discoveredPresence.instagramConfidence ?? "high",
-                  instagramSource:
-                    discoveredPresence.instagramSource ?? "existing_data",
-                }
-              : {}),
-          }
-        : {}),
-      ...(business.address ? { address: business.address } : {}),
-      ...(business.website ? { website: business.website } : {}),
-      ...(business.googleMapsUrl ? { googleMapsUrl: business.googleMapsUrl } : {}),
-      ...(business.instagram && !discoveredPresence?.instagramUrl
-        ? { instagram: business.instagram }
-        : {}),
-      ...(business.primaryCategory ? { primaryCategory: business.primaryCategory } : {}),
-      ...(business.categories.length ? { categories: business.categories } : {}),
-      ...(business.description ? { description: business.description } : {}),
-      ...(business.neighborhood ? { neighborhood: business.neighborhood } : {}),
-      ...(business.city ? { city: business.city } : {}),
-      ...(business.state ? { state: business.state } : {}),
-      ...(business.internationalPhone ? { internationalPhone: business.internationalPhone } : {}),
-      ...(business.rating !== null ? { rating: business.rating } : {}),
-      ...(business.reviewCount !== null ? { reviewCount: business.reviewCount } : {}),
-      ...(business.isOpenNow !== null ? { isOpenNow: business.isOpenNow } : {}),
-      ...(business.openingHours.length ? { openingHours: business.openingHours } : {}),
-      ...(business.businessStatus ? { businessStatus: business.businessStatus } : {}),
-      ...(business.latitude !== null ? { latitude: business.latitude } : {}),
-      ...(business.longitude !== null ? { longitude: business.longitude } : {}),
-      ...(business.verifiedContent
-        ? { verifiedContent: business.verifiedContent }
-        : {}),
-      ...(business.verifiedImages
-        ? { verifiedImages: business.verifiedImages }
-        : {}),
-      ...(business.confirmedChannels
-        ? { confirmedChannels: business.confirmedChannels }
-        : {}),
-      ...(business.deepEnrichmentStatus
-        ? { deepEnrichmentStatus: business.deepEnrichmentStatus }
-        : {}),
-      ...(business.deepEnrichmentQuality
-        ? { deepEnrichmentQuality: business.deepEnrichmentQuality }
-        : {}),
-      ...(business.deepEnrichmentCheckedAt
-        ? { deepEnrichmentCheckedAt: business.deepEnrichmentCheckedAt }
-        : {}),
-    };
+    if (!remoteReady) {
+      return {
+        ok: false,
+        message:
+          "A sincronização com o Supabase está indisponível agora. O lead não foi adicionado.",
+      };
+    }
 
-    addLeadLocally(newLead);
+    const newLead = buildFoundLead(business, selectedSegment);
+    const persisted = await saveRemoteLead(newLead);
+
+    if (!persisted) {
+      setRemoteError(
+        "Não foi possível confirmar a criação deste lead no Supabase.",
+      );
+      return {
+        ok: false,
+        message:
+          "Não foi possível adicionar este lead agora. Tente novamente.",
+      };
+    }
+
+    setLeads((current) => [newLead, ...current]);
+    setRemoteError("");
+
+    recordActivity(newLead.id, {
+      type: "lead_added",
+      title: "Lead adicionado",
+      description: "Empresa adicionada a Meus Leads pelo buscador.",
+      metadata: {
+        source: "places-search",
+        placeId: newLead.placeId ?? null,
+      },
+    });
+
+    return { ok: true, leadId: newLead.id };
   }
 
   return (
@@ -1685,7 +1795,7 @@ function LeadFlowApp() {
       ) : view === "search" ? (
         <SearchLeadsView
           existingLeads={leads}
-          onAddLead={addFoundLead}
+          onAddLead={addFoundLeadConfirmed}
           onDeepEnrichmentApplied={applyDeepEnrichmentToLead}
           onMessage={(target) => {
             setSelectedMessage(0);
@@ -1802,7 +1912,13 @@ function LeadFlowApp() {
       )}
 
       {messageLead && (
-        <Modal onClose={() => setMessageLead(null)} title="Mandar mensagem">
+        <Modal
+          onClose={() => {
+            if (messageActionPending) return;
+            setMessageLead(null);
+          }}
+          title="Mandar mensagem"
+        >
           <div className="message-picker">
             <p className="modal-copy">
               Escolha uma mensagem para <strong>{messageLead.company}</strong>. A conversa será aberta
@@ -1815,19 +1931,35 @@ function LeadFlowApp() {
                   type="button"
                   className={selectedMessage === index ? "message-option selected" : "message-option"}
                   onClick={() => setSelectedMessage(index)}
+                  disabled={messageActionPending}
                 >
                   <span>Mensagem {index + 1}</span>
                   <p>{message.replaceAll("{empresa}", messageLead.company)}</p>
                 </button>
               ))}
             </div>
+            {messageActionError && (
+              <p className="message-action-error" role="status">
+                {messageActionError}
+              </p>
+            )}
             <div className="modal-actions">
-              <button type="button" className="secondary-button" onClick={() => setMessageLead(null)}>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => setMessageLead(null)}
+                disabled={messageActionPending}
+              >
                 Cancelar
               </button>
-              <button type="button" className="whatsapp-button" onClick={openWhatsApp}>
+              <button
+                type="button"
+                className="whatsapp-button"
+                onClick={() => void openWhatsApp()}
+                disabled={messageActionPending}
+              >
                 <MessageCircle size={17} />
-                Abrir no WhatsApp
+                {messageActionPending ? "Atualizando..." : "Abrir no WhatsApp"}
               </button>
             </div>
           </div>
