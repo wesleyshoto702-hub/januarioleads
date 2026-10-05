@@ -3,6 +3,8 @@ import { getAccessToken } from "../../lib/auth";
 
 type SearchBusinessesInput = {
   segment: string;
+  city: string;
+  state: "MG";
   pageToken?: string;
 };
 
@@ -56,6 +58,8 @@ export async function searchBusinesses(
       },
       body: JSON.stringify({
         segment: input.segment,
+        city: input.city,
+        state: input.state,
         ...(input.pageToken ? { pageToken: input.pageToken } : {}),
       }),
     });
