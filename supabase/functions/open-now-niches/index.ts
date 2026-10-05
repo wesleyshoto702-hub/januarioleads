@@ -119,6 +119,77 @@ function failure(code: string, message: string, status: number, extra?: object) 
   return json({ ok: false, code, message, ...(extra ?? {}) }, status);
 }
 
+const SAFE_ERRORS: Record<string, { message: string; status: number }> = {
+  AUTH_REQUIRED: {
+    message: "Sua sessão expirou. Entre novamente para continuar.",
+    status: 401,
+  },
+  INVALID_CLIENT_KEY: {
+    message: "O cliente não está autorizado a acessar este serviço.",
+    status: 401,
+  },
+  PRIVATE_ACCESS_DENIED: {
+    message: "Sua conta não possui acesso a este recurso.",
+    status: 403,
+  },
+  PRIVATE_ACCESS_CHECK_FAILED: {
+    message: "Não foi possível validar seu acesso agora.",
+    status: 502,
+  },
+  CACHE_READ_FAILED: {
+    message: "Não foi possível carregar o cache de nichos agora.",
+    status: 502,
+  },
+  CACHE_WRITE_FAILED: {
+    message: "Não foi possível salvar a atualização deste nicho.",
+    status: 502,
+  },
+  RATE_LIMIT_CHECK_FAILED: {
+    message: "Não foi possível validar o limite de atualizações agora.",
+    status: 502,
+  },
+  RATE_LIMIT: {
+    message: "Limite temporário de atualizações atingido. Tente novamente em alguns minutos.",
+    status: 429,
+  },
+  GOOGLE_NOT_CONFIGURED: {
+    message: "O Google Places não está configurado para este serviço.",
+    status: 503,
+  },
+  GOOGLE_QUOTA: {
+    message: "Limite temporário do Google Places atingido. Tente novamente em alguns minutos.",
+    status: 429,
+  },
+  GOOGLE_INVALID_REQUEST: {
+    message: "O Google Places recusou a pesquisa deste nicho.",
+    status: 400,
+  },
+  GOOGLE_REQUEST_FAILED: {
+    message: "Não foi possível acessar o Google Places agora.",
+    status: 502,
+  },
+  REQUEST_FAILED: {
+    message: "Não foi possível consultar Nichos Abertos Agora.",
+    status: 502,
+  },
+};
+
+function errorCode(error: unknown) {
+  return error instanceof Error && error.message ? error.message : "REQUEST_FAILED";
+}
+
+function safeFailure(code: string, extra?: object) {
+  const resolved = SAFE_ERRORS[code] ?? SAFE_ERRORS.REQUEST_FAILED;
+  return failure(code, resolved.message, resolved.status, extra);
+}
+
+function logDiagnostic(event: string, details: Record<string, unknown>) {
+  console.error(
+    `[open-now-niches] ${event}`,
+    JSON.stringify(details),
+  );
+}
+
 function normalize(value: string | null | undefined) {
   return (value ?? "")
     .normalize("NFD")
@@ -295,16 +366,37 @@ async function googleSearch(
   try {
     payload = await response.json() as GoogleResponse;
   } catch {
-    throw new Error("GOOGLE_INVALID_RESPONSE");
+    logDiagnostic("google_invalid_response", {
+      segment,
+      city,
+      state,
+      httpStatus: response.status,
+    });
+    throw new Error("GOOGLE_REQUEST_FAILED");
   }
 
   if (!response.ok) {
-    const status = payload.error?.status ?? "";
-    if (response.status === 429 || status === "RESOURCE_EXHAUSTED") {
-      throw new Error("GOOGLE_QUOTA");
-    }
-    if (status === "INVALID_ARGUMENT") throw new Error("GOOGLE_INVALID_REQUEST");
-    throw new Error("GOOGLE_REQUEST_FAILED");
+    const googleStatus = payload.error?.status ?? "";
+    const code =
+      response.status === 429 || googleStatus === "RESOURCE_EXHAUSTED"
+        ? "GOOGLE_QUOTA"
+        : googleStatus === "INVALID_ARGUMENT" || response.status === 400
+          ? "GOOGLE_INVALID_REQUEST"
+          : "GOOGLE_REQUEST_FAILED";
+
+    logDiagnostic("google_request_failed", {
+      code,
+      segment,
+      city,
+      state,
+      httpStatus: response.status,
+      googleStatus: googleStatus || null,
+      googleCode: payload.error?.code ?? null,
+      retryAfter: response.headers.get("retry-after"),
+      googleMessage: payload.error?.message?.slice(0, 500) ?? null,
+    });
+
+    throw new Error(code);
   }
 
   const now = new Date();
@@ -327,9 +419,10 @@ function getAllowedPublishableKeys() {
         if (typeof value === "string" && value.trim()) keys.push(value.trim());
       }
     } catch {
-      // Legacy key fallback below.
+      logDiagnostic("publishable_keys_parse_failed", {});
     }
   }
+
   const legacy = Deno.env.get("SUPABASE_ANON_KEY");
   if (legacy?.trim()) keys.push(legacy.trim());
   return Array.from(new Set(keys));
@@ -340,48 +433,152 @@ function hasValidClientKey(request: Request) {
   return Boolean(provided && getAllowedPublishableKeys().includes(provided));
 }
 
-async function authenticate(request: Request) {
-  if (!hasValidClientKey(request)) return null;
+type AuthResult =
+  | { ok: true; userId: string }
+  | {
+      ok: false;
+      code:
+        | "AUTH_REQUIRED"
+        | "INVALID_CLIENT_KEY"
+        | "PRIVATE_ACCESS_DENIED"
+        | "PRIVATE_ACCESS_CHECK_FAILED";
+      message: string;
+      status: number;
+    };
+
+async function authenticate(request: Request): Promise<AuthResult> {
+  if (!hasValidClientKey(request)) {
+    return {
+      ok: false,
+      code: "INVALID_CLIENT_KEY",
+      message: SAFE_ERRORS.INVALID_CLIENT_KEY.message,
+      status: SAFE_ERRORS.INVALID_CLIENT_KEY.status,
+    };
+  }
+
   const authorization = request.headers.get("Authorization");
-  if (!authorization || !/^Bearer\s+\S+$/i.test(authorization)) return null;
+  if (!authorization || !/^Bearer\s+\S+$/i.test(authorization)) {
+    return {
+      ok: false,
+      code: "AUTH_REQUIRED",
+      message: SAFE_ERRORS.AUTH_REQUIRED.message,
+      status: SAFE_ERRORS.AUTH_REQUIRED.status,
+    };
+  }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")?.replace(/\/$/, "");
-  if (!supabaseUrl) return null;
+  if (!supabaseUrl) {
+    logDiagnostic("supabase_url_missing", {});
+    return {
+      ok: false,
+      code: "AUTH_REQUIRED",
+      message: SAFE_ERRORS.AUTH_REQUIRED.message,
+      status: SAFE_ERRORS.AUTH_REQUIRED.status,
+    };
+  }
+
   const headers = {
     apikey: request.headers.get("apikey") ?? "",
     Authorization: authorization,
   };
 
   const userResponse = await fetch(`${supabaseUrl}/auth/v1/user`, { headers });
-  if (!userResponse.ok) return null;
+  if (!userResponse.ok) {
+    logDiagnostic("auth_user_lookup_failed", {
+      httpStatus: userResponse.status,
+    });
+    return {
+      ok: false,
+      code: "AUTH_REQUIRED",
+      message: SAFE_ERRORS.AUTH_REQUIRED.message,
+      status: SAFE_ERRORS.AUTH_REQUIRED.status,
+    };
+  }
+
   const user = await userResponse.json() as { id?: string };
-  if (!user.id) return null;
+  if (!user.id) {
+    return {
+      ok: false,
+      code: "AUTH_REQUIRED",
+      message: SAFE_ERRORS.AUTH_REQUIRED.message,
+      status: SAFE_ERRORS.AUTH_REQUIRED.status,
+    };
+  }
 
   const access = await fetch(
     `${supabaseUrl}/rest/v1/private_access?select=user_id&user_id=eq.${encodeURIComponent(user.id)}&limit=1`,
     { headers },
   );
-  if (!access.ok) return null;
+  if (!access.ok) {
+    logDiagnostic("private_access_check_failed", {
+      userId: user.id,
+      httpStatus: access.status,
+    });
+    return {
+      ok: false,
+      code: "PRIVATE_ACCESS_CHECK_FAILED",
+      message: SAFE_ERRORS.PRIVATE_ACCESS_CHECK_FAILED.message,
+      status: SAFE_ERRORS.PRIVATE_ACCESS_CHECK_FAILED.status,
+    };
+  }
+
   const rows = await access.json() as unknown[];
-  if (!rows.length) return null;
-  return user.id;
+  if (!rows.length) {
+    return {
+      ok: false,
+      code: "PRIVATE_ACCESS_DENIED",
+      message: SAFE_ERRORS.PRIVATE_ACCESS_DENIED.message,
+      status: SAFE_ERRORS.PRIVATE_ACCESS_DENIED.status,
+    };
+  }
+
+  return { ok: true, userId: user.id };
+}
+
+function firstNamedSecret(raw: string | undefined) {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const preferred = parsed.default;
+    if (typeof preferred === "string" && preferred.trim()) return preferred.trim();
+    for (const value of Object.values(parsed)) {
+      if (typeof value === "string" && value.trim()) return value.trim();
+    }
+  } catch {
+    logDiagnostic("secret_keys_parse_failed", {});
+  }
+  return null;
 }
 
 function adminConfig() {
   const url = Deno.env.get("SUPABASE_URL")?.replace(/\/$/, "");
-  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!url || !key) return null;
-  return { url, key };
+  if (!url) return null;
+
+  const legacy = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
+  if (legacy) {
+    return {
+      url,
+      key: legacy,
+      authorization: `Bearer ${legacy}`,
+    };
+  }
+
+  const modern = firstNamedSecret(Deno.env.get("SUPABASE_SECRET_KEYS"));
+  if (!modern) return null;
+  return { url, key: modern, authorization: null };
 }
 
 async function adminRest(path: string, init: RequestInit = {}) {
   const config = adminConfig();
   if (!config) throw new Error("SUPABASE_ADMIN_NOT_CONFIGURED");
+
   return fetch(`${config.url}/rest/v1/${path}`, {
     ...init,
     headers: {
       apikey: config.key,
-      Authorization: `Bearer ${config.key}`,
+      ...(config.authorization
+        ? { Authorization: config.authorization }
+        : {}),
       "Content-Type": "application/json",
       ...(init.headers ?? {}),
     },
@@ -398,7 +595,13 @@ async function claimRefreshBudget(userId: string, key: string) {
       p_window_seconds: 900,
     }),
   });
-  if (!response.ok) throw new Error("RATE_LIMIT_CHECK_FAILED");
+  if (!response.ok) {
+    logDiagnostic("rate_limit_check_failed", {
+      httpStatus: response.status,
+      locationKey: key,
+    });
+    throw new Error("RATE_LIMIT_CHECK_FAILED");
+  }
   return Boolean(await response.json());
 }
 
@@ -559,11 +762,11 @@ async function runRefresh(
       family,
       status: "error",
       locked_until: null,
-      error_code: "NOT_CONFIGURED",
+      error_code: "GOOGLE_NOT_CONFIGURED",
       error_message: "Google Places não está configurado.",
       updated_at: new Date().toISOString(),
     });
-    return failure("NOT_CONFIGURED", "Google Places não está configurado.", 503);
+    return failure("GOOGLE_NOT_CONFIGURED", "Google Places não está configurado.", 503);
   }
 
   try {
@@ -615,13 +818,14 @@ async function runRefresh(
       cache: serializeCacheRow(saved),
     });
   } catch (error) {
-    const code = error instanceof Error ? error.message : "REQUEST_FAILED";
-    const message =
-      code === "GOOGLE_QUOTA"
-        ? "O limite do Google Places foi atingido."
-        : code === "GOOGLE_INVALID_REQUEST"
-          ? "O Google Places recusou a pesquisa deste nicho."
-          : "Não foi possível atualizar este nicho agora.";
+    const rawCode = errorCode(error);
+    const code =
+      rawCode === "GOOGLE_QUOTA" ||
+      rawCode === "GOOGLE_INVALID_REQUEST" ||
+      rawCode === "GOOGLE_REQUEST_FAILED"
+        ? rawCode
+        : "GOOGLE_REQUEST_FAILED";
+    const resolved = SAFE_ERRORS[code];
 
     const saved = await upsertCache({
       user_id: userId,
@@ -632,12 +836,12 @@ async function runRefresh(
       family,
       status: "error",
       error_code: code,
-      error_message: message,
+      error_message: resolved.message,
       locked_until: null,
       updated_at: new Date().toISOString(),
     });
 
-    return failure(code, message, code === "GOOGLE_QUOTA" ? 429 : 502, {
+    return safeFailure(code, {
       cache: serializeCacheRow(saved),
     });
   }
@@ -651,10 +855,11 @@ Deno.serve(async (request) => {
     return failure("INVALID_REQUEST", "Este serviço aceita somente POST.", 405);
   }
 
-  const userId = await authenticate(request);
-  if (!userId) {
-    return failure("AUTH_REQUIRED", "Sua sessão expirou ou o acesso não está autorizado.", 401);
+  const auth = await authenticate(request);
+  if (!auth.ok) {
+    return failure(auth.code, auth.message, auth.status);
   }
+  const userId = auth.userId;
 
   let body: Record<string, unknown>;
   try {
@@ -685,7 +890,9 @@ Deno.serve(async (request) => {
       cacheTtlMinutes: OPEN_NOW_CACHE_TTL_MS / 60_000,
       niches: rows.map(serializeCacheRow),
     });
-  } catch {
-    return failure("REQUEST_FAILED", "Não foi possível consultar Nichos Abertos Agora.", 502);
+  } catch (error) {
+    const code = errorCode(error);
+    logDiagnostic("request_failed", { code });
+    return safeFailure(code);
   }
 });
