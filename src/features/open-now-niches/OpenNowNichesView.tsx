@@ -45,6 +45,8 @@ import {
 } from "./local-cache";
 import {
   fetchOpenNowCache,
+  OpenNowServiceError,
+  openNowServiceErrorMessage,
   refreshOpenNowNiche,
 } from "./open-now-service";
 import type {
@@ -92,7 +94,12 @@ type OpenBusinessRow = {
   segment: string;
 };
 
-const CONCURRENCY = 4;
+const GLOBAL_REFRESH_INTERVAL_MS = 1_250;
+const GLOBAL_STOP_CODES = new Set([
+  "GOOGLE_QUOTA",
+  "RATE_LIMIT",
+  "RATE_LIMIT_CHECK_FAILED",
+]);
 
 function mergeBusinessWithLead(
   business: OpenNowBusiness,
@@ -380,7 +387,7 @@ export function OpenNowNichesView({
       })
       .catch((error) => {
         if ((error as Error)?.name !== "AbortError") {
-          setPageError("Não foi possível carregar o cache de nichos agora.");
+          setPageError(openNowServiceErrorMessage(error));
         }
       })
       .finally(() => setLoadingCache(false));
@@ -569,7 +576,7 @@ export function OpenNowNichesView({
       signal?: AbortSignal;
       silent?: boolean;
     } = {},
-  ) {
+  ): Promise<{ ok: boolean; code?: string; message?: string }> {
     setRefreshingSegments((current) => new Set(current).add(segment));
     try {
       const response = await refreshOpenNowNiche(
@@ -585,16 +592,30 @@ export function OpenNowNichesView({
       if (response.cache) updateCache(response.cache);
       if (!response.ok) {
         if (!options.silent) setPageError(response.message);
-        return false;
+        return {
+          ok: false,
+          code: response.code,
+          message: response.message,
+        };
       }
       if (!options.silent) setPageError("");
-      return true;
+      return { ok: true };
     } catch (error) {
-      if ((error as Error)?.name === "AbortError") return false;
-      if (!options.silent) {
-        setPageError("Não foi possível atualizar este nicho agora.");
+      if ((error as Error)?.name === "AbortError") {
+        return { ok: false, code: "ABORTED" };
       }
-      return false;
+
+      const message = openNowServiceErrorMessage(error);
+      if (!options.silent) setPageError(message);
+
+      return {
+        ok: false,
+        code:
+          error instanceof OpenNowServiceError
+            ? error.code
+            : "REQUEST_FAILED",
+        message,
+      };
     } finally {
       setRefreshingSegments((current) => {
         const next = new Set(current);
@@ -620,6 +641,7 @@ export function OpenNowNichesView({
 
     const controller = new AbortController();
     globalAbort.current = controller;
+    setPageError("");
     setGlobalProgress({
       running: true,
       done: 0,
@@ -627,35 +649,38 @@ export function OpenNowNichesView({
       errors: 0,
     });
 
-    let cursor = 0;
-    const worker = async () => {
-      while (!controller.signal.aborted) {
-        const index = cursor;
-        cursor += 1;
-        if (index >= segments.length) break;
-        let ok = false;
-        try {
-          ok = await refreshOne(segments[index], {
-            signal: controller.signal,
-            silent: true,
-          });
-        } catch (error) {
-          if ((error as Error)?.name === "AbortError") break;
-        }
-        setGlobalProgress((current) => ({
-          ...current,
-          done: current.done + 1,
-          errors: current.errors + (ok ? 0 : 1),
-        }));
-      }
-    };
+    for (let index = 0; index < segments.length; index += 1) {
+      if (controller.signal.aborted) break;
 
-    await Promise.all(
-      Array.from(
-        { length: Math.min(CONCURRENCY, segments.length) },
-        () => worker(),
-      ),
-    );
+      const result = await refreshOne(segments[index], {
+        signal: controller.signal,
+        silent: true,
+      });
+
+      setGlobalProgress((current) => ({
+        ...current,
+        done: current.done + 1,
+        errors: current.errors + (result.ok ? 0 : 1),
+      }));
+
+      if (
+        !result.ok &&
+        result.code &&
+        GLOBAL_STOP_CODES.has(result.code)
+      ) {
+        setPageError(
+          result.message ??
+            "A atualização global foi pausada por um limite temporário.",
+        );
+        break;
+      }
+
+      if (index < segments.length - 1 && !controller.signal.aborted) {
+        await new Promise((resolve) =>
+          window.setTimeout(resolve, GLOBAL_REFRESH_INTERVAL_MS),
+        );
+      }
+    }
 
     setGlobalProgress((current) => ({ ...current, running: false }));
     globalAbort.current = null;
@@ -1053,6 +1078,12 @@ export function OpenNowNichesView({
                       <strong>Nenhuma aberta encontrada</strong>
                     )}
                   </div>
+
+                  {status === "error" && nicheCache?.errorMessage && (
+                    <p className="open-now-card-error">
+                      {nicheCache.errorMessage}
+                    </p>
+                  )}
 
                   {nicheCache?.checkedAt && (
                     <div className="open-now-niche-stats">
