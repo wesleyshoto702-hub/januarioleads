@@ -730,14 +730,16 @@ export function SearchLeadsView({
           activityLeadId={duplicate?.id ?? null}
           onClose={() => setDetails(null)}
           onWhatsApp={openWhatsApp}
-          onMessage={(target) =>
+          onMessage={(target) => {
+            const leadId =
+              target.id ??
+              findBusinessDuplicate(details, existingLeads)?.id;
             onMessage({
-              ...target,
-              id:
-                target.id ??
-                findBusinessDuplicate(details, existingLeads)?.id,
-            })
-          }
+              company: target.company,
+              phone: target.phone,
+              ...(leadId ? { id: leadId } : {}),
+            });
+          }}
           onGeneratePrompt={(item) => {
             setDetails(null);
             onGeneratePrompt(
