@@ -35,4 +35,6 @@ export type EnrichmentLead = {
   phone: string;
   placeId?: string;
   address?: string;
+  city?: string;
+  state?: string;
 };
