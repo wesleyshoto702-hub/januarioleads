@@ -1303,10 +1303,7 @@ function LeadFlowApp() {
       notes: details.join("\n"),
       createdAt: new Date().toISOString(),
       placeId: business.placeId,
-      source:
-        business.city?.trim().toLocaleLowerCase("pt-BR") === "lavras"
-          ? "lavras-search"
-          : "places-search",
+      source: "places-search",
       factualDescription,
       ...(discoveredPresence
         ? {
