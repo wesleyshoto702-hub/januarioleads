@@ -131,7 +131,7 @@ export function BusinessDetailsModal({
   onPaymentSaved?: (payment: LeadPayment) => void;
   onAdd?: (
     business: BusinessSearchResult,
-  ) => Promise<BusinessAddResult> | BusinessAddResult;
+  ) => Promise<BusinessAddResult> | BusinessAddResult | void;
 }) {
   const [presenceLoading, setPresenceLoading] = useState(false);
   const [presenceError, setPresenceError] = useState("");
