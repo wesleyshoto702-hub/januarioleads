@@ -1,10 +1,9 @@
 import type { BusinessSearchResponse } from "./types";
 import { getAccessToken } from "../../lib/auth";
+import type { SearchLocation } from "./search-location";
 
-type SearchBusinessesInput = {
+type SearchBusinessesInput = SearchLocation & {
   segment: string;
-  city: string;
-  state: "MG";
   pageToken?: string;
 };
 
