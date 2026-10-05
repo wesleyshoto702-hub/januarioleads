@@ -96,9 +96,20 @@ export function storeRecentBusinessSearch(
   let previous: LocalOpenNowCache | null = null;
   if (options.append) {
     try {
-      previous = JSON.parse(localStorage.getItem(storageKey) ?? "null") as LocalOpenNowCache | null;
+      previous = JSON.parse(
+        localStorage.getItem(storageKey) ?? "null",
+      ) as LocalOpenNowCache | null;
     } catch {
       previous = null;
+    }
+
+    if (!previous) {
+      previous =
+        loadRecentBusinessSearches(options.city, options.state).find(
+          (item) =>
+            normalizeLocationText(item.segment) ===
+            normalizeLocationText(segment),
+        ) ?? null;
     }
   }
   const combined = options.append && previous
