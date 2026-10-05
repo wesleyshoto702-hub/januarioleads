@@ -1898,6 +1898,39 @@ select {
   border-top: 1px solid var(--border);
 }
 
+.commercial-status-badge {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.detail-actions .added-button:disabled {
+  opacity: 1;
+}
+
+.detail-action-error,
+.message-action-error {
+  margin: 9px 0 0;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--rejected) 35%, var(--border));
+  border-radius: 8px;
+  background: var(--rejected-bg);
+  color: var(--rejected);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.message-action-error {
+  margin: 0 0 14px;
+}
+
+.message-option:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
 @media (max-width: 820px) {
   .segment-groups {
     grid-template-columns: 1fr;
