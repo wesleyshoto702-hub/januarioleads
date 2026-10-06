@@ -17,6 +17,8 @@ jobs:
       - name: Production build
         run: bun run build
       - name: Semantic lint
-        run: bunx eslint src/routes/index.tsx --rule "prettier/prettier: off"
+        run: >
+          bunx eslint src/routes/index.tsx
+          --rule "prettier/prettier: off"
       - name: TypeScript diagnostics
         run: bunx tsc --noEmit
