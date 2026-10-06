@@ -2312,7 +2312,7 @@ function LeadRow({
             Mandar mensagem
           </button>
         )}
-        {lead.source !== "lavras-search" && lead.source !== "places-search" && (
+        {lead.source !== "lavras-search" && (
           <button className="enrichment-button" onClick={() => onEnrich(lead)} type="button">
             <Search size={15} />
             {lead.placeId ? "Atualizar informações" : "Buscar informações"}
@@ -2400,7 +2400,7 @@ function LeadCard({
             Mandar mensagem
           </button>
         )}
-        {lead.source !== "lavras-search" && lead.source !== "places-search" && (
+        {lead.source !== "lavras-search" && (
           <button className="enrichment-button" onClick={() => onEnrich(lead)} type="button">
             <Search size={15} />
             {lead.placeId ? "Atualizar informações" : "Buscar informações"}
