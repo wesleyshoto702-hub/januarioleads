@@ -1,0 +1,44 @@
+name: Temporary Brazil Expansion Validation
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Production build
+        run: bun run build
+
+      - name: Lint changed Brazil expansion files
+        run: >
+          bunx eslint
+          src/lib/brazil-locations.ts
+          src/lib/location.ts
+          src/features/search-leads/search-location.ts
+          src/features/search-leads/SearchLeadsView.tsx
+          src/features/open-now-niches/local-cache.ts
+          src/features/open-now-niches/OpenNowNichesView.tsx
+          src/features/opportunities/OpportunityView.tsx
+          src/routes/index.tsx
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Brazil location tests
+        run: deno test --no-check --unstable-sloppy-imports supabase/functions/_shared/brazil-locations.test.ts
+
+      - name: TypeScript diagnostics
+        continue-on-error: true
+        run: bunx tsc --noEmit
