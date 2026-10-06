@@ -7,7 +7,10 @@ export type LeadActivityType =
   | "lead_edited"
   | "deep_enrichment"
   | "deep_enrichment_review"
-  | "manual_note";
+  | "manual_note"
+  | "next_action_set"
+  | "next_action_completed"
+  | "follow_up";
 
 export type LeadActivity = {
   id: number;
