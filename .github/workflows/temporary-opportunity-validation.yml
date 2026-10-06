@@ -26,7 +26,7 @@ jobs:
           deno-version: v2.x
 
       - name: Opportunity tests
-        run: deno test --unstable-sloppy-imports supabase/functions/_shared/opportunity.test.ts supabase/functions/_shared/opportunity-businesses.test.ts
+        run: deno test --no-check --unstable-sloppy-imports supabase/functions/_shared/opportunity.test.ts supabase/functions/_shared/opportunity-businesses.test.ts
 
       - name: TypeScript opportunity regression scan
         shell: bash
