@@ -3,6 +3,7 @@ import type {
   InstagramCandidate,
   InstagramSource,
 } from "../business-presence/types";
+import type { NextActionType } from "../next-actions/types";
 import type {
   DeepConfirmedChannels,
   DeepEnrichmentConfidence,
@@ -70,6 +71,9 @@ export type PersistedLead = {
   deepEnrichmentCheckedAt?: string | undefined;
   projectValue?: number | undefined;
   financialNotes?: string | undefined;
+  nextActionType?: NextActionType | undefined;
+  nextActionDate?: string | undefined;
+  nextActionNotes?: string | undefined;
 };
 
 export type LeadUpdateRecord = {
@@ -141,6 +145,9 @@ type RemoteLead = {
   deep_enrichment_checked_at: string | null;
   project_value: number | string | null;
   financial_notes: string | null;
+  next_action_type: NextActionType | null;
+  next_action_date: string | null;
+  next_action_notes: string | null;
 };
 
 type RemoteLeadUpdate = {
@@ -231,6 +238,9 @@ function toRemote(lead: PersistedLead, userId: string) {
     deep_enrichment_checked_at: lead.deepEnrichmentCheckedAt,
     project_value: lead.projectValue,
     financial_notes: lead.financialNotes,
+    next_action_type: lead.nextActionType ?? null,
+    next_action_date: lead.nextActionDate ?? null,
+    next_action_notes: lead.nextActionNotes?.trim() || null,
   });
 }
 
@@ -293,6 +303,9 @@ function fromRemote(row: RemoteLead): PersistedLead {
           ? row.project_value
           : Number(row.project_value),
     financialNotes: row.financial_notes ?? undefined,
+    nextActionType: row.next_action_type ?? undefined,
+    nextActionDate: row.next_action_date ?? undefined,
+    nextActionNotes: row.next_action_notes ?? undefined,
   };
 }
 
