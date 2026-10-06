@@ -7,7 +7,6 @@ import {
   MessageCircle,
   Plus,
   Search,
-  Sparkles,
   Trash2,
   X,
 } from "lucide-react";
@@ -49,7 +48,6 @@ import {
   calculateLeadChance,
   hasEnoughDataForLeadChance,
 } from "../features/lead-chance/lead-chance";
-import { PromptGenerator } from "../features/prompt-generator/PromptGenerator";
 import { OpenNowNichesView } from "../features/open-now-niches/OpenNowNichesView";
 import { OpportunityView } from "../features/opportunities/OpportunityView";
 import { loadOpportunityData } from "../features/opportunities/opportunity-data";
@@ -57,8 +55,6 @@ import type { OpportunityRecord } from "../features/opportunities/types";
 import { AppShell, type AppView } from "../components/app-shell/AppShell";
 import { DashboardView } from "../components/dashboard/DashboardView";
 import { FinanceView } from "../components/finance/FinanceView";
-import { makePromptBusinessKey } from "../features/prompt-generator/storage";
-import type { PromptBusinessContext } from "../features/prompt-generator/types";
 import {
   BusinessDetailsModal,
   type BusinessAddResult,
@@ -214,15 +210,6 @@ const INSTAGRAM_SOURCE_LABEL: Record<InstagramSource, string> = {
   existing_data: "Dados existentes",
 };
 
-function confirmedInstagram(
-  value: string | null | undefined,
-  confidence: "high" | "medium" | "low" | null | undefined,
-) {
-  return value && confidence !== "medium" && confidence !== "low"
-    ? value
-    : null;
-}
-
 function LeadFlowApp() {
   const navigate = useNavigate();
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -255,8 +242,6 @@ function LeadFlowApp() {
   const [deleteLead, setDeleteLead] = useState<Lead | null>(null);
   const [enrichmentLead, setEnrichmentLead] = useState<Lead | null>(null);
   const [leadDetailsId, setLeadDetailsId] = useState<string | null>(null);
-  const [promptBusiness, setPromptBusiness] = useState<PromptBusinessContext | null>(null);
-  const [promptActivityLeadId, setPromptActivityLeadId] = useState<string | null>(null);
   const [activityError, setActivityError] = useState("");
   const [savedNotice, setSavedNotice] = useState(false);
   const [dashboardOpportunities, setDashboardOpportunities] = useState<
@@ -641,7 +626,6 @@ function LeadFlowApp() {
       type:
         | "lead_added"
         | "whatsapp_opened"
-        | "prompt_generated"
         | "status_changed"
         | "company_updated"
         | "lead_edited";
@@ -1075,89 +1059,6 @@ function LeadFlowApp() {
     localStorage.setItem(STORAGE.messages, JSON.stringify(messages));
     setSavedNotice(true);
     window.setTimeout(() => setSavedNotice(false), 1800);
-  }
-
-  function openPromptForBusiness(
-    business: BusinessSearchResult,
-    selectedSegment: string,
-  ) {
-    const existingLead = findBusinessDuplicate(business, leads);
-    setPromptActivityLeadId(existingLead?.id ?? null);
-    setPromptBusiness({
-      key: makePromptBusinessKey({
-        placeId: business.placeId,
-        company: business.name,
-        phone: business.phone,
-        address: business.address,
-      }),
-      company: business.name,
-      segment: selectedSegment || business.primaryCategory || "Empresa local",
-      primaryCategory: business.primaryCategory,
-      categories: business.categories,
-      description:
-        business.factualDescription ??
-        buildFactualBusinessDescription(business),
-      address: business.address,
-      neighborhood: business.neighborhood,
-      city: business.city,
-      state: business.state,
-      phone: business.phone,
-      internationalPhone: business.internationalPhone,
-      rating: business.rating,
-      reviewCount: business.reviewCount,
-      openingHours: business.openingHours,
-      businessStatus: business.businessStatus,
-      website: business.website,
-      instagram: confirmedInstagram(
-        business.instagram,
-        business.instagramConfidence,
-      ),
-      googleMapsUrl: business.googleMapsUrl,
-      latitude: business.latitude,
-      longitude: business.longitude,
-      verifiedImages: business.verifiedImages ?? [],
-      confirmedChannels: business.confirmedChannels ?? {},
-      verifiedContent: business.verifiedContent ?? {},
-    });
-  }
-
-  function openPromptForLead(lead: Lead) {
-    setPromptActivityLeadId(lead.id);
-    setPromptBusiness({
-      key: makePromptBusinessKey({
-        placeId: lead.placeId,
-        company: lead.company,
-        phone: lead.phone,
-        address: lead.address,
-      }),
-      company: lead.company,
-      segment: lead.segment,
-      primaryCategory: lead.primaryCategory ?? null,
-      categories: lead.categories ?? [],
-      description: lead.factualDescription ?? lead.description ?? null,
-      address: lead.address ?? null,
-      neighborhood: lead.neighborhood ?? null,
-      city: lead.city ?? null,
-      state: lead.state ?? null,
-      phone: lead.phone || null,
-      internationalPhone: lead.internationalPhone ?? null,
-      rating: lead.rating ?? null,
-      reviewCount: lead.reviewCount ?? null,
-      openingHours: lead.openingHours ?? [],
-      businessStatus: lead.businessStatus ?? null,
-      website: lead.website ?? null,
-      instagram: confirmedInstagram(
-        lead.instagram,
-        lead.instagramConfidence,
-      ),
-      googleMapsUrl: lead.googleMapsUrl ?? null,
-      latitude: lead.latitude ?? null,
-      longitude: lead.longitude ?? null,
-      notes: lead.notes || null,
-      verifiedImages: lead.verifiedImages ?? [],
-      confirmedChannels: lead.confirmedChannels ?? {},
-      verifiedContent: lead.verifiedContent ?? {},
-    });
   }
 
   function applyDeepEnrichmentToLead(
@@ -1871,7 +1772,6 @@ function LeadFlowApp() {
                       setSelectedMessage(0);
                       setMessageLead(item);
                     }}
-                    onGeneratePrompt={openPromptForLead}
                     onDetails={openLeadDetails}
                     updateCount={unseenUpdatesByLead.get(lead.id) ?? 0}
                     onEnrich={setEnrichmentLead}
@@ -1896,7 +1796,6 @@ function LeadFlowApp() {
                       setSelectedMessage(0);
                       setMessageLead(item);
                     }}
-                    onGeneratePrompt={openPromptForLead}
                     onDetails={openLeadDetails}
                     updateCount={unseenUpdatesByLead.get(lead.id) ?? 0}
                     onEnrich={setEnrichmentLead}
@@ -1919,7 +1818,6 @@ function LeadFlowApp() {
             setSelectedMessage(0);
             setMessageLead(target);
           }}
-          onGeneratePrompt={openPromptForBusiness}
         />
       ) : view === "open-now" ? (
         <OpenNowNichesView
@@ -1930,7 +1828,6 @@ function LeadFlowApp() {
             setSelectedMessage(0);
             setMessageLead(target);
           }}
-          onGeneratePrompt={openPromptForBusiness}
         />
       ) : view === "opportunities" ? (
         <OpportunityView
@@ -1941,7 +1838,6 @@ function LeadFlowApp() {
             setSelectedMessage(0);
             setMessageLead(target);
           }}
-          onGeneratePrompt={openPromptForBusiness}
           onGoSearch={() => setView("search")}
         />
       ) : view === "finance" ? (
@@ -2128,10 +2024,6 @@ function LeadFlowApp() {
               setSelectedMessage(0);
               setMessageLead(lead);
             }}
-            onGeneratePrompt={() => {
-              setLeadDetailsId(null);
-              openPromptForLead(lead);
-            }}
             onPresenceUpdate={(presence) =>
               applyPresenceToLead(lead.id, presence)
             }
@@ -2159,31 +2051,6 @@ function LeadFlowApp() {
           existingLeads={leads}
           onConfirm={(business) => applyEnrichment(enrichmentLead.id, business)}
           onClose={() => setEnrichmentLead(null)}
-        />
-      )}
-
-      {promptBusiness && (
-        <PromptGenerator
-          business={promptBusiness}
-          onClose={() => {
-            setPromptBusiness(null);
-            setPromptActivityLeadId(null);
-          }}
-          onGenerated={(generation) => {
-            if (!promptActivityLeadId) return;
-
-            recordActivity(promptActivityLeadId, {
-              type: "prompt_generated",
-              title: generation.regenerated
-                ? "Prompt de landing page gerado novamente"
-                : "Prompt de landing page gerado",
-              metadata: {
-                promptVersion: generation.generatedAt,
-                projectType: generation.projectType,
-                objective: generation.objective,
-              },
-            });
-          }}
         />
       )}
 
@@ -2263,7 +2130,6 @@ function LeadRow({
   finance,
   onStatus,
   onMessage,
-  onGeneratePrompt,
   onDetails,
   updateCount,
   onEnrich,
@@ -2274,7 +2140,6 @@ function LeadRow({
   finance: LeadFinanceSummary | null;
   onStatus: (id: string, status: Status) => void;
   onMessage: (lead: Lead) => void;
-  onGeneratePrompt: (lead: Lead) => void;
   onDetails: (lead: Lead) => void;
   updateCount: number;
   onEnrich: (lead: Lead) => void;
@@ -2340,15 +2205,6 @@ function LeadRow({
             <span>{lead.placeId ? "Atualizar informações" : "Buscar informações"}</span>
           </button>
         )}
-        <button
-          className="prompt-button"
-          onClick={() => onGeneratePrompt(lead)}
-          type="button"
-          title="Gerar prompt"
-        >
-          <Sparkles size={15} />
-          <span>Gerar prompt</span>
-        </button>
         <button className="row-icon" onClick={() => onEdit(lead)} type="button" title="Editar">
           <Edit3 size={16} />
         </button>
@@ -2365,7 +2221,6 @@ function LeadCard({
   finance,
   onStatus,
   onMessage,
-  onGeneratePrompt,
   onDetails,
   updateCount,
   onEnrich,
@@ -2376,7 +2231,6 @@ function LeadCard({
   finance: LeadFinanceSummary | null;
   onStatus: (id: string, status: Status) => void;
   onMessage: (lead: Lead) => void;
-  onGeneratePrompt: (lead: Lead) => void;
   onDetails: (lead: Lead) => void;
   updateCount: number;
   onEnrich: (lead: Lead) => void;
@@ -2433,10 +2287,6 @@ function LeadCard({
             {lead.placeId ? "Atualizar informações" : "Buscar informações"}
           </button>
         )}
-        <button className="prompt-button" onClick={() => onGeneratePrompt(lead)} type="button">
-          <Sparkles size={15} />
-          Gerar prompt
-        </button>
         <button className="row-icon" onClick={() => onEdit(lead)} type="button" aria-label="Editar">
           <Edit3 size={17} />
         </button>
