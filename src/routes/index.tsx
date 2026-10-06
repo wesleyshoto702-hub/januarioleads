@@ -335,8 +335,12 @@ function LeadFlowApp() {
     if (!remoteReady) return;
 
     let active = true;
+    let refreshInFlight = false;
 
     async function refreshRemoteState() {
+      if (!active || refreshInFlight) return;
+      refreshInFlight = true;
+
       try {
         const [remoteLeads, updates] = await Promise.all([
           fetchRemoteLeads(),
@@ -361,13 +365,32 @@ function LeadFlowApp() {
         setRemoteError(
           "Não foi possível atualizar a cópia remota agora. O CRM continua disponível localmente.",
         );
+      } finally {
+        refreshInFlight = false;
+      }
+    }
+
+    function refreshWhenVisible() {
+      if (document.visibilityState === "visible") {
+        void refreshRemoteState();
+      }
+    }
+
+    function refreshAfterPageRestore(event: PageTransitionEvent) {
+      if (event.persisted) {
+        void refreshRemoteState();
       }
     }
 
     window.addEventListener("focus", refreshRemoteState);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    window.addEventListener("pageshow", refreshAfterPageRestore);
+
     return () => {
       active = false;
       window.removeEventListener("focus", refreshRemoteState);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+      window.removeEventListener("pageshow", refreshAfterPageRestore);
     };
   }, [remoteReady]);
 
@@ -1627,7 +1650,7 @@ function LeadFlowApp() {
               <div className="auto-sync-status">
                 <span className={remoteReady ? "sync-dot active" : "sync-dot"} />
                 <span>{remoteReady ? "Ativada" : "Conectando"}</span>
-                <small>1 vez por dia</small>
+                <small>A cada 8 horas</small>
               </div>
             </div>
 
