@@ -1,3 +1,5 @@
+/// <reference lib="dom" />
+
 export const WHATSAPP_MOBILE_FALLBACK_MS = 1_500;
 
 export type WhatsAppLinkOptions = {
