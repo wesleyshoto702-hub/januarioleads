@@ -1,0 +1,32 @@
+name: Temporary Opportunity Validation
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: TypeScript
+        run: bunx tsc --noEmit
+
+      - name: Build
+        run: bun run build
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Opportunity tests
+        run: deno test --unstable-sloppy-imports supabase/functions/_shared/opportunity.test.ts supabase/functions/_shared/opportunity-businesses.test.ts
