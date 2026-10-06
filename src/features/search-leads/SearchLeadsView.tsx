@@ -7,7 +7,6 @@ import {
   MessageCircle,
   Phone,
   Search,
-  Sparkles,
   Star,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -168,7 +167,6 @@ export function SearchLeadsView({
   existingLeads,
   onAddLead,
   onMessage,
-  onGeneratePrompt,
   onDeepEnrichmentApplied,
 }: {
   existingLeads: ExistingLeadIdentity[];
@@ -177,7 +175,6 @@ export function SearchLeadsView({
     selectedSegment: string,
   ) => Promise<BusinessAddResult>;
   onMessage: (target: SearchMessageTarget) => void;
-  onGeneratePrompt: (business: BusinessSearchResult, selectedSegment: string) => void;
   onDeepEnrichmentApplied?: (
     leadId: string,
     value: DeepEnrichmentApplied,
@@ -777,7 +774,6 @@ export function SearchLeadsView({
               onDetails={setDetails}
               onWhatsApp={openWhatsApp}
               onMessage={onMessage}
-              onGeneratePrompt={(item) => onGeneratePrompt(item, resultsSegment)}
               onAdd={(item) => {
                 void onAddLead(item, resultsSegment);
               }}
@@ -831,18 +827,6 @@ export function SearchLeadsView({
               ...(leadId ? { id: leadId } : {}),
             });
           }}
-          onGeneratePrompt={(item) => {
-            setDetails(null);
-            onGeneratePrompt(
-              {
-                ...item,
-                factualDescription:
-                  item.factualDescription ??
-                  buildFactualBusinessDescription(item),
-              },
-              resultsSegment,
-            );
-          }}
           onPresenceUpdate={(presence) =>
             updateBusinessPresence(details.placeId, presence)
           }
@@ -873,7 +857,6 @@ function BusinessCard({
   onDetails,
   onWhatsApp,
   onMessage,
-  onGeneratePrompt,
   onAdd,
 }: {
   business: BusinessSearchResult;
@@ -882,7 +865,6 @@ function BusinessCard({
   onDetails: (business: BusinessSearchResult) => void;
   onWhatsApp: (business: BusinessSearchResult) => void;
   onMessage: (target: SearchMessageTarget) => void;
-  onGeneratePrompt: (business: BusinessSearchResult) => void;
   onAdd: (business: BusinessSearchResult) => void;
 }) {
   const commercialPhone = existingLead?.phone || business.phone || "";
@@ -991,14 +973,6 @@ function BusinessCard({
               : "Mandar mensagem"}
           </button>
         )}
-        <button
-          type="button"
-          className="secondary-button compact-button prompt-button"
-          onClick={() => onGeneratePrompt(business)}
-        >
-          <Sparkles size={14} />
-          Gerar prompt
-        </button>
         {!existingLead && (
           <button
             type="button"
