@@ -1,4 +1,9 @@
 import type { OpeningHoursSnapshot } from "../_shared/open-now.ts";
+import {
+  findBrazilianState,
+  normalizeBrazilianStateCode,
+} from "../_shared/brazil-locations.ts";
+import { ALL_SEARCH_SEGMENTS } from "../_shared/niche-catalog.ts";
 type BusinessSearchResult = {
   placeId: string;
   name: string;
@@ -133,12 +138,8 @@ const corsHeaders = {
   "Content-Type": "application/json; charset=utf-8",
 };
 
-const SUPPORTED_SEARCH_STATE = {
-  code: "MG",
-  name: "Minas Gerais",
-} as const;
-
 const LEGACY_DEFAULT_CITY = "Lavras";
+const LEGACY_DEFAULT_STATE = "MG";
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -193,11 +194,11 @@ function hasValidClientKey(request: Request) {
   return Boolean(providedKey && allowedKeys.includes(providedKey));
 }
 
-function component(place: GooglePlace, type: string) {
-  return (
-    place.addressComponents?.find((item) => item.types?.includes(type))
-      ?.longText ?? null
+function component(place: GooglePlace, type: string, short = false) {
+  const item = place.addressComponents?.find((entry) =>
+    entry.types?.includes(type)
   );
+  return (short ? item?.shortText : item?.longText)?.trim() || null;
 }
 
 function parseNeighborhood(place: GooglePlace) {
@@ -247,7 +248,11 @@ function parsePlace(place: GooglePlace): BusinessSearchResult | null {
     address: place.formattedAddress?.trim() || null,
     neighborhood: parseNeighborhood(place),
     city: parseCity(place),
-    state: component(place, "administrative_area_level_1"),
+    state:
+      normalizeBrazilianStateCode(
+        component(place, "administrative_area_level_1", true) ??
+          component(place, "administrative_area_level_1"),
+      ) || component(place, "administrative_area_level_1"),
     phone: place.nationalPhoneNumber?.trim() || null,
     internationalPhone: place.internationalPhoneNumber?.trim() || null,
     rating: typeof place.rating === "number" ? place.rating : null,
@@ -305,25 +310,21 @@ function normalizeCityInput(value: unknown) {
 
 function normalizeStateInput(value: unknown) {
   if (typeof value !== "string") return null;
-  const state = normalize(value);
-  if (state === "mg" || state === "minas gerais") {
-    return SUPPORTED_SEARCH_STATE.code;
-  }
-  return null;
+  return normalizeBrazilianStateCode(value) || null;
 }
 
 function addressHasState(
   address: string | null | undefined,
   state: string,
 ) {
+  const stateInfo = findBrazilianState(state);
+  if (!stateInfo) return false;
+
   const normalizedAddress = ` ${normalize(address)} `;
-  if (state === "MG") {
-    return (
-      normalizedAddress.includes(" minas gerais ") ||
-      normalizedAddress.includes(" mg ")
-    );
-  }
-  return false;
+  return (
+    normalizedAddress.includes(` ${normalize(stateInfo.name)} `) ||
+    normalizedAddress.includes(` ${normalize(stateInfo.code)} `)
+  );
 }
 
 function locationMatches(
@@ -332,6 +333,7 @@ function locationMatches(
   state: string,
 ) {
   const expectedCity = normalize(city);
+  const expectedState = normalizeBrazilianStateCode(state);
   const actualCity = normalize(place.city);
   const normalizedAddress = normalize(place.address);
 
@@ -339,13 +341,10 @@ function locationMatches(
     ? actualCity === expectedCity
     : normalizedAddress.includes(expectedCity);
 
-  const actualState = normalize(place.state);
+  const actualState = normalizeBrazilianStateCode(place.state);
   const stateMatches = actualState
-    ? (
-        state === "MG" &&
-        (actualState === "minas gerais" || actualState === "mg")
-      )
-    : addressHasState(place.address, state);
+    ? actualState === expectedState
+    : addressHasState(place.address, expectedState);
 
   return cityMatches && stateMatches;
 }
@@ -366,15 +365,30 @@ function enrichmentLocation(lead: {
   const hasState =
     typeof lead.state === "string" && Boolean(lead.state.trim());
 
-  const city = hasCity
-    ? normalizeCityInput(lead.city)
-    : LEGACY_DEFAULT_CITY;
+  if (!hasCity && !hasState) {
+    return { city: LEGACY_DEFAULT_CITY, state: LEGACY_DEFAULT_STATE };
+  }
+
+  if (!hasCity && hasState) return null;
+
+  const city = normalizeCityInput(lead.city);
   const state = hasState
     ? normalizeStateInput(lead.state)
-    : SUPPORTED_SEARCH_STATE.code;
+    : LEGACY_DEFAULT_STATE;
 
   if (!city || !state) return null;
   return { city, state };
+}
+
+function validSearchSegment(value: string) {
+  const normalized = normalize(value);
+  return ALL_SEARCH_SEGMENTS.some(
+    (segment) => normalize(segment) === normalized,
+  );
+}
+
+function stateName(state: string) {
+  return findBrazilianState(state)?.name ?? state;
 }
 
 function normalizeBrazilianPhone(value: string | null | undefined) {
@@ -768,7 +782,8 @@ async function runSegmentSearch(
   if (
     typeof segment !== "string" ||
     segment.trim().length < 2 ||
-    segment.trim().length > 120
+    segment.trim().length > 120 ||
+    !validSearchSegment(segment)
   ) {
     return failure(
       "INVALID_REQUEST",
@@ -780,7 +795,7 @@ async function runSegmentSearch(
   if (!location) {
     return failure(
       "INVALID_REQUEST",
-      "Informe uma cidade válida de Minas Gerais para realizar a busca.",
+      "Informe uma cidade e uma UF válidas do Brasil para realizar a busca.",
       400,
     );
   }
@@ -800,7 +815,7 @@ async function runSegmentSearch(
 
   const searched = await textSearch(
     googleApiKey,
-    `${segment.trim()} em ${location.city}, ${SUPPORTED_SEARCH_STATE.name}, Brasil`,
+    `${segment.trim()} em ${location.city}, ${stateName(location.state)}, Brasil`,
     20,
     typeof pageToken === "string" ? pageToken.trim() : undefined,
   );
@@ -883,7 +898,7 @@ async function runLeadEnrichment(
   if (!location) {
     return failure(
       "INVALID_REQUEST",
-      "A cidade/UF deste lead não é válida para a busca em Minas Gerais.",
+      "A cidade/UF deste lead não é válida para a busca no Brasil.",
       400,
     );
   }
@@ -959,7 +974,7 @@ async function runLeadEnrichment(
   attemptedLayers.push("name-location");
   const byName = await textSearch(
     googleApiKey,
-    `${normalizedLead.company} em ${normalizedLead.city}, ${SUPPORTED_SEARCH_STATE.name}, Brasil`,
+    `${normalizedLead.company} em ${normalizedLead.city}, ${stateName(normalizedLead.state)}, Brasil`,
     10,
   );
   if (!byName.ok) return byName.response;
@@ -992,7 +1007,7 @@ async function runLeadEnrichment(
   attemptedLayers.push("name-segment-location");
   const bySegment = await textSearch(
     googleApiKey,
-    `${normalizedLead.company} ${normalizedLead.segment} em ${normalizedLead.city}, ${SUPPORTED_SEARCH_STATE.name}, Brasil`,
+    `${normalizedLead.company} ${normalizedLead.segment} em ${normalizedLead.city}, ${stateName(normalizedLead.state)}, Brasil`,
     10,
   );
   if (!bySegment.ok) return bySegment.response;
