@@ -260,7 +260,7 @@ O JanuarioLeads agora possui sincronização periódica dos leads que têm `plac
 ### Arquitetura
 
 ```text
-Supabase Cron (1x por dia)
+Supabase Cron (a cada 8 horas)
 -> pg_net
 -> Edge Function sync-leads
 -> Google Places Place Details (New)
@@ -270,7 +270,7 @@ Supabase Cron (1x por dia)
 -> JanuarioLeads
 ```
 
-O job ativo é `sync-leads-daily`, configurado para `0 6 * * *` (06:00 UTC / 03:00 em America/Sao_Paulo).
+O job ativo é `sync-leads-daily`, configurado para `0 */8 * * *` (00:00, 08:00 e 16:00 UTC; 21:00, 05:00 e 13:00 em America/Sao_Paulo, considerando UTC-3).
 
 ### Persistência e migração
 
