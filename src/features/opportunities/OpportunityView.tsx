@@ -36,6 +36,11 @@ import type {
 } from "./types";
 import "./opportunities.css";
 import { openWhatsAppLink } from "../../lib/whatsapp";
+import {
+  BRAZIL_STATES,
+  DEFAULT_BRAZIL_STATE,
+  findBrazilianState,
+} from "../../lib/brazil-locations";
 
 type RankingMode = "city" | "segment";
 type BusinessFilter =
@@ -127,6 +132,7 @@ export function OpportunityView({
   const [partial, setPartial] = useState(false);
   const [error, setError] = useState("");
   const [mode, setMode] = useState<RankingMode>("city");
+  const [state, setState] = useState(DEFAULT_BRAZIL_STATE.code);
   const [city, setCity] = useState("");
   const [segment, setSegment] = useState("");
   const [minScore, setMinScore] = useState(0);
@@ -176,20 +182,47 @@ export function OpportunityView({
     };
   }, [existingLeads]);
 
-  const cities = useMemo(
+  const availableStates = useMemo(
     () =>
-      Array.from(new Set(records.map((record) => record.city))).sort((a, b) =>
-        a.localeCompare(b, "pt-BR"),
+      BRAZIL_STATES.filter((item) =>
+        records.some((record) => record.state === item.code),
       ),
     [records],
   );
 
+  useEffect(() => {
+    const firstState = availableStates[0]?.code ?? DEFAULT_BRAZIL_STATE.code;
+    if (!availableStates.some((item) => item.code === state)) {
+      setState(
+        availableStates.some((item) => item.code === DEFAULT_BRAZIL_STATE.code)
+          ? DEFAULT_BRAZIL_STATE.code
+          : firstState,
+      );
+    }
+  }, [availableStates, state]);
+
+  const cities = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          records
+            .filter((record) => record.state === state)
+            .map((record) => record.city),
+        ),
+      ).sort((a, b) => a.localeCompare(b, "pt-BR")),
+    [records, state],
+  );
+
   const segments = useMemo(
     () =>
-      Array.from(new Set(records.map((record) => record.segment))).sort((a, b) =>
-        a.localeCompare(b, "pt-BR"),
-      ),
-    [records],
+      Array.from(
+        new Set(
+          records
+            .filter((record) => record.state === state)
+            .map((record) => record.segment),
+        ),
+      ).sort((a, b) => a.localeCompare(b, "pt-BR")),
+    [records, state],
   );
 
   useEffect(() => {
@@ -206,6 +239,7 @@ export function OpportunityView({
 
   const ranking = useMemo(() => {
     const filtered = records.filter((record) => {
+      if (record.state !== state) return false;
       if (mode === "city" && record.city !== city) return false;
       if (mode === "segment" && record.segment !== segment) return false;
       if (record.score < minScore) return false;
@@ -238,6 +272,7 @@ export function OpportunityView({
     });
   }, [
     records,
+    state,
     mode,
     city,
     segment,
@@ -331,8 +366,8 @@ export function OpportunityView({
     <section className="page-wrap opportunity-page">
       <div className="page-heading opportunity-heading">
         <div>
-          <p className="eyebrow">INTELIGÊNCIA COMERCIAL · MINAS GERAIS</p>
-          <h1>Oportunidades em MG</h1>
+          <p className="eyebrow">INTELIGÊNCIA COMERCIAL · BRASIL</p>
+          <h1>Oportunidades</h1>
           <p className="subtitle">
             Rankings calculados somente a partir das empresas já observadas pelo
             JanuarioLeads.
@@ -387,6 +422,18 @@ export function OpportunityView({
       </div>
 
       <div className="opportunity-filters">
+        <OpportunitySelect
+          label="Estado"
+          value={state}
+          onChange={(value) => {
+            setState(value);
+            setSelected(null);
+          }}
+          options={availableStates.map(
+            (item) => [item.code, `${item.name} (${item.code})`] as [string, string],
+          )}
+        />
+
         {mode === "city" ? (
           <OpportunitySelect
             label="Cidade"
