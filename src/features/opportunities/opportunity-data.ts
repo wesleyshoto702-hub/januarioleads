@@ -202,7 +202,11 @@ export function summarizeOpportunities(
 
   for (const record of records) {
     for (const business of record.businesses) {
-      if (!businesses.has(business.placeId)) {
+      const previous = businesses.get(business.placeId);
+      if (
+        !previous ||
+        (!hasIdentifiedWebsite(previous) && hasIdentifiedWebsite(business))
+      ) {
         businesses.set(business.placeId, business);
       }
     }
