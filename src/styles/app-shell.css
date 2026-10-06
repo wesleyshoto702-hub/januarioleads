@@ -1279,3 +1279,100 @@ body {
     min-height: 42px;
   }
 }
+
+
+/* Business details remains the same feature, presented as a denser product panel. */
+.business-detail-modal {
+  width: min(960px, calc(100vw - 56px));
+  max-height: calc(100dvh - 48px);
+  border-radius: 12px;
+}
+
+.business-detail-modal .modal-header {
+  padding: 15px 18px;
+}
+
+.business-detail-modal .detail-name-line h2 {
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.business-detail-modal .business-detail-content {
+  padding: 18px;
+}
+
+.business-detail-modal .detail-grid {
+  border-radius: 8px;
+}
+
+.saas-main .actions-cell .enrichment-button,
+.saas-main .actions-cell .prompt-button {
+  min-height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+}
+
+.saas-main .actions-cell .enrichment-button:hover,
+.saas-main .actions-cell .prompt-button:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+@media (max-width: 1320px) {
+  .saas-main .actions-cell .enrichment-button,
+  .saas-main .actions-cell .prompt-button {
+    width: 34px;
+    padding-inline: 0;
+    justify-content: center;
+  }
+
+  .saas-main .actions-cell .enrichment-button span,
+  .saas-main .actions-cell .prompt-button span {
+    display: none;
+  }
+}
+
+@media (max-width: 1180px) and (min-width: 901px) {
+  .saas-main .table-head,
+  .saas-main .table-row {
+    grid-template-columns: 1.35fr .9fr .95fr 1.3fr;
+  }
+
+  .saas-main .table-head span:nth-child(4),
+  .saas-main .date-cell {
+    display: none;
+  }
+}
+
+@media (max-width: 620px) {
+  .modal-backdrop:has(.business-detail-modal) {
+    align-items: stretch;
+    padding: 0;
+  }
+
+  .business-detail-modal {
+    width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .business-detail-modal .modal-header {
+    padding:
+      calc(13px + env(safe-area-inset-top))
+      14px
+      13px;
+  }
+
+  .business-detail-modal .business-detail-content {
+    padding:
+      15px
+      14px
+      calc(22px + env(safe-area-inset-bottom));
+  }
+}
