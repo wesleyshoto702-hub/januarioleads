@@ -545,7 +545,7 @@ export function OpportunityView({
               selectedBusinesses.map((business) => {
                 const existingLead = findBusinessDuplicate(
                   business,
-                  existingLeads,
+                  existingLeadIdentities,
                 );
                 return (
                   <article
