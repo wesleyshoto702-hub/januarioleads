@@ -2579,7 +2579,7 @@ function EmptyState({ onNew, hasLeads }: { onNew: () => void; hasLeads: boolean 
       <p>
         {hasLeads
           ? "Tente mudar a busca ou os filtros."
-          : "Cadastre uma empresa e ela já entra como Aguardando."}
+          : "Cadastre uma empresa e ela entra como Enviar mensagem."}
       </p>
       {!hasLeads && (
         <button className="secondary-button" type="button" onClick={onNew}>
