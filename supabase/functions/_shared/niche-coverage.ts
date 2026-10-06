@@ -1,5 +1,5 @@
 // Operational niche coverage shared by Open Now.
-// Kept separate from the retired site/prompt planning system.
+// Kept independent from removed page-planning features.
 export type NicheFamily =
   | "generic_local_business"
   | "food"
