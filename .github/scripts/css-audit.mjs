@@ -157,7 +157,8 @@ const oldNav = [
   "app-shell","topbar","topbar-inner","topbar-actions","topnav","nav-link","brand","brand-mark",
   "brand-word","brand-accent","logout-button","open-now-nav-full","open-now-nav-short"
 ];
-console.log("\\n### JSX_CLASS_TOKEN_COUNT", usedClassTokens.size);\nconsole.log("\\n### OLD_NAV_USAGE");
+console.log("\\n### JSX_CLASS_TOKEN_COUNT", usedClassTokens.size);
+console.log("\\n### OLD_NAV_USAGE");
 for (const cls of oldNav) console.log(cls, tokenUsage(cls));
 
 console.log("\\n### SAME SELECTOR IN styles.css + app-shell.css");
