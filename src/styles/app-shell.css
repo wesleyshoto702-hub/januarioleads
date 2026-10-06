@@ -1376,3 +1376,26 @@ body {
       calc(22px + env(safe-area-inset-bottom));
   }
 }
+
+
+@media (max-width: 900px) {
+  .saas-main .stats-strip .stat-item {
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .saas-main .stats-strip .stat-item:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .saas-main .stats-strip .stat-item:nth-child(3),
+  .saas-main .stats-strip .stat-item:nth-child(4) {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .saas-main .stats-strip .stat-item:last-child {
+    grid-column: 1 / -1;
+    border-right: 0;
+    border-bottom: 0;
+  }
+}
