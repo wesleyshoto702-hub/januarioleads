@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import ts from "typescript";
 
 const root = process.cwd();
 
@@ -15,7 +16,50 @@ function walk(dir) {
 }
 
 const sourceFiles = walk(path.join(root, "src")).filter((p) => /\.(ts|tsx|js|jsx)$/.test(p));
-const sourceText = sourceFiles.map((p) => fs.readFileSync(p, "utf8")).join("\n");
+const usedClassTokens = new Set();
+
+function addClassText(value) {
+  for (const token of value.split(/\s+/)) {
+    if (token && /^[A-Za-z0-9_-]+$/.test(token)) usedClassTokens.add(token);
+  }
+}
+
+function collectClassExpression(node) {
+  if (!node) return;
+  if (ts.isStringLiteralLike(node)) addClassText(node.text);
+  if (ts.isTemplateExpression(node)) {
+    addClassText(node.head.text);
+    for (const span of node.templateSpans) addClassText(span.literal.text);
+  }
+  ts.forEachChild(node, collectClassExpression);
+}
+
+for (const file of sourceFiles) {
+  const source = fs.readFileSync(file, "utf8");
+  const sf = ts.createSourceFile(
+    file,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+  );
+
+  function visit(node) {
+    if (
+      ts.isJsxAttribute(node) &&
+      node.name.getText(sf) === "className" &&
+      node.initializer
+    ) {
+      if (ts.isStringLiteral(node.initializer)) addClassText(node.initializer.text);
+      else if (ts.isJsxExpression(node.initializer) && node.initializer.expression) {
+        collectClassExpression(node.initializer.expression);
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sf);
+}
 
 const cssPaths = [
   "src/styles.css",
@@ -86,9 +130,7 @@ function classesFromSelector(selector) {
 }
 
 function tokenUsage(cls) {
-  const esc = cls.replace(/[.*+?^$()|[\]{}\\]/g, "\\\\$&");
-  const re = new RegExp("(^|[^A-Za-z0-9_-])" + esc + "([^A-Za-z0-9_-]|$)", "g");
-  return (sourceText.match(re) || []).length;
+  return usedClassTokens.has(cls) ? 1 : 0;
 }
 
 const dynamicAllow = new Set([
@@ -115,7 +157,7 @@ const oldNav = [
   "app-shell","topbar","topbar-inner","topbar-actions","topnav","nav-link","brand","brand-mark",
   "brand-word","brand-accent","logout-button","open-now-nav-full","open-now-nav-short"
 ];
-console.log("\\n### OLD_NAV_USAGE");
+console.log("\\n### JSX_CLASS_TOKEN_COUNT", usedClassTokens.size);\nconsole.log("\\n### OLD_NAV_USAGE");
 for (const cls of oldNav) console.log(cls, tokenUsage(cls));
 
 console.log("\\n### SAME SELECTOR IN styles.css + app-shell.css");
