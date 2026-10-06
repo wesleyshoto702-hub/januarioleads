@@ -53,6 +53,7 @@ import type {
   OpenNowBusiness,
   OpenNowNicheCache,
 } from "./types";
+import { openWhatsAppLink } from "../../lib/whatsapp";
 
 type NicheSort = "open-desc" | "chance-desc" | "az";
 type NicheFilter =
@@ -234,16 +235,14 @@ function hasWhatsapp(business: OpenNowBusiness) {
 }
 
 function openWhatsapp(business: BusinessSearchResult) {
-  const confirmed = business.confirmedChannels?.whatsappUrl;
-  if (confirmed) {
-    window.open(confirmed, "_blank", "noopener,noreferrer");
-    return;
-  }
   const phone = normalizeBrazilianPhone(
     business.phone ?? business.internationalPhone,
   );
-  if (phone) {
-    window.open(`https://wa.me/${phone}`, "_blank", "noopener,noreferrer");
+  if (phone && openWhatsAppLink({ phone })) return;
+
+  const confirmed = business.confirmedChannels?.whatsappUrl;
+  if (confirmed) {
+    window.open(confirmed, "_blank", "noopener,noreferrer");
   }
 }
 
