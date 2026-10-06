@@ -73,7 +73,8 @@
   text-transform: uppercase;
 }
 
-.open-now-location input {
+.open-now-location input,
+.open-now-location select {
   width: 100%;
   height: 38px;
   border: 1px solid var(--border);
@@ -85,8 +86,15 @@
   font-size: 12px;
 }
 
-.open-now-location input:focus {
+.open-now-location input:focus,
+.open-now-location select:focus {
   border-color: color-mix(in srgb, var(--primary) 55%, var(--border));
+}
+
+.open-now-location-error {
+  color: var(--rejected);
+  font-size: 8px;
+  line-height: 1.3;
 }
 
 .open-now-coverage {
@@ -732,7 +740,7 @@
   }
 
   .open-now-location {
-    grid-template-columns: minmax(0, 1fr) 70px;
+    grid-template-columns: 1fr;
   }
 
   .open-now-location .secondary-button {
@@ -911,6 +919,7 @@
   }
 
   .open-now-location input,
+  .open-now-location select,
   .open-now-toolbar .select-wrap select {
     min-height: 44px;
   }
@@ -960,7 +969,7 @@
   }
 
   .open-now-location {
-    grid-template-columns: minmax(0, 1fr) 68px;
+    grid-template-columns: 1fr;
   }
 
   .prospect-company strong,
