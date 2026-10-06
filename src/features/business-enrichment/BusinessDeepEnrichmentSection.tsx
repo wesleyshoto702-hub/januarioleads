@@ -396,7 +396,7 @@ export function BusinessDeepEnrichmentSection({
                   de revisão
                 </strong>
                 <span>
-                  Dados MEDIUM não entram automaticamente no Gerar Prompt.
+                  Dados MEDIUM exigem confirmação antes de serem aplicados ao cadastro.
                 </span>
               </div>
             )}
