@@ -369,8 +369,8 @@ export function OpportunityView({
           <p className="eyebrow">INTELIGÊNCIA COMERCIAL · BRASIL</p>
           <h1>Oportunidades</h1>
           <p className="subtitle">
-            Rankings calculados somente a partir das empresas já observadas pelo
-            JanuarioLeads.
+            Identifique regiões e segmentos com maior potencial de prospecção usando
+            apenas amostras reais já observadas pelo JanuarioLeads.
           </p>
         </div>
         <span
