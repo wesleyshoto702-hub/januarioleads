@@ -1,4 +1,6 @@
 import {
+  CalendarCheck2,
+  CalendarPlus2,
   Edit3,
   FileText,
   MessageCircle,
@@ -22,6 +24,9 @@ function ActivityIcon({ type }: { type: LeadActivity["type"] }) {
   if (type === "company_updated") return <RefreshCw size={14} />;
   if (type === "lead_edited") return <Edit3 size={14} />;
   if (type === "manual_note") return <StickyNote size={14} />;
+  if (type === "next_action_set") return <CalendarPlus2 size={14} />;
+  if (type === "next_action_completed") return <CalendarCheck2 size={14} />;
+  if (type === "follow_up") return <MessageCircle size={14} />;
   return <PenLine size={14} />;
 }
 
