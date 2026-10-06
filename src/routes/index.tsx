@@ -2319,20 +2319,35 @@ function LeadRow({
           Ver empresa
         </button>
         {lead.phone && (
-          <button className="message-button" onClick={() => onMessage(lead)} type="button">
+          <button
+            className="message-button"
+            onClick={() => onMessage(lead)}
+            type="button"
+            title="Mandar mensagem"
+          >
             <MessageCircle size={16} />
-            Mandar mensagem
+            <span>Mandar mensagem</span>
           </button>
         )}
         {lead.source !== "lavras-search" && (
-          <button className="enrichment-button" onClick={() => onEnrich(lead)} type="button">
+          <button
+            className="enrichment-button"
+            onClick={() => onEnrich(lead)}
+            type="button"
+            title={lead.placeId ? "Atualizar informações" : "Buscar informações"}
+          >
             <Search size={15} />
-            {lead.placeId ? "Atualizar informações" : "Buscar informações"}
+            <span>{lead.placeId ? "Atualizar informações" : "Buscar informações"}</span>
           </button>
         )}
-        <button className="prompt-button" onClick={() => onGeneratePrompt(lead)} type="button">
+        <button
+          className="prompt-button"
+          onClick={() => onGeneratePrompt(lead)}
+          type="button"
+          title="Gerar prompt"
+        >
           <Sparkles size={15} />
-          Gerar prompt
+          <span>Gerar prompt</span>
         </button>
         <button className="row-icon" onClick={() => onEdit(lead)} type="button" title="Editar">
           <Edit3 size={16} />
