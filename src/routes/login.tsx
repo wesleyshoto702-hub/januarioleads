@@ -25,11 +25,11 @@ function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [theme, setTheme] = useState<"light" | "dark">("dark");
 
   useEffect(() => {
     const stored = localStorage.getItem("leadflow:theme");
-    const current = stored === "dark" ? "dark" : "light";
+    const current = stored === "light" ? "light" : "dark";
     setTheme(current);
     document.documentElement.classList.toggle("dark", current === "dark");
 
