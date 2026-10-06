@@ -120,7 +120,7 @@ export async function loadBrazilianMunicipalities(
   try {
     const response = await fetch(
       `https://servicodados.ibge.gov.br/api/v1/localidades/estados/${state.ibgeCode}/municipios?orderBy=nome`,
-      { signal },
+      signal ? { signal } : {},
     );
     if (!response.ok) throw new Error("IBGE_REQUEST_FAILED");
 
