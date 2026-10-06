@@ -18,9 +18,10 @@ type FinancialOverview = {
 
 function formatDate(value: string | null | undefined) {
   if (!value) return "—";
-  const timestamp = new Date(value).getTime();
-  if (!Number.isFinite(timestamp)) return value;
-  return new Intl.DateTimeFormat("pt-BR").format(new Date(timestamp));
+  const dateOnly = value.slice(0, 10);
+  const [year, month, day] = dateOnly.split("-");
+  if (year && month && day) return `${day}/${month}/${year}`;
+  return value;
 }
 
 export function FinanceView({
