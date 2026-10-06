@@ -354,7 +354,8 @@ export function SearchLeadsView({
     pageToken?: string,
     append = false,
   ) {
-    append ? setLoadingMore(true) : setLoading(true);
+    if (append) setLoadingMore(true);
+    else setLoading(true);
     setError(null);
 
     const response = await searchBusinesses({
@@ -366,7 +367,8 @@ export function SearchLeadsView({
 
     if (!response.ok) {
       setError({ code: response.code, message: response.message });
-      append ? setLoadingMore(false) : setLoading(false);
+      if (append) setLoadingMore(false);
+      else setLoading(false);
       return;
     }
 
@@ -407,7 +409,8 @@ export function SearchLeadsView({
         segment,
       }),
     );
-    append ? setLoadingMore(false) : setLoading(false);
+    if (append) setLoadingMore(false);
+    else setLoading(false);
   }
 
   function startSearch() {
