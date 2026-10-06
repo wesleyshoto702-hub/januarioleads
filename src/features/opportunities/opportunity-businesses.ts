@@ -159,7 +159,7 @@ function mergeBusiness(
     verifiedContent: current.verifiedContent ?? fallback.verifiedContent ?? null,
     verifiedImages:
       (current.verifiedImages?.length ?? 0) > 0
-        ? current.verifiedImages
+        ? current.verifiedImages!
         : fallback.verifiedImages ?? [],
     confirmedChannels:
       current.confirmedChannels ?? fallback.confirmedChannels ?? null,
