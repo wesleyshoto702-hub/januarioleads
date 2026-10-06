@@ -17,9 +17,15 @@ export function hasIdentifiedWebsite(
   business: Pick<BusinessSearchResult, "website">,
 ) {
   if (!presentText(business.website)) return false;
+  const raw = business.website!.trim();
   try {
-    const url = new URL(business.website!);
-    return url.protocol === "http:" || url.protocol === "https:";
+    const url = new URL(
+      /^https?:\/\//i.test(raw) ? raw : `https://${raw}`,
+    );
+    return (
+      (url.protocol === "http:" || url.protocol === "https:") &&
+      Boolean(url.hostname)
+    );
   } catch {
     return false;
   }
