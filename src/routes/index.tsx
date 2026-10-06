@@ -53,6 +53,7 @@ import {
 } from "../features/lead-chance/lead-chance";
 import { PromptGenerator } from "../features/prompt-generator/PromptGenerator";
 import { OpenNowNichesView } from "../features/open-now-niches/OpenNowNichesView";
+import { OpportunityView } from "../features/opportunities/OpportunityView";
 import { makePromptBusinessKey } from "../features/prompt-generator/storage";
 import type { PromptBusinessContext } from "../features/prompt-generator/types";
 import {
@@ -237,7 +238,7 @@ function LeadFlowApp() {
   const [financeLoaded, setFinanceLoaded] = useState(false);
   const [financeError, setFinanceError] = useState("");
   const [view, setView] = useState<
-    "leads" | "search" | "open-now" | "messages"
+    "leads" | "search" | "open-now" | "opportunities" | "messages"
   >("leads");
   const [leadModal, setLeadModal] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
@@ -1525,6 +1526,13 @@ function LeadFlowApp() {
               <span className="open-now-nav-short">Abertos</span>
             </button>
             <button
+              className={view === "opportunities" ? "nav-link active" : "nav-link"}
+              onClick={() => setView("opportunities")}
+              type="button"
+            >
+              Oportunidades
+            </button>
+            <button
               className={view === "messages" ? "nav-link active" : "nav-link"}
               onClick={() => setView("messages")}
               type="button"
@@ -1824,6 +1832,18 @@ function LeadFlowApp() {
             setMessageLead(target);
           }}
           onGeneratePrompt={openPromptForBusiness}
+        />
+      ) : view === "opportunities" ? (
+        <OpportunityView
+          existingLeads={leads}
+          onAddLead={addFoundLeadConfirmed}
+          onDeepEnrichmentApplied={applyDeepEnrichmentToLead}
+          onMessage={(target) => {
+            setSelectedMessage(0);
+            setMessageLead(target);
+          }}
+          onGeneratePrompt={openPromptForBusiness}
+          onGoSearch={() => setView("search")}
         />
       ) : (
         <MessagesView
