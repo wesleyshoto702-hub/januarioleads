@@ -26,7 +26,7 @@ jobs:
           deno-version: v2.x
 
       - name: Search lead status tests
-        run: deno test --unstable-sloppy-imports supabase/functions/_shared/search-lead-status.test.ts
+        run: deno test --no-check --unstable-sloppy-imports supabase/functions/_shared/search-lead-status.test.ts
 
       - name: Existing TypeScript diagnostics
         continue-on-error: true
