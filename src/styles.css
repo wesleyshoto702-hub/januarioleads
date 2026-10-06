@@ -1477,6 +1477,106 @@ select{
   background: var(--surface);
 }
 
+.quick-filters{
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.quick-filters-heading{
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.quick-filters-heading > span{
+  color: var(--faint);
+  font-size: 8px;
+  font-weight: 760;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.quick-filter-clear{
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 7px;
+  padding: 4px 7px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.quick-filter-clear:hover{
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.quick-filter-list{
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.quick-filter-chip{
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0 10px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 650;
+  white-space: nowrap;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.quick-filter-chip:hover{
+  border-color: var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.quick-filter-chip.active{
+  border-color: color-mix(in srgb, var(--primary) 42%, var(--border));
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.quick-filter-chip svg{
+  flex: 0 0 auto;
+}
+
+.quick-filter-chip small{
+  min-width: 18px;
+  min-height: 18px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  padding: 0 5px;
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  color: var(--faint);
+  font-size: 8px;
+  font-weight: 760;
+  font-variant-numeric: tabular-nums;
+}
+
+.quick-filter-chip.active small{
+  background: color-mix(in srgb, var(--primary) 10%, var(--surface));
+  color: var(--primary);
+}
+
 .result-filters{
   display: flex;
   gap: 4px;
@@ -5208,6 +5308,7 @@ a{
 
   .filter-row,
 .result-filters,
+.quick-filter-list,
 .business-detail-tabs{
     overscroll-behavior-x: contain;
   }
@@ -5217,6 +5318,22 @@ a{
 .business-detail-tabs button,
 .recent-searches button{
     min-height: 40px;
+  }
+
+  .quick-filter-list{
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+
+  .quick-filter-list::-webkit-scrollbar{
+    display: none;
+  }
+
+  .quick-filter-chip{
+    min-height: 44px;
+    padding-inline: 12px;
   }
 
   .status-option{
