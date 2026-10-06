@@ -349,6 +349,84 @@ body{
   font-size: 10px;
 }
 
+.dashboard-today{
+  margin-top: 12px;
+}
+
+.dashboard-action-list{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.dashboard-action-list > button{
+  min-width: 0;
+  min-height: 56px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 10px;
+  background: var(--surface-2);
+  color: inherit;
+  text-align: left;
+}
+
+.dashboard-action-list > button:hover{
+  border-color: var(--border-strong);
+  background: var(--surface);
+}
+
+.dashboard-action-list > button > svg{
+  color: var(--primary);
+}
+
+.dashboard-action-list > button > span{
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.dashboard-action-list strong{
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+}
+
+.dashboard-action-list small{
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.dashboard-action-list b{
+  color: var(--waiting);
+  font-size: 8px;
+  font-weight: 750;
+  text-align: right;
+}
+
+.dashboard-action-list b.recommended{
+  color: var(--primary);
+}
+
+.dashboard-today-empty{
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.dashboard-today-empty svg{
+  color: var(--faint);
+}
+
 .dashboard-secondary-grid,
 .dashboard-columns{
   display: grid;
@@ -1070,6 +1148,14 @@ body{
 
   .dashboard-finance-grid{
     grid-template-columns: 1fr 1fr;
+  }
+
+  .dashboard-action-list{
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-action-list > button{
+    min-height: 60px;
   }
 
   .dashboard-conversion{
