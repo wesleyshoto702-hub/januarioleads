@@ -1,3 +1,5 @@
+import { normalizeBrazilianStateCode } from "../_shared/brazil-locations.ts";
+
 type LeadRow = {
   id: string;
   user_id: string;
@@ -209,11 +211,11 @@ async function authorizeCron(request: Request) {
   return secureEqual(await sha256(provided), expected);
 }
 
-function component(place: GooglePlace, type: string) {
-  return (
-    place.addressComponents?.find((item) => item.types?.includes(type))
-      ?.longText ?? null
+function component(place: GooglePlace, type: string, short = false) {
+  const item = place.addressComponents?.find((entry) =>
+    entry.types?.includes(type)
   );
+  return (short ? item?.shortText : item?.longText)?.trim() || null;
 }
 
 function parseNeighborhood(place: GooglePlace) {
@@ -324,7 +326,11 @@ function parsePlace(place: GooglePlace): CurrentPlace {
     factualDescription: null,
     neighborhood: parseNeighborhood(place),
     city: parseCity(place),
-    state: component(place, "administrative_area_level_1"),
+    state:
+      normalizeBrazilianStateCode(
+        component(place, "administrative_area_level_1", true) ??
+          component(place, "administrative_area_level_1"),
+      ) || component(place, "administrative_area_level_1"),
     phone: place.nationalPhoneNumber?.trim() || null,
     internationalPhone: place.internationalPhoneNumber?.trim() || null,
     rating: typeof place.rating === "number" ? place.rating : null,
