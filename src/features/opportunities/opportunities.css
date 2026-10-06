@@ -98,9 +98,7 @@
 .opportunity-filters {
   display: grid;
   grid-template-columns:
-    minmax(180px, 1.35fr)
-    minmax(130px, .7fr)
-    minmax(170px, .9fr)
+    repeat(4, minmax(140px, 1fr))
     auto auto;
   gap: 9px;
   align-items: end;
