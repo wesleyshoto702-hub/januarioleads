@@ -341,11 +341,16 @@ export function SearchLeadsView({
       return;
     }
 
-    setResults((current) => {
-      const combined = append ? [...current, ...response.results] : response.results;
-      const unique = new Map(combined.map((item) => [item.placeId, item]));
-      return Array.from(unique.values());
-    });
+    const combinedResults = append
+      ? [...results, ...response.results]
+      : response.results;
+    const uniqueResults = Array.from(
+      new Map(
+        combinedResults.map((item) => [item.placeId, item]),
+      ).values(),
+    );
+
+    setResults(uniqueResults);
     storeRecentBusinessSearch(segment,response.results,{
       city: location.city,
       state: location.state,
@@ -354,7 +359,7 @@ export function SearchLeadsView({
     void persistPlacesSearchSample({
       location,
       segment,
-      results: response.results,
+      results: uniqueResults,
       nextPageToken: response.nextPageToken,
       append,
     }).catch(() => {
