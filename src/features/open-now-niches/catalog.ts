@@ -1,7 +1,7 @@
 import {
   CURRENT_NICHE_COVERAGE,
   type NicheFamily,
-} from "../../../supabase/functions/_shared/niche-strategies.ts";
+} from "../../../supabase/functions/_shared/niche-coverage.ts";
 import { ALL_SEARCH_SEGMENTS } from "../search-leads/segments";
 
 export const NICHE_FAMILY_LABELS: Record<NicheFamily,string> = {
