@@ -10,6 +10,7 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
+import appShellCss from "../styles/app-shell.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
 function NotFoundComponent() {
@@ -77,11 +78,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "LeadFlow — Meus Leads" },
-      { name: "description", content: "CRM pessoal para organizar leads e contatos de prospecção." },
-      { name: "author", content: "LeadFlow" },
-      { property: "og:title", content: "LeadFlow — Meus Leads" },
-      { property: "og:description", content: "CRM pessoal para organizar leads e contatos de prospecção." },
+      { title: "JanuarioLeads — Plataforma de Prospecção" },
+      { name: "description", content: "Plataforma privada para organizar leads, prospecção, oportunidades e financeiro." },
+      { name: "author", content: "JanuarioLeads" },
+      { property: "og:title", content: "JanuarioLeads — Plataforma de Prospecção" },
+      { property: "og:description", content: "Plataforma privada para organizar leads, prospecção, oportunidades e financeiro." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       
@@ -90,6 +91,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         rel: "stylesheet",
         href: appCss,
+      },
+      {
+        rel: "stylesheet",
+        href: appShellCss,
+      },
+      { rel: "preconnect", href: "https://fonts.googleapis.com" },
+      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap",
       },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
     ],
@@ -102,7 +113,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="pt-BR">
       <head>
         <HeadContent />
       </head>
