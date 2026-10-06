@@ -24,7 +24,7 @@ npm run dev
 ```
 
 
-## Busca de empresas em Lavras
+## Busca de empresas no Brasil
 
 A área **Buscar leads** usa **Google Places API (New)** por meio da Supabase Edge Function `search-places`.
 
@@ -63,7 +63,7 @@ Código: `supabase/functions/search-places/index.ts`
 
 A função:
 
-- pesquisa somente em Lavras, Minas Gerais, Brasil;
+- pesquisa por estado + cidade + segmento em todo o Brasil, mantendo Lavras/MG como padrão inicial;
 - usa Text Search da Places API (New);
 - usa Field Masks;
 - devolve `nextPageToken` para o botão **Carregar mais**;
@@ -126,10 +126,10 @@ A busca usa, nesta ordem:
 
 1. `placeId` já confirmado, para **Atualizar informações**;
 2. telefone normalizado em contexto brasileiro;
-3. nome + Lavras, Minas Gerais, Brasil;
-4. nome + segmento + Lavras, Minas Gerais, Brasil.
+3. nome + cidade + estado real do lead;
+4. nome + segmento + cidade + estado real do lead.
 
-O nível de confiança é calculado sem IA, usando correspondência de telefone, semelhança do nome, localização em Lavras e compatibilidade de segmento. Nenhum resultado altera o lead sem confirmação.
+O nível de confiança é calculado sem IA, usando correspondência de telefone, semelhança do nome, localização do próprio lead e compatibilidade de segmento. Leads legados sem localização continuam com o fallback histórico de Lavras/MG. Nenhum resultado altera o lead sem confirmação.
 
 O enriquecimento preserva status, observações, histórico e mensagens. Campos públicos do Google são adicionados somente quando retornados.
 
