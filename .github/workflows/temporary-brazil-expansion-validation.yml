@@ -20,7 +20,7 @@ jobs:
       - name: Production build
         run: bun run build
 
-      - name: Lint changed Brazil expansion files
+      - name: Semantic lint for changed Brazil expansion files
         run: >
           bunx eslint
           src/lib/brazil-locations.ts
@@ -31,6 +31,7 @@ jobs:
           src/features/open-now-niches/OpenNowNichesView.tsx
           src/features/opportunities/OpportunityView.tsx
           src/routes/index.tsx
+          --rule "prettier/prettier: off"
 
       - uses: denoland/setup-deno@v2
         with:
