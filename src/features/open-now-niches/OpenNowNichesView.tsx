@@ -6,7 +6,6 @@ import {
   MessageCircle,
   RefreshCw,
   Search,
-  Sparkles,
   Square,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -86,10 +85,6 @@ type Props = {
   existingLeads: PersistedLead[];
   onAddLead: (business: BusinessSearchResult, selectedSegment: string) => void;
   onMessage: (target: SearchMessageTarget) => void;
-  onGeneratePrompt: (
-    business: BusinessSearchResult,
-    selectedSegment: string,
-  ) => void;
   onDeepEnrichmentApplied?: (
     leadId: string,
     value: DeepEnrichmentApplied,
@@ -298,7 +293,6 @@ export function OpenNowNichesView({
   existingLeads,
   onAddLead,
   onMessage,
-  onGeneratePrompt,
   onDeepEnrichmentApplied,
 }: Props) {
   const initialLocation = useMemo(() => loadOpenNowLocation(), []);
@@ -1306,13 +1300,6 @@ export function OpenNowNichesView({
                   </button>
                   <button
                     type="button"
-                    onClick={()=>onGeneratePrompt(row.business,row.segment)}
-                  >
-                    <Sparkles size={13} />
-                    Gerar prompt
-                  </button>
-                  <button
-                    type="button"
                     disabled={Boolean(row.existingLead)}
                     onClick={()=>onAddLead(row.business,row.segment)}
                   >
@@ -1370,7 +1357,6 @@ export function OpenNowNichesView({
             onClose={()=>setDetails(null)}
             onWhatsApp={openWhatsapp}
             onMessage={onMessage}
-            onGeneratePrompt={(business)=>onGeneratePrompt(business,details.segment)}
             onPresenceUpdate={(presence)=>applyPresence(details.business,presence)}
             onDeepEnrichmentUpdate={(value)=>applyDeep(row,value)}
             onAdd={(business)=>onAddLead(business,details.segment)}
