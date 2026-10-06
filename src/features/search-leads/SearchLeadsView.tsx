@@ -34,14 +34,19 @@ import {
 import { searchBusinesses } from "./search-businesses";
 import {
   DEFAULT_SEARCH_LOCATION,
-  loadMinasGeraisMunicipalities,
+  loadBrazilianMunicipalities,
   loadSearchLocation,
   resolveMunicipality,
   saveSearchLocation,
-  SEARCH_STATE,
   searchLocationKey,
   type SearchLocation,
 } from "./search-location";
+import {
+  BRAZIL_STATES,
+  DEFAULT_BRAZIL_STATE,
+  findBrazilianState,
+  normalizeBrazilianStateCode,
+} from "../../lib/brazil-locations";
 import { normalizeSearchText, SEGMENT_GROUPS } from "./segments";
 import type { BusinessSearchResult } from "./types";
 import { storeRecentBusinessSearch } from "../open-now-niches/local-cache";
@@ -111,19 +116,23 @@ function getRecentSearches() {
         state?: unknown;
         segment?: unknown;
       };
+      const state = normalizeBrazilianStateCode(
+        typeof row.state === "string" ? row.state : DEFAULT_BRAZIL_STATE.code,
+      );
       if (
         typeof row.city !== "string" ||
         !row.city.trim() ||
         typeof row.segment !== "string" ||
         !row.segment.trim() ||
-        row.state !== SEARCH_STATE.code
+        !state
       ) {
         continue;
       }
 
+      if (row.state !== state) migratedLegacy = true;
       parsed.push({
         city: row.city.trim(),
-        state: SEARCH_STATE.code,
+        state,
         segment: row.segment.trim(),
       });
     }
@@ -180,6 +189,8 @@ export function SearchLeadsView({
   const [resultsLocation, setResultsLocation] =
     useState<SearchLocation>(initialSearchLocation);
   const [cityInput, setCityInput] = useState(initialSearchLocation.city);
+  const selectedState =
+    findBrazilianState(searchLocation.state) ?? DEFAULT_BRAZIL_STATE;
   const [municipalities, setMunicipalities] = useState<string[]>([]);
   const [municipalitiesLoading, setMunicipalitiesLoading] = useState(true);
   const [municipalitiesError, setMunicipalitiesError] = useState("");
@@ -232,10 +243,11 @@ export function SearchLeadsView({
 
   useEffect(() => {
     const controller = new AbortController();
+    setMunicipalities([]);
     setMunicipalitiesLoading(true);
     setMunicipalitiesError("");
 
-    void loadMinasGeraisMunicipalities(controller.signal)
+    void loadBrazilianMunicipalities(searchLocation.state, controller.signal)
       .then((values) => {
         setMunicipalities(values);
         const canonical =
@@ -243,25 +255,23 @@ export function SearchLeadsView({
           resolveMunicipality(searchLocation.city, values);
         if (canonical) {
           setCityInput(canonical);
-          setSearchLocation({
+          setSearchLocation((current) => ({
             city: canonical,
-            state: SEARCH_STATE.code,
-          });
+            state: current.state,
+          }));
         }
       })
       .catch((error) => {
         if ((error as Error)?.name !== "AbortError") {
           setMunicipalitiesError(
-            "Não foi possível carregar os municípios de Minas Gerais agora.",
+            `Não foi possível carregar os municípios de ${selectedState.name} agora.`,
           );
         }
       })
       .finally(() => setMunicipalitiesLoading(false));
 
     return () => controller.abort();
-    // Load the official municipality catalog once per mount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [searchLocation.state]);
 
   const selectedCity = useMemo(() => {
     const official = resolveMunicipality(cityInput, municipalities);
@@ -403,10 +413,10 @@ export function SearchLeadsView({
   }
 
   function startSearch() {
-    if (!selectedSegment || !selectedCity) return;
+    if (!selectedSegment || !selectedCity || !selectedState) return;
     const location: SearchLocation = {
       city: selectedCity,
-      state: SEARCH_STATE.code,
+      state: selectedState.code,
     };
     setFilter("all");
     setLeadStatusFilter("all");
@@ -419,14 +429,14 @@ export function SearchLeadsView({
     setCityInput(search.city);
     setSearchLocation({
       city: search.city,
-      state: SEARCH_STATE.code,
+      state: search.state,
     });
     setFilter("all");
     setLeadStatusFilter("all");
     setOnlyNew(false);
     void runSearch(search.segment, {
       city: search.city,
-      state: SEARCH_STATE.code,
+      state: search.state,
     });
   }
 
@@ -489,7 +499,9 @@ export function SearchLeadsView({
       <section className="page-wrap search-leads-page">
         <div className="page-heading search-page-heading">
           <div>
-            <p className="eyebrow">MINAS GERAIS · MG</p>
+            <p className="eyebrow">
+              {selectedState.name.toLocaleUpperCase("pt-BR")} · {selectedState.code}
+            </p>
             <h1>
               Encontre empresas em {(selectedCity ?? cityInput.trim()) || searchLocation.city}
             </h1>
@@ -502,9 +514,28 @@ export function SearchLeadsView({
         <div className="search-location-panel">
           <label className="search-location-field">
             <span>Estado</span>
-            <div className="search-location-static">
-              <strong>{SEARCH_STATE.name}</strong>
-              <small>{SEARCH_STATE.code}</small>
+            <div className="search-location-select">
+              <select
+                value={selectedState.code}
+                onChange={(event) => {
+                  const state = findBrazilianState(event.target.value);
+                  if (!state) return;
+                  setSearchLocation({
+                    city: "",
+                    state: state.code,
+                  });
+                  setCityInput("");
+                  setMunicipalities([]);
+                  setMunicipalitiesError("");
+                }}
+                aria-label="Estado"
+              >
+                {BRAZIL_STATES.map((state) => (
+                  <option key={state.code} value={state.code}>
+                    {state.name} ({state.code})
+                  </option>
+                ))}
+              </select>
             </div>
           </label>
 
@@ -513,7 +544,7 @@ export function SearchLeadsView({
             <div className="search-city-input">
               <MapPin size={15} />
               <input
-                list="mg-city-options"
+                list={`city-options-${selectedState.code}`}
                 value={cityInput}
                 onChange={(event) => setCityInput(event.target.value)}
                 onBlur={() => {
@@ -523,11 +554,11 @@ export function SearchLeadsView({
                   );
                   if (canonical) setCityInput(canonical);
                 }}
-                placeholder="Digite um município de Minas Gerais"
+                placeholder={`Digite um município de ${selectedState.name}`}
                 autoComplete="off"
-                aria-label="Cidade de Minas Gerais"
+                aria-label={`Cidade de ${selectedState.name}`}
               />
-              <datalist id="mg-city-options">
+              <datalist id={`city-options-${selectedState.code}`}>
                 {municipalities.map((city) => (
                   <option key={city} value={city} />
                 ))}
@@ -547,7 +578,7 @@ export function SearchLeadsView({
                 : municipalitiesError
                   ? municipalitiesError
                   : cityInput.trim() && !selectedCity
-                    ? "Selecione um município válido de Minas Gerais."
+                    ? `Selecione um município válido de ${selectedState.name}.`
                     : "Municípios oficiais do IBGE."}
             </small>
           </label>
@@ -563,7 +594,7 @@ export function SearchLeadsView({
                   type="button"
                   onClick={() => repeatSearch(search)}
                 >
-                  {search.segment} · {search.city}
+                  {search.segment} · {search.city} · {search.state}
                 </button>
               ))}
             </div>
@@ -612,7 +643,7 @@ export function SearchLeadsView({
             <span>Busca selecionada</span>
             <strong>
               {selectedCity
-                ? `${selectedSegment || "Selecione um segmento"} · ${selectedCity} / MG`
+                ? `${selectedSegment || "Selecione um segmento"} · ${selectedCity} / ${selectedState.code}`
                 : "Selecione uma cidade válida"}
             </strong>
           </div>
@@ -646,7 +677,7 @@ export function SearchLeadsView({
         </button>
         <div>
           <p className="eyebrow">
-            {resultsLocation.city.toLocaleUpperCase("pt-BR")} · MINAS GERAIS
+            {resultsLocation.city.toLocaleUpperCase("pt-BR")} · {findBrazilianState(resultsLocation.state)?.name.toLocaleUpperCase("pt-BR") ?? resultsLocation.state}
           </p>
           <h1>{resultsSegment}</h1>
           <p className="subtitle">
