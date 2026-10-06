@@ -35,6 +35,7 @@ import type {
   OpportunitySummary,
 } from "./types";
 import "./opportunities.css";
+import { openWhatsAppLink } from "../../lib/whatsapp";
 
 type RankingMode = "city" | "segment";
 type BusinessFilter =
@@ -93,11 +94,7 @@ function directWhatsApp(business: BusinessSearchResult) {
     business.phone || business.internationalPhone,
   );
   if (phone.length !== 12 && phone.length !== 13) return;
-  window.open(
-    `https://wa.me/${phone}`,
-    "_blank",
-    "noopener,noreferrer",
-  );
+  openWhatsAppLink({ phone });
 }
 
 export function OpportunityView({
