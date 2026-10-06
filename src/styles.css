@@ -1291,6 +1291,7 @@ select {
 }
 
 .search-location-static,
+.search-location-select,
 .search-city-input {
   min-width: 0;
   min-height: 48px;
@@ -1318,6 +1319,27 @@ select {
   color: var(--faint);
   font-size: 10px;
   font-weight: 760;
+}
+
+.search-location-select {
+  overflow: hidden;
+}
+
+.search-location-select:focus-within {
+  border-color: color-mix(in srgb, var(--primary) 55%, var(--border));
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
+
+.search-location-select select {
+  width: 100%;
+  height: 46px;
+  border: 0;
+  outline: 0;
+  padding: 0 13px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
 }
 
 .search-city-input {
@@ -7889,10 +7911,12 @@ a {
   }
 
   .search-location-static,
+  .search-location-select,
   .search-city-input {
     min-height: 44px;
   }
 
+  .search-location-select select,
   .search-city-input input {
     height: 44px;
   }
