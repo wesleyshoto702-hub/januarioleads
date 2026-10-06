@@ -1,0 +1,1 @@
+Trigger validation after extracting Open Now niche coverage.
