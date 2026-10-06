@@ -1,0 +1,23 @@
+name: Temporary smart filter validation
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Build
+        run: npm run build
+      - name: Semantic lint for smart filter changes
+        run: npx eslint src/features/search-leads/SearchLeadsView.tsx --rule 'prettier/prettier: off'
+      - name: Repository lint baseline
+        run: npm run lint
