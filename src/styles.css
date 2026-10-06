@@ -8062,3 +8062,42 @@ a {
     margin-left: 0;
   }
 }
+
+
+/* Mobile parity: keep the current desktop feature set usable on small viewports. */
+@media (max-width: 760px) {
+  .messages-grid,
+  .message-editor,
+  .message-editor textarea,
+  .search-leads-page,
+  .recent-updates-panel,
+  .finance-summary-strip {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .message-editor textarea {
+    display: block;
+    resize: vertical;
+    overflow-wrap: anywhere;
+  }
+
+  .modal-card,
+  .modal-card.compact,
+  .prompt-generator-modal,
+  .enrichment-modal,
+  .business-detail-modal,
+  .finance-payment-modal,
+  .visual-reference-preview-modal {
+    scroll-padding-top: 72px;
+    scroll-padding-bottom: max(28px, env(safe-area-inset-bottom));
+  }
+
+  .modal-actions {
+    padding-bottom: max(20px, calc(env(safe-area-inset-bottom) + 12px));
+  }
+
+  .topnav {
+    scroll-padding-inline: 10px;
+  }
+}
