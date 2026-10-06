@@ -1,0 +1,35 @@
+name: Temporary next action validation
+
+on:
+  push:
+    branches:
+      - validation/next-actions
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Build
+        run: npm run build
+      - name: Semantic lint changed app files
+        run: >-
+          npx eslint
+          src/routes/index.tsx
+          src/components/dashboard/DashboardView.tsx
+          src/features/search-leads/BusinessDetailsModal.tsx
+          src/features/next-actions/LeadNextActionSection.tsx
+          src/features/next-actions/next-actions.ts
+          src/features/next-actions/types.ts
+          src/features/leads/remote-leads.ts
+          src/features/lead-activities/types.ts
+          src/features/lead-activities/LeadActivityTimeline.tsx
+          --rule "prettier/prettier: off"
+      - name: Repository lint baseline
+        run: npm run lint
+        continue-on-error: true
