@@ -250,9 +250,7 @@ export function SearchLeadsView({
     void loadBrazilianMunicipalities(searchLocation.state, controller.signal)
       .then((values) => {
         setMunicipalities(values);
-        const canonical =
-          resolveMunicipality(cityInput, values) ??
-          resolveMunicipality(searchLocation.city, values);
+        const canonical = resolveMunicipality(searchLocation.city, values);
         if (canonical) {
           setCityInput(canonical);
           setSearchLocation((current) => ({
@@ -271,7 +269,7 @@ export function SearchLeadsView({
       .finally(() => setMunicipalitiesLoading(false));
 
     return () => controller.abort();
-  }, [searchLocation.state]);
+  }, [searchLocation.state, searchLocation.city, selectedState.name]);
 
   const selectedCity = useMemo(() => {
     const official = resolveMunicipality(cityInput, municipalities);
