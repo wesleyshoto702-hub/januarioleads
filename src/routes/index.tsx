@@ -67,6 +67,7 @@ import {
 } from "../features/search-leads/identity";
 import type { BusinessSearchResult } from "../features/search-leads/types";
 import { getValidSession, signOut, subscribeAuthChange } from "../lib/auth";
+import { openWhatsAppLink } from "../lib/whatsapp";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -859,24 +860,23 @@ function LeadFlowApp() {
       "{empresa}",
       messageLead.company,
     );
-    const url = `https://wa.me/${phone}?text=${encodeURIComponent(personalized)}`;
 
     setMessageActionPending(true);
     setMessageActionError("");
 
-    // Opening stays synchronous with the click so the browser can authorize
-    // the external tab. Persistence is confirmed immediately afterwards.
-    const whatsappWindow = window.open("about:blank", "_blank");
-    if (!whatsappWindow) {
+    // Keep the external-app navigation synchronous with the user's click.
+    // Persistence happens only after the WhatsApp handoff has been triggered.
+    const whatsappOpened = openWhatsAppLink({
+      phone,
+      message: personalized,
+    });
+    if (!whatsappOpened) {
       setMessageActionPending(false);
       setMessageActionError(
         "O navegador bloqueou a abertura do WhatsApp. O status não foi alterado.",
       );
       return;
     }
-
-    whatsappWindow.opener = null;
-    whatsappWindow.location.href = url;
 
     if (!messageLead.id) {
       setMessageActionPending(false);
@@ -1165,7 +1165,7 @@ function LeadFlowApp() {
     const phone = normalizeBrazilianPhone(value);
     if (!phone) return;
 
-    window.open(`https://wa.me/${phone}`, "_blank", "noopener,noreferrer");
+    if (!openWhatsAppLink({ phone })) return;
 
     if (activityLeadId) {
       recordActivity(activityLeadId, {
