@@ -19,6 +19,10 @@ import type {
 } from "../business-presence/types";
 import { LeadActivityTimeline } from "../lead-activities/LeadActivityTimeline";
 import { LeadFinancialSection } from "../lead-finance/LeadFinancialSection";
+import {
+  LeadNextActionSection,
+  type NextActionPatch,
+} from "../next-actions/LeadNextActionSection";
 import type { LeadPayment } from "../lead-finance/finance";
 import { ChanceBadge } from "../lead-chance/ChanceBadge";
 import type { LeadChanceResult } from "../lead-chance/lead-chance";
@@ -98,6 +102,10 @@ export function BusinessDetailsModal({
   financePayments = [],
   onFinanceUpdate,
   onPaymentSaved,
+  followUpLead,
+  onNextActionSave,
+  onNextActionComplete,
+  onFollowUp,
   onAdd,
 }: {
   business: BusinessSearchResult;
@@ -120,6 +128,10 @@ export function BusinessDetailsModal({
     patch: Pick<PersistedLead, "projectValue" | "financialNotes">,
   ) => void;
   onPaymentSaved?: (payment: LeadPayment) => void;
+  followUpLead?: PersistedLead | null;
+  onNextActionSave?: (patch: NextActionPatch) => void | Promise<void>;
+  onNextActionComplete?: () => void | Promise<void>;
+  onFollowUp?: () => void;
   onAdd?: (
     business: BusinessSearchResult,
   ) => Promise<BusinessAddResult> | BusinessAddResult | void;
@@ -389,6 +401,15 @@ export function BusinessDetailsModal({
               payments={financePayments}
               onFinanceUpdate={onFinanceUpdate}
               onPaymentSaved={onPaymentSaved}
+            />
+          )}
+
+          {followUpLead && onNextActionSave && onNextActionComplete && (
+            <LeadNextActionSection
+              lead={followUpLead}
+              onSave={onNextActionSave}
+              onComplete={onNextActionComplete}
+              {...(onFollowUp ? { onFollowUp } : {})}
             />
           )}
 
