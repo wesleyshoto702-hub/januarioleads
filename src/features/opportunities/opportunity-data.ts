@@ -8,6 +8,7 @@ import {
   hasStableActivitySignal,
   mergeOpportunityBusinesses,
   opportunityGroupKey,
+  safeBusinessResult,
   type OpportunityObservation,
 } from "./opportunity-businesses";
 import {
@@ -48,14 +49,16 @@ async function fetchOpenNowSamples(): Promise<OpportunitySample[]> {
     .filter((row): row is RemoteOpenNowCache & { checked_at: string } =>
       Boolean(row.checked_at),
     )
-    .map((row) => ({
+    .map((row): OpportunitySample => ({
       city: row.city,
       state: row.state,
       segment: row.segment,
       checkedAt: row.checked_at,
-      results: Array.isArray(row.results) ? row.results : [],
-      source: "open-now" as const,
-    })) as OpportunitySample[];
+      results: (Array.isArray(row.results) ? row.results : [])
+        .map(safeBusinessResult)
+        .filter((item): item is NonNullable<typeof item> => Boolean(item)),
+      source: "open-now",
+    }));
 }
 
 function localSamples(): OpportunitySample[] {
