@@ -80,3 +80,24 @@ Deno.test("city and segment combinations produce independent group keys", () => 
   assert(bhBarber !== contagemBarber, "Different cities must not mix.");
   assert(bhBarber !== bhDentist, "Different segments must not mix.");
 });
+
+
+Deno.test("Instagram URL does not count as identified website", () => {
+  const merged = mergeOpportunityBusinesses(
+    [
+      {
+        business: business("instagram-only", {
+          website: "https://www.instagram.com/empresa/",
+        }),
+        observedAt: "2026-10-03T12:00:00Z",
+        source: "places-search",
+      },
+    ],
+    [],
+  );
+
+  assert(
+    !hasIdentifiedWebsite(merged[0]!),
+    "Instagram must not count as an identified website.",
+  );
+});
