@@ -1,0 +1,22 @@
+name: Temporary Places Enrichment Validation
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Production build
+        run: bun run build
+      - name: Semantic lint
+        run: bunx eslint src/routes/index.tsx --rule "prettier/prettier: off"
+      - name: TypeScript diagnostics
+        run: bunx tsc --noEmit
