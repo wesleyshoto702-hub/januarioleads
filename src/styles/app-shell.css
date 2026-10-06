@@ -1217,3 +1217,65 @@ body {
     animation: none;
   }
 }
+
+
+/* Login belongs to the same product surface without changing auth behavior. */
+.login-shell {
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--surface) 38%, transparent) 1px, transparent 1px),
+    linear-gradient(color-mix(in srgb, var(--surface) 32%, transparent) 1px, transparent 1px),
+    var(--bg);
+  background-size: 48px 48px;
+}
+
+.dark .login-shell {
+  background:
+    linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px),
+    linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+    var(--bg);
+  background-size: 48px 48px;
+}
+
+.login-panel {
+  border-radius: 12px;
+  box-shadow: none;
+}
+
+.login-brand strong,
+.login-copy h1 {
+  font-family: var(--font-display);
+}
+
+.login-copy h1 {
+  font-size: clamp(28px, 4vw, 36px);
+  font-weight: 600;
+  letter-spacing: -.045em;
+}
+
+@media (max-width: 620px) {
+  .saas-main .primary-button,
+  .saas-main .secondary-button,
+  .saas-main .danger-button,
+  .saas-main .whatsapp-button,
+  .saas-main .message-button,
+  .saas-main .lead-details-button,
+  .saas-main .enrichment-button,
+  .saas-main .prompt-button {
+    min-height: 44px;
+  }
+
+  .saas-main .row-icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .saas-main .filter-chip {
+    min-height: 36px;
+  }
+
+  .saas-main .open-now-filter-row button,
+  .saas-main .opportunity-mode-tabs button,
+  .saas-main .opportunity-company-filters button {
+    min-height: 42px;
+  }
+}
