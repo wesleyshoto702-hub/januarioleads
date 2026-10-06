@@ -8,6 +8,10 @@ import {
   normalizeLocationText,
   normalizeStateCode,
 } from "../../lib/location";
+import {
+  DEFAULT_BRAZIL_STATE,
+  normalizeBrazilianStateCode,
+} from "../../lib/brazil-locations";
 
 const PREFIX = "leadflow:open-now-search-cache:";
 const LOCATION_KEY = "leadflow:open-now-location";
@@ -64,25 +68,34 @@ function safeBusiness(value: unknown): BusinessSearchResult | null {
 
 export function saveOpenNowLocation(city: string, state: string) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(LOCATION_KEY, JSON.stringify({city,state}));
+  const normalizedState = normalizeBrazilianStateCode(state);
+  if (!city.trim() || !normalizedState) return;
+  localStorage.setItem(
+    LOCATION_KEY,
+    JSON.stringify({ city: city.trim(), state: normalizedState }),
+  );
 }
 
 export function loadOpenNowLocation() {
-  if (typeof window === "undefined") return {city:"Lavras",state:"MG"};
+  if (typeof window === "undefined") {
+    return { city: "Lavras", state: DEFAULT_BRAZIL_STATE.code };
+  }
   try {
     const value = JSON.parse(localStorage.getItem(LOCATION_KEY) ?? "null") as {
       city?: unknown;
       state?: unknown;
     } | null;
-    const city = typeof value?.city === "string" && value.city.trim()
-      ? value.city.trim()
-      : "Lavras";
-    const state = typeof value?.state === "string" && /^[A-Za-z]{2}$/.test(value.state.trim())
-      ? value.state.trim().toUpperCase()
-      : "MG";
-    return {city,state};
+    const city =
+      typeof value?.city === "string" && value.city.trim()
+        ? value.city.trim()
+        : "Lavras";
+    const state =
+      normalizeBrazilianStateCode(
+        typeof value?.state === "string" ? value.state : "",
+      ) || DEFAULT_BRAZIL_STATE.code;
+    return { city, state };
   } catch {
-    return {city:"Lavras",state:"MG"};
+    return { city: "Lavras", state: DEFAULT_BRAZIL_STATE.code };
   }
 }
 
