@@ -196,7 +196,9 @@ export function buildOpportunityRecords(
 export function summarizeOpportunities(
   records: OpportunityRecord[],
 ): OpportunitySummary {
-  const cities = new Set(records.map((record) => record.city));
+  const cities = new Set(
+    records.map((record) => `${record.state}|${record.city}`),
+  );
   const segments = new Set(records.map((record) => record.segment));
   const businesses = new Map<string, OpportunityRecord["businesses"][number]>();
 
