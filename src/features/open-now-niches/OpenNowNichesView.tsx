@@ -348,11 +348,7 @@ export function OpenNowNichesView({
     setMunicipalitiesError("");
 
     void loadBrazilianMunicipalities(draftStateInfo.code, controller.signal)
-      .then((values) => {
-        setMunicipalities(values);
-        const canonical = resolveMunicipality(draftCity, values);
-        if (canonical) setDraftCity(canonical);
-      })
+      .then(setMunicipalities)
       .catch((error) => {
         if ((error as Error)?.name !== "AbortError") {
           setMunicipalitiesError(
@@ -363,7 +359,7 @@ export function OpenNowNichesView({
       .finally(() => setMunicipalitiesLoading(false));
 
     return () => controller.abort();
-  }, [draftStateInfo.code]);
+  }, [draftStateInfo.code, draftStateInfo.name]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setClock(new Date()), 60_000);
