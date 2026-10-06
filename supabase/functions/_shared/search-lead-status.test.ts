@@ -86,7 +86,12 @@ Deno.test("normalized phone can identify the existing lead and expose rejected s
 
 Deno.test("business without a matching lead remains new", () => {
   const duplicate = findBusinessDuplicate(
-    business({ placeId: "brand-new", phone: "5535777777777" }),
+    business({
+      placeId: "brand-new",
+      name: "Clínica Nova",
+      phone: "5535777777777",
+      address: "Avenida B, 200, Lavras - MG",
+    }),
     [lead("send_message")],
   );
 
