@@ -4,7 +4,6 @@ import {
   Instagram,
   MapPin,
   MessageCircle,
-  Sparkles,
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -93,7 +92,6 @@ export function BusinessDetailsModal({
   onClose,
   onWhatsApp,
   onMessage,
-  onGeneratePrompt,
   onPresenceUpdate,
   onDeepEnrichmentUpdate,
   financeLead,
@@ -113,7 +111,6 @@ export function BusinessDetailsModal({
   onClose: () => void;
   onWhatsApp: (business: BusinessSearchResult) => void;
   onMessage: (target: BusinessDetailsMessageTarget) => void;
-  onGeneratePrompt: (business: BusinessSearchResult) => void;
   onPresenceUpdate?: (presence: BusinessPresence) => void;
   onDeepEnrichmentUpdate?: (value: DeepEnrichmentApplied) => void;
   financeLead?: PersistedLead | null;
@@ -663,14 +660,6 @@ export function BusinessDetailsModal({
                 )}
               </>
             )}
-            <button
-              type="button"
-              className="secondary-button prompt-button"
-              onClick={() => onGeneratePrompt(business)}
-            >
-              <Sparkles size={15} />
-              Gerar prompt
-            </button>
             {!commercialLead && (onAdd || alreadyAdded) && (
               <button
                 type="button"
