@@ -50,7 +50,7 @@ import { normalizeSearchText, SEGMENT_GROUPS } from "./segments";
 import type { BusinessSearchResult } from "./types";
 import { storeRecentBusinessSearch } from "../open-now-niches/local-cache";
 import { persistPlacesSearchSample } from "../opportunities/places-search-cache";
-import { openWhatsAppLink } from "../../lib/whatsapp";
+import { isValidWhatsAppPhone, openWhatsAppLink } from "../../lib/whatsapp";
 
 export type SearchMessageTarget = {
   id?: string;
@@ -76,6 +76,233 @@ type ResultSort =
   | "za";
 
 type LeadStatusFilter = "all" | "new" | LeadStatus;
+
+type ContactFilter = "all" | "phone" | "whatsapp";
+type WebsiteFilter = "all" | "with-site" | "without-site";
+type InstagramFilter = "all" | "with-instagram" | "without-instagram";
+type ChanceFilter = "all" | "high";
+
+type ResultFilterState = {
+  contact: ContactFilter;
+  website: WebsiteFilter;
+  instagram: InstagramFilter;
+  chance: ChanceFilter;
+};
+
+type SmartFilterId =
+  | "no-site-phone"
+  | "no-site-whatsapp"
+  | "high-chance-no-site"
+  | "not-contacted"
+  | "waiting"
+  | "instagram-no-site";
+
+type ResultWithContext = {
+  business: BusinessSearchResult;
+  existingLead: ExistingLeadIdentity | null;
+  alreadyAdded: boolean;
+  chance: LeadChanceResult;
+};
+
+type SmartFilterPreset = {
+  id: SmartFilterId;
+  label: string;
+  title: string;
+  resultFilters: ResultFilterState;
+  leadStatusFilter: LeadStatusFilter;
+};
+
+const DEFAULT_RESULT_FILTERS: ResultFilterState = {
+  contact: "all",
+  website: "all",
+  instagram: "all",
+  chance: "all",
+};
+
+const RESULT_FILTER_OPTIONS: Array<[ResultFilter, string]> = [
+  ["all", "Todos"],
+  ["phone", "Com telefone"],
+  ["whatsapp", "Com WhatsApp"],
+  ["with-site", "Com site"],
+  ["without-site", "Sem site"],
+  ["with-instagram", "Com Instagram"],
+  ["without-instagram", "Sem Instagram"],
+];
+
+const SMART_FILTERS: SmartFilterPreset[] = [
+  {
+    id: "no-site-phone",
+    label: "Sem site + telefone",
+    title: "Empresas sem site identificado e com telefone válido.",
+    resultFilters: {
+      ...DEFAULT_RESULT_FILTERS,
+      contact: "phone",
+      website: "without-site",
+    },
+    leadStatusFilter: "all",
+  },
+  {
+    id: "no-site-whatsapp",
+    label: "Sem site + WhatsApp",
+    title: "Empresas sem site identificado e com número utilizável no WhatsApp.",
+    resultFilters: {
+      ...DEFAULT_RESULT_FILTERS,
+      contact: "whatsapp",
+      website: "without-site",
+    },
+    leadStatusFilter: "all",
+  },
+  {
+    id: "high-chance-no-site",
+    label: "Alta Chance + sem site",
+    title: "Empresas com Chance alta ou muito alta e sem site identificado.",
+    resultFilters: {
+      ...DEFAULT_RESULT_FILTERS,
+      website: "without-site",
+      chance: "high",
+    },
+    leadStatusFilter: "all",
+  },
+  {
+    id: "not-contacted",
+    label: "Não contatados",
+    title: "Empresas já salvas com status Enviar mensagem.",
+    resultFilters: DEFAULT_RESULT_FILTERS,
+    leadStatusFilter: "send_message",
+  },
+  {
+    id: "waiting",
+    label: "Aguardando",
+    title: "Empresas já salvas com status Aguardando.",
+    resultFilters: DEFAULT_RESULT_FILTERS,
+    leadStatusFilter: "waiting",
+  },
+  {
+    id: "instagram-no-site",
+    label: "Instagram + sem site",
+    title: "Empresas com Instagram confirmado e sem site identificado.",
+    resultFilters: {
+      ...DEFAULT_RESULT_FILTERS,
+      website: "without-site",
+      instagram: "with-instagram",
+    },
+    leadStatusFilter: "all",
+  },
+];
+
+function normalizedBusinessPhone(business: BusinessSearchResult) {
+  return normalizeBrazilianPhone(
+    business.phone?.trim() || business.internationalPhone?.trim(),
+  );
+}
+
+function hasValidBusinessPhone(business: BusinessSearchResult) {
+  return isValidWhatsAppPhone(normalizedBusinessPhone(business));
+}
+
+function hasUsableWhatsApp(business: BusinessSearchResult) {
+  return isValidWhatsAppPhone(normalizedBusinessPhone(business));
+}
+
+function hasIdentifiedWebsite(business: BusinessSearchResult) {
+  return Boolean(business.website?.trim());
+}
+
+function hasConfirmedInstagram(business: BusinessSearchResult) {
+  return Boolean(
+    business.instagram?.trim() &&
+      business.instagramConfidence !== "medium" &&
+      business.instagramConfidence !== "low" &&
+      !business.instagramNeedsReview,
+  );
+}
+
+function hasHighChance(chance: LeadChanceResult) {
+  return chance.band === "high" || chance.band === "very-high";
+}
+
+function sameResultFilters(
+  left: ResultFilterState,
+  right: ResultFilterState,
+) {
+  return (
+    left.contact === right.contact &&
+    left.website === right.website &&
+    left.instagram === right.instagram &&
+    left.chance === right.chance
+  );
+}
+
+function manualResultFilters(value: ResultFilter): ResultFilterState {
+  if (value === "phone") {
+    return { ...DEFAULT_RESULT_FILTERS, contact: "phone" };
+  }
+  if (value === "whatsapp") {
+    return { ...DEFAULT_RESULT_FILTERS, contact: "whatsapp" };
+  }
+  if (value === "with-site") {
+    return { ...DEFAULT_RESULT_FILTERS, website: "with-site" };
+  }
+  if (value === "without-site") {
+    return { ...DEFAULT_RESULT_FILTERS, website: "without-site" };
+  }
+  if (value === "with-instagram") {
+    return { ...DEFAULT_RESULT_FILTERS, instagram: "with-instagram" };
+  }
+  if (value === "without-instagram") {
+    return { ...DEFAULT_RESULT_FILTERS, instagram: "without-instagram" };
+  }
+  return DEFAULT_RESULT_FILTERS;
+}
+
+function isManualResultFilterActive(
+  value: ResultFilter,
+  filters: ResultFilterState,
+) {
+  if (value === "all") return sameResultFilters(filters, DEFAULT_RESULT_FILTERS);
+  if (value === "phone") return filters.contact === "phone";
+  if (value === "whatsapp") return filters.contact === "whatsapp";
+  if (value === "with-site") return filters.website === "with-site";
+  if (value === "without-site") return filters.website === "without-site";
+  if (value === "with-instagram") return filters.instagram === "with-instagram";
+  return filters.instagram === "without-instagram";
+}
+
+function matchesResultFilters(
+  item: ResultWithContext,
+  filters: ResultFilterState,
+  leadStatusFilter: LeadStatusFilter,
+) {
+  const { business, existingLead } = item;
+
+  if (leadStatusFilter === "new" && existingLead) return false;
+  if (
+    leadStatusFilter !== "all" &&
+    leadStatusFilter !== "new" &&
+    existingLead?.status !== leadStatusFilter
+  ) {
+    return false;
+  }
+
+  if (filters.contact === "phone" && !hasValidBusinessPhone(business)) {
+    return false;
+  }
+  if (filters.contact === "whatsapp" && !hasUsableWhatsApp(business)) {
+    return false;
+  }
+
+  const hasWebsite = hasIdentifiedWebsite(business);
+  if (filters.website === "with-site" && !hasWebsite) return false;
+  if (filters.website === "without-site" && hasWebsite) return false;
+
+  const hasInstagram = hasConfirmedInstagram(business);
+  if (filters.instagram === "with-instagram" && !hasInstagram) return false;
+  if (filters.instagram === "without-instagram" && hasInstagram) return false;
+
+  if (filters.chance === "high" && !hasHighChance(item.chance)) return false;
+
+  return true;
+}
 
 const RECENT_SEARCHES_KEY = "leadflow:recent-searches";
 
@@ -200,11 +427,11 @@ export function SearchLeadsView({
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<{ code: string; message: string } | null>(null);
-  const [filter, setFilter] = useState<ResultFilter>("all");
+  const [resultFilters, setResultFilters] =
+    useState<ResultFilterState>(DEFAULT_RESULT_FILTERS);
   const [sort, setSort] = useState<ResultSort>("rating");
   const [leadStatusFilter, setLeadStatusFilter] =
     useState<LeadStatusFilter>("all");
-  const [onlyNew, setOnlyNew] = useState(false);
   const [details, setDetails] = useState<BusinessSearchResult | null>(null);
   const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([]);
 
@@ -308,28 +535,8 @@ export function SearchLeadsView({
   );
 
   const visibleResults = useMemo(() => {
-    const filtered = resultWithExisting.filter(
-      ({ business, existingLead, alreadyAdded }) => {
-        if (onlyNew && alreadyAdded) return false;
-
-        if (leadStatusFilter === "new" && existingLead) return false;
-        if (
-          leadStatusFilter !== "all" &&
-          leadStatusFilter !== "new" &&
-          existingLead?.status !== leadStatusFilter
-        ) {
-          return false;
-        }
-
-        if (filter === "phone" || filter === "whatsapp") {
-          return Boolean(business.phone);
-        }
-        if (filter === "with-site") return Boolean(business.website);
-        if (filter === "without-site") return !business.website;
-        if (filter === "with-instagram") return Boolean(business.instagram);
-        if (filter === "without-instagram") return !business.instagram;
-        return true;
-      },
+    const filtered = resultWithExisting.filter((item) =>
+      matchesResultFilters(item, resultFilters, leadStatusFilter),
     );
 
     return [...filtered].sort((a, b) => {
@@ -340,10 +547,53 @@ export function SearchLeadsView({
       if (sort === "za") return b.business.name.localeCompare(a.business.name, "pt-BR");
       return (b.business.rating ?? -1) - (a.business.rating ?? -1);
     });
-  }, [resultWithExisting, filter, sort, onlyNew, leadStatusFilter]);
+  }, [resultWithExisting, resultFilters, sort, leadStatusFilter]);
+
+  const quickFilterCounts = useMemo(
+    () =>
+      Object.fromEntries(
+        SMART_FILTERS.map((preset) => [
+          preset.id,
+          resultWithExisting.filter((item) =>
+            matchesResultFilters(
+              item,
+              preset.resultFilters,
+              preset.leadStatusFilter,
+            ),
+          ).length,
+        ]),
+      ) as Record<SmartFilterId, number>,
+    [resultWithExisting],
+  );
+
+  const activeSmartFilter =
+    SMART_FILTERS.find(
+      (preset) =>
+        preset.leadStatusFilter === leadStatusFilter &&
+        sameResultFilters(preset.resultFilters, resultFilters),
+    )?.id ?? null;
+
+  const hasActiveFilters =
+    leadStatusFilter !== "all" ||
+    !sameResultFilters(resultFilters, DEFAULT_RESULT_FILTERS);
 
   const alreadyAddedCount = resultWithExisting.filter((item) => item.alreadyAdded).length;
   const newCount = resultWithExisting.length - alreadyAddedCount;
+
+  function clearResultFilters() {
+    setResultFilters(DEFAULT_RESULT_FILTERS);
+    setLeadStatusFilter("all");
+  }
+
+  function applySmartFilter(preset: SmartFilterPreset) {
+    if (activeSmartFilter === preset.id) {
+      clearResultFilters();
+      return;
+    }
+
+    setResultFilters(preset.resultFilters);
+    setLeadStatusFilter(preset.leadStatusFilter);
+  }
 
   async function runSearch(
     segment: string,
@@ -416,9 +666,8 @@ export function SearchLeadsView({
       city: selectedCity,
       state: selectedState.code,
     };
-    setFilter("all");
+    setResultFilters(DEFAULT_RESULT_FILTERS);
     setLeadStatusFilter("all");
-    setOnlyNew(false);
     void runSearch(selectedSegment, location);
   }
 
@@ -429,9 +678,8 @@ export function SearchLeadsView({
       city: search.city,
       state: search.state,
     });
-    setFilter("all");
+    setResultFilters(DEFAULT_RESULT_FILTERS);
     setLeadStatusFilter("all");
-    setOnlyNew(false);
     void runSearch(search.segment, {
       city: search.city,
       state: search.state,
@@ -687,21 +935,54 @@ export function SearchLeadsView({
       </div>
 
       <div className="results-toolbar">
+        <div className="quick-filters">
+          <div className="quick-filters-heading">
+            <span>Atalhos de prospecção</span>
+            {hasActiveFilters && (
+              <button
+                type="button"
+                className="quick-filter-clear"
+                onClick={clearResultFilters}
+              >
+                Limpar
+              </button>
+            )}
+          </div>
+          <div className="quick-filter-list" aria-label="Atalhos de prospecção">
+            {SMART_FILTERS.map((preset) => {
+              const active = activeSmartFilter === preset.id;
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  className={
+                    active ? "quick-filter-chip active" : "quick-filter-chip"
+                  }
+                  aria-pressed={active}
+                  title={preset.title}
+                  onClick={() => applySmartFilter(preset)}
+                >
+                  {active && <Check size={12} aria-hidden="true" />}
+                  <span>{preset.label}</span>
+                  <small>{quickFilterCounts[preset.id]}</small>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <div className="result-filters">
-          {([
-            ["all", "Todos"],
-            ["phone", "Com telefone"],
-            ["whatsapp", "Com WhatsApp"],
-            ["with-site", "Com site"],
-            ["without-site", "Sem site"],
-            ["with-instagram", "Com Instagram"],
-            ["without-instagram", "Sem Instagram"],
-          ] as [ResultFilter, string][]).map(([value, label]) => (
+          {RESULT_FILTER_OPTIONS.map(([value, label]) => (
             <button
               key={value}
               type="button"
-              className={filter === value ? "filter-chip active" : "filter-chip"}
-              onClick={() => setFilter(value)}
+              className={
+                isManualResultFilterActive(value, resultFilters)
+                  ? "filter-chip active"
+                  : "filter-chip"
+              }
+              aria-pressed={isManualResultFilterActive(value, resultFilters)}
+              onClick={() => setResultFilters(manualResultFilters(value))}
             >
               {label}
             </button>
@@ -711,23 +992,19 @@ export function SearchLeadsView({
           <label className="new-only-control">
             <input
               type="checkbox"
-              checked={onlyNew}
-              onChange={(event) => {
-                const checked = event.target.checked;
-                setOnlyNew(checked);
-                setLeadStatusFilter(checked ? "new" : "all");
-              }}
+              checked={leadStatusFilter === "new"}
+              onChange={(event) =>
+                setLeadStatusFilter(event.target.checked ? "new" : "all")
+              }
             />
             <span>Somente novos</span>
           </label>
           <label className="select-wrap">
             <select
               value={leadStatusFilter}
-              onChange={(event) => {
-                const value = event.target.value as LeadStatusFilter;
-                setLeadStatusFilter(value);
-                setOnlyNew(value === "new");
-              }}
+              onChange={(event) =>
+                setLeadStatusFilter(event.target.value as LeadStatusFilter)
+              }
               aria-label="Filtrar por status do lead"
             >
               <option value="all">Todos os status</option>
