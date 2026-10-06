@@ -308,7 +308,7 @@ export function OpportunityView({
       if (businessFilter === "added") return Boolean(existing);
       return true;
     });
-  }, [selected, existingLeads, businessFilter]);
+  }, [selected, existingLeadIdentities, businessFilter]);
 
   function patchBusiness(
     placeId: string,
