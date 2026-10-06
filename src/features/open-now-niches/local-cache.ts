@@ -154,3 +154,48 @@ export function loadRecentBusinessSearches(city: string,state: string) {
   }
   return values;
 }
+
+
+export function loadOpportunityBusinessSearches() {
+  if (typeof window === "undefined") return [] as LocalOpenNowCache[];
+
+  const values: LocalOpenNowCache[] = [];
+  for (let index = 0; index < localStorage.length; index += 1) {
+    const storageKey = localStorage.key(index);
+    if (!storageKey?.startsWith(PREFIX)) continue;
+
+    try {
+      const raw = JSON.parse(
+        localStorage.getItem(storageKey) ?? "null",
+      ) as LocalOpenNowCache | null;
+      if (
+        !raw ||
+        typeof raw.city !== "string" ||
+        typeof raw.state !== "string" ||
+        typeof raw.segment !== "string" ||
+        typeof raw.checkedAt !== "string"
+      ) {
+        continue;
+      }
+
+      const checkedAt = new Date(raw.checkedAt).getTime();
+      if (!Number.isFinite(checkedAt)) continue;
+
+      const results = (Array.isArray(raw.results) ? raw.results : [])
+        .map(safeBusiness)
+        .filter((item): item is BusinessSearchResult => Boolean(item));
+
+      values.push({
+        ...raw,
+        city: raw.city.trim(),
+        state: normalizeStateCode(raw.state),
+        segment: raw.segment.trim(),
+        results,
+      });
+    } catch {
+      // Ignore malformed legacy cache entries.
+    }
+  }
+
+  return values;
+}
