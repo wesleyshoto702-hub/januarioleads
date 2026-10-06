@@ -841,11 +841,10 @@ export function OpenNowNichesView({
     <section className="page-wrap open-now-page">
       <header className="open-now-heading">
         <div>
-          <p className="eyebrow">PROSPECÇÃO EM TEMPO REAL</p>
-          <h1>Nichos abertos agora</h1>
+          <p className="eyebrow">OPERAÇÃO COMERCIAL</p>
+          <h1>Abertos agora</h1>
           <p className="subtitle">
-            Encontre empresas funcionando neste momento e aproveite a disponibilidade
-            real para entrar no fluxo de prospecção.
+            Acompanhe nichos e empresas funcionando neste momento na localização selecionada.
           </p>
         </div>
         <div className="open-now-clock">
