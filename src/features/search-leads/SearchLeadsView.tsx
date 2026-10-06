@@ -13,6 +13,8 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { buildFactualBusinessDescription } from "../business-presence/business-description";
 import type { DeepEnrichmentApplied } from "../business-enrichment/types";
+import { STATUS_LABEL } from "../leads/lead-status";
+import type { LeadStatus } from "../leads/remote-leads";
 import type { BusinessPresence } from "../business-presence/types";
 import { ChanceBadge } from "../lead-chance/ChanceBadge";
 import {
@@ -68,6 +70,8 @@ type ResultSort =
   | "reviews"
   | "az"
   | "za";
+
+type LeadStatusFilter = "all" | "new" | LeadStatus;
 
 const RECENT_SEARCHES_KEY = "leadflow:recent-searches";
 
@@ -190,6 +194,8 @@ export function SearchLeadsView({
   const [error, setError] = useState<{ code: string; message: string } | null>(null);
   const [filter, setFilter] = useState<ResultFilter>("all");
   const [sort, setSort] = useState<ResultSort>("rating");
+  const [leadStatusFilter, setLeadStatusFilter] =
+    useState<LeadStatusFilter>("all");
   const [onlyNew, setOnlyNew] = useState(false);
   const [details, setDetails] = useState<BusinessSearchResult | null>(null);
   const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([]);
@@ -288,8 +294,8 @@ export function SearchLeadsView({
         const existingLead = findBusinessDuplicate(business, existingLeads);
         return {
           business,
+          existingLead,
           alreadyAdded: Boolean(existingLead),
-          existingLeadId: existingLead?.id,
           chance: calculateLeadChance(business, resultsSegment),
         };
       }),
@@ -297,15 +303,29 @@ export function SearchLeadsView({
   );
 
   const visibleResults = useMemo(() => {
-    const filtered = resultWithExisting.filter(({ business, alreadyAdded }) => {
-      if (onlyNew && alreadyAdded) return false;
-      if (filter === "phone" || filter === "whatsapp") return Boolean(business.phone);
-      if (filter === "with-site") return Boolean(business.website);
-      if (filter === "without-site") return !business.website;
-      if (filter === "with-instagram") return Boolean(business.instagram);
-      if (filter === "without-instagram") return !business.instagram;
-      return true;
-    });
+    const filtered = resultWithExisting.filter(
+      ({ business, existingLead, alreadyAdded }) => {
+        if (onlyNew && alreadyAdded) return false;
+
+        if (leadStatusFilter === "new" && existingLead) return false;
+        if (
+          leadStatusFilter !== "all" &&
+          leadStatusFilter !== "new" &&
+          existingLead?.status !== leadStatusFilter
+        ) {
+          return false;
+        }
+
+        if (filter === "phone" || filter === "whatsapp") {
+          return Boolean(business.phone);
+        }
+        if (filter === "with-site") return Boolean(business.website);
+        if (filter === "without-site") return !business.website;
+        if (filter === "with-instagram") return Boolean(business.instagram);
+        if (filter === "without-instagram") return !business.instagram;
+        return true;
+      },
+    );
 
     return [...filtered].sort((a, b) => {
       if (sort === "chance-desc") return b.chance.score - a.chance.score;
@@ -315,7 +335,7 @@ export function SearchLeadsView({
       if (sort === "za") return b.business.name.localeCompare(a.business.name, "pt-BR");
       return (b.business.rating ?? -1) - (a.business.rating ?? -1);
     });
-  }, [resultWithExisting, filter, sort, onlyNew]);
+  }, [resultWithExisting, filter, sort, onlyNew, leadStatusFilter]);
 
   const alreadyAddedCount = resultWithExisting.filter((item) => item.alreadyAdded).length;
   const newCount = resultWithExisting.length - alreadyAddedCount;
@@ -389,6 +409,7 @@ export function SearchLeadsView({
       state: SEARCH_STATE.code,
     };
     setFilter("all");
+    setLeadStatusFilter("all");
     setOnlyNew(false);
     void runSearch(selectedSegment, location);
   }
@@ -401,6 +422,7 @@ export function SearchLeadsView({
       state: SEARCH_STATE.code,
     });
     setFilter("all");
+    setLeadStatusFilter("all");
     setOnlyNew(false);
     void runSearch(search.segment, {
       city: search.city,
@@ -661,9 +683,31 @@ export function SearchLeadsView({
             <input
               type="checkbox"
               checked={onlyNew}
-              onChange={(event) => setOnlyNew(event.target.checked)}
+              onChange={(event) => {
+                const checked = event.target.checked;
+                setOnlyNew(checked);
+                setLeadStatusFilter(checked ? "new" : "all");
+              }}
             />
             <span>Somente novos</span>
+          </label>
+          <label className="select-wrap">
+            <select
+              value={leadStatusFilter}
+              onChange={(event) => {
+                const value = event.target.value as LeadStatusFilter;
+                setLeadStatusFilter(value);
+                setOnlyNew(value === "new");
+              }}
+              aria-label="Filtrar por status do lead"
+            >
+              <option value="all">Todos os status</option>
+              <option value="new">Novos</option>
+              <option value="send_message">Enviar mensagem</option>
+              <option value="waiting">Aguardando</option>
+              <option value="accepted">Aceitos</option>
+              <option value="rejected">Recusados</option>
+            </select>
           </label>
           <label className="select-wrap">
             <select
@@ -692,13 +736,12 @@ export function SearchLeadsView({
         </div>
       ) : (
         <div className="business-results">
-          {visibleResults.map(({ business, alreadyAdded, existingLeadId, chance }) => (
+          {visibleResults.map(({ business, existingLead, chance }) => (
             <BusinessCard
               key={business.placeId}
               business={business}
               chance={chance}
-              alreadyAdded={alreadyAdded}
-              existingLeadId={existingLeadId}
+              existingLead={existingLead}
               onDetails={setDetails}
               onWhatsApp={openWhatsApp}
               onMessage={onMessage}
@@ -794,8 +837,7 @@ export function SearchLeadsView({
 function BusinessCard({
   business,
   chance,
-  alreadyAdded,
-  existingLeadId,
+  existingLead,
   onDetails,
   onWhatsApp,
   onMessage,
@@ -804,14 +846,22 @@ function BusinessCard({
 }: {
   business: BusinessSearchResult;
   chance: LeadChanceResult;
-  alreadyAdded: boolean;
-  existingLeadId?: string;
+  existingLead: ExistingLeadIdentity | null;
   onDetails: (business: BusinessSearchResult) => void;
   onWhatsApp: (business: BusinessSearchResult) => void;
   onMessage: (target: SearchMessageTarget) => void;
   onGeneratePrompt: (business: BusinessSearchResult) => void;
   onAdd: (business: BusinessSearchResult) => void;
 }) {
+  const commercialPhone = existingLead?.phone || business.phone || "";
+  const normalizedCommercialPhone = normalizeBrazilianPhone(commercialPhone);
+  const canSendPreparedMessage =
+    normalizedCommercialPhone.length === 12 ||
+    normalizedCommercialPhone.length === 13;
+  const showPreparedMessageAction =
+    canSendPreparedMessage &&
+    (!existingLead || existingLead.status === "send_message");
+
   return (
     <article className="business-card">
       <div className="business-card-main">
@@ -819,9 +869,18 @@ function BusinessCard({
           <div>
             <div className="business-name-line">
               <h2>{business.name}</h2>
+              {existingLead?.status && (
+                <span
+                  className={`status-badge ${existingLead.status}`}
+                  aria-label={`Status do lead: ${STATUS_LABEL[existingLead.status]}`}
+                >
+                  {STATUS_LABEL[existingLead.status]}
+                </span>
+              )}
               <ChanceBadge chance={chance} />
             </div>
             {business.primaryCategory && <span>{business.primaryCategory}</span>}
+            {existingLead && <span>Nos seus leads</span>}
           </div>
           {business.isOpenNow !== null && (
             <span className={business.isOpenNow ? "open-status open" : "open-status closed"}>
@@ -878,25 +937,27 @@ function BusinessCard({
           Ver empresa
         </button>
         {business.phone && (
-          <>
-            <button type="button" className="secondary-button compact-button" onClick={() => onWhatsApp(business)}>
-              WhatsApp
-            </button>
-            <button
-              type="button"
-              className="message-button compact-button"
-              onClick={() =>
-                onMessage({
-                  id: existingLeadId,
-                  company: business.name,
-                  phone: business.phone ?? "",
-                })
-              }
-            >
-              <MessageCircle size={14} />
-              Mandar mensagem
-            </button>
-          </>
+          <button type="button" className="secondary-button compact-button" onClick={() => onWhatsApp(business)}>
+            WhatsApp
+          </button>
+        )}
+        {showPreparedMessageAction && (
+          <button
+            type="button"
+            className="message-button compact-button"
+            onClick={() =>
+              onMessage({
+                id: existingLead?.id,
+                company: business.name,
+                phone: commercialPhone,
+              })
+            }
+          >
+            <MessageCircle size={14} />
+            {existingLead?.status === "send_message"
+              ? "Enviar mensagem"
+              : "Mandar mensagem"}
+          </button>
         )}
         <button
           type="button"
@@ -906,18 +967,20 @@ function BusinessCard({
           <Sparkles size={14} />
           Gerar prompt
         </button>
-        <button
-          type="button"
-          className={alreadyAdded ? "secondary-button compact-button added-button" : "primary-button compact-button"}
-          disabled={alreadyAdded}
-          onClick={() => onAdd(business)}
-        >
-          {alreadyAdded ? "Já está nos seus leads" : "Adicionar aos meus leads"}
-        </button>
+        {!existingLead && (
+          <button
+            type="button"
+            className="primary-button compact-button"
+            onClick={() => onAdd(business)}
+          >
+            Adicionar aos meus leads
+          </button>
+        )}
       </div>
     </article>
   );
 }
+
 
 function SearchError({ error }: { error: { code: string; message: string } }) {
   const title =
