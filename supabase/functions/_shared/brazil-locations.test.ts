@@ -80,4 +80,22 @@ Deno.test("state names support the expected Google Places query shape", () => {
       "Clínica de estética em Curitiba, Paraná, Brasil",
     "PR query shape is incorrect.",
   );
+
+  const rj = findEdgeState("RJ");
+  const mg = findEdgeState("MG");
+  assert(
+    `Odontologia em Niterói, ${rj?.name}, Brasil` ===
+      "Odontologia em Niterói, Rio de Janeiro, Brasil",
+    "RJ query shape is incorrect.",
+  );
+  assert(
+    `Barbearia em Lavras, ${mg?.name}, Brasil` ===
+      "Barbearia em Lavras, Minas Gerais, Brasil",
+    "MG compatibility query shape is incorrect.",
+  );
+  assert(
+    `Restaurante em Salvador, ${ba?.name}, Brasil` ===
+      "Restaurante em Salvador, Bahia, Brasil",
+    "BA restaurant query shape is incorrect.",
+  );
 });
