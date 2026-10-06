@@ -1,0 +1,42 @@
+name: Temporary Final Brazil Validation
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Production build
+        run: bun run build
+      - name: Semantic lint
+        run: >
+          bunx eslint
+          src/lib/brazil-locations.ts
+          src/lib/location.ts
+          src/features/search-leads/search-location.ts
+          src/features/search-leads/SearchLeadsView.tsx
+          src/features/open-now-niches/local-cache.ts
+          src/features/open-now-niches/OpenNowNichesView.tsx
+          src/features/opportunities/OpportunityView.tsx
+          src/features/opportunities/opportunity-data.ts
+          src/routes/index.tsx
+          --rule "prettier/prettier: off"
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Brazil location tests
+        run: deno test --unstable-sloppy-imports supabase/functions/_shared/brazil-locations.test.ts
+      - name: Edge Function checks
+        run: >
+          deno check
+          supabase/functions/search-places/index.ts
+          supabase/functions/open-now-niches/index.ts
+          supabase/functions/sync-leads/index.ts
