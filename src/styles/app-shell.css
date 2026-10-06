@@ -1,0 +1,1219 @@
+/* JanuarioLeads SaaS shell and dashboard redesign.
+   This file intentionally contains presentation-only rules. */
+
+:root {
+  --saas-sidebar-width: 240px;
+  --saas-content-max: 1480px;
+  --font-display: "Space Grotesk", Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  background: var(--bg);
+}
+
+.saas-shell {
+  min-height: 100dvh;
+  background: var(--bg);
+}
+
+.saas-sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 50;
+  width: var(--saas-sidebar-width);
+  display: flex;
+  flex-direction: column;
+  padding: 18px 12px 14px;
+  border-right: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 88%, var(--bg));
+}
+
+.dark .saas-sidebar {
+  background: #0d0d10;
+}
+
+.saas-brand {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 8px;
+  padding: 5px 8px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+}
+
+.saas-brand:hover {
+  background: var(--surface-2);
+}
+
+.saas-brand.compact {
+  padding: 0;
+  pointer-events: none;
+}
+
+.saas-brand-mark {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--primary-action);
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.saas-brand-mark.small {
+  width: 28px;
+  height: 28px;
+}
+
+.saas-brand-word {
+  display: inline-flex;
+  align-items: baseline;
+  min-width: 0;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+}
+
+.saas-brand-word strong {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.saas-sidebar-label {
+  margin: 22px 10px 8px;
+  color: var(--faint);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+}
+
+.saas-nav {
+  display: grid;
+  gap: 3px;
+}
+
+.saas-nav-item,
+.saas-footer-action {
+  position: relative;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 11px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  transition:
+    background .16s ease,
+    color .16s ease;
+}
+
+.saas-nav-item svg,
+.saas-footer-action svg {
+  flex: 0 0 auto;
+}
+
+.saas-nav-item i {
+  position: absolute;
+  left: 0;
+  width: 2px;
+  height: 18px;
+  border-radius: 0 999px 999px 0;
+  background: transparent;
+}
+
+.saas-nav-item:hover,
+.saas-footer-action:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.saas-nav-item.active {
+  background: var(--primary-soft);
+  color: var(--text);
+}
+
+.saas-nav-item.active svg {
+  color: var(--primary);
+}
+
+.saas-nav-item.active i {
+  background: var(--primary);
+}
+
+.saas-sidebar-footer {
+  display: grid;
+  gap: 3px;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.saas-main {
+  min-height: 100dvh;
+  margin-left: var(--saas-sidebar-width);
+  background: var(--bg);
+}
+
+.saas-main-inner {
+  min-height: 100dvh;
+}
+
+.saas-mobile-header,
+.saas-mobile-backdrop {
+  display: none;
+}
+
+.saas-page {
+  width: min(100%, var(--saas-content-max));
+  margin: 0 auto;
+  padding: 30px 34px 56px;
+}
+
+.saas-main .page-wrap {
+  width: min(100%, var(--saas-content-max));
+  max-width: none;
+  margin: 0 auto;
+  padding: 30px 34px 56px;
+}
+
+.saas-page-header,
+.saas-main .page-heading,
+.saas-main .open-now-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin: 0 0 24px;
+}
+
+.saas-page-header > div:first-child {
+  min-width: 0;
+}
+
+.saas-page-eyebrow,
+.saas-main .eyebrow {
+  margin: 0 0 7px;
+  color: var(--faint);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.saas-page-header h1,
+.saas-main .page-heading h1,
+.saas-main .results-heading h1,
+.saas-main .open-now-heading h1 {
+  margin: 0;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: clamp(25px, 2.6vw, 31px);
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.045em;
+}
+
+.saas-page-header p:not(.saas-page-eyebrow),
+.saas-main .subtitle {
+  max-width: 660px;
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.saas-page-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.saas-sync-pill {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.saas-sync-pill svg {
+  color: var(--faint);
+}
+
+.saas-sync-pill.active svg {
+  color: var(--accepted);
+}
+
+.saas-sync-pill small {
+  padding-left: 7px;
+  border-left: 1px solid var(--border);
+  color: var(--faint);
+  font-size: 9px;
+}
+
+.saas-inline-notice {
+  margin: -10px 0 18px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 10px;
+}
+
+/* Dashboard */
+
+.dashboard-metrics,
+.finance-metrics {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 9px;
+  margin-bottom: 14px;
+}
+
+.saas-metric-card {
+  position: relative;
+  min-width: 0;
+  min-height: 100px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  overflow: hidden;
+  padding: 14px 15px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.saas-metric-card::after {
+  content: "";
+  position: absolute;
+  inset: auto 12px 0;
+  height: 2px;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.saas-metric-card.primary::after { background: var(--primary); }
+.saas-metric-card.waiting::after { background: var(--waiting); }
+.saas-metric-card.accepted::after { background: var(--accepted); }
+.saas-metric-card.rejected::after { background: var(--rejected); }
+
+.saas-metric-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--faint);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.saas-metric-label svg {
+  flex: 0 0 auto;
+}
+
+.saas-metric-card > strong {
+  overflow-wrap: anywhere;
+  font-family: var(--font-display);
+  font-size: clamp(22px, 2vw, 29px);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.045em;
+}
+
+.saas-metric-card.primary > strong { color: var(--primary); }
+
+.saas-metric-card small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.dashboard-secondary-grid,
+.dashboard-columns {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.dashboard-secondary-grid {
+  grid-template-columns: minmax(0, .78fr) minmax(0, 1.22fr);
+}
+
+.dashboard-columns {
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, .8fr);
+}
+
+.dashboard-panel,
+.finance-panel {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.dashboard-panel {
+  padding: 16px;
+}
+
+.dashboard-panel-heading,
+.finance-panel-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.dashboard-panel-heading > div,
+.finance-panel-heading > div {
+  display: grid;
+  gap: 3px;
+}
+
+.dashboard-panel-heading span,
+.finance-panel-heading span {
+  color: var(--faint);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .1em;
+}
+
+.dashboard-panel-heading strong,
+.finance-panel-heading strong {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.dashboard-panel-heading button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.dashboard-panel-heading button:hover {
+  color: var(--text);
+}
+
+.dashboard-conversion {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.dashboard-conversion > strong {
+  flex: 0 0 auto;
+  font-family: var(--font-display);
+  font-size: 38px;
+  font-weight: 600;
+  line-height: .9;
+  letter-spacing: -0.055em;
+}
+
+.dashboard-conversion p {
+  max-width: 360px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.dashboard-formula {
+  display: block;
+  margin-top: 13px;
+  color: var(--faint);
+  font-size: 8px;
+}
+
+.dashboard-finance-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.dashboard-finance-grid > div {
+  min-width: 0;
+  padding: 11px;
+  border-right: 1px solid var(--border);
+}
+
+.dashboard-finance-grid > div:last-child {
+  border-right: 0;
+}
+
+.dashboard-finance-grid span {
+  display: block;
+  color: var(--faint);
+  font-size: 8px;
+}
+
+.dashboard-finance-grid strong {
+  display: block;
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.dashboard-panel-empty {
+  margin: 18px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.dashboard-feed,
+.dashboard-opportunity-list {
+  display: grid;
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.dashboard-feed button {
+  min-height: 54px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  padding: 8px 2px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.dashboard-feed button:last-child {
+  border-bottom: 0;
+}
+
+.dashboard-feed button:not(:disabled):hover strong {
+  color: var(--primary);
+}
+
+.dashboard-feed button:disabled {
+  cursor: default;
+}
+
+.dashboard-feed-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--faint);
+}
+
+.dashboard-feed-dot.high {
+  background: var(--rejected);
+}
+
+.dashboard-feed button > span:nth-child(2) {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.dashboard-feed strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  transition: color .15s ease;
+}
+
+.dashboard-feed small {
+  color: var(--faint);
+  font-size: 8px;
+}
+
+.dashboard-feed b {
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 7px;
+}
+
+.dashboard-opportunity-list button {
+  min-height: 58px;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  padding: 5px 1px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.dashboard-opportunity-list button:last-child {
+  border-bottom: 0;
+}
+
+.dashboard-opportunity-list button > span {
+  color: var(--faint);
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.dashboard-opportunity-list button > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.dashboard-opportunity-list strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+}
+
+.dashboard-opportunity-list small {
+  color: var(--faint);
+  font-size: 8px;
+}
+
+.dashboard-opportunity-list b {
+  min-width: 38px;
+  color: var(--primary);
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 600;
+  text-align: right;
+}
+
+.dashboard-opportunity-empty {
+  min-height: 138px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 7px;
+  color: var(--faint);
+  text-align: center;
+}
+
+.dashboard-opportunity-empty p {
+  max-width: 300px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.dashboard-opportunity-empty button {
+  border: 0;
+  background: transparent;
+  color: var(--primary);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.dashboard-bottom-note {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 12px;
+  color: var(--faint);
+  font-size: 9px;
+}
+
+/* Finance */
+
+.finance-panel {
+  overflow: hidden;
+}
+
+.finance-panel-heading {
+  padding: 14px 15px;
+  border-bottom: 1px solid var(--border);
+}
+
+.finance-panel-heading small {
+  color: var(--faint);
+  font-size: 9px;
+}
+
+.finance-table {
+  display: grid;
+}
+
+.finance-table-head,
+.finance-table-row {
+  display: grid;
+  grid-template-columns: 1.4fr repeat(3, .78fr) .72fr .9fr 24px;
+  align-items: center;
+  gap: 12px;
+}
+
+.finance-table-head {
+  min-height: 38px;
+  padding: 0 15px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--faint);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.finance-table-row {
+  min-height: 62px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  padding: 8px 15px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.finance-table-row:last-child {
+  border-bottom: 0;
+}
+
+.finance-table-row:hover {
+  background: var(--surface-2);
+}
+
+.finance-table-row > span:first-child {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.finance-table-row > span:first-child strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+}
+
+.finance-table-row > span:first-child small {
+  color: var(--faint);
+  font-size: 8px;
+}
+
+.finance-table-row > b {
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.finance-table-row > span:nth-child(6) {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.finance-table-row > svg {
+  color: var(--faint);
+}
+
+.finance-empty {
+  min-height: 260px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 7px;
+  padding: 30px;
+  color: var(--muted);
+  text-align: center;
+  font-size: 10px;
+}
+
+.finance-empty strong {
+  color: var(--text);
+  font-size: 11px;
+}
+
+.finance-empty p {
+  max-width: 360px;
+  margin: 0;
+  color: var(--faint);
+  line-height: 1.5;
+}
+
+.finance-mobile-list {
+  display: none;
+}
+
+/* Existing module harmonization inside the new shell */
+
+.saas-main .stats-strip,
+.saas-main .finance-summary-strip,
+.saas-main .lead-panel,
+.saas-main .segment-picker,
+.saas-main .results-toolbar,
+.saas-main .business-card,
+.saas-main .opportunity-summary,
+.saas-main .opportunity-card,
+.saas-main .open-now-control-panel,
+.saas-main .open-now-family-summary button,
+.saas-main .prospect-now,
+.saas-main .open-now-catalog-section,
+.saas-main .open-now-business-panel,
+.saas-main .message-editor {
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+.saas-main .stats-strip {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.saas-main .stat-item {
+  min-height: 78px;
+  padding: 14px 15px;
+}
+
+.saas-main .stat-item strong {
+  font-family: var(--font-display);
+  font-size: 21px;
+  font-weight: 600;
+}
+
+.saas-main .panel-toolbar {
+  padding: 12px 13px;
+}
+
+.saas-main .table-row {
+  min-height: 64px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.saas-main .results-heading {
+  margin-bottom: 18px;
+}
+
+.saas-main .business-card {
+  padding: 13px 14px;
+}
+
+.saas-main .business-title-row h2 {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.saas-main .search-location-static,
+.saas-main .search-location-select,
+.saas-main .search-city-input {
+  min-height: 42px;
+  border-radius: 8px;
+}
+
+.saas-main .search-location-select select,
+.saas-main .search-city-input input {
+  height: 40px;
+}
+
+.saas-main .segment-search input {
+  height: 43px;
+}
+
+.saas-main .segment-group {
+  padding: 15px;
+}
+
+.saas-main .segment-option {
+  min-height: 32px;
+  border-radius: 7px;
+}
+
+.saas-main .selection-bar {
+  border-radius: 9px;
+}
+
+.saas-main .opportunity-ranking {
+  gap: 10px;
+}
+
+.saas-main .opportunity-card {
+  border-radius: 10px;
+}
+
+.saas-main .opportunity-card-top h3,
+.saas-main .open-now-section-heading h2 {
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+
+.saas-main .open-now-page {
+  gap: 18px;
+}
+
+.saas-main .open-now-clock strong {
+  font-family: var(--font-display);
+  font-size: 23px;
+  font-weight: 600;
+}
+
+.saas-main .messages-page {
+  max-width: none;
+}
+
+.saas-main .message-editor textarea {
+  min-height: 130px;
+}
+
+/* Mobile */
+
+@media (max-width: 1180px) {
+  :root {
+    --saas-sidebar-width: 218px;
+  }
+
+  .dashboard-metrics,
+  .finance-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .dashboard-finance-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-finance-grid > div:nth-child(2) {
+    border-right: 0;
+  }
+
+  .dashboard-finance-grid > div:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+@media (max-width: 900px) {
+  .saas-sidebar {
+    display: none;
+  }
+
+  .saas-main {
+    margin-left: 0;
+  }
+
+  .saas-mobile-header {
+    position: sticky;
+    top: 0;
+    z-index: 45;
+    min-height: calc(58px + env(safe-area-inset-top));
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) 40px;
+    align-items: center;
+    gap: 8px;
+    padding:
+      env(safe-area-inset-top)
+      12px
+      0;
+    border-bottom: 1px solid var(--border);
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
+    backdrop-filter: blur(14px);
+  }
+
+  .saas-mobile-menu,
+  .saas-mobile-theme,
+  .saas-mobile-close {
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--muted);
+  }
+
+  .saas-mobile-title {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .saas-mobile-title > div {
+    min-width: 0;
+    display: grid;
+    gap: 1px;
+  }
+
+  .saas-mobile-title strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--font-display);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .saas-mobile-title span:last-child {
+    color: var(--faint);
+    font-size: 8px;
+  }
+
+  .saas-mobile-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    display: block;
+    background: rgba(0, 0, 0, .58);
+    backdrop-filter: blur(3px);
+  }
+
+  .saas-mobile-drawer {
+    width: min(310px, 88vw);
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    padding:
+      calc(14px + env(safe-area-inset-top))
+      12px
+      calc(14px + env(safe-area-inset-bottom));
+    border-right: 1px solid var(--border);
+    background: var(--surface);
+    animation: saas-drawer-in .18s ease-out;
+  }
+
+  .saas-mobile-drawer-head {
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .saas-mobile-drawer .saas-sidebar-footer {
+    margin-top: auto;
+  }
+
+  .saas-page,
+  .saas-main .page-wrap {
+    padding: 24px 20px 46px;
+  }
+
+  .dashboard-secondary-grid,
+  .dashboard-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .saas-main .stats-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .saas-page,
+  .saas-main .page-wrap {
+    padding:
+      20px
+      14px
+      calc(34px + env(safe-area-inset-bottom));
+  }
+
+  .saas-page-header,
+  .saas-main .page-heading,
+  .saas-main .open-now-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 13px;
+    margin-bottom: 18px;
+  }
+
+  .saas-page-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .saas-sync-pill {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .dashboard-metrics,
+  .finance-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .saas-metric-card {
+    min-height: 92px;
+    padding: 12px;
+  }
+
+  .saas-metric-card > strong {
+    font-size: 23px;
+  }
+
+  .dashboard-finance-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .dashboard-conversion {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .dashboard-conversion > strong {
+    font-size: 34px;
+  }
+
+  .desktop-finance-table {
+    display: none;
+  }
+
+  .finance-mobile-list {
+    display: grid;
+  }
+
+  .finance-mobile-list > button {
+    display: grid;
+    gap: 10px;
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    padding: 14px;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+  }
+
+  .finance-mobile-list > button:last-child {
+    border-bottom: 0;
+  }
+
+  .finance-mobile-list > button > div:first-child {
+    display: grid;
+    gap: 2px;
+  }
+
+  .finance-mobile-list > button > div:first-child strong {
+    font-size: 11px;
+  }
+
+  .finance-mobile-list > button > div:first-child span {
+    color: var(--faint);
+    font-size: 8px;
+  }
+
+  .finance-mobile-values {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .finance-mobile-values span {
+    display: grid;
+    gap: 3px;
+    color: var(--faint);
+    font-size: 8px;
+  }
+
+  .finance-mobile-values b {
+    color: var(--text);
+    font-family: var(--font-display);
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .finance-mobile-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .saas-main .stats-strip {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .saas-main .stat-item {
+    min-height: 70px;
+  }
+
+  .saas-main .toolbar-selects {
+    grid-template-columns: 1fr;
+  }
+
+  .saas-main .search-location-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .saas-main .business-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .saas-main .business-actions .primary-button,
+  .saas-main .business-actions .added-button {
+    grid-column: auto;
+  }
+
+  .saas-main .opportunity-ranking {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 360px) {
+  .dashboard-metrics,
+  .finance-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-finance-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-finance-grid > div {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .dashboard-finance-grid > div:last-child {
+    border-bottom: 0;
+  }
+}
+
+@keyframes saas-drawer-in {
+  from { transform: translateX(-18px); opacity: .6; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .saas-nav-item,
+  .saas-footer-action,
+  .saas-mobile-drawer {
+    transition: none;
+    animation: none;
+  }
+}
