@@ -21,6 +21,7 @@ import type {
 } from "../features/business-presence/types";
 import { LeadEnrichmentModal } from "../features/lead-enrichment/LeadEnrichmentModal";
 import { createLeadActivity } from "../features/lead-activities/lead-activities";
+import type { LeadActivityType } from "../features/lead-activities/types";
 import {
   fetchLeadPayments,
   FINANCIAL_STATUS_LABEL,
@@ -32,6 +33,19 @@ import {
   type LeadPayment,
 } from "../features/lead-finance/finance";
 import { ChanceBadge } from "../features/lead-chance/ChanceBadge";
+import {
+  LeadActionSummary,
+  type NextActionPatch,
+} from "../features/next-actions/LeadNextActionSection";
+import {
+  DEFAULT_FOLLOW_UP_DAYS,
+  NEXT_ACTION_LABEL,
+  addDaysToDateKey,
+  clearActionForStatus,
+  crmToday,
+  getLeadActionSummary,
+  nextActionSortValue,
+} from "../features/next-actions/next-actions";
 import {
   deleteRemoteLead,
   fetchLeadUpdates,
@@ -126,6 +140,13 @@ type Status = LeadStatus;
 type Lead = PersistedLead;
 
 type LeadForm = Omit<Lead, "id" | "createdAt" | "lastContact">;
+type LeadActionFilter = "all" | "today" | "follow-up" | "overdue";
+type MessageLead = {
+  id?: string;
+  company: string;
+  phone: string;
+  followUp?: boolean;
+};
 
 const SEGMENTS = [
   "Açaiteria",
@@ -151,7 +172,7 @@ const EMPTY_FORM: LeadForm = {
   segment: "",
   phone: "",
   status: "send_message",
-  firstContact: new Date().toISOString().slice(0, 10),
+  firstContact: crmToday(),
   notes: "",
 };
 
@@ -228,6 +249,7 @@ function LeadFlowApp() {
   const [form, setForm] = useState<LeadForm>(EMPTY_FORM);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | Status>("all");
+  const [actionFilter, setActionFilter] = useState<LeadActionFilter>("all");
   const [financialFilter, setFinancialFilter] = useState<
     "all" | FinancialStatus
   >("all");
@@ -235,7 +257,7 @@ function LeadFlowApp() {
   const [stateFilter, setStateFilter] = useState("all");
   const [cityFilter, setCityFilter] = useState("all");
   const [sort, setSort] = useState("recent");
-  const [messageLead, setMessageLead] = useState<{ id?: string; company: string; phone: string } | null>(null);
+  const [messageLead, setMessageLead] = useState<MessageLead | null>(null);
   const [selectedMessage, setSelectedMessage] = useState(0);
   const [messageActionPending, setMessageActionPending] = useState(false);
   const [messageActionError, setMessageActionError] = useState("");
@@ -561,13 +583,28 @@ function LeadFlowApp() {
       const finance = financeByLead.get(lead.id);
       const matchesFinancial =
         financialFilter === "all" || finance?.status === financialFilter;
+      const actionSummary = getLeadActionSummary(lead);
+      const matchesAction =
+        actionFilter === "all" ||
+        (actionFilter === "today" &&
+          Boolean(
+            actionSummary.saved?.date &&
+              actionSummary.temporal.daysDelta !== null &&
+              actionSummary.temporal.daysDelta <= 0,
+          )) ||
+        (actionFilter === "follow-up" &&
+          (actionSummary.saved?.type === "follow_up" ||
+            (!actionSummary.saved && actionSummary.followUp.recommended))) ||
+        (actionFilter === "overdue" &&
+          actionSummary.temporal.urgency === "overdue");
       return (
         matchesSearch &&
         matchesStatus &&
         matchesSegment &&
         matchesState &&
         matchesCity &&
-        matchesFinancial
+        matchesFinancial &&
+        matchesAction
       );
     });
 
@@ -592,12 +629,19 @@ function LeadFlowApp() {
         const left = financeByLead.get(a.id)?.lastPayment?.paymentDate ?? "";
         return right.localeCompare(left) || b.createdAt.localeCompare(a.createdAt);
       }
+      if (sort === "next-action") {
+        return (
+          nextActionSortValue(a) - nextActionSortValue(b) ||
+          a.company.localeCompare(b.company, "pt-BR")
+        );
+      }
       return b.createdAt.localeCompare(a.createdAt);
     });
   }, [
     leads,
     search,
     statusFilter,
+    actionFilter,
     financialFilter,
     segmentFilter,
     stateFilter,
@@ -605,6 +649,34 @@ function LeadFlowApp() {
     sort,
     financeByLead,
   ]);
+
+  const actionCounts = useMemo(() => {
+    let today = 0;
+    let followUp = 0;
+    let overdue = 0;
+
+    for (const lead of leads) {
+      const summary = getLeadActionSummary(lead);
+      if (
+        summary.saved?.date &&
+        summary.temporal.daysDelta !== null &&
+        summary.temporal.daysDelta <= 0
+      ) {
+        today += 1;
+      }
+      if (
+        summary.saved?.type === "follow_up" ||
+        (!summary.saved && summary.followUp.recommended)
+      ) {
+        followUp += 1;
+      }
+      if (summary.temporal.urgency === "overdue") {
+        overdue += 1;
+      }
+    }
+
+    return { today, followUp, overdue };
+  }, [leads]);
 
   const unseenUpdatesByLead = useMemo(() => {
     const counts = new Map<string, number>();
@@ -623,12 +695,7 @@ function LeadFlowApp() {
   function recordActivity(
     leadId: string,
     input: {
-      type:
-        | "lead_added"
-        | "whatsapp_opened"
-        | "status_changed"
-        | "company_updated"
-        | "lead_edited";
+      type: LeadActivityType;
       title: string;
       description?: string | null;
       metadata?: Record<string, unknown>;
@@ -792,6 +859,84 @@ function LeadFlowApp() {
     );
   }
 
+  function saveNextAction(id: string, patch: NextActionPatch) {
+    const previous = leads.find((lead) => lead.id === id);
+    if (!previous) return;
+
+    const next: Lead = patch.nextActionType
+      ? {
+          ...previous,
+          nextActionType: patch.nextActionType,
+          nextActionDate: patch.nextActionDate,
+          nextActionNotes: patch.nextActionNotes,
+        }
+      : {
+          ...previous,
+          nextActionType: undefined,
+          nextActionDate: undefined,
+          nextActionNotes: undefined,
+        };
+
+    updateLeadLocally(id, () => next);
+
+    const previousLabel = previous.nextActionType
+      ? NEXT_ACTION_LABEL[previous.nextActionType]
+      : null;
+    const nextLabel = next.nextActionType
+      ? NEXT_ACTION_LABEL[next.nextActionType]
+      : null;
+
+    recordActivity(id, {
+      type: "next_action_set",
+      title: nextLabel ? "Próxima ação definida" : "Próxima ação removida",
+      description:
+        previousLabel && nextLabel && previousLabel !== nextLabel
+          ? `Próxima ação alterada de ${previousLabel} para ${nextLabel}.`
+          : nextLabel
+            ? `${nextLabel}${next.nextActionDate ? ` agendado para ${formatDate(next.nextActionDate)}` : ""}.`
+            : previousLabel
+              ? `${previousLabel} removida.`
+              : "Próxima ação removida.",
+      metadata: {
+        previousAction: previous.nextActionType ?? null,
+        nextAction: next.nextActionType ?? null,
+        nextActionDate: next.nextActionDate ?? null,
+      },
+    });
+  }
+
+  function completeNextAction(id: string) {
+    const lead = leads.find((item) => item.id === id);
+    if (!lead?.nextActionType) return;
+
+    const label = NEXT_ACTION_LABEL[lead.nextActionType];
+    updateLeadLocally(id, (item) => ({
+      ...item,
+      nextActionType: undefined,
+      nextActionDate: undefined,
+      nextActionNotes: undefined,
+    }));
+    recordActivity(id, {
+      type: "next_action_completed",
+      title: "Próxima ação concluída",
+      description: `${label} concluído.`,
+      metadata: {
+        action: lead.nextActionType,
+        scheduledDate: lead.nextActionDate ?? null,
+      },
+    });
+  }
+
+  function startFollowUp(lead: Lead) {
+    setSelectedMessage(0);
+    setMessageLead({
+      id: lead.id,
+      company: lead.company,
+      phone: lead.phone,
+      followUp: true,
+    });
+  }
+
   function addLeadLocally(lead: Lead) {
     setLeads((current) => [lead, ...current]);
     persistLeadChange(lead);
@@ -828,7 +973,7 @@ function LeadFlowApp() {
 
   function openNewLead() {
     setEditingLead(null);
-    setForm({ ...EMPTY_FORM, firstContact: new Date().toISOString().slice(0, 10) });
+    setForm({ ...EMPTY_FORM, firstContact: crmToday() });
     setLeadModal(true);
   }
 
@@ -850,14 +995,17 @@ function LeadFlowApp() {
     if (!form.company.trim() || !form.segment.trim()) return;
 
     if (editingLead) {
-      const nextLead: Lead = {
+      let nextLead: Lead = {
         ...editingLead,
         ...form,
         company: form.company.trim(),
         segment: form.segment.trim(),
       };
-      const changedFields = relevantLeadChanges(editingLead, nextLead);
       const statusChanged = editingLead.status !== nextLead.status;
+      if (statusChanged) {
+        nextLead = clearActionForStatus(nextLead, nextLead.status);
+      }
+      const changedFields = relevantLeadChanges(editingLead, nextLead);
       const instagramIdentityChanged =
         editingLead.company !== nextLead.company ||
         editingLead.phone !== nextLead.phone;
@@ -890,6 +1038,19 @@ function LeadFlowApp() {
             ...(changedFields.length > 0 ? { changedFields } : {}),
           },
         });
+
+        if (editingLead.nextActionType && !nextLead.nextActionType) {
+          recordActivity(editingLead.id, {
+            type: "next_action_set",
+            title: "Próxima ação encerrada",
+            description: `${NEXT_ACTION_LABEL[editingLead.nextActionType]} removida após mudança para ${newStatus}.`,
+            metadata: {
+              previousAction: editingLead.nextActionType,
+              reason: "status_changed",
+              newStatus: nextLead.status,
+            },
+          });
+        }
       } else if (changedFields.length > 0) {
         recordActivity(editingLead.id, {
           type: "lead_edited",
@@ -921,7 +1082,8 @@ function LeadFlowApp() {
     const previousStatus = STATUS_LABEL[lead.status];
     const newStatus = STATUS_LABEL[status];
 
-    updateLeadLocally(id, (item) => ({ ...item, status }));
+    const nextLead = clearActionForStatus(lead, status);
+    updateLeadLocally(id, () => nextLead);
     recordActivity(id, {
       type: "status_changed",
       title: "Status alterado",
@@ -931,6 +1093,19 @@ function LeadFlowApp() {
         newStatus,
       },
     });
+
+    if (lead.nextActionType && !nextLead.nextActionType) {
+      recordActivity(id, {
+        type: "next_action_set",
+        title: "Próxima ação encerrada",
+        description: `${NEXT_ACTION_LABEL[lead.nextActionType]} removida após mudança para ${newStatus}.`,
+        metadata: {
+          previousAction: lead.nextActionType,
+          reason: "status_changed",
+          newStatus: status,
+        },
+      });
+    }
   }
 
   function confirmDelete() {
@@ -990,12 +1165,42 @@ function LeadFlowApp() {
       return;
     }
 
+    const today = crmToday();
     const shouldAdvanceToWaiting = currentLead.status === "send_message";
-    const nextLead: Lead = {
+    const isFollowUp =
+      Boolean(messageLead.followUp) && currentLead.status === "waiting";
+    const completedInitialContact =
+      shouldAdvanceToWaiting &&
+      currentLead.nextActionType === "initial_contact";
+    const completedScheduledFollowUp =
+      isFollowUp && currentLead.nextActionType === "follow_up";
+    const shouldScheduleDefaultFollowUp =
+      shouldAdvanceToWaiting &&
+      (!currentLead.nextActionType || completedInitialContact);
+
+    let nextLead: Lead = {
       ...currentLead,
-      lastContact: new Date().toISOString().slice(0, 10),
+      lastContact: today,
       ...(shouldAdvanceToWaiting ? { status: "waiting" as Status } : {}),
     };
+
+    if (completedScheduledFollowUp) {
+      nextLead = {
+        ...nextLead,
+        nextActionType: undefined,
+        nextActionDate: undefined,
+        nextActionNotes: undefined,
+      };
+    }
+
+    if (shouldScheduleDefaultFollowUp) {
+      nextLead = {
+        ...nextLead,
+        nextActionType: "follow_up",
+        nextActionDate: addDaysToDateKey(today, DEFAULT_FOLLOW_UP_DAYS),
+        nextActionNotes: undefined,
+      };
+    }
 
     if (!remoteReady) {
       setMessageActionPending(false);
@@ -1037,6 +1242,42 @@ function LeadFlowApp() {
       },
     });
 
+    if (isFollowUp) {
+      recordActivity(nextLead.id, {
+        type: "follow_up",
+        title: "Follow-up realizado",
+        description: "WhatsApp aberto pelo fluxo de follow-up.",
+        metadata: {
+          messageTemplate: `Mensagem ${selectedMessage + 1}`,
+          contactDate: today,
+        },
+      });
+    }
+
+    if (completedInitialContact) {
+      recordActivity(nextLead.id, {
+        type: "next_action_completed",
+        title: "Próxima ação concluída",
+        description: "Enviar mensagem concluído.",
+        metadata: {
+          action: "initial_contact",
+          completedBy: "whatsapp_opened",
+        },
+      });
+    }
+
+    if (completedScheduledFollowUp) {
+      recordActivity(nextLead.id, {
+        type: "next_action_completed",
+        title: "Próxima ação concluída",
+        description: "Fazer follow-up concluído.",
+        metadata: {
+          action: "follow_up",
+          completedBy: "follow_up",
+        },
+      });
+    }
+
     if (shouldAdvanceToWaiting) {
       recordActivity(nextLead.id, {
         type: "status_changed",
@@ -1046,6 +1287,19 @@ function LeadFlowApp() {
           previousStatus: "Enviar mensagem",
           newStatus: "Aguardando",
           reason: "whatsapp_opened",
+        },
+      });
+    }
+
+    if (shouldScheduleDefaultFollowUp && nextLead.nextActionDate) {
+      recordActivity(nextLead.id, {
+        type: "next_action_set",
+        title: "Próxima ação definida",
+        description: `Fazer follow-up agendado para ${formatDate(nextLead.nextActionDate)}.`,
+        metadata: {
+          action: "follow_up",
+          nextActionDate: nextLead.nextActionDate,
+          reason: "initial_contact",
         },
       });
     }
@@ -1540,6 +1794,10 @@ function LeadFlowApp() {
           opportunitiesError={dashboardOpportunitiesError}
           onOpenLead={openLeadDetails}
           onNavigate={setView}
+          onShowTodayActions={() => {
+            setActionFilter("today");
+            setView("leads");
+          }}
         />
       ) : view === "leads" ? (
         <section className="page-wrap">
@@ -1706,6 +1964,7 @@ function LeadFlowApp() {
                     ["project-value", "Maior valor do projeto"],
                     ["remaining-value", "Maior valor a receber"],
                     ["payment-recent", "Recebidos recentemente"],
+                    ["next-action", "Próxima ação"],
                   ]}
                 />
               </div>
@@ -1724,6 +1983,25 @@ function LeadFlowApp() {
                   type="button"
                   className={statusFilter === value ? "filter-chip active" : "filter-chip"}
                   onClick={() => setStatusFilter(value)}
+                >
+                  {label} <span>{count}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="filter-row action-filter-row">
+              <span className="filter-row-label">Acompanhamento</span>
+              {([
+                ["all", "Todas as ações", leads.length],
+                ["today", "Ações para hoje", actionCounts.today],
+                ["follow-up", "Follow-up", actionCounts.followUp],
+                ["overdue", "Atrasadas", actionCounts.overdue],
+              ] as const).map(([value, label, count]) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={actionFilter === value ? "filter-chip active" : "filter-chip"}
+                  onClick={() => setActionFilter(value)}
                 >
                   {label} <span>{count}</span>
                 </button>
@@ -1952,11 +2230,12 @@ function LeadFlowApp() {
             if (messageActionPending) return;
             setMessageLead(null);
           }}
-          title="Mandar mensagem"
+          title={messageLead.followUp ? "Fazer follow-up" : "Mandar mensagem"}
         >
           <div className="message-picker">
             <p className="modal-copy">
-              Escolha uma mensagem para <strong>{messageLead.company}</strong>. A conversa será aberta
+              {messageLead.followUp ? "Escolha a mensagem para o follow-up com " : "Escolha uma mensagem para "}
+              <strong>{messageLead.company}</strong>. A conversa será aberta
               com o texto preenchido, mas nada será enviado automaticamente.
             </p>
             <div className="message-options">
@@ -2032,6 +2311,10 @@ function LeadFlowApp() {
             }
             financeLead={financeLoaded ? lead : null}
             financePayments={paymentsByLead.get(lead.id) ?? []}
+            followUpLead={lead}
+            onNextActionSave={(patch) => saveNextAction(lead.id, patch)}
+            onNextActionComplete={() => completeNextAction(lead.id)}
+            onFollowUp={() => startFollowUp(lead)}
             onFinanceUpdate={(leadId, patch) =>
               updateLeadLocally(leadId, (current) => ({
                 ...current,
@@ -2168,7 +2451,10 @@ function LeadRow({
         {lead.notes && <small title={lead.notes}>{lead.notes}</small>}
       </div>
       <div className="phone-cell">{lead.phone || "Sem telefone"}</div>
-      <StatusControl lead={lead} onStatus={onStatus} />
+      <div className="lead-status-stack">
+        <StatusControl lead={lead} onStatus={onStatus} />
+        <LeadActionSummary lead={lead} compact />
+      </div>
       <div className="date-cell">
         <span>{formatDate(lead.firstContact)}</span>
         <small>
@@ -2262,6 +2548,7 @@ function LeadCard({
       <div className="card-phone">{lead.phone || "Sem telefone disponível"}</div>
       {finance && <LeadFinanceMarker summary={finance} />}
       <StatusControl lead={lead} onStatus={onStatus} />
+      <LeadActionSummary lead={lead} />
       <div className="card-meta">
         <span>Primeiro contato: {formatDate(lead.firstContact)}</span>
         {lead.lastContact && <span>Último contato: {formatDate(lead.lastContact)}</span>}
