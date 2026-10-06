@@ -1,0 +1,39 @@
+name: Temporary SaaS Redesign Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Production build
+        run: bun run build
+
+      - name: Redesign lint
+        run: >
+          bunx eslint
+          src/routes/index.tsx
+          src/routes/__root.tsx
+          src/routes/login.tsx
+          src/components/app-shell/AppShell.tsx
+          src/components/app-shell/PageHeader.tsx
+          src/components/app-shell/MetricCard.tsx
+          src/components/dashboard/DashboardView.tsx
+          src/components/finance/FinanceView.tsx
+          --rule "prettier/prettier: off"
+
+      - name: Full project lint
+        continue-on-error: true
+        run: bun run lint
