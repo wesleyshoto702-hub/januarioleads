@@ -69,6 +69,7 @@ import {
 import type { BusinessSearchResult } from "../features/search-leads/types";
 import { getValidSession, signOut, subscribeAuthChange } from "../lib/auth";
 import { openWhatsAppLink } from "../lib/whatsapp";
+import { BRAZIL_STATES, normalizeBrazilianStateCode } from "../lib/brazil-locations";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -244,6 +245,8 @@ function LeadFlowApp() {
     "all" | FinancialStatus
   >("all");
   const [segmentFilter, setSegmentFilter] = useState("all");
+  const [stateFilter, setStateFilter] = useState("all");
+  const [cityFilter, setCityFilter] = useState("all");
   const [sort, setSort] = useState("recent");
   const [messageLead, setMessageLead] = useState<{ id?: string; company: string; phone: string } | null>(null);
   const [selectedMessage, setSelectedMessage] = useState(0);
@@ -426,6 +429,37 @@ function LeadFlowApp() {
     [leads],
   );
 
+  const availableStates = useMemo(
+    () =>
+      BRAZIL_STATES.filter((state) =>
+        leads.some(
+          (lead) => normalizeBrazilianStateCode(lead.state) === state.code,
+        ),
+      ),
+    [leads],
+  );
+
+  const availableCities = useMemo(() => {
+    if (stateFilter === "all") return [] as string[];
+    return Array.from(
+      new Set(
+        leads
+          .filter(
+            (lead) =>
+              normalizeBrazilianStateCode(lead.state) === stateFilter &&
+              Boolean(lead.city?.trim()),
+          )
+          .map((lead) => lead.city!.trim()),
+      ),
+    ).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [leads, stateFilter]);
+
+  useEffect(() => {
+    if (cityFilter !== "all" && !availableCities.includes(cityFilter)) {
+      setCityFilter("all");
+    }
+  }, [availableCities, cityFilter]);
+
   const paymentsByLead = useMemo(() => {
     const map = new Map<string, LeadPayment[]>();
     for (const payment of leadPayments) {
@@ -486,10 +520,22 @@ function LeadFlowApp() {
         lead.phone.replace(/\D/g, "").includes(query.replace(/\D/g, ""));
       const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
       const matchesSegment = segmentFilter === "all" || lead.segment === segmentFilter;
+      const matchesState =
+        stateFilter === "all" ||
+        normalizeBrazilianStateCode(lead.state) === stateFilter;
+      const matchesCity =
+        cityFilter === "all" || lead.city?.trim() === cityFilter;
       const finance = financeByLead.get(lead.id);
       const matchesFinancial =
         financialFilter === "all" || finance?.status === financialFilter;
-      return matchesSearch && matchesStatus && matchesSegment && matchesFinancial;
+      return (
+        matchesSearch &&
+        matchesStatus &&
+        matchesSegment &&
+        matchesState &&
+        matchesCity &&
+        matchesFinancial
+      );
     });
 
     return [...filtered].sort((a, b) => {
@@ -521,6 +567,8 @@ function LeadFlowApp() {
     statusFilter,
     financialFilter,
     segmentFilter,
+    stateFilter,
+    cityFilter,
     sort,
     financeByLead,
   ]);
@@ -1417,7 +1465,12 @@ function LeadFlowApp() {
         ...(business.description ? { description: business.description } : {}),
         ...(business.neighborhood ? { neighborhood: business.neighborhood } : {}),
         ...(business.city ? { city: business.city } : {}),
-        ...(business.state ? { state: business.state } : {}),
+        ...(business.state
+          ? {
+              state:
+                normalizeBrazilianStateCode(business.state) || business.state,
+            }
+          : {}),
         ...(business.internationalPhone ? { internationalPhone: business.internationalPhone } : {}),
         ...(business.rating !== null ? { rating: business.rating } : {}),
         ...(business.reviewCount !== null ? { reviewCount: business.reviewCount } : {}),
@@ -1702,6 +1755,32 @@ function LeadFlowApp() {
               </div>
 
               <div className="toolbar-selects">
+                <Select
+                  value={stateFilter}
+                  onChange={(value) => {
+                    setStateFilter(value);
+                    setCityFilter("all");
+                  }}
+                  ariaLabel="Filtrar por estado"
+                  options={[
+                    ["all", "Todos os estados"],
+                    ...availableStates.map(
+                      (state) =>
+                        [state.code, `${state.name} (${state.code})`] as [string, string],
+                    ),
+                  ]}
+                />
+                <Select
+                  value={cityFilter}
+                  onChange={setCityFilter}
+                  ariaLabel="Filtrar por cidade"
+                  options={[
+                    ["all", stateFilter === "all" ? "Selecione um estado" : "Todas as cidades"],
+                    ...availableCities.map(
+                      (city) => [city, city] as [string, string],
+                    ),
+                  ]}
+                />
                 <Select
                   value={segmentFilter}
                   onChange={setSegmentFilter}
