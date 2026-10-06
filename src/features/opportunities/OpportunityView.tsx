@@ -141,6 +141,18 @@ export function OpportunityView({
     useState<BusinessFilter>("priority");
   const [details, setDetails] = useState<BusinessSearchResult | null>(null);
   const businessPanelRef = useRef<HTMLElement | null>(null);
+  const existingLeadIdentities = useMemo(
+    () =>
+      existingLeads.map((lead) => ({
+        id: lead.id,
+        company: lead.company,
+        phone: lead.phone,
+        status: lead.status,
+        ...(lead.placeId ? { placeId: lead.placeId } : {}),
+        ...(lead.address ? { address: lead.address } : {}),
+      })),
+    [existingLeads],
+  );
 
   useEffect(() => {
     let active = true;
@@ -253,7 +265,7 @@ export function OpportunityView({
     if (!selected) return [];
     const prioritized = sortPriorityBusinesses(selected.businesses);
     return prioritized.filter((business) => {
-      const existing = findBusinessDuplicate(business, existingLeads);
+      const existing = findBusinessDuplicate(business, existingLeadIdentities);
       if (businessFilter === "priority") {
         return !hasIdentifiedWebsite(business) && hasBusinessPhone(business);
       }
@@ -315,7 +327,7 @@ export function OpportunityView({
   }
 
   const detailsLead = details
-    ? findBusinessDuplicate(details, existingLeads)
+    ? findBusinessDuplicate(details, existingLeadIdentities)
     : null;
 
   return (
@@ -607,7 +619,9 @@ export function OpportunityView({
                           className="message-button"
                           onClick={() =>
                             onMessage({
-                              id: existingLead.id,
+                              ...(existingLead.id
+                                ? { id: existingLead.id }
+                                : {}),
                               company: business.name,
                               phone:
                                 business.phone ||
