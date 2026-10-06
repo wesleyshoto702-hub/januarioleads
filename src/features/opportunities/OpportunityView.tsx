@@ -9,7 +9,7 @@ import {
   Search,
   Star,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { DeepEnrichmentApplied } from "../business-enrichment/types";
 import type { BusinessPresence } from "../business-presence/types";
 import type { PersistedLead } from "../leads/remote-leads";
@@ -140,6 +140,7 @@ export function OpportunityView({
   const [businessFilter, setBusinessFilter] =
     useState<BusinessFilter>("priority");
   const [details, setDetails] = useState<BusinessSearchResult | null>(null);
+  const businessPanelRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -236,6 +237,17 @@ export function OpportunityView({
     highOnly,
     sort,
   ]);
+
+  useEffect(() => {
+    if (!selected) return;
+    const frame = window.requestAnimationFrame(() => {
+      businessPanelRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [selected]);
 
   const selectedBusinesses = useMemo(() => {
     if (!selected) return [];
@@ -463,7 +475,7 @@ export function OpportunityView({
       )}
 
       {selected && (
-        <section className="opportunity-business-panel">
+        <section className="opportunity-business-panel" ref={businessPanelRef}>
           <button
             className="back-button"
             type="button"
