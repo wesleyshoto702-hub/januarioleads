@@ -91,7 +91,8 @@ function buildStats(
   const withPhone = businesses.filter(hasBusinessPhone);
   const rated = businesses.filter(
     (business) =>
-      typeof business.rating === "number" && business.rating > 0,
+      (typeof business.rating === "number" && business.rating > 0) ||
+      (business.reviewCount ?? 0) > 0,
   );
   const reviewCountTotal = businesses.reduce(
     (total, business) => total + Math.max(0, business.reviewCount ?? 0),
@@ -101,7 +102,8 @@ function buildStats(
   const withoutSiteWithPhone = withoutSite.filter(hasBusinessPhone);
   const withoutSiteWithPhoneRated = withoutSiteWithPhone.filter(
     (business) =>
-      typeof business.rating === "number" && business.rating > 0,
+      (typeof business.rating === "number" && business.rating > 0) ||
+      (business.reviewCount ?? 0) > 0,
   );
   const activeWithoutSite = withoutSite.filter(hasStableActivitySignal);
 
