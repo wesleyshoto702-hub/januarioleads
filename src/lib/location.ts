@@ -1,3 +1,5 @@
+import { normalizeBrazilianStateCode } from "./brazil-locations";
+
 export function normalizeLocationText(value: string | null | undefined) {
   return (value ?? "")
     .normalize("NFD")
@@ -9,7 +11,7 @@ export function normalizeLocationText(value: string | null | undefined) {
 }
 
 export function normalizeStateCode(value: string | null | undefined) {
-  return (value ?? "").trim().toUpperCase();
+  return normalizeBrazilianStateCode(value) || (value ?? "").trim().toUpperCase();
 }
 
 export function sameLocation(
