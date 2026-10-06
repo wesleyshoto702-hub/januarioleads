@@ -106,7 +106,6 @@ export function OpportunityView({
   existingLeads,
   onAddLead,
   onMessage,
-  onGeneratePrompt,
   onDeepEnrichmentApplied,
   onGoSearch,
 }: {
@@ -116,10 +115,6 @@ export function OpportunityView({
     selectedSegment: string,
   ) => Promise<BusinessAddResult>;
   onMessage: (target: MessageTarget) => void;
-  onGeneratePrompt: (
-    business: BusinessSearchResult,
-    selectedSegment: string,
-  ) => void;
   onDeepEnrichmentApplied?: (
     leadId: string,
     value: DeepEnrichmentApplied,
@@ -697,12 +692,6 @@ export function OpportunityView({
           onClose={() => setDetails(null)}
           onWhatsApp={directWhatsApp}
           onMessage={(target) => onMessage(target)}
-          onGeneratePrompt={(business) =>
-            onGeneratePrompt(
-              business,
-              selected?.segment ?? business.primaryCategory ?? "Empresa local",
-            )
-          }
           onPresenceUpdate={(presence) => applyPresence(details, presence)}
           {...(detailsLead?.id && onDeepEnrichmentApplied
             ? {
