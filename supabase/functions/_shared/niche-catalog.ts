@@ -24,7 +24,7 @@ export const SEGMENT_GROUPS: SegmentGroup[] = [
   {
     label: "Saúde",
     items: [
-      "Acupuntura", "Clínica Odontológica", "Clínica Veterinária", "Dentista", "Farmácia",
+      "Acupuntura", "Clínica Odontológica", "Clínica Veterinária", "Dentista", "Odontologia", "Farmácia",
       "Fisioterapeuta", "Fonoaudiólogo", "Massoterapeuta", "Nutricionista", "Ótica",
       "Podólogo", "Psicólogo / Terapeuta", "Terapeuta Ocupacional",
     ],
