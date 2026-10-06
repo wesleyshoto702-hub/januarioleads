@@ -54,6 +54,15 @@ import type {
   OpenNowNicheCache,
 } from "./types";
 import { openWhatsAppLink } from "../../lib/whatsapp";
+import {
+  BRAZIL_STATES,
+  DEFAULT_BRAZIL_STATE,
+  findBrazilianState,
+} from "../../lib/brazil-locations";
+import {
+  loadBrazilianMunicipalities,
+  resolveMunicipality,
+} from "../search-leads/search-location";
 
 type NicheSort = "open-desc" | "chance-desc" | "az";
 type NicheFilter =
@@ -297,6 +306,11 @@ export function OpenNowNichesView({
   const [state, setState] = useState(initialLocation.state);
   const [draftCity, setDraftCity] = useState(initialLocation.city);
   const [draftState, setDraftState] = useState(initialLocation.state);
+  const draftStateInfo =
+    findBrazilianState(draftState) ?? DEFAULT_BRAZIL_STATE;
+  const [municipalities, setMunicipalities] = useState<string[]>([]);
+  const [municipalitiesLoading, setMunicipalitiesLoading] = useState(true);
+  const [municipalitiesError, setMunicipalitiesError] = useState("");
   const [cache, setCache] = useState<Map<string, OpenNowNicheCache>>(
     () => new Map(),
   );
@@ -326,6 +340,30 @@ export function OpenNowNichesView({
   }>({ running: false, done: 0, total: 0, errors: 0 });
   const globalAbort = useRef<AbortController | null>(null);
   const businessPanelRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setMunicipalities([]);
+    setMunicipalitiesLoading(true);
+    setMunicipalitiesError("");
+
+    void loadBrazilianMunicipalities(draftStateInfo.code, controller.signal)
+      .then((values) => {
+        setMunicipalities(values);
+        const canonical = resolveMunicipality(draftCity, values);
+        if (canonical) setDraftCity(canonical);
+      })
+      .catch((error) => {
+        if ((error as Error)?.name !== "AbortError") {
+          setMunicipalitiesError(
+            `Não foi possível carregar os municípios de ${draftStateInfo.name} agora.`,
+          );
+        }
+      })
+      .finally(() => setMunicipalitiesLoading(false));
+
+    return () => controller.abort();
+  }, [draftStateInfo.code]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setClock(new Date()), 60_000);
@@ -692,15 +730,25 @@ export function OpenNowNichesView({
   }
 
   function applyLocation() {
-    const nextCity = draftCity.trim();
-    const nextState = draftState.trim().toUpperCase();
-    if (nextCity.length < 2 || !/^[A-Z]{2}$/.test(nextState)) {
-      setPageError("Informe uma cidade e UF válidas.");
+    const nextState = findBrazilianState(draftState);
+    const canonicalCity = resolveMunicipality(draftCity, municipalities);
+    const allowCachedCurrentCity =
+      Boolean(municipalitiesError) &&
+      draftCity.trim().localeCompare(city, "pt-BR", { sensitivity: "base" }) === 0 &&
+      nextState?.code === state;
+
+    const nextCity = canonicalCity ?? (allowCachedCurrentCity ? city : "");
+    if (!nextState || !nextCity) {
+      setPageError(
+        `Selecione uma cidade válida de ${draftStateInfo.name}.`,
+      );
       return;
     }
-    saveOpenNowLocation(nextCity, nextState);
+
+    saveOpenNowLocation(nextCity, nextState.code);
+    setDraftCity(nextCity);
     setCity(nextCity);
-    setState(nextState);
+    setState(nextState.code);
     setExpandedSegment(null);
     setPageError("");
   }
@@ -813,24 +861,59 @@ export function OpenNowNichesView({
 
       <section className="open-now-control-panel">
         <div className="open-now-location">
+          <label className="open-now-state-input">
+            <span>Estado</span>
+            <select
+              value={draftStateInfo.code}
+              onChange={(event) => {
+                setDraftState(event.target.value);
+                setDraftCity("");
+                setMunicipalities([]);
+                setMunicipalitiesError("");
+              }}
+              aria-label="Estado"
+            >
+              {BRAZIL_STATES.map((item) => (
+                <option key={item.code} value={item.code}>
+                  {item.name} ({item.code})
+                </option>
+              ))}
+            </select>
+          </label>
           <label>
             <span>Cidade</span>
             <input
+              list={`open-now-city-options-${draftStateInfo.code}`}
               value={draftCity}
               onChange={(event)=>setDraftCity(event.target.value)}
-              placeholder="Lavras"
+              onBlur={() => {
+                const canonical = resolveMunicipality(draftCity, municipalities);
+                if (canonical) setDraftCity(canonical);
+              }}
+              placeholder={
+                municipalitiesLoading
+                  ? "Carregando municípios..."
+                  : `Município de ${draftStateInfo.name}`
+              }
+              autoComplete="off"
             />
+            <datalist id={`open-now-city-options-${draftStateInfo.code}`}>
+              {municipalities.map((municipality) => (
+                <option key={municipality} value={municipality} />
+              ))}
+            </datalist>
+            {municipalitiesError && (
+              <small className="open-now-location-error">
+                {municipalitiesError}
+              </small>
+            )}
           </label>
-          <label className="open-now-state-input">
-            <span>UF</span>
-            <input
-              value={draftState}
-              maxLength={2}
-              onChange={(event)=>setDraftState(event.target.value.toUpperCase())}
-              placeholder="MG"
-            />
-          </label>
-          <button className="secondary-button" type="button" onClick={applyLocation}>
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={applyLocation}
+            disabled={municipalitiesLoading}
+          >
             Aplicar
           </button>
         </div>
