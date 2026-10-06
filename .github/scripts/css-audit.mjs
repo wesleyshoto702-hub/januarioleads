@@ -135,7 +135,9 @@ function tokenUsage(cls) {
 
 const dynamicAllow = new Set([
   "active","selected","inline","compact","danger","high","medium","low","positive","emphasis",
-  "send_message","waiting","accepted","rejected","open","closed","important","level-"
+  "send_message","waiting","accepted","rejected","open","closed","important","level-",
+  "dark","primary","paid","partial","pending","probable","uncertain","very-high","very-low",
+  "closing_soon","open_results","unknown","level-high","level-low","level-moderate","level-very_high"
 ]);
 
 const cssData = {};
