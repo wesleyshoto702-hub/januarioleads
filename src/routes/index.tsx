@@ -78,7 +78,7 @@ export const Route = createFileRoute("/")({
     meta: [
       { title: "JanuarioLeads — Dashboard" },
       { name: "description", content: "Organize seus leads e contatos de prospecção no JanuarioLeads." },
-      { property: "og:title", content: "JanuarioLeads — Meus leads" },
+      { property: "og:title", content: "JanuarioLeads — Dashboard" },
       { property: "og:description", content: "Organize seus leads e contatos de prospecção no JanuarioLeads." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -426,8 +426,7 @@ function LeadFlowApp() {
     if (
       view !== "dashboard" ||
       !remoteReady ||
-      dashboardOpportunitiesLoaded ||
-      dashboardOpportunitiesLoading
+      dashboardOpportunitiesLoaded
     ) {
       return;
     }
@@ -460,7 +459,6 @@ function LeadFlowApp() {
     remoteReady,
     leads,
     dashboardOpportunitiesLoaded,
-    dashboardOpportunitiesLoading,
   ]);
 
   const counts = useMemo(
