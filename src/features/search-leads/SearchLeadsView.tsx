@@ -44,6 +44,7 @@ import { normalizeSearchText, SEGMENT_GROUPS } from "./segments";
 import type { BusinessSearchResult } from "./types";
 import { storeRecentBusinessSearch } from "../open-now-niches/local-cache";
 import { persistPlacesSearchSample } from "../opportunities/places-search-cache";
+import { openWhatsAppLink } from "../../lib/whatsapp";
 
 export type SearchMessageTarget = {
   id?: string;
@@ -410,7 +411,7 @@ export function SearchLeadsView({
   function openWhatsApp(business: BusinessSearchResult) {
     if (!business.phone) return;
     const phone = normalizeBrazilianPhone(business.phone);
-    window.open(`https://wa.me/${phone}`, "_blank", "noopener,noreferrer");
+    openWhatsAppLink({ phone });
   }
 
 
