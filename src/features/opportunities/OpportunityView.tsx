@@ -630,16 +630,18 @@ export function OpportunityView({
             )
           }
           onPresenceUpdate={(presence) => applyPresence(details, presence)}
-          onDeepEnrichmentUpdate={
-            detailsLead?.id && onDeepEnrichmentApplied
-              ? (value) => onDeepEnrichmentApplied(detailsLead.id!, value)
-              : undefined
-          }
-          onAdd={
-            detailsLead || !selected
-              ? undefined
-              : (business) => onAddLead(business, selected.segment)
-          }
+          {...(detailsLead?.id && onDeepEnrichmentApplied
+            ? {
+                onDeepEnrichmentUpdate: (value: DeepEnrichmentApplied) =>
+                  onDeepEnrichmentApplied(detailsLead.id!, value),
+              }
+            : {})}
+          {...(!detailsLead && selected
+            ? {
+                onAdd: (business: BusinessSearchResult) =>
+                  onAddLead(business, selected.segment),
+              }
+            : {})}
         />
       )}
     </section>
