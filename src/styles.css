@@ -97,43 +97,6 @@ select{
   cursor: pointer;
 }
 
-.app-shell{
-  min-height: 100vh;
-}
-
-.topbar{
-  position: sticky;
-  top: 0;
-  z-index: 30;
-  border-bottom: 1px solid var(--border);
-  background: color-mix(in srgb, var(--surface) 92%, transparent);
-  backdrop-filter: blur(16px);
-}
-
-.topbar-inner{
-  max-width: 1240px;
-  height: 68px;
-  margin: 0 auto;
-  padding: 0 28px;
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  gap: 20px;
-}
-
-.brand{
-  width: fit-content;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  border: 0;
-  background: transparent;
-  padding: 0;
-  font-size: 16px;
-  font-weight: 760;
-  letter-spacing: -0.03em;
-}
-
 .brand-mark{
   width: 28px;
   height: 28px;
@@ -144,36 +107,6 @@ select{
   color: var(--primary-contrast);
   font-size: 13px;
   font-weight: 800;
-}
-
-.topnav{
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px;
-  border-radius: 10px;
-  background: var(--surface-2);
-}
-
-.nav-link{
-  border: 0;
-  background: transparent;
-  padding: 8px 13px;
-  border-radius: 7px;
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 650;
-  transition: 0.18s ease;
-}
-
-.nav-link:hover,
-.nav-link.active{
-  background: var(--surface);
-  color: var(--text);
-}
-
-.topbar .icon-button{
-  justify-self: end;
 }
 
 .icon-button{
@@ -279,10 +212,6 @@ select{
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
-}
-
-.secondary-button:hover{
-  border-color: var(--border-strong);
 }
 
 .danger-button{
@@ -496,10 +425,6 @@ select{
   border-bottom: 0;
 }
 
-.table-row:hover{
-  background: color-mix(in srgb, var(--surface-2) 65%, transparent);
-}
-
 .company-cell{
   min-width: 0;
   display: flex;
@@ -628,11 +553,6 @@ select{
   border-radius: 8px;
   background: transparent;
   color: var(--muted);
-}
-
-.row-icon:hover{
-  border-color: var(--border-strong);
-  color: var(--text);
 }
 
 .row-icon.danger:hover{
@@ -1072,36 +992,10 @@ select{
 }
 
 @media (max-width: 760px) {
-  .topbar-inner{
-    height: 60px;
-    padding: 0 14px;
-    grid-template-columns: auto 1fr auto;
-    gap: 8px;
-  }
-
-  .topnav{
-    justify-self: center;
-    gap: 2px;
-    padding: 3px;
-  }
-
-  .nav-link{
-    padding: 7px 9px;
-    font-size: 11px;
-  }
-
-  .brand{
-    font-size: 0;
-  }
 
   .brand-mark{
     width: 30px;
     height: 30px;
-  }
-
-  .page-wrap{
-    width: min(100% - 28px, 1240px);
-    padding: 34px 0 50px;
   }
 
   .page-heading{
@@ -1289,7 +1183,6 @@ select{
   text-transform: uppercase;
 }
 
-.search-location-static,
 .search-location-select,
 .search-city-input{
   min-width: 0;
@@ -1297,27 +1190,6 @@ select{
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--surface);
-}
-
-.search-location-static{
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 0 14px;
-}
-
-.search-location-static strong{
-  min-width: 0;
-  overflow-wrap: anywhere;
-  font-size: 12px;
-}
-
-.search-location-static small{
-  flex: 0 0 auto;
-  color: var(--faint);
-  font-size: 10px;
-  font-weight: 760;
 }
 
 .search-location-select{
@@ -1503,17 +1375,6 @@ select{
   transition: 0.15s ease;
 }
 
-.segment-option:hover{
-  border-color: var(--border-strong);
-  color: var(--text);
-}
-
-.segment-option.selected{
-  border-color: var(--text);
-  background: var(--text);
-  color: var(--bg);
-}
-
 .segment-empty{
   grid-column: 1 / -1;
   padding: 50px 20px;
@@ -1669,10 +1530,6 @@ select{
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 
-.business-card:hover{
-  border-color: var(--border-strong);
-}
-
 .business-card-main{
   min-width: 0;
 }
@@ -1825,13 +1682,6 @@ select{
   padding: 20px;
 }
 
-.business-description{
-  margin: 0 0 18px;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.65;
-}
-
 .detail-grid{
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1978,18 +1828,6 @@ select{
 }
 
 @media (max-width: 760px) {
-  .topbar-inner{
-    gap: 5px;
-  }
-
-  .topnav{
-    max-width: 100%;
-  }
-
-  .nav-link{
-    padding: 7px 7px;
-    font-size: 10px;
-  }
 
   .segment-group{
     padding: 16px 14px;
@@ -2002,10 +1840,6 @@ select{
 
   .segment-option{
     width: 100%;
-  }
-
-  .selection-bar{
-    bottom: 10px;
   }
 
   .result-controls{
@@ -2027,23 +1861,10 @@ select{
 }
 
 @media (max-width: 520px) {
-  .topbar-inner{
-    padding-inline: 10px;
-  }
 
   .brand-mark{
     width: 28px;
     height: 28px;
-  }
-
-  .nav-link{
-    padding: 7px 5px;
-    font-size: 9px;
-  }
-
-  .topbar .icon-button{
-    width: 34px;
-    height: 34px;
   }
 
   .recent-searches{
@@ -2123,33 +1944,6 @@ select{
   line-height: 1.5;
 }
 
-.topbar-actions{
-  display: flex;
-  align-items: center;
-  justify-self: end;
-  gap: 8px;
-}
-
-.logout-button{
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  min-height: 38px;
-  padding: 0 10px;
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  background: var(--surface);
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 650;
-}
-
-.logout-button:hover{
-  border-color: var(--border-strong);
-  color: var(--text);
-}
-
 .auth-loading{
   display: flex;
   align-items: center;
@@ -2202,10 +1996,6 @@ select{
   display: flex;
   flex-direction: column;
   gap: 2px;
-}
-
-.login-brand strong{
-  font-size: 16px;
 }
 
 .login-brand > div > span{
@@ -2278,8 +2068,6 @@ select{
   color: var(--muted);
 }
 
-.password-field button:hover{ color: var(--text); }
-
 .login-error{
   padding: 11px 12px;
   border: 1px solid var(--rejected);
@@ -2293,9 +2081,6 @@ select{
 .login-submit:disabled{ opacity: 0.6; cursor: wait; }
 
 @media (max-width: 520px) {
-  .topbar-actions{ gap: 4px; }
-  .logout-button{ width: 34px; height: 34px; min-height: 34px; padding: 0; }
-  .logout-button span{ display: none; }
   .login-theme{ top: 16px; right: 16px; }
   .login-copy{ margin-top: 36px; }
 }
@@ -2329,24 +2114,6 @@ a{
   -webkit-tap-highlight-color: transparent;
 }
 
-.topbar{
-  border-bottom-color: color-mix(in srgb, var(--border) 92%, transparent);
-  background: color-mix(in srgb, var(--surface) 94%, transparent);
-  box-shadow: 0 1px 0 color-mix(in srgb, var(--primary) 4%, transparent);
-}
-
-.dark .topbar{
-  background: rgba(9, 9, 11, 0.88);
-}
-
-.topbar-inner{
-  height: 70px;
-}
-
-.brand{
-  gap: 11px;
-}
-
 .brand-mark{
   width: 30px;
   height: 30px;
@@ -2356,74 +2123,15 @@ a{
   box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
 }
 
-.brand-word{
-  display: inline-flex;
-  align-items: baseline;
-  font-size: 15px;
-  font-weight: 780;
-  letter-spacing: -0.045em;
-}
-
 .brand-accent{
   color: var(--primary);
 }
 
-.brand-word .brand-accent{
-  color: var(--primary);
-}
-
-.topnav{
-  gap: 3px;
-  padding: 4px;
-  border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--surface-2) 72%, transparent);
-}
-
-.nav-link{
-  position: relative;
-  min-height: 36px;
-  color: var(--muted);
-}
-
-.nav-link::after{
-  content: "";
-  position: absolute;
-  left: 12px;
-  right: 12px;
-  bottom: 2px;
-  height: 2px;
-  border-radius: 999px;
-  background: transparent;
-  transform: scaleX(.45);
-  transition: .18s ease;
-}
-
-.nav-link:hover{
-  background: var(--surface);
-  color: var(--text);
-}
-
-.nav-link.active{
-  background: var(--primary-soft);
-  color: var(--text);
-}
-
-.nav-link.active::after{
-  background: var(--primary);
-  transform: scaleX(1);
-}
-
-.topbar-actions{
-  gap: 6px;
-}
-
-.logout-button,
 .icon-button{
   border-color: var(--border);
   background: color-mix(in srgb, var(--surface) 92%, transparent);
 }
 
-.logout-button:hover,
 .icon-button:hover{
   border-color: var(--border-strong);
   background: var(--surface-2);
@@ -2883,21 +2591,6 @@ a{
   background: rgba(17, 17, 20, .9);
 }
 
-@media (max-width: 760px) {
-  .topbar-inner{
-    height: 62px;
-  }
-
-  .brand-word{
-    display: none;
-  }
-
-  .nav-link.active::after{
-    left: 7px;
-    right: 7px;
-  }
-}
-
 @media (max-width: 520px) {
   .page-wrap{
     padding-top: 28px;
@@ -3328,10 +3021,6 @@ a{
   color: var(--faint);
   font-size: 9px;
   line-height: 1.5;
-}
-
-.actions-cell{
-  flex-wrap: wrap;
 }
 
 @media (max-width: 760px) {
@@ -5406,96 +5095,8 @@ a{
   }
 }
 
-/* Mobile responsiveness audit — 2026-10-04 */
-@media (max-width: 820px) {
-  .topbar{
-    padding-top: env(safe-area-inset-top);
-  }
-
-  .topbar-inner{
-    min-height: 108px;
-    height: auto;
-    padding: 8px 12px 6px;
-    grid-template: "brand actions" auto "nav nav" auto / minmax(0, 1fr) auto;
-    column-gap: 10px;
-    row-gap: 6px;
-  }
-
-  .brand{
-    grid-area: brand;
-    min-width: 0;
-    font-size: inherit;
-  }
-
-  .brand-word{
-    display: inline-flex;
-    min-width: 0;
-  }
-
-  .topbar-actions{
-    grid-area: actions;
-    gap: 6px;
-  }
-
-  .topnav{
-    grid-area: nav;
-    width: 100%;
-    min-width: 0;
-    max-width: 100%;
-    justify-self: stretch;
-    justify-content: flex-start;
-    gap: 4px;
-    padding: 2px 0;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    scrollbar-width: none;
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-  }
-
-  .topnav::-webkit-scrollbar{
-    display: none;
-  }
-
-  .topnav .nav-link{
-    flex: 0 0 auto;
-    min-height: 44px;
-    padding: 0 12px;
-    font-size: 11px;
-    white-space: nowrap;
-  }
-
-  .nav-link.active::after{
-    left: 10px;
-    right: 10px;
-  }
-
-  .topbar .icon-button,
-.logout-button{
-    width: 44px;
-    height: 44px;
-    min-height: 44px;
-    flex: 0 0 44px;
-  }
-
-  .logout-button{
-    padding: 0;
-  }
-
-  .logout-button span,
-.open-now-nav-full{
-    display: none;
-  }
-
-  .open-now-nav-short{
-    display: inline;
-  }
-}
-
 @media (max-width: 760px) {
-  .app-shell,
-.page-wrap,
+  .page-wrap,
 .lead-panel,
 .search-leads-page,
 .messages-page,
@@ -5886,8 +5487,7 @@ a{
     grid-template-columns: 1fr;
   }
 
-  .search-location-static,
-.search-location-select,
+  .search-location-select,
 .search-city-input{
     min-height: 44px;
   }
@@ -5904,14 +5504,6 @@ a{
 }
 
 @media (max-width: 430px) {
-  .topbar-inner{
-    min-height: 106px;
-    padding-inline: 10px;
-  }
-
-  .brand-word{
-    font-size: 14px;
-  }
 
   .page-wrap{
     width: min(calc(100% - 20px), 1240px);
@@ -6080,9 +5672,5 @@ a{
 
   .modal-actions{
     padding-bottom: max(20px, calc(env(safe-area-inset-bottom) + 12px));
-  }
-
-  .topnav{
-    scroll-padding-inline: 10px;
   }
 }
