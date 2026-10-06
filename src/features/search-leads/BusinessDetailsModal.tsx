@@ -28,6 +28,7 @@ import type {
   LeadUpdateRecord,
   PersistedLead,
 } from "../leads/remote-leads";
+import { STATUS_LABEL } from "../leads/lead-status";
 import { normalizeBrazilianPhone } from "./identity";
 import type { BusinessSearchResult } from "./types";
 
@@ -45,13 +46,6 @@ export type BusinessCommercialLead = {
   id: string;
   status: LeadStatus;
   phone: string;
-};
-
-const COMMERCIAL_STATUS_LABEL: Record<LeadStatus, string> = {
-  send_message: "Enviar mensagem",
-  waiting: "Aguardando",
-  accepted: "Aceito",
-  rejected: "Recusado",
 };
 
 function formatGoogleType(value: string) {
@@ -605,9 +599,9 @@ export function BusinessDetailsModal({
                 </button>
                 <span
                   className={`status-badge commercial-status-badge ${commercialLead.status}`}
-                  aria-label={`Status: ${COMMERCIAL_STATUS_LABEL[commercialLead.status]}`}
+                  aria-label={`Status: ${STATUS_LABEL[commercialLead.status]}`}
                 >
-                  {COMMERCIAL_STATUS_LABEL[commercialLead.status]}
+                  {STATUS_LABEL[commercialLead.status]}
                 </span>
                 {canOpenCommercialWhatsApp ? (
                   <button
