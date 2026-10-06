@@ -227,7 +227,7 @@ function LeadFlowApp() {
   const navigate = useNavigate();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [messages, setMessages] = useState(DEFAULT_MESSAGES);
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [theme, setTheme] = useState<"light" | "dark">("dark");
   const [hydrated, setHydrated] = useState(false);
   const [remoteReady, setRemoteReady] = useState(false);
   const [remoteError, setRemoteError] = useState("");
