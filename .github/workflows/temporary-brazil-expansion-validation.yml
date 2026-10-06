@@ -38,7 +38,14 @@ jobs:
           deno-version: v2.x
 
       - name: Brazil location tests
-        run: deno test --no-check --unstable-sloppy-imports supabase/functions/_shared/brazil-locations.test.ts
+        run: deno test --unstable-sloppy-imports supabase/functions/_shared/brazil-locations.test.ts
+
+      - name: Check changed Edge Functions
+        run: >
+          deno check
+          supabase/functions/search-places/index.ts
+          supabase/functions/open-now-niches/index.ts
+          supabase/functions/sync-leads/index.ts
 
       - name: TypeScript diagnostics
         continue-on-error: true
