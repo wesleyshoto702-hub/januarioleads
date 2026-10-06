@@ -50,8 +50,14 @@ Deno.test("cache keys separate city, state and segment contexts", () => {
 
   assert(sp === "campinas|SP|barbearia", "Campinas/SP key is incorrect.");
   assert(mg === "campinas|MG|barbearia", "Campinas/MG key is incorrect.");
-  assert(sp !== mg, "Same city name in different states must not collide.");
-  assert(bh !== sp, "Different cities must not collide.");
+  assert(
+    new Set([sp, mg]).size === 2,
+    "Same city name in different states must not collide.",
+  );
+  assert(
+    new Set([bh, sp]).size === 2,
+    "Different cities must not collide.",
+  );
 });
 
 Deno.test("state names support the expected Google Places query shape", () => {
