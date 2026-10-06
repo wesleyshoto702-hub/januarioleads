@@ -47,6 +47,7 @@ import {
   type LeadUpdateRecord,
   type PersistedLead,
 } from "../features/leads/remote-leads";
+import { STATUS_LABEL } from "../features/leads/lead-status";
 import {
   calculateLeadChance,
   hasEnoughDataForLeadChance,
@@ -201,13 +202,6 @@ function leadToBusinessSearchResult(lead: Lead): BusinessSearchResult {
     deepEnrichmentCheckedAt: lead.deepEnrichmentCheckedAt ?? null,
   };
 }
-
-const STATUS_LABEL: Record<Status, string> = {
-  send_message: "Enviar mensagem",
-  waiting: "Aguardando",
-  accepted: "Aceito",
-  rejected: "Recusado",
-};
 
 const INSTAGRAM_SOURCE_LABEL: Record<InstagramSource, string> = {
   google_places: "Google Places",
