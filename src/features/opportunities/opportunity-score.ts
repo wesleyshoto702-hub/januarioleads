@@ -1,0 +1,17 @@
+export {
+  ACTIVITY_WEIGHT,
+  calculateOpportunityScore,
+  CONTACTABILITY_WEIGHT,
+  dedupeByPlaceId,
+  opportunityLevelForScore,
+  OPPORTUNITY_STALE_AFTER_DAYS,
+  SAMPLE_WEIGHT,
+  sampleConfidenceForSize,
+  WITHOUT_SITE_RATE_WEIGHT,
+  WITHOUT_SITE_VOLUME_TARGET,
+  WITHOUT_SITE_VOLUME_WEIGHT,
+  type OpportunityLevel,
+  type OpportunityScoreResult,
+  type OpportunityStatsInput,
+  type SampleConfidence,
+} from "../../../supabase/functions/_shared/opportunity.ts";
