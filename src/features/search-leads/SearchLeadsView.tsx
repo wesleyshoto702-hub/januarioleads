@@ -947,9 +947,9 @@ function BusinessCard({
             className="message-button compact-button"
             onClick={() =>
               onMessage({
-                id: existingLead?.id,
                 company: business.name,
                 phone: commercialPhone,
+                ...(existingLead?.id ? { id: existingLead.id } : {}),
               })
             }
           >
