@@ -6,6 +6,10 @@ import {
 } from "../_shared/open-now.ts";
 import { ALL_SEARCH_SEGMENTS } from "../_shared/niche-catalog.ts";
 import {
+  findBrazilianState,
+  normalizeBrazilianStateCode,
+} from "../_shared/brazil-locations.ts";
+import {
   CURRENT_NICHE_COVERAGE,
   type NicheFamily,
 } from "../_shared/niche-strategies.ts";
@@ -209,9 +213,17 @@ function cleanLocation(value: unknown, max: number) {
 }
 
 function validLocation(body: Record<string, unknown>) {
-  const city = cleanLocation(body.city, 120);
-  const state = cleanLocation(body.state, 2).toUpperCase();
-  if (city.length < 2 || !/^[A-Z]{2}$/.test(state)) return null;
+  const city = cleanLocation(body.city, 120).replace(/\s+/g, " ");
+  const state = normalizeBrazilianStateCode(
+    typeof body.state === "string" ? body.state : "",
+  );
+  if (
+    city.length < 2 ||
+    !/^[\p{L}\s.'’\-]+$/u.test(city) ||
+    !state
+  ) {
+    return null;
+  }
   return { city, state, key: locationKey(city, state) };
 }
 
@@ -315,17 +327,26 @@ function locationMatches(
   state: string,
 ) {
   const wantedCity = normalize(city);
-  const wantedState = normalize(state);
-  return (
-    normalize(business.city) === wantedCity &&
-    (
-      !business.state ||
-      normalize(business.state) === wantedState
-    )
-  ) || (
-    normalize(business.address).includes(wantedCity) &&
-    normalize(business.address).includes(wantedState)
-  );
+  const wantedState = normalizeBrazilianStateCode(state);
+  const stateInfo = findBrazilianState(wantedState);
+  if (!wantedCity || !wantedState || !stateInfo) return false;
+
+  const actualCity = normalize(business.city);
+  const actualState = normalizeBrazilianStateCode(business.state);
+  const normalizedAddress = normalize(business.address);
+
+  const cityMatches = actualCity
+    ? actualCity === wantedCity
+    : normalizedAddress.includes(wantedCity);
+
+  const stateMatches = actualState
+    ? actualState === wantedState
+    : (
+        normalizedAddress.includes(normalize(stateInfo.name)) ||
+        normalizedAddress.includes(normalize(stateInfo.code))
+      );
+
+  return cityMatches && stateMatches;
 }
 
 function uniqueBusinesses(values: OpenNowBusiness[]) {
@@ -342,7 +363,7 @@ async function googleSearch(
   pageToken?: string,
 ) {
   const body: Record<string, unknown> = {
-    textQuery: `${segment} em ${city}, ${state}, Brasil`,
+    textQuery: `${segment} em ${city}, ${findBrazilianState(state)?.name ?? state}, Brasil`,
     pageSize: 20,
     languageCode: "pt-BR",
     regionCode: "BR",
