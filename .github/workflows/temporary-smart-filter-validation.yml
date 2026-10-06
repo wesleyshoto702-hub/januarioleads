@@ -1,6 +1,9 @@
 name: Temporary smart filter validation
 
 on:
+  push:
+    branches:
+      - validation/smart-prospecting-filters-v3
   pull_request:
     branches:
       - main
