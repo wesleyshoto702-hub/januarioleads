@@ -43,6 +43,7 @@ import {
 import { normalizeSearchText, SEGMENT_GROUPS } from "./segments";
 import type { BusinessSearchResult } from "./types";
 import { storeRecentBusinessSearch } from "../open-now-niches/local-cache";
+import { persistPlacesSearchSample } from "../opportunities/places-search-cache";
 
 export type SearchMessageTarget = {
   id?: string;
@@ -349,6 +350,15 @@ export function SearchLeadsView({
       city: location.city,
       state: location.state,
       append,
+    });
+    void persistPlacesSearchSample({
+      location,
+      segment,
+      results: response.results,
+      nextPageToken: response.nextPageToken,
+      append,
+    }).catch(() => {
+      // Opportunity persistence is auxiliary and must not break lead search.
     });
     saveSearchLocation(location);
     setSearchLocation(location);
