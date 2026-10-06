@@ -183,13 +183,15 @@ export function OpportunityView({
   );
 
   useEffect(() => {
-    if (!city && cities[0]) setCity(cities[0]);
-    if (city && !cities.includes(city)) setCity(cities[0] ?? "");
+    const firstCity = cities[0] ?? "";
+    if (!city && firstCity) setCity(firstCity);
+    if (city && !cities.includes(city)) setCity(firstCity);
   }, [cities, city]);
 
   useEffect(() => {
-    if (!segment && segments[0]) setSegment(segments[0]);
-    if (segment && !segments.includes(segment)) setSegment(segments[0] ?? "");
+    const firstSegment = segments[0] ?? "";
+    if (!segment && firstSegment) setSegment(firstSegment);
+    if (segment && !segments.includes(segment)) setSegment(firstSegment);
   }, [segments, segment]);
 
   const ranking = useMemo(() => {
@@ -369,14 +371,16 @@ export function OpportunityView({
             label="Cidade"
             value={city}
             onChange={setCity}
-            options={cities.map((value) => [value, value])}
+            options={cities.map((value) => [value, value] as [string, string])}
           />
         ) : (
           <OpportunitySelect
             label="Segmento"
             value={segment}
             onChange={setSegment}
-            options={segments.map((value) => [value, value])}
+            options={segments.map(
+              (value) => [value, value] as [string, string],
+            )}
           />
         )}
 
