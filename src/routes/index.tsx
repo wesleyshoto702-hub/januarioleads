@@ -4,13 +4,10 @@ import {
   ChevronDown,
   Edit3,
   Loader2,
-  LogOut,
   MessageCircle,
-  Moon,
   Plus,
   Search,
   Sparkles,
-  Sun,
   Trash2,
   X,
 } from "lucide-react";
@@ -55,6 +52,11 @@ import {
 import { PromptGenerator } from "../features/prompt-generator/PromptGenerator";
 import { OpenNowNichesView } from "../features/open-now-niches/OpenNowNichesView";
 import { OpportunityView } from "../features/opportunities/OpportunityView";
+import { loadOpportunityData } from "../features/opportunities/opportunity-data";
+import type { OpportunityRecord } from "../features/opportunities/types";
+import { AppShell, type AppView } from "../components/app-shell/AppShell";
+import { DashboardView } from "../components/dashboard/DashboardView";
+import { FinanceView } from "../components/finance/FinanceView";
 import { makePromptBusinessKey } from "../features/prompt-generator/storage";
 import type { PromptBusinessContext } from "../features/prompt-generator/types";
 import {
@@ -74,7 +76,7 @@ import { BRAZIL_STATES, normalizeBrazilianStateCode } from "../lib/brazil-locati
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "JanuarioLeads — Meus leads" },
+      { title: "JanuarioLeads — Dashboard" },
       { name: "description", content: "Organize seus leads e contatos de prospecção no JanuarioLeads." },
       { property: "og:title", content: "JanuarioLeads — Meus leads" },
       { property: "og:description", content: "Organize seus leads e contatos de prospecção no JanuarioLeads." },
@@ -233,9 +235,7 @@ function LeadFlowApp() {
   const [leadPayments, setLeadPayments] = useState<LeadPayment[]>([]);
   const [financeLoaded, setFinanceLoaded] = useState(false);
   const [financeError, setFinanceError] = useState("");
-  const [view, setView] = useState<
-    "leads" | "search" | "open-now" | "opportunities" | "messages"
-  >("leads");
+  const [view, setView] = useState<AppView>("dashboard");
   const [leadModal, setLeadModal] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [form, setForm] = useState<LeadForm>(EMPTY_FORM);
@@ -259,6 +259,15 @@ function LeadFlowApp() {
   const [promptActivityLeadId, setPromptActivityLeadId] = useState<string | null>(null);
   const [activityError, setActivityError] = useState("");
   const [savedNotice, setSavedNotice] = useState(false);
+  const [dashboardOpportunities, setDashboardOpportunities] = useState<
+    OpportunityRecord[]
+  >([]);
+  const [dashboardOpportunitiesLoading, setDashboardOpportunitiesLoading] =
+    useState(false);
+  const [dashboardOpportunitiesError, setDashboardOpportunitiesError] =
+    useState("");
+  const [dashboardOpportunitiesLoaded, setDashboardOpportunitiesLoaded] =
+    useState(false);
 
   useEffect(() => {
     let active = true;
@@ -412,6 +421,47 @@ function LeadFlowApp() {
     setMessageActionPending(false);
     setMessageActionError("");
   }, [messageLead?.id, messageLead?.company]);
+
+  useEffect(() => {
+    if (
+      view !== "dashboard" ||
+      !remoteReady ||
+      dashboardOpportunitiesLoaded ||
+      dashboardOpportunitiesLoading
+    ) {
+      return;
+    }
+
+    let active = true;
+    setDashboardOpportunitiesLoading(true);
+    setDashboardOpportunitiesError("");
+
+    void loadOpportunityData(leads)
+      .then((value) => {
+        if (!active) return;
+        setDashboardOpportunities(value.records);
+        setDashboardOpportunitiesLoaded(true);
+      })
+      .catch(() => {
+        if (!active) return;
+        setDashboardOpportunitiesError(
+          "Não foi possível carregar o resumo de oportunidades agora.",
+        );
+      })
+      .finally(() => {
+        if (active) setDashboardOpportunitiesLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [
+    view,
+    remoteReady,
+    leads,
+    dashboardOpportunitiesLoaded,
+    dashboardOpportunitiesLoading,
+  ]);
 
   const counts = useMemo(
     () => ({
@@ -1564,87 +1614,41 @@ function LeadFlowApp() {
   }
 
   return (
-    <main className="app-shell">
-      <header className="topbar">
-        <div className="topbar-inner">
-          <button className="brand" onClick={() => setView("leads")} type="button">
-            <span className="brand-mark">J</span>
-            <span className="brand-word"><span>Januario</span><span className="brand-accent">Leads</span></span>
-          </button>
-
-          <nav className="topnav" aria-label="Navegação principal">
-            <button
-              className={view === "leads" ? "nav-link active" : "nav-link"}
-              onClick={() => setView("leads")}
-              type="button"
-            >
-              Meus Leads
-            </button>
-            <button
-              className={view === "search" ? "nav-link active" : "nav-link"}
-              onClick={() => setView("search")}
-              type="button"
-            >
-              Buscar leads
-            </button>
-            <button
-              className={view === "open-now" ? "nav-link active" : "nav-link"}
-              onClick={() => setView("open-now")}
-              type="button"
-            >
-              <span className="open-now-nav-full">Nichos abertos agora</span>
-              <span className="open-now-nav-short">Abertos</span>
-            </button>
-            <button
-              className={view === "opportunities" ? "nav-link active" : "nav-link"}
-              onClick={() => setView("opportunities")}
-              type="button"
-            >
-              Oportunidades
-            </button>
-            <button
-              className={view === "messages" ? "nav-link active" : "nav-link"}
-              onClick={() => setView("messages")}
-              type="button"
-            >
-              Mensagens
-            </button>
-          </nav>
-
-          <div className="topbar-actions">
-            <button
-              className="logout-button"
-              type="button"
-              aria-label="Sair"
-              onClick={async () => {
-                await signOut();
-                await navigate({ to: "/login", replace: true });
-              }}
-              title="Sair"
-            >
-              <LogOut size={16} />
-              <span>Sair</span>
-            </button>
-            <button
-            className="icon-button"
-            onClick={() => setTheme((current) => (current === "light" ? "dark" : "light"))}
-            type="button"
-            aria-label={theme === "light" ? "Ativar tema escuro" : "Ativar tema claro"}
-            title={theme === "light" ? "Tema escuro" : "Tema claro"}
-          >
-            {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {view === "leads" ? (
+    <AppShell
+      activeView={view}
+      theme={theme}
+      onNavigate={setView}
+      onToggleTheme={() =>
+        setTheme((current) => (current === "light" ? "dark" : "light"))
+      }
+      onLogout={async () => {
+        await signOut();
+        await navigate({ to: "/login", replace: true });
+      }}
+    >
+      {view === "dashboard" ? (
+        <DashboardView
+          counts={counts}
+          financialOverview={financialOverview}
+          financeLoaded={financeLoaded}
+          financeError={financeError}
+          leadUpdates={leadUpdates}
+          leads={leads}
+          remoteReady={remoteReady}
+          remoteError={remoteError}
+          opportunities={dashboardOpportunities}
+          opportunitiesLoading={dashboardOpportunitiesLoading}
+          opportunitiesError={dashboardOpportunitiesError}
+          onOpenLead={openLeadDetails}
+          onNavigate={setView}
+        />
+      ) : view === "leads" ? (
         <section className="page-wrap">
           <div className="page-heading">
             <div>
-              <p className="eyebrow">PROSPECÇÃO PESSOAL</p>
-              <h1>Meus leads</h1>
-              <p className="subtitle">Cadastre, acompanhe e abra conversas no WhatsApp sem complicação.</p>
+              <p className="eyebrow">CARTEIRA COMERCIAL</p>
+              <h1>Meus Leads</h1>
+              <p className="subtitle">Organize empresas, status, contatos e andamento financeiro em um único fluxo.</p>
             </div>
             <button className="primary-button" onClick={openNewLead} type="button">
               <Plus size={17} />
@@ -1660,6 +1664,7 @@ function LeadFlowApp() {
 
           <div className="stats-strip">
             <Stat label="Total de leads" value={counts.all} tone="neutral" />
+            <Stat label="Enviar mensagem" value={counts.send_message} tone="send_message" />
             <Stat label="Aguardando" value={counts.waiting} tone="waiting" />
             <Stat label="Aceitos" value={counts.accepted} tone="accepted" />
             <Stat label="Recusados" value={counts.rejected} tone="rejected" />
@@ -1941,6 +1946,15 @@ function LeadFlowApp() {
           onGeneratePrompt={openPromptForBusiness}
           onGoSearch={() => setView("search")}
         />
+      ) : view === "finance" ? (
+        <FinanceView
+          leads={leads}
+          financeByLead={financeByLead}
+          overview={financialOverview}
+          loaded={financeLoaded}
+          error={financeError}
+          onOpenLead={openLeadDetails}
+        />
       ) : (
         <MessagesView
           messages={messages}
@@ -2191,7 +2205,7 @@ function LeadFlowApp() {
           </div>
         </Modal>
       )}
-    </main>
+    </AppShell>
   );
 }
 
