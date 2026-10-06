@@ -22,9 +22,15 @@ export function hasIdentifiedWebsite(
     const url = new URL(
       /^https?:\/\//i.test(raw) ? raw : `https://${raw}`,
     );
+    const hostname = url.hostname.toLocaleLowerCase("pt-BR");
+    const isInstagram =
+      hostname === "instagram.com" ||
+      hostname.endsWith(".instagram.com");
+
     return (
+      !isInstagram &&
       (url.protocol === "http:" || url.protocol === "https:") &&
-      Boolean(url.hostname)
+      Boolean(hostname)
     );
   } catch {
     return false;
