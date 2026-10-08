@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - validation/search-button-fix
+  pull_request:
+    branches:
+      - main
 
 jobs:
   validate:
