@@ -49,7 +49,10 @@ import {
 import { normalizeSearchText, SEGMENT_GROUPS } from "./segments";
 import type { BusinessSearchResult } from "./types";
 import { storeRecentBusinessSearch } from "../open-now-niches/local-cache";
-import { persistPlacesSearchSample } from "../opportunities/places-search-cache";
+import {
+  fetchCachedPlacesSearchSample,
+  persistPlacesSearchSample,
+} from "../opportunities/places-search-cache";
 import { isValidWhatsAppPhone, openWhatsAppLink } from "../../lib/whatsapp";
 
 export type SearchMessageTarget = {
@@ -427,6 +430,7 @@ export function SearchLeadsView({
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<{ code: string; message: string } | null>(null);
+  const [searchNotice, setSearchNotice] = useState("");
   const [resultFilters, setResultFilters] =
     useState<ResultFilterState>(DEFAULT_RESULT_FILTERS);
   const [sort, setSort] = useState<ResultSort>("rating");
@@ -604,6 +608,7 @@ export function SearchLeadsView({
     if (append) setLoadingMore(true);
     else setLoading(true);
     setError(null);
+    if (!append) setSearchNotice("");
 
     const response = await searchBusinesses({
       segment,
@@ -613,6 +618,39 @@ export function SearchLeadsView({
     });
 
     if (!response.ok) {
+      if (!append && response.code === "QUOTA") {
+        const cached = await fetchCachedPlacesSearchSample(
+          location,
+          segment,
+        ).catch(() => null);
+
+        if (cached?.results.length) {
+          const checkedAt = new Intl.DateTimeFormat("pt-BR", {
+            dateStyle: "short",
+            timeStyle: "short",
+          }).format(new Date(cached.checkedAt));
+
+          setResults(cached.results);
+          setResultsLocation(location);
+          setResultsSegment(segment);
+          setNextPageToken(cached.nextPageToken);
+          setResultFilters(DEFAULT_RESULT_FILTERS);
+          setLeadStatusFilter("all");
+          setScreen("results");
+          setSearchNotice(
+            `O Google Places atingiu o limite temporário. Mostrando ${cached.results.length} resultados salvos da última busca (${checkedAt}).`,
+          );
+          setRecentSearches(
+            storeRecentSearch({
+              ...location,
+              segment,
+            }),
+          );
+          setLoading(false);
+          return;
+        }
+      }
+
       setError({ code: response.code, message: response.message });
       if (append) setLoadingMore(false);
       else setLoading(false);
@@ -629,6 +667,7 @@ export function SearchLeadsView({
     );
 
     setResults(uniqueResults);
+    setSearchNotice("");
     storeRecentBusinessSearch(segment,response.results,{
       city: location.city,
       state: location.state,
@@ -884,6 +923,8 @@ export function SearchLeadsView({
           </div>
         </div>
 
+        {error && <SearchError error={error} />}
+
         <div className="selection-bar">
           <div>
             <span>Busca selecionada</span>
@@ -908,8 +949,6 @@ export function SearchLeadsView({
             {!loading && <ArrowRight size={17} />}
           </button>
         </div>
-
-        {error && <SearchError error={error} />}
       </section>
     );
   }
@@ -933,6 +972,13 @@ export function SearchLeadsView({
           </p>
         </div>
       </div>
+
+      {searchNotice && (
+        <div className="search-cache-notice" role="status">
+          <strong>Resultados salvos</strong>
+          <span>{searchNotice}</span>
+        </div>
+      )}
 
       <div className="results-toolbar">
         <div className="quick-filters">
@@ -1282,7 +1328,7 @@ function SearchError({ error }: { error: { code: string; message: string } }) {
                 : "Erro na busca";
 
   return (
-    <div className="search-error">
+    <div className="search-error" role="alert" aria-live="assertive">
       <strong>{title}</strong>
       <p>{error.message}</p>
     </div>
