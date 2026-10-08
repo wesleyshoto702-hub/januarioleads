@@ -1427,6 +1427,27 @@ select{
   background: var(--surface);
 }
 
+.search-cache-notice{
+  display: flex;
+  align-items: flex-start;
+  gap: 8px 12px;
+  margin: -4px 0 14px;
+  border: 1px solid color-mix(in srgb, var(--waiting) 35%, var(--border));
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--waiting) 8%, var(--surface));
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.search-cache-notice strong{
+  flex: 0 0 auto;
+  color: var(--waiting);
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
 .search-error{
   padding: 16px;
 }
