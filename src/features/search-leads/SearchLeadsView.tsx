@@ -633,7 +633,7 @@ export function SearchLeadsView({
           setResults(cached.results);
           setResultsLocation(location);
           setResultsSegment(segment);
-          setNextPageToken(cached.nextPageToken);
+          setNextPageToken(null);
           setResultFilters(DEFAULT_RESULT_FILTERS);
           setLeadStatusFilter("all");
           setScreen("results");
