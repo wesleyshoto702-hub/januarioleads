@@ -70,6 +70,16 @@ export async function fetchPlacesSearchSamples(): Promise<OpportunitySample[]> {
     .filter((row) => Boolean(row.checkedAt));
 }
 
+export type CachedPlacesSearchSample = {
+  city: string;
+  state: string;
+  segment: string;
+  checkedAt: string;
+  results: BusinessSearchResult[];
+  nextPageToken: string | null;
+  pageCount: number;
+};
+
 async function fetchExistingSample(
   userId: string,
   locationKey: string,
@@ -92,6 +102,34 @@ async function fetchExistingSample(
 
   const rows = (await response.json()) as RemotePlacesSearchCache[];
   return rows[0] ?? null;
+}
+
+export async function fetchCachedPlacesSearchSample(
+  location: SearchLocation,
+  segment: string,
+): Promise<CachedPlacesSearchSample | null> {
+  const session = await getValidSession();
+  if (!session) return null;
+
+  const row = await fetchExistingSample(
+    session.user.id,
+    searchLocationKey(location),
+    segment,
+  );
+  if (!row) return null;
+
+  const results = safeResults(row.results);
+  if (!results.length) return null;
+
+  return {
+    city: row.city,
+    state: row.state,
+    segment: row.segment,
+    checkedAt: row.checked_at,
+    results,
+    nextPageToken: row.next_page_token,
+    pageCount: row.page_count,
+  };
 }
 
 export async function persistPlacesSearchSample(input: {
