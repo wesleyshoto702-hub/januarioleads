@@ -20,7 +20,7 @@ function withSecurityHeaders(response: Response, request: Request) {
   headers.set("X-Permitted-Cross-Domain-Policies", "none");
   headers.set(
     "Content-Security-Policy",
-    "base-uri 'self'; object-src 'none'",
+    "base-uri 'self'; object-src 'none'; frame-ancestors 'self' https://lovable.app https://*.lovable.app https://lovable.dev https://*.lovable.dev",
   );
 
   if (new URL(request.url).protocol === "https:") {
