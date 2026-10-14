@@ -123,7 +123,11 @@ const FIELD_MASK = [
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json; charset=utf-8" },
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+    },
   });
 }
 
@@ -131,48 +135,56 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function getAdminKey() {
-  const legacy = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
-  if (legacy) return legacy;
-
-  const raw = Deno.env.get("SUPABASE_SECRET_KEYS");
+function firstNamedSecret(raw: string | undefined) {
   if (!raw) return null;
-
   try {
     const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const preferred = parsed.default;
+    if (typeof preferred === "string" && preferred.trim()) {
+      return preferred.trim();
+    }
     for (const value of Object.values(parsed)) {
       if (typeof value === "string" && value.trim()) return value.trim();
     }
   } catch {
     return null;
   }
-
   return null;
 }
 
-function adminHeaders(extra?: Record<string, string>) {
-  const key = getAdminKey();
-  if (!key) throw new Error("Supabase admin credential unavailable");
+function adminConfig() {
+  const url = Deno.env.get("SUPABASE_URL")?.replace(/\/$/, "");
+  if (!url) return null;
 
-  return {
-    apikey: key,
-    Authorization: `Bearer ${key}`,
-    "Content-Type": "application/json",
-    ...extra,
-  };
+  const legacy = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
+  if (legacy) {
+    return {
+      url,
+      key: legacy,
+      authorization: `Bearer ${legacy}`,
+    };
+  }
+
+  const modern = firstNamedSecret(Deno.env.get("SUPABASE_SECRET_KEYS"));
+  if (!modern) return null;
+  return { url, key: modern, authorization: null };
 }
 
 async function adminRest(
   path: string,
   init: RequestInit = {},
 ) {
-  const base = Deno.env.get("SUPABASE_URL")?.replace(/\/$/, "");
-  if (!base) throw new Error("SUPABASE_URL unavailable");
+  const config = adminConfig();
+  if (!config) throw new Error("Supabase admin credential unavailable");
 
-  return fetch(`${base}/rest/v1/${path}`, {
+  return fetch(`${config.url}/rest/v1/${path}`, {
     ...init,
     headers: {
-      ...adminHeaders(),
+      apikey: config.key,
+      ...(config.authorization
+        ? { Authorization: config.authorization }
+        : {}),
+      "Content-Type": "application/json",
       ...(init.headers ?? {}),
     },
   });
@@ -197,7 +209,7 @@ function secureEqual(a: string, b: string) {
 
 async function authorizeCron(request: Request) {
   const provided = request.headers.get("x-sync-secret")?.trim();
-  if (!provided) return false;
+  if (!provided || provided.length > 512) return false;
 
   const response = await adminRest(
     "sync_internal_config?select=secret_hash&config_key=eq.sync_leads_cron_secret_sha256&limit=1",
@@ -837,13 +849,14 @@ Deno.serve(async (request) => {
 
     return json({ ok: true, ...summary });
   } catch (error) {
+    console.error(
+      "[sync-leads] request_failed",
+      error instanceof Error ? error.message.slice(0, 500) : "Unexpected sync failure",
+    );
     return json(
       {
         ok: false,
-        message:
-          error instanceof Error
-            ? error.message.slice(0, 500)
-            : "Unexpected sync failure",
+        message: "Não foi possível concluir a sincronização agora.",
         ...summary,
       },
       500,
