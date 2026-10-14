@@ -1460,7 +1460,11 @@ export function deterministicOfficialFacts(
       ? "official_platform_embedded_data"
       : "official_embedded_data";
     const identityScore = isPlatform
-      ? platformIdentityScore(fingerprint, page)
+      ? (
+          typeof page.sourceIdentityScore === "number"
+            ? page.sourceIdentityScore
+            : assessLinkedPlatformIdentity(fingerprint, page).score
+        )
       : identityScoreFromText(
           fingerprint,
           page.finalUrl,
