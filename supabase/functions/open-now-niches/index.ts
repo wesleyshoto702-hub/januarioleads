@@ -245,7 +245,7 @@ function validLocation(body: Record<string, unknown>) {
   );
   if (
     city.length < 2 ||
-    !/^[\p{L}\s.'’\-]+$/u.test(city) ||
+    !/^[\p{L}\s.'’-]+$/u.test(city) ||
     !state
   ) {
     return null;
