@@ -4534,7 +4534,9 @@ export function buildNichePlanningContext(
 
 export function getNicheCoverageReport() {
   const currentSegments = SEARCH_SEGMENT_GROUPS.flatMap((group) => group.items);
-  const mapped = new Map(CURRENT_NICHE_COVERAGE.map((item) => [item.segment, item]));
+  const mapped = new Map<string, (typeof CURRENT_NICHE_COVERAGE)[number]>(
+    CURRENT_NICHE_COVERAGE.map((item) => [item.segment, item]),
+  );
   const rows = currentSegments.map((segment) => {
     const match = mapped.get(segment);
     if (!match) {
