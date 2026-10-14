@@ -134,26 +134,15 @@ async function adminRest(path: string, init: RequestInit = {}) {
   });
 }
 
-async function claimApiBudget(request: Request) {
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")?.replace(/\/$/,"");
-  const publishable = Deno.env.get("SUPABASE_ANON_KEY")?.trim() ||
-    Deno.env.get("SUPABASE_PUBLISHABLE_KEY")?.trim();
-  const authorization = request.headers.get("authorization");
-  if (!supabaseUrl || !publishable || !authorization) return null;
-
+async function claimApiBudget(userId: string) {
   try {
-    const response = await fetch(
-      `${supabaseUrl}/rest/v1/rpc/claim_api_request`,
-      {
-        method: "POST",
-        headers: {
-          apikey: publishable,
-          Authorization: authorization,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ p_bucket: "deep_enrichment" }),
-      },
-    );
+    const response = await adminRest("rpc/claim_api_request_for_user", {
+      method: "POST",
+      body: JSON.stringify({
+        p_user_id: userId,
+        p_bucket: "deep_enrichment",
+      }),
+    });
     if (!response.ok) return null;
     return Boolean(await response.json());
   } catch {
@@ -1396,7 +1385,7 @@ Deno.serve(async (request)=>{
 
     if (mode !== "run") return failure("INVALID_REQUEST","Modo inválido.",400);
 
-    const withinBudget = await claimApiBudget(request);
+    const withinBudget = await claimApiBudget(authorized.userId);
     if (withinBudget === null) {
       return failure(
         "RATE_LIMIT_CHECK_FAILED",
