@@ -394,7 +394,7 @@ function normalizeCityInput(value: unknown) {
   if (
     city.length < 2 ||
     city.length > 120 ||
-    !/^[\p{L}\s.'’\-]+$/u.test(city)
+    !/^[\p{L}\s.'’-]+$/u.test(city)
   ) {
     return null;
   }
@@ -1472,7 +1472,7 @@ function contactPageFromOfficialHtml(html: string, baseUrl: URL) {
 
       const value = `${resolved.pathname} ${resolved.search}`.toLowerCase();
       if (
-        /(^|[\/_-])(contato|contact|fale-conosco|faleconosco)([\/_-]|$)/.test(
+        /(^|[/_-])(contato|contact|fale-conosco|faleconosco)([/_-]|$)/.test(
           value,
         )
       ) {
