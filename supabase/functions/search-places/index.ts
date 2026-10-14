@@ -144,8 +144,55 @@ const LEGACY_DEFAULT_STATE = "MG";
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: corsHeaders,
+    headers: {
+      ...corsHeaders,
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+    },
   });
+}
+
+const MAX_REQUEST_BYTES = 64 * 1024;
+
+async function readJsonBody(request: Request) {
+  const bodyText = await request.text();
+  if (new TextEncoder().encode(bodyText).byteLength > MAX_REQUEST_BYTES) {
+    return { ok: false as const, tooLarge: true as const };
+  }
+
+  try {
+    return {
+      ok: true as const,
+      value: JSON.parse(bodyText) as unknown,
+    };
+  } catch {
+    return { ok: false as const, tooLarge: false as const };
+  }
+}
+
+async function claimApiBudget(
+  supabaseUrl: string,
+  authHeaders: Record<string, string>,
+  bucket: "places_search" | "lead_enrichment" | "presence_discovery",
+) {
+  try {
+    const response = await fetch(
+      `${supabaseUrl}/rest/v1/rpc/claim_api_request`,
+      {
+        method: "POST",
+        headers: {
+          ...authHeaders,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ p_bucket: bucket }),
+      },
+    );
+
+    if (!response.ok) return null;
+    return Boolean(await response.json());
+  } catch {
+    return null;
+  }
 }
 
 function failure(
@@ -1239,6 +1286,7 @@ function safePublicWebsite(value: string) {
   try {
     const url = new URL(value);
     if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    if (url.username || url.password) return null;
     if (isBlockedWebsiteHost(url.hostname)) return null;
     return url;
   } catch {
@@ -2400,17 +2448,18 @@ Deno.serve(async (request) => {
     );
   }
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
+  const parsedBody = await readJsonBody(request);
+  if (!parsedBody.ok) {
     return failure(
       "INVALID_REQUEST",
-      "A solicitação de busca está em formato inválido.",
-      400,
+      parsedBody.tooLarge
+        ? "A solicitação de busca excede o tamanho permitido."
+        : "A solicitação de busca está em formato inválido.",
+      parsedBody.tooLarge ? 413 : 400,
     );
   }
 
+  const body = parsedBody.value;
   if (!body || typeof body !== "object") {
     return failure(
       "INVALID_REQUEST",
@@ -2426,6 +2475,32 @@ Deno.serve(async (request) => {
       : requestBody.mode === "presence-discovery"
         ? "presence-discovery"
         : "segment-search";
+
+  const rateLimitBucket =
+    mode === "lead-enrichment"
+      ? "lead_enrichment"
+      : mode === "presence-discovery"
+        ? "presence_discovery"
+        : "places_search";
+  const withinBudget = await claimApiBudget(
+    supabaseUrl,
+    authHeaders,
+    rateLimitBucket,
+  );
+  if (withinBudget === null) {
+    return failure(
+      "REQUEST_FAILED",
+      "Não foi possível validar o limite de uso agora.",
+      503,
+    );
+  }
+  if (!withinBudget) {
+    return failure(
+      "QUOTA",
+      "Limite temporário de uso atingido. Aguarde alguns minutos antes de tentar novamente.",
+      429,
+    );
+  }
 
   try {
     if (mode === "presence-discovery") {
