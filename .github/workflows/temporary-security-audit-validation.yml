@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - validation/security-audit
+      - validation/security-audit-v2
 
 jobs:
   validate:
