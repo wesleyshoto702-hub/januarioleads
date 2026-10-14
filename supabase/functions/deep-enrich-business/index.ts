@@ -1356,7 +1356,7 @@ async function reviewFact(
   return snapshotFromRun(updated,false);
 }
 
-async function handleRequest(request: Request)=>{
+async function handleRequest(request: Request) {
   if (request.method === "OPTIONS") return new Response(null,{status:204,headers:corsHeaders});
   if (request.method !== "POST") return failure("INVALID_REQUEST","Este serviço aceita somente POST.",405);
   const authorized = await requireAuthorizedUser(request);
