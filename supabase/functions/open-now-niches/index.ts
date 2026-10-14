@@ -115,8 +115,34 @@ const familyBySegment = new Map<string, NicheFamily>(
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: corsHeaders,
+    headers: {
+      ...corsHeaders,
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+    },
   });
+}
+
+const MAX_REQUEST_BYTES = 64 * 1024;
+
+async function readJsonBody(request: Request) {
+  const bodyText = await request.text();
+  if (new TextEncoder().encode(bodyText).byteLength > MAX_REQUEST_BYTES) {
+    return { ok: false as const, tooLarge: true as const };
+  }
+
+  try {
+    const value = JSON.parse(bodyText);
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      return { ok: false as const, tooLarge: false as const };
+    }
+    return {
+      ok: true as const,
+      value: value as Record<string, unknown>,
+    };
+  } catch {
+    return { ok: false as const, tooLarge: false as const };
+  }
 }
 
 function failure(code: string, message: string, status: number, extra?: object) {
@@ -882,13 +908,18 @@ Deno.serve(async (request) => {
   }
   const userId = auth.userId;
 
-  let body: Record<string, unknown>;
-  try {
-    body = await request.json() as Record<string, unknown>;
-  } catch {
-    return failure("INVALID_REQUEST", "A solicitação está em formato inválido.", 400);
+  const parsedBody = await readJsonBody(request);
+  if (!parsedBody.ok) {
+    return failure(
+      "INVALID_REQUEST",
+      parsedBody.tooLarge
+        ? "A solicitação excede o tamanho permitido."
+        : "A solicitação está em formato inválido.",
+      parsedBody.tooLarge ? 413 : 400,
+    );
   }
 
+  const body = parsedBody.value;
   const location = validLocation(body);
   if (!location) {
     return failure("INVALID_LOCATION", "Informe cidade e UF válidas.", 400);
