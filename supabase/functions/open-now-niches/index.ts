@@ -105,6 +105,66 @@ const corsHeaders = {
   "Content-Type": "application/json; charset=utf-8",
 };
 
+function configuredAllowedOrigins() {
+  return new Set(
+    (Deno.env.get("APP_ALLOWED_ORIGINS") ?? "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean),
+  );
+}
+
+function isAllowedBrowserOrigin(origin: string) {
+  if (configuredAllowedOrigins().has(origin)) return true;
+
+  try {
+    const url = new URL(origin);
+    const isLocal =
+      url.protocol === "http:" &&
+      (url.hostname === "localhost" || url.hostname === "127.0.0.1");
+    const isLovable =
+      url.protocol === "https:" &&
+      (url.hostname === "lovable.app" || url.hostname.endsWith(".lovable.app"));
+    return isLocal || isLovable;
+  } catch {
+    return false;
+  }
+}
+
+function withRequestCors(response: Response, request: Request) {
+  const headers = new Headers(response.headers);
+  const origin = request.headers.get("origin")?.trim() ?? "";
+  headers.delete("Access-Control-Allow-Origin");
+
+  if (origin && isAllowedBrowserOrigin(origin)) {
+    headers.set("Access-Control-Allow-Origin", origin);
+    const currentVary = headers.get("Vary");
+    headers.set("Vary", currentVary ? `${currentVary}, Origin` : "Origin");
+  }
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
+function corsPreflight(request: Request) {
+  const origin = request.headers.get("origin")?.trim() ?? "";
+  if (origin && !isAllowedBrowserOrigin(origin)) {
+    return new Response(null, { status: 403 });
+  }
+
+  return withRequestCors(
+    new Response(null, {
+      status: 204,
+      headers: corsHeaders,
+    }),
+    request,
+  );
+}
+
+
 const familyBySegment = new Map<string, NicheFamily>(
   CURRENT_NICHE_COVERAGE.map((item) => [
     item.segment,
@@ -894,7 +954,7 @@ async function runRefresh(
   }
 }
 
-Deno.serve(async (request) => {
+async function handleRequest(request: Request) {
   if (request.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders });
   }
@@ -947,4 +1007,31 @@ Deno.serve(async (request) => {
     logDiagnostic("request_failed", { code });
     return safeFailure(code);
   }
+}
+
+
+Deno.serve(async (request) => {
+  if (request.method === "OPTIONS") {
+    return corsPreflight(request);
+  }
+
+  const origin = request.headers.get("origin")?.trim() ?? "";
+  if (origin && !isAllowedBrowserOrigin(origin)) {
+    return withRequestCors(
+      new Response(
+        JSON.stringify({
+          ok: false,
+          code: "FORBIDDEN",
+          message: "Origem não autorizada.",
+        }),
+        {
+          status: 403,
+          headers: corsHeaders,
+        },
+      ),
+      request,
+    );
+  }
+
+  return withRequestCors(await handleRequest(request), request);
 });
