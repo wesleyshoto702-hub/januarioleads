@@ -9,6 +9,7 @@ on:
       - validation/security-audit
       - validation/security-audit-v2
       - validation/security-audit-v3
+      - validation/security-audit-v4
 
 jobs:
   validate:
