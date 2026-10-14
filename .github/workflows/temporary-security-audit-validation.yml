@@ -1,10 +1,14 @@
 name: Temporary security audit validation
 
+permissions:
+  contents: write
+
 on:
   push:
     branches:
       - validation/security-audit
       - validation/security-audit-v2
+      - validation/security-audit-v3
 
 jobs:
   validate:
@@ -19,9 +23,17 @@ jobs:
           deno-version: v2.x
       - name: Install dependencies
         run: bun install --frozen-lockfile
+      - name: Apply targeted dependency security updates
+        run: >-
+          bun update
+          seroval
+          shell-quote
+          js-yaml
+          nanoid
+          source-map-js
+          brace-expansion
       - name: Dependency audit
         run: bun audit --json
-        continue-on-error: true
       - name: Build
         run: bun run build
       - name: Semantic lint security changes
@@ -45,3 +57,14 @@ jobs:
       - name: Repository lint baseline
         run: bun run lint
         continue-on-error: true
+      - name: Persist validated security lockfile
+        if: success()
+        run: |
+          if git diff --quiet -- bun.lock package.json; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add bun.lock package.json
+          git commit -m "security: refresh vulnerable transitive dependencies"
+          git push
