@@ -51,16 +51,42 @@ const corsHeaders = {
 };
 
 function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: corsHeaders });
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      ...corsHeaders,
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
 }
 function failure(code: string, message: string, status = 400) {
   return json({ ok: false, code, message }, status);
 }
 
-function getAdminKey() {
-  const direct = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
-  if (direct) return direct;
-  const raw = Deno.env.get("SUPABASE_SECRET_KEYS");
+const MAX_REQUEST_BYTES = 512 * 1024;
+
+async function readJsonBody(request: Request) {
+  const bodyText = await request.text();
+  if (new TextEncoder().encode(bodyText).byteLength > MAX_REQUEST_BYTES) {
+    return { ok: false as const, tooLarge: true as const };
+  }
+
+  try {
+    const value = JSON.parse(bodyText);
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      return { ok: false as const, tooLarge: false as const };
+    }
+    return {
+      ok: true as const,
+      value: value as Record<string, unknown>,
+    };
+  } catch {
+    return { ok: false as const, tooLarge: false as const };
+  }
+}
+
+function firstNamedSecret(raw: string | undefined) {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as Record<string,unknown>;
@@ -73,24 +99,66 @@ function getAdminKey() {
   return null;
 }
 
-function adminHeaders(extra?: Record<string,string>) {
-  const key = getAdminKey();
-  if (!key) throw new Error("ADMIN_KEY_MISSING");
-  return {
-    apikey: key,
-    Authorization: `Bearer ${key}`,
-    "Content-Type": "application/json",
-    ...extra,
-  };
+function adminConfig() {
+  const url = Deno.env.get("SUPABASE_URL")?.replace(/\/$/,"");
+  if (!url) return null;
+
+  const legacy = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
+  if (legacy) {
+    return {
+      url,
+      key: legacy,
+      authorization: `Bearer ${legacy}`,
+    };
+  }
+
+  const modern = firstNamedSecret(Deno.env.get("SUPABASE_SECRET_KEYS"));
+  if (!modern) return null;
+  return { url, key: modern, authorization: null };
 }
 
 async function adminRest(path: string, init: RequestInit = {}) {
-  const base = Deno.env.get("SUPABASE_URL")?.replace(/\/$/,"");
-  if (!base) throw new Error("SUPABASE_URL_MISSING");
-  return fetch(`${base}/rest/v1/${path}`, {
+  const config = adminConfig();
+  if (!config) throw new Error("ADMIN_KEY_MISSING");
+
+  return fetch(`${config.url}/rest/v1/${path}`, {
     ...init,
-    headers: { ...adminHeaders(), ...(init.headers ?? {}) },
+    headers: {
+      apikey: config.key,
+      ...(config.authorization
+        ? { Authorization: config.authorization }
+        : {}),
+      "Content-Type": "application/json",
+      ...(init.headers ?? {}),
+    },
   });
+}
+
+async function claimApiBudget(request: Request) {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")?.replace(/\/$/,"");
+  const publishable = Deno.env.get("SUPABASE_ANON_KEY")?.trim() ||
+    Deno.env.get("SUPABASE_PUBLISHABLE_KEY")?.trim();
+  const authorization = request.headers.get("authorization");
+  if (!supabaseUrl || !publishable || !authorization) return null;
+
+  try {
+    const response = await fetch(
+      `${supabaseUrl}/rest/v1/rpc/claim_api_request`,
+      {
+        method: "POST",
+        headers: {
+          apikey: publishable,
+          Authorization: authorization,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ p_bucket: "deep_enrichment" }),
+      },
+    );
+    if (!response.ok) return null;
+    return Boolean(await response.json());
+  } catch {
+    return null;
+  }
 }
 
 async function requireAuthorizedUser(request: Request) {
@@ -1245,10 +1313,18 @@ Deno.serve(async (request)=>{
   const authorized = await requireAuthorizedUser(request);
   if (!authorized.ok) return authorized.response;
 
-  let body:Record<string,unknown>;
-  try { body = await request.json() as Record<string,unknown>; }
-  catch { return failure("INVALID_REQUEST","A solicitação está em formato inválido.",400); }
+  const parsedBody = await readJsonBody(request);
+  if (!parsedBody.ok) {
+    return failure(
+      "INVALID_REQUEST",
+      parsedBody.tooLarge
+        ? "A solicitação excede o tamanho permitido."
+        : "A solicitação está em formato inválido.",
+      parsedBody.tooLarge ? 413 : 400,
+    );
+  }
 
+  const body = parsedBody.value;
   const mode = cleanText(body.mode,40) || "status";
   const leadId = cleanText(body.leadId,80) || null;
 
@@ -1319,6 +1395,23 @@ Deno.serve(async (request)=>{
     }
 
     if (mode !== "run") return failure("INVALID_REQUEST","Modo inválido.",400);
+
+    const withinBudget = await claimApiBudget(request);
+    if (withinBudget === null) {
+      return failure(
+        "RATE_LIMIT_CHECK_FAILED",
+        "Não foi possível validar o limite de uso agora.",
+        503,
+      );
+    }
+    if (!withinBudget) {
+      return failure(
+        "RATE_LIMIT",
+        "Limite temporário da pesquisa aprofundada atingido. Aguarde alguns minutos antes de tentar novamente.",
+        429,
+      );
+    }
+
     const snapshot = await runEnrichment(
       authorized.userId,leadId,business,body.force === true
     );
