@@ -171,24 +171,18 @@ async function readJsonBody(request: Request) {
 }
 
 async function claimApiBudget(
-  supabaseUrl: string,
-  authHeaders: Record<string, string>,
+  userId: string,
   bucket: "places_search" | "lead_enrichment" | "presence_discovery",
 ) {
   try {
-    const response = await fetch(
-      `${supabaseUrl}/rest/v1/rpc/claim_api_request`,
-      {
-        method: "POST",
-        headers: {
-          ...authHeaders,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ p_bucket: bucket }),
-      },
-    );
-
-    if (!response.ok) return null;
+    const response = await adminRest("rpc/claim_api_request_for_user", {
+      method: "POST",
+      body: JSON.stringify({
+        p_user_id: userId,
+        p_bucket: bucket,
+      }),
+    });
+    if (!response?.ok) return null;
     return Boolean(await response.json());
   } catch {
     return null;
@@ -239,6 +233,58 @@ function hasValidClientKey(request: Request) {
 
   const providedKey = request.headers.get("apikey")?.trim();
   return Boolean(providedKey && allowedKeys.includes(providedKey));
+}
+
+function firstNamedSecret(raw: string | undefined) {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const preferred = parsed.default;
+    if (typeof preferred === "string" && preferred.trim()) {
+      return preferred.trim();
+    }
+    for (const value of Object.values(parsed)) {
+      if (typeof value === "string" && value.trim()) return value.trim();
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function adminConfig() {
+  const url = Deno.env.get("SUPABASE_URL")?.replace(/\/$/, "");
+  if (!url) return null;
+
+  const legacy = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
+  if (legacy) {
+    return {
+      url,
+      key: legacy,
+      authorization: `Bearer ${legacy}`,
+    };
+  }
+
+  const modern = firstNamedSecret(Deno.env.get("SUPABASE_SECRET_KEYS"));
+  if (!modern) return null;
+  return { url, key: modern, authorization: null };
+}
+
+async function adminRest(path: string, init: RequestInit = {}) {
+  const config = adminConfig();
+  if (!config) return null;
+
+  return fetch(`${config.url}/rest/v1/${path}`, {
+    ...init,
+    headers: {
+      apikey: config.key,
+      ...(config.authorization
+        ? { Authorization: config.authorization }
+        : {}),
+      "Content-Type": "application/json",
+      ...(init.headers ?? {}),
+    },
+  });
 }
 
 function component(place: GooglePlace, type: string, short = false) {
@@ -2483,8 +2529,7 @@ Deno.serve(async (request) => {
         ? "presence_discovery"
         : "places_search";
   const withinBudget = await claimApiBudget(
-    supabaseUrl,
-    authHeaders,
+    userId,
     rateLimitBucket,
   );
   if (withinBudget === null) {
