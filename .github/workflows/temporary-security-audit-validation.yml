@@ -1,0 +1,46 @@
+name: Temporary security audit validation
+
+on:
+  push:
+    branches:
+      - validation/security-audit
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Dependency audit
+        run: bun audit --json
+        continue-on-error: true
+      - name: Build
+        run: bun run build
+      - name: Semantic lint security changes
+        run: >-
+          bunx eslint
+          src/server.ts
+          supabase/functions/search-places/index.ts
+          supabase/functions/deep-enrich-business/index.ts
+          supabase/functions/open-now-niches/index.ts
+          supabase/functions/sync-leads/index.ts
+          --rule "prettier/prettier: off"
+      - name: Check Edge Functions
+        run: >-
+          deno check
+          supabase/functions/search-places/index.ts
+          supabase/functions/deep-enrich-business/index.ts
+          supabase/functions/open-now-niches/index.ts
+          supabase/functions/sync-leads/index.ts
+      - name: Run Edge Function unit tests
+        run: deno test supabase/functions/_shared/*.test.ts
+      - name: Repository lint baseline
+        run: bun run lint
+        continue-on-error: true
