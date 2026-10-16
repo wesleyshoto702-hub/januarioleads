@@ -169,7 +169,7 @@ const DEFAULT_MESSAGES = [
 
 const FOLLOW_UP_MESSAGES = [
   "Olá! Tudo bem? Passando para dar continuidade à mensagem que enviei sobre a possibilidade de criar um site profissional para a {empresa}. Conseguiu dar uma olhada?",
-  "Oi! Estou retomando nosso contato sobre a ideia de um site ou landing page para a {empresa}. Se fizer sentido, posso te explicar de forma rápida como funcionaria e te mostrar uma proposta sem compromisso.",
+  "Oi! Estou retomando o contato sobre a ideia de um site para a {empresa}, caso tenha interesse.",
   "Olá! Só passando mais uma vez para saber se existe interesse em conversar sobre um site para a {empresa}. Se agora não for o momento, sem problema — fico à disposição caso queira falar sobre isso mais pra frente.",
 ];
 
