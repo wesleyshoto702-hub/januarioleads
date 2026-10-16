@@ -51,6 +51,7 @@ import type { BusinessSearchResult } from "./types";
 import { storeRecentBusinessSearch } from "../open-now-niches/local-cache";
 import {
   fetchCachedPlacesSearchSample,
+  fetchRecentPlacesSearchSamples,
   persistPlacesSearchSample,
 } from "../opportunities/places-search-cache";
 import { isValidWhatsAppPhone, openWhatsAppLink } from "../../lib/whatsapp";
@@ -466,7 +467,78 @@ export function SearchLeadsView({
   }
 
   useEffect(() => {
-    setRecentSearches(getRecentSearches());
+    let active = true;
+    const localRecent = getRecentSearches();
+    setRecentSearches(localRecent);
+
+    void fetchRecentPlacesSearchSamples(5)
+      .then((samples) => {
+        if (!active || samples.length === 0) return;
+
+        const remoteRecent: RecentSearch[] = [];
+        const seen = new Set<string>();
+
+        for (const sample of samples) {
+          const state = normalizeBrazilianStateCode(sample.state);
+          const city = sample.city.trim();
+          const segment = sample.segment.trim();
+          if (!state || !city || !segment) continue;
+
+          const recent: RecentSearch = { city, state, segment };
+          const key = recentSearchKey(recent);
+          if (seen.has(key)) continue;
+          seen.add(key);
+          remoteRecent.push(recent);
+        }
+
+        const combined = [
+          ...remoteRecent,
+          ...localRecent.filter((item) => !seen.has(recentSearchKey(item))),
+        ].slice(0, 5);
+
+        try {
+          localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(combined));
+        } catch {
+          // Remote state remains authoritative even if local cache is unavailable.
+        }
+        setRecentSearches(combined);
+
+        const latest = samples.find((sample) => sample.results.length > 0);
+        if (!latest) return;
+
+        const state = normalizeBrazilianStateCode(latest.state);
+        const city = latest.city.trim();
+        const segment = latest.segment.trim();
+        if (!state || !city || !segment) return;
+
+        const location: SearchLocation = { city, state };
+        saveSearchLocation(location);
+        setSearchLocation(location);
+        setCityInput(city);
+        setSelectedSegment(segment);
+        setResultsLocation(location);
+        setResultsSegment(segment);
+        setResults(latest.results);
+        setNextPageToken(latest.nextPageToken);
+        setResultFilters(DEFAULT_RESULT_FILTERS);
+        setLeadStatusFilter("all");
+        setScreen("results");
+
+        const checkedAt = new Intl.DateTimeFormat("pt-BR", {
+          dateStyle: "short",
+          timeStyle: "short",
+        }).format(new Date(latest.checkedAt));
+        setSearchNotice(
+          `Mostrando ${latest.results.length} resultados sincronizados da última busca (${checkedAt}).`,
+        );
+      })
+      .catch(() => {
+        // Local recent searches remain available as an offline fallback.
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
