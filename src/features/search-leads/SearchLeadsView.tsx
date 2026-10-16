@@ -468,13 +468,18 @@ export function SearchLeadsView({
 
   useEffect(() => {
     let active = true;
-    const localRecent = getRecentSearches();
-    setRecentSearches(localRecent);
+    let refreshInFlight = false;
+    setRecentSearches(getRecentSearches());
 
-    void fetchRecentPlacesSearchSamples(5)
-      .then((samples) => {
+    async function refreshRemoteSearchState() {
+      if (!active || refreshInFlight) return;
+      refreshInFlight = true;
+
+      try {
+        const samples = await fetchRecentPlacesSearchSamples(5);
         if (!active || samples.length === 0) return;
 
+        const localRecent = getRecentSearches();
         const remoteRecent: RecentSearch[] = [];
         const seen = new Set<string>();
 
@@ -531,13 +536,37 @@ export function SearchLeadsView({
         setSearchNotice(
           `Mostrando ${latest.results.length} resultados sincronizados da última busca (${checkedAt}).`,
         );
-      })
-      .catch(() => {
+      } catch {
         // Local recent searches remain available as an offline fallback.
-      });
+      } finally {
+        refreshInFlight = false;
+      }
+    }
+
+    function refreshWhenVisible() {
+      if (document.visibilityState === "visible") {
+        void refreshRemoteSearchState();
+      }
+    }
+
+    function refreshAfterPageRestore(event: PageTransitionEvent) {
+      if (event.persisted) {
+        void refreshRemoteSearchState();
+      }
+    }
+
+    void refreshRemoteSearchState();
+    window.addEventListener("focus", refreshRemoteSearchState);
+    window.addEventListener("online", refreshRemoteSearchState);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    window.addEventListener("pageshow", refreshAfterPageRestore);
 
     return () => {
       active = false;
+      window.removeEventListener("focus", refreshRemoteSearchState);
+      window.removeEventListener("online", refreshRemoteSearchState);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+      window.removeEventListener("pageshow", refreshAfterPageRestore);
     };
   }, []);
 
