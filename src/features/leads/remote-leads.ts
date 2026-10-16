@@ -325,23 +325,28 @@ export async function migrateLocalLeads(localLeads: PersistedLead[]) {
   if (!session) throw new Error("AUTH_REQUIRED");
 
   const existing = await fetchRemoteLeads();
-  const existingIds = new Set(existing.map((lead) => lead.id));
-  const missing = localLeads.filter((lead) => !existingIds.has(lead.id));
 
-  if (missing.length > 0) {
-    const response = await authedRequest("leads?on_conflict=id", {
-      method: "POST",
-      headers: {
-        Prefer: "resolution=ignore-duplicates,return=minimal",
-      },
-      body: JSON.stringify(
-        missing.map((lead) => toRemote(lead, session.user.id)),
-      ),
-    });
+  // Once the account has remote data, Supabase is the source of truth.
+  // This prevents a stale device cache from recreating deleted leads or
+  // overwriting newer CRM state from another device.
+  if (existing.length > 0 || localLeads.length === 0) {
+    return existing;
+  }
 
-    if (!response.ok) {
-      throw new Error(`LOCAL_MIGRATION_${response.status}`);
-    }
+  // Legacy migration is only used for an account that has no remote leads yet.
+  // The insert remains conflict-safe and is followed by a fresh remote read.
+  const response = await authedRequest("leads?on_conflict=id", {
+    method: "POST",
+    headers: {
+      Prefer: "resolution=ignore-duplicates,return=minimal",
+    },
+    body: JSON.stringify(
+      localLeads.map((lead) => toRemote(lead, session.user.id)),
+    ),
+  });
+
+  if (!response.ok) {
+    throw new Error(`LOCAL_MIGRATION_${response.status}`);
   }
 
   return fetchRemoteLeads();
