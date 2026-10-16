@@ -2156,6 +2156,41 @@ select{
   margin: 0 0 14px;
 }
 
+.follow-up-success-notice{
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 1400;
+  max-width: min(360px, calc(100vw - 32px));
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 13px;
+  border: 1px solid color-mix(in srgb, var(--accepted) 38%, var(--border));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accepted-bg) 94%, var(--surface));
+  color: var(--accepted);
+  box-shadow: var(--shadow);
+  font-size: 11px;
+  font-weight: 720;
+  line-height: 1.4;
+  pointer-events: none;
+  animation: fade-in .16s ease-out;
+}
+
+.follow-up-success-notice svg{
+  flex: 0 0 auto;
+}
+
+@media (max-width: 520px) {
+  .follow-up-success-notice{
+    right: 12px;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    left: 12px;
+    max-width: none;
+  }
+}
+
 .message-option:disabled{
   cursor: wait;
   opacity: 0.62;
