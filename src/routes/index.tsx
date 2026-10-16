@@ -351,8 +351,6 @@ function LeadFlowApp() {
   }, [leads, hydrated]);
 
   useEffect(() => {
-    if (!remoteReady) return;
-
     let active = true;
     let refreshInFlight = false;
 
@@ -369,6 +367,7 @@ function LeadFlowApp() {
         if (!active) return;
         setLeads(remoteLeads);
         setLeadUpdates(updates);
+        setRemoteReady(true);
         try {
           setLeadPayments(await fetchLeadPayments());
           setFinanceLoaded(true);
@@ -381,6 +380,7 @@ function LeadFlowApp() {
         setRemoteError("");
       } catch {
         if (!active) return;
+        setRemoteReady(false);
         setRemoteError(
           "Não foi possível atualizar a cópia remota agora. O CRM continua disponível localmente.",
         );
@@ -401,6 +401,8 @@ function LeadFlowApp() {
       }
     }
 
+    // These listeners are intentionally registered even when the initial
+    // Supabase connection fails, so a suspended mobile tab can recover later.
     window.addEventListener("focus", refreshRemoteState);
     document.addEventListener("visibilitychange", refreshWhenVisible);
     window.addEventListener("pageshow", refreshAfterPageRestore);
@@ -411,7 +413,7 @@ function LeadFlowApp() {
       document.removeEventListener("visibilitychange", refreshWhenVisible);
       window.removeEventListener("pageshow", refreshAfterPageRestore);
     };
-  }, [remoteReady]);
+  }, []);
 
   useEffect(() => {
     if (!hydrated) return;
