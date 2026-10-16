@@ -403,12 +403,14 @@ function LeadFlowApp() {
     // These listeners are intentionally registered even when the initial
     // Supabase connection fails, so a suspended mobile tab can recover later.
     window.addEventListener("focus", refreshRemoteState);
+    window.addEventListener("online", refreshRemoteState);
     document.addEventListener("visibilitychange", refreshWhenVisible);
     window.addEventListener("pageshow", refreshAfterPageRestore);
 
     return () => {
       active = false;
       window.removeEventListener("focus", refreshRemoteState);
+      window.removeEventListener("online", refreshRemoteState);
       document.removeEventListener("visibilitychange", refreshWhenVisible);
       window.removeEventListener("pageshow", refreshAfterPageRestore);
     };
