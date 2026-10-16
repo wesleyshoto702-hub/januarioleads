@@ -380,7 +380,6 @@ function LeadFlowApp() {
         setRemoteError("");
       } catch {
         if (!active) return;
-        setRemoteReady(false);
         setRemoteError(
           "Não foi possível atualizar a cópia remota agora. O CRM continua disponível localmente.",
         );
