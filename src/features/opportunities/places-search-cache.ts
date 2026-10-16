@@ -80,6 +80,42 @@ export type CachedPlacesSearchSample = {
   pageCount: number;
 };
 
+export async function fetchRecentPlacesSearchSamples(
+  limit = 5,
+): Promise<CachedPlacesSearchSample[]> {
+  const params = new URLSearchParams();
+  params.set(
+    "select",
+    "city,state,segment,checked_at,next_page_token,page_count,results",
+  );
+  params.set("order", "checked_at.desc");
+  params.set("limit", String(Math.max(1, Math.min(20, limit))));
+
+  const response = await opportunityAuthedRequest(
+    `places_search_cache?${params.toString()}`,
+  );
+  if (!response.ok) {
+    throw new Error(`PLACES_SEARCH_CACHE_RECENT_${response.status}`);
+  }
+
+  return ((await response.json()) as RemotePlacesSearchCache[])
+    .map((row): CachedPlacesSearchSample => ({
+      city: row.city,
+      state: row.state,
+      segment: row.segment,
+      checkedAt: row.checked_at,
+      results: safeResults(row.results),
+      nextPageToken: row.next_page_token,
+      pageCount: row.page_count,
+    }))
+    .filter(
+      (row) =>
+        Boolean(row.checkedAt) &&
+        Boolean(row.city.trim()) &&
+        Boolean(row.segment.trim()),
+    );
+}
+
 async function fetchExistingSample(
   userId: string,
   locationKey: string,
