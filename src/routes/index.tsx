@@ -272,6 +272,7 @@ function LeadFlowApp() {
   const [leadDetailsId, setLeadDetailsId] = useState<string | null>(null);
   const [activityError, setActivityError] = useState("");
   const [savedNotice, setSavedNotice] = useState(false);
+  const [followUpNotice, setFollowUpNotice] = useState("");
   const [dashboardOpportunities, setDashboardOpportunities] = useState<
     OpportunityRecord[]
   >([]);
@@ -937,6 +938,7 @@ function LeadFlowApp() {
   }
 
   function startFollowUp(lead: Lead) {
+    setLeadDetailsId(null);
     setSelectedMessage(0);
     setMessageLead({
       id: lead.id,
@@ -1260,10 +1262,12 @@ function LeadFlowApp() {
         title: "Follow-up realizado",
         description: "WhatsApp aberto pelo fluxo de follow-up.",
         metadata: {
-          messageTemplate: `Mensagem ${selectedMessage + 1}`,
+          messageTemplate: `Follow-up ${selectedMessage + 1}`,
           contactDate: today,
         },
       });
+      setFollowUpNotice(`Follow-up registrado para ${nextLead.company}.`);
+      window.setTimeout(() => setFollowUpNotice(""), 3200);
     }
 
     if (completedInitialContact) {
@@ -2146,6 +2150,13 @@ function LeadFlowApp() {
           onSave={saveMessages}
           savedNotice={savedNotice}
         />
+      )}
+
+      {followUpNotice && (
+        <div className="follow-up-success-notice" role="status" aria-live="polite">
+          <Check size={16} />
+          <span>{followUpNotice}</span>
+        </div>
       )}
 
       {leadModal && (
