@@ -167,6 +167,12 @@ const DEFAULT_MESSAGES = [
   "Olá! Tudo bem? Trabalho desenvolvendo sites para empresas e gostaria de saber se vocês teriam interesse em conhecer uma proposta para a {empresa}.",
 ];
 
+const FOLLOW_UP_MESSAGES = [
+  "Olá! Tudo bem? Passando para dar continuidade à mensagem que enviei sobre a possibilidade de criar um site profissional para a {empresa}. Conseguiu dar uma olhada?",
+  "Oi! Estou retomando nosso contato sobre a ideia de um site ou landing page para a {empresa}. Se fizer sentido, posso te explicar de forma rápida como funcionaria e te mostrar uma proposta sem compromisso.",
+  "Olá! Só passando mais uma vez para saber se existe interesse em conversar sobre um site para a {empresa}. Se agora não for o momento, sem problema — fico à disposição caso queira falar sobre isso mais pra frente.",
+];
+
 const EMPTY_FORM: LeadForm = {
   company: "",
   segment: "",
@@ -1131,7 +1137,10 @@ function LeadFlowApp() {
       return;
     }
 
-    const personalized = (messages[selectedMessage] ?? "").replaceAll(
+    const messageTemplates = messageLead.followUp
+      ? FOLLOW_UP_MESSAGES
+      : messages;
+    const personalized = (messageTemplates[selectedMessage] ?? "").replaceAll(
       "{empresa}",
       messageLead.company,
     );
@@ -2242,7 +2251,7 @@ function LeadFlowApp() {
               com o texto preenchido, mas nada será enviado automaticamente.
             </p>
             <div className="message-options">
-              {messages.map((message, index) => (
+              {(messageLead.followUp ? FOLLOW_UP_MESSAGES : messages).map((message, index) => (
                 <button
                   key={index}
                   type="button"
@@ -2250,7 +2259,7 @@ function LeadFlowApp() {
                   onClick={() => setSelectedMessage(index)}
                   disabled={messageActionPending}
                 >
-                  <span>Mensagem {index + 1}</span>
+                  <span>{messageLead.followUp ? `Follow-up ${index + 1}` : `Mensagem ${index + 1}`}</span>
                   <p>{message.replaceAll("{empresa}", messageLead.company)}</p>
                 </button>
               ))}
