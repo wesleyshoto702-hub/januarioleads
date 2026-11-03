@@ -18,6 +18,7 @@ export type ExistingLeadIdentity = {
   instagramNeedsReview?: boolean | undefined;
   instagramCheckedAt?: string | undefined;
   instagramUsername?: string | undefined;
+  instagramDisplayName?: string | undefined;
   status?: LeadStatus;
 };
 
