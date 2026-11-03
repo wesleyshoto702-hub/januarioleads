@@ -10,6 +10,8 @@ on:
       - "supabase/functions/_shared/niche-catalog.test.ts"
       - "src/features/search-leads/**"
       - "src/features/open-now-niches/**"
+      - "src/features/opportunities/**"
+      - "src/styles.css"
       - ".github/workflows/niche-catalog-check.yml"
   workflow_dispatch:
 
