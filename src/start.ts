@@ -1,4 +1,6 @@
 import { createStart, createCsrfMiddleware, createMiddleware } from "@tanstack/react-start";
+import { setResponseHeader } from "@tanstack/react-start/server";
+import { createCspNonce, buildCsp } from "./lib/csp";
 
 import { renderErrorPage } from "./lib/error-page";
 
@@ -24,6 +26,14 @@ const csrfMiddleware = createCsrfMiddleware({
   filter: (ctx) => ctx.handlerType === "serverFn",
 });
 
+// Nonce must be generated for each HTTP request, never at module load.
+// TanStack Router uses this same value to stamp SSR hydration scripts.
+const cspMiddleware = createMiddleware().server(({ next }) => {
+  const cspNonce = createCspNonce();
+  setResponseHeader("Content-Security-Policy", buildCsp(cspNonce));
+  return next({ context: { cspNonce } });
+});
+
 export const startInstance = createStart(() => ({
-  requestMiddleware: [errorMiddleware, csrfMiddleware],
+  requestMiddleware: [cspMiddleware, errorMiddleware, csrfMiddleware],
 }));

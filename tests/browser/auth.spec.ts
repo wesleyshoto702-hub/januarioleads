@@ -53,3 +53,16 @@ test("authorized login loads dashboard, leads and logout with mocked backend", a
   await expect(page).toHaveURL(/\/login$/);
   expect(await page.evaluate(() => localStorage.getItem("januarioleads:auth-session"))).toBeNull();
 });
+
+test("SSR emits a nonce-based CSP without exposing session secrets", async ({ page }) => {
+  const response = await page.goto("/login");
+  expect(response).not.toBeNull();
+  const csp = response!.headers()["content-security-policy"] ?? "";
+  expect(csp).toContain("script-src 'nonce-");
+  expect(csp).toContain("script-src-attr 'none'");
+  expect(csp).not.toContain("'unsafe-inline'");
+  const meta = page.locator('meta[property="csp-nonce"]');
+  const nonce = await meta.getAttribute("content");
+  expect(nonce).toMatch(/^[A-Za-z0-9+/]{22}==$/);
+  expect(csp).toContain(`'nonce-${nonce}'`);
+});
