@@ -1,0 +1,5 @@
+-- Cópia histórica somente para auditoria. NÃO EXECUTAR.
+-- Versão já aplicada no Supabase: 20260929020122
+-- Conteúdo abaixo recuperado do ledger (não use como migração ativa).
+
+drop index if exists public.site_previews_user_business_idx;

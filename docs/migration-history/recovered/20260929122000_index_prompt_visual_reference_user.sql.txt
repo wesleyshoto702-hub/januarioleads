@@ -1,0 +1,6 @@
+-- Cópia histórica somente para auditoria. NÃO EXECUTAR.
+-- Versão já aplicada no Supabase: 20260929122000
+-- Conteúdo abaixo recuperado do ledger (não use como migração ativa).
+
+create index if not exists prompt_visual_references_user_id_idx
+on public.prompt_visual_references(user_id);

@@ -1,0 +1,5 @@
+-- Cópia histórica somente para auditoria. NÃO EXECUTAR.
+-- Versão já aplicada no Supabase: 20260929164819
+-- Conteúdo abaixo recuperado do ledger (não use como migração ativa).
+
+drop index if exists public.prompt_visual_reference_assets_reference_idx;
