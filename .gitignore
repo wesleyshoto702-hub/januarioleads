@@ -40,3 +40,6 @@ supabase/functions/.env
 # Browser test artifacts
 /test-results/
 /playwright-report/
+
+# Python test artifacts
+__pycache__/

@@ -21,9 +21,12 @@ antigo não deve ser reaplicado sobre a baseline (ver database-recovery.md).
    essa reaplicação. Não usar a baseline para atualizar um banco existente.
 2. Publicar o frontend e as funções alteradas `deep-enrich-business` e
    `search-places` (ambas importam módulos compartilhados alterados).
-3. O workflow existente deploy-search-places publica apenas search-places; ele
-   não cobre deep-enrich-business nem aplica migrações. Não confundir listagem de
-   funções com teste funcional.
+3. No GitHub Actions, executar o workflow `deploy-search-places.yml` na branch
+   `main` (ou publicar uma tag `deploy/supabase-*` no commit de release). Ele testa o SQL e aplica somente a migração incremental via Management
+   API, depois publica search-places e deep-enrich-business. Requer o segredo
+   SUPABASE_ACCESS_TOKEN já configurado no GitHub. Mantém os segredos existentes
+   das funções; não exige copiar OPENAI_API_KEY para este ambiente. Confirmar o
+   sucesso do run; listar funções não substitui testar funcionalidades.
 4. Em homologação, usar duas contas autorizadas em private_access para testar
    login, edição, exclusão, pagamentos, atualização da página e troca de conta.
    Testar com rede interrompida e restabelecida; pendências devem sobreviver.
@@ -49,3 +52,9 @@ Nenhuma credencial de Supabase, conta de homologação ou credencial de implanta
 está disponível neste ambiente. O dump fornecido é estrutural e não concede acesso.
 A API do GitHub também rejeitou a autenticação disponível; o acesso Git é separado.
 Não registrar senhas ou tokens no repositório ou nesta documentação.
+
+## Frontend Lovable
+
+O proprietário confirmou que o frontend está no Lovable. Alterações em main
+sincronizam com o editor conectado. A publicação do site exige a sessão Lovable
+ou integração de deploy autorizada; um push não comprova que o site foi publicado.
