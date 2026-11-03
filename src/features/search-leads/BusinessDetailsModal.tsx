@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { buildFactualBusinessDescription } from "../business-presence/business-description";
+import { normalizeBrazilianStateCode } from "../../lib/brazil-locations";
 import { discoverBusinessPresence } from "../business-presence/discover-business-presence";
 import { presenceFromBusiness } from "../business-presence/storage";
 import type {
@@ -320,8 +321,14 @@ export function BusinessDetailsModal({
             {business.neighborhood && (
               <DetailItem label="Bairro" value={business.neighborhood} />
             )}
-            {business.city && (
-              <DetailItem label="Cidade" value={business.city} />
+            {(business.city || business.state) && (
+              <DetailItem
+                label="Cidade / UF"
+                value={[
+                  business.city,
+                  normalizeBrazilianStateCode(business.state) || business.state,
+                ].filter(Boolean).join(" · ")}
+              />
             )}
             {business.phone && (
               <DetailItem label="Telefone" value={business.phone} />
