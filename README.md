@@ -93,7 +93,17 @@ Ao abrir **Ver empresa** e clicar em **Buscar Instagram na web**, o JanuarioLead
 4. Confere sinais de identidade e possíveis conflitos de localidade. Perfis duvidosos são apresentados como **candidatos**, nunca como confirmação automática.
 5. Oferece **Pesquisar no Google** e **Informar perfil manualmente**, para o usuário confirmar a conta oficial quando a busca automática não conseguir.
 
-Resultados inconclusivos são armazenados por 24 horas; perfis encontrados usam um cache mais longo. A busca web é acionada sob demanda, não em lote para toda a carteira: ela tem custo de API e pode consumir cotas. Não há garantia de encontrar todos os perfis, especialmente para empresas sem Instagram público ou com dados incompletos.
+### Instagram automático nos cartões de Buscar Leads
+
+Depois que as empresas de um nicho/cidade aparecem em **Buscar Leads**, a interface já inicia, por padrão, uma **busca automática e progressiva de Instagram** para as empresas sem perfil confirmado, sem precisar abrir cada ficha. A seção de resultados mostra o andamento, perfis confirmados, candidatos para conferência e a chave para pausar a automação. Quando é encontrado um perfil confirmado, o link aparece diretamente no cartão.
+
+- A busca examina até **20 empresas novas por lote**, com no máximo **duas solicitações em paralelo**, e respeita o limite de **20 consultas de descoberta por usuário a cada 15 minutos** aplicado pelo Supabase (conforme a configuração atual do projeto).
+- Quando o usuário usa **Carregar mais**, empresas já consultadas na mesma cidade não geram novas solicitações. Resultados e perfis confirmados em **Meus Leads** e caches existentes também são reutilizados.
+- Se o limite ou alguma credencial bloquear a descoberta, a automação para e apresenta o aviso. Perfis que não puderam ser confirmados nunca são inventados; potenciais candidatos aparecem com o botão de conferência.
+- O estado da opção **Ativado/Pausado** é mantido no navegador. A busca automática faz chamadas à API e pode gerar custos financeiros conforme o uso do Google/Supabase/OpenAI.
+- A descoberta ocorre para os resultados carregados de cada pesquisa, **não para todos os negócios de todos os municípios ao mesmo tempo**.
+
+Resultados inconclusivos são armazenados por 24 horas; perfis encontrados usam um cache mais longo. Não há garantia de encontrar todos os perfis, especialmente para empresas sem Instagram público ou com dados incompletos.
 
 ### Implantação no Supabase
 
