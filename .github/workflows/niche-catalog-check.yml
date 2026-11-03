@@ -1,0 +1,33 @@
+name: Validar catálogo de nichos
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/functions/_shared/niche-catalog.ts"
+      - "supabase/functions/_shared/niche-coverage.ts"
+      - "supabase/functions/_shared/niche-strategies.ts"
+      - "supabase/functions/_shared/niche-catalog.test.ts"
+      - "src/features/search-leads/**"
+      - "src/features/open-now-niches/**"
+      - ".github/workflows/niche-catalog-check.yml"
+  workflow_dispatch:
+
+jobs:
+  validate-niches:
+    name: Catálogo e build do aplicativo
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Testar nichos e compatibilidade
+        run: deno test supabase/functions/_shared/niche-catalog.test.ts
+      - uses: oven-sh/setup-bun@v2
+      - name: Instalar dependências do frontend
+        run: bun install --frozen-lockfile
+      - name: Compilar frontend
+        run: bun run build
