@@ -2185,6 +2185,7 @@ function LeadFlowApp() {
         <SearchLeadsView
           existingLeads={leads}
           onAddLead={addFoundLeadConfirmed}
+          onPresenceDiscovered={applyPresenceToLead}
           onMessage={(target) => {
             setSelectedMessage(null);
             setMessageLead(target);
@@ -2194,6 +2195,7 @@ function LeadFlowApp() {
         <OpenNowNichesView
           existingLeads={leads}
           onAddLead={addFoundLead}
+          onPresenceDiscovered={applyPresenceToLead}
           onMessage={(target) => {
             setSelectedMessage(null);
             setMessageLead(target);
@@ -2203,6 +2205,7 @@ function LeadFlowApp() {
         <OpportunityView
           existingLeads={leads}
           onAddLead={addFoundLeadConfirmed}
+          onPresenceDiscovered={applyPresenceToLead}
           onMessage={(target) => {
             setSelectedMessage(null);
             setMessageLead(target);
