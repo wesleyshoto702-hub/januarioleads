@@ -4183,6 +4183,108 @@ a{
   color: var(--rejected);
 }
 
+.instagram-low-confidence{
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.instagram-manual-actions{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 5px;
+}
+
+.instagram-manual-actions a,
+.instagram-manual-actions button{
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 8px 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 10px;
+  font-weight: 650;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.instagram-manual-actions a:hover,
+.instagram-manual-actions button:hover{
+  border-color: var(--border-strong);
+}
+
+.instagram-manual-form{
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-2);
+}
+
+.instagram-manual-form label{
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.instagram-manual-form > div{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.instagram-manual-form input{
+  flex: 1 1 200px;
+  min-width: 0;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  outline: none;
+  font-size: 12px;
+}
+
+.instagram-manual-form input:focus{
+  border-color: var(--border-strong);
+}
+
+.instagram-manual-form button{
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--primary-action);
+  color: var(--primary-contrast);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.instagram-manual-form small[role="alert"]{
+  color: var(--rejected);
+  font-size: 10px;
+}
+
+@media (max-width: 520px){
+  .instagram-manual-actions a,
+  .instagram-manual-actions button{
+    flex: 1 1 150px;
+  }
+  .instagram-manual-form button{
+    flex: 1 1 100%;
+  }
+}
+
 
 @media (max-width: 520px) {
   .instagram-identified-link{
