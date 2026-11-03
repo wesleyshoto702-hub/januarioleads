@@ -186,7 +186,11 @@ export function useAutomaticInstagramDiscovery({
             notice = "Alguns perfis não puderam ser consultados. Você pode tentar novamente nos detalhes da empresa.";
           }
         } finally {
-          if (!cancelled) {
+          if (cancelled) {
+            // An interrupted screen transition must not permanently skip this
+            // company when the user returns to the result list.
+            attemptedRef.current.delete(key);
+          } else {
             checked += 1;
             setCheckingIds((current) =>
               current.filter((id) => id !== business.placeId),
@@ -218,7 +222,7 @@ export function useAutomaticInstagramDiscovery({
             notice:
               notice ||
               (queue.length > planned.length
-                ? "O restante aguarda uma nova janela de consultas, para preservar o limite do Supabase."
+                ? "Limite preventivo desta busca atingido. Os demais perfis poderão ser verificados em uma próxima pesquisa ou em Ver empresa."
                 : ""),
           });
         }
