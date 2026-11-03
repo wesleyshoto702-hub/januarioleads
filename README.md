@@ -83,6 +83,33 @@ A função está configurada em `supabase/config.toml`.
 - Cobertura nacional não significa execução automática de buscas em todos os municípios: a prospecção continua por cidade/nicho, respeitando limites e custos da API do Google Places.
 
 
+## Catálogo nacional de nichos
+
+**Buscar Leads** e **Nichos Abertos Agora** compartilham o mesmo catálogo central:
+**196 nichos distintos em 16 categorias**, incluindo construção e reformas,
+turismo/hospedagem, serviços empresariais, casa e decoração, pets e agronegócio.
+Cada nicho possui uma família comercial para o planejamento de páginas e
+prospecção, evitando categorias novas sem estratégia definida.
+
+Categorias semelhantes foram consolidadas sem apagar leads ou históricos:
+- `Dentista` e `Odontologia` agora aparecem como `Clínica Odontológica`.
+- `Hamburgueria Artesanal` agora aparece como `Hamburgueria`.
+- `Restaurante de Bairro` agora aparece como `Restaurante`.
+- `Barbeiro Especializado` agora aparece como `Barbearia`.
+- `Assistência Técnica Automotiva` agora aparece como `Mecânica Automotiva`.
+- `Instalador de Painel Solar` agora aparece como `Energia Solar`.
+
+Os nomes antigos continuam funcionando como **sinônimos** nas caixas de busca
+do catálogo, nas pesquisas recentes e na validação do backend. Especialidades
+distintas, como restaurantes fine dining, odontologia, veterinárias, pet shops
+e clínicas especializadas, continuam selecionáveis individualmente. O Google
+Places utiliza uma única consulta textual por ação, com expressões ajustadas
+para alguns nichos, sem prometer cobertura completa de toda empresa na cidade.
+As informações de leads já persistidos não são regravadas automaticamente.
+
+A cobertura e os sinônimos podem ser validados com
+`deno test supabase/functions/_shared/niche-catalog.test.ts`.
+
 ## Busca de Instagram (cobertura ampliada)
 
 Ao abrir **Ver empresa** e clicar em **Buscar Instagram na web**, o JanuarioLeads:
