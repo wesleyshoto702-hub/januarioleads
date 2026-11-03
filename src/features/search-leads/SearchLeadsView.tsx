@@ -46,7 +46,7 @@ import {
   findBrazilianState,
   normalizeBrazilianStateCode,
 } from "../../lib/brazil-locations";
-import { normalizeSearchText, SEGMENT_GROUPS } from "./segments";
+import { normalizeSearchText, searchSegmentMatchesQuery, SEGMENT_GROUPS } from "./segments";
 import type { BusinessSearchResult } from "./types";
 import { storeRecentBusinessSearch } from "../open-now-niches/local-cache";
 import {
@@ -722,7 +722,7 @@ export function SearchLeadsView({
     if (!query) return SEGMENT_GROUPS;
     return SEGMENT_GROUPS.map((group) => ({
       ...group,
-      items: group.items.filter((item) => normalizeSearchText(item).includes(query)),
+      items: group.items.filter((item) => searchSegmentMatchesQuery(item, query)),
     })).filter((group) => group.items.length > 0);
   }, [categoryQuery]);
 
