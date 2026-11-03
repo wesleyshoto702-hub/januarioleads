@@ -15,18 +15,25 @@ antigo não deve ser reaplicado sobre a baseline (ver database-recovery.md).
 
 ## Implantação incremental no projeto existente
 
-1. Aplicar **somente** `20261103220000_allow_presence_site_rate_limit.sql` pelo
-   mecanismo de migrações autorizado ou SQL Editor. Ela ajusta uma CHECK constraint;
-   não remove linhas nem muda dados. Pode ser reaplicada. O script de teste cobre
-   essa reaplicação. Não usar a baseline para atualizar um banco existente.
+1. A migração incremental `20261103220000_allow_presence_site_rate_limit.sql`
+   foi **aplicada e conferida na produção em 03/11/2026** por uma conexão
+   autorizada. Ela ajusta somente uma CHECK constraint; não remove leads nem
+   usuários. Ela é idempotente. Em outro ambiente, aplicá-la primeiro via
+   mecanismo de migrações autorizado ou SQL Editor. Nunca usar a baseline em
+   banco existente. A aplicação manual não inscreve automaticamente esta versão
+   no histórico do Supabase CLI; reconciliar o ledger antes de um `db push`.
 2. Publicar o frontend e as funções alteradas `deep-enrich-business` e
    `search-places` (ambas importam módulos compartilhados alterados).
 3. No GitHub Actions, executar o workflow `deploy-search-places.yml` na branch
-   `main` (ou publicar uma tag `deploy/supabase-*` no commit de release). Ele testa o SQL e aplica somente a migração incremental via Management
-   API, depois publica search-places e deep-enrich-business. Requer o segredo
-   SUPABASE_ACCESS_TOKEN já configurado no GitHub. Mantém os segredos existentes
-   das funções; não exige copiar OPENAI_API_KEY para este ambiente. Confirmar o
-   sucesso do run; listar funções não substitui testar funcionalidades.
+   `main` (ou publicar uma tag `deploy/supabase-*` no commit de release).
+   Ele testa as regras e a migração localmente, depois **verifica a constraint
+   de produção com SQL somente de leitura** (`scripts/verify-release-migration.py`)
+   e publica `search-places` e `deep-enrich-business`. O segredo
+   `SUPABASE_ACCESS_TOKEN` deve estar configurado e ter permissão para publicar
+   funções. A API de consultas do projeto executa `ALTER TABLE` em transação
+   read-only (erro `25006`), por isso **nunca realizar DDL por essa conexão**.
+   Em futuras mudanças, aplicar a migração primeiro com acesso autorizado, e
+   somente depois liberar o workflow. Confirmar sucesso do run e versões ativas.
 4. Em homologação, usar duas contas autorizadas em private_access para testar
    login, edição, exclusão, pagamentos, atualização da página e troca de conta.
    Testar com rede interrompida e restabelecida; pendências devem sobreviver.
