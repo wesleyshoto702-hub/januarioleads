@@ -60,6 +60,7 @@ import {
 import {
   loadBrazilianMunicipalities,
   resolveMunicipality,
+  withSearchLocation,
 } from "../search-leads/search-location";
 
 type NicheSort = "open-desc" | "chance-desc" | "az";
@@ -1268,7 +1269,12 @@ export function OpenNowNichesView({
                   <button
                     type="button"
                     disabled={Boolean(row.existingLead)}
-                    onClick={()=>onAddLead(row.business,row.segment)}
+                    onClick={() =>
+                      onAddLead(
+                        withSearchLocation(row.business, { city, state }),
+                        row.segment,
+                      )
+                    }
                   >
                     {row.existingLead ? (
                       <>
@@ -1325,7 +1331,12 @@ export function OpenNowNichesView({
             onWhatsApp={openWhatsapp}
             onMessage={onMessage}
             onPresenceUpdate={(presence)=>applyPresence(details.business,presence)}
-            onAdd={(business)=>onAddLead(business,details.segment)}
+            onAdd={(business) =>
+              onAddLead(
+                withSearchLocation(business, { city, state }),
+                details.segment,
+              )
+            }
           />
         );
       })()}
