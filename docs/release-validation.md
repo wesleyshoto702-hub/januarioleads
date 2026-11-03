@@ -29,7 +29,10 @@ antigo não deve ser reaplicado sobre a baseline (ver database-recovery.md).
 3. O workflow `deploy-search-places.yml` separa **validação** de
    **publicação**. Um push na `main` testa regras, banco e contrato de migração
    e verifica a constraint de produção usando SQL somente de leitura
-   (`scripts/verify-release-migration.py`), **sem publicar funções**.
+   (`scripts/verify-release-migration.py`), além de verificar RLS em todas
+   as tabelas físicas `public` e o bloqueio de execução por clientes de
+   funções `SECURITY DEFINER` (`scripts/verify-production-security.py`),
+   **sem publicar funções**.
    Para publicar pelo GitHub, disparar `workflow_dispatch` ou uma tag
    `deploy/supabase-*` e configurar `SUPABASE_ACCESS_TOKEN` com a permissão
    `edge_functions_write`. O segredo foi atualizado pelo proprietário; a
