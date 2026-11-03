@@ -2082,12 +2082,12 @@ async function discoverInstagramOnWeb(
     body: JSON.stringify({
       model: "gpt-5.6-terra",
       reasoning: { effort: "low" },
-      max_output_tokens: 1600,
-      max_tool_calls: 2,
+      max_output_tokens: 3500,
+      max_tool_calls: 4,
       tools: [
         {
           type: "web_search",
-          search_context_size: "low",
+          search_context_size: "medium",
           external_web_access: true,
         },
       ],
@@ -2100,7 +2100,7 @@ async function discoverInstagramOnWeb(
             {
               type: "input_text",
               text:
-                "Você pesquisa presença pública de empresas locais para identificar possíveis perfis oficiais do Instagram. Use somente pesquisa web pública/indexada. Não faça login no Instagram, não use dados privados e não assuma que o primeiro resultado pertence à empresa. Procure no máximo 3 perfis plausíveis e retorne sinais públicos brutos para validação determinística posterior no backend. Se não houver candidato plausível, retorne candidates vazio.",
+                "Você pesquisa presença pública de empresas locais no Brasil para identificar possíveis perfis oficiais do Instagram. Use somente pesquisa web pública/indexada. Não faça login no Instagram, não use dados privados nem assuma que o primeiro resultado pertence à empresa. Diferencie filiais, homônimos e profissionais com nomes parecidos. Procure até 3 perfis plausíveis e retorne somente sinais públicos verificáveis para validação determinística posterior. Se não houver candidato plausível, retorne candidates vazio.",
             },
           ],
         },
@@ -2111,7 +2111,7 @@ async function discoverInstagramOnWeb(
               type: "input_text",
               text: JSON.stringify({
                 task:
-                  "Encontre possíveis perfis do Instagram associados a esta empresa. Use poucas consultas eficientes combinando nome exato, cidade, telefone, endereço e nome profissional quando existir. Priorize Instagram, mas use outras páginas públicas apenas como evidência de associação.",
+                  "Encontre possíveis perfis oficiais do Instagram desta empresa no Brasil. Pesquise por nome exato + cidade + UF (site:instagram.com), variações do nome + nicho, telefone e endereço, além de links públicos de bio/contato quando necessário. Inclua profissionais e filiais apenas quando houver prova pública de ligação à empresa e à cidade. Compare páginas e fontes distintas antes de sugerir. Não invente URLs ou perfis.",
                 business,
                 rejectedInstagramUrls: rejectedUrls,
                 rules: [
@@ -2346,68 +2346,66 @@ async function runPresenceDiscovery(body: Record<string, unknown>) {
     return json({ ok: true, mode: "presence-discovery", presence });
   }
 
-  if (business.website) {
-    const root = await fetchOfficialHtml(business.website);
-    if (root) {
-      const rootInstagram = instagramFromOfficialHtml(root.html, root.finalUrl);
-      if (rootInstagram && !rejectedUrls.includes(rootInstagram)) {
-        const presence: BusinessPresence = {
-          instagramUrl: rootInstagram,
-          instagramUsername: instagramUsername(rootInstagram),
-          instagramConfidence: "high",
-          instagramSource: "official_website",
-          instagramCheckedAt: checkedAt,
-          instagramCandidates: [],
-          instagramRejectedUrls: rejectedUrls,
-          instagramSearchSignature: signature,
-          instagramNeedsReview: false,
-        };
-        return json({ ok: true, mode: "presence-discovery", presence });
-      }
+  const officialProfiles = business.website
+    ? await discoverInstagramOnOfficialWebsite(business.website, rejectedUrls)
+    : new Map<string, string[]>();
 
-      const contactPage = contactPageFromOfficialHtml(root.html, root.finalUrl);
-      if (contactPage && contactPage !== root.finalUrl.toString()) {
-        const contact = await fetchOfficialHtml(contactPage);
-        if (contact) {
-          const contactInstagram = instagramFromOfficialHtml(
-            contact.html,
-            contact.finalUrl,
-          );
-          if (
-            contactInstagram &&
-            !rejectedUrls.includes(contactInstagram)
-          ) {
-            const presence: BusinessPresence = {
-              instagramUrl: contactInstagram,
-              instagramUsername: instagramUsername(contactInstagram),
-              instagramConfidence: "high",
-              instagramSource: "official_website",
-              instagramCheckedAt: checkedAt,
-              instagramCandidates: [],
-              instagramRejectedUrls: rejectedUrls,
-              instagramSearchSignature: signature,
-              instagramNeedsReview: false,
-            };
-            return json({ ok: true, mode: "presence-discovery", presence });
-          }
-        }
-      }
-    }
+  // A single profile linked from the company's own website is first-party proof.
+  if (officialProfiles.size === 1) {
+    const profile = Array.from(officialProfiles.keys())[0];
+    const presence: BusinessPresence = {
+      instagramUrl: profile,
+      instagramUsername: instagramUsername(profile),
+      instagramConfidence: "high",
+      instagramSource: "official_website",
+      instagramCheckedAt: checkedAt,
+      instagramCandidates: [],
+      instagramRejectedUrls: rejectedUrls,
+      instagramSearchSignature: signature,
+      instagramNeedsReview: false,
+    };
+    return json({ ok: true, mode: "presence-discovery", presence });
   }
+
+  // If an official site links to several profiles (brands, branches or owners),
+  // show them for human verification instead of picking the first link.
+  const officialCandidates: InstagramCandidate[] = Array.from(officialProfiles)
+    .slice(0, 3)
+    .map(([url, evidenceUrls]) => ({
+      url,
+      username: instagramUsername(url) ?? "",
+      confidence: "medium" as const,
+      score: 8,
+      signals: ["Perfil publicado no site oficial; confirme a unidade correta"],
+      evidenceUrls: evidenceUrls.slice(0, 3),
+    }));
 
   if (body.allowWebSearch !== true) {
     return json({
       ok: true,
       mode: "presence-discovery",
-      presence: emptyPresence(checkedAt, signature, rejectedUrls),
+      presence: {
+        ...emptyPresence(checkedAt, signature, rejectedUrls),
+        instagramCandidates: officialCandidates,
+      },
     });
   }
 
   const openAiApiKey = Deno.env.get("OPENAI_API_KEY")?.trim();
   if (!openAiApiKey) {
+    if (officialCandidates.length > 0) {
+      return json({
+        ok: true,
+        mode: "presence-discovery",
+        presence: {
+          ...emptyPresence(checkedAt, signature, rejectedUrls),
+          instagramCandidates: officialCandidates,
+        },
+      });
+    }
     return failure(
       "NOT_CONFIGURED",
-      "A busca pública complementar de Instagram não está configurada no backend.",
+      "A busca pública complementar de Instagram não está configurada no backend. Configure OPENAI_API_KEY.",
       503,
     );
   }
@@ -2420,6 +2418,16 @@ async function runPresenceDiscovery(body: Record<string, unknown>) {
       rejectedUrls,
     );
   } catch (error) {
+    if (officialCandidates.length > 0) {
+      return json({
+        ok: true,
+        mode: "presence-discovery",
+        presence: {
+          ...emptyPresence(checkedAt, signature, rejectedUrls),
+          instagramCandidates: officialCandidates,
+        },
+      });
+    }
     const message = error instanceof Error ? error.message : "";
     if (message === "OPENAI_QUOTA") {
       return failure(
@@ -2456,7 +2464,11 @@ async function runPresenceDiscovery(body: Record<string, unknown>) {
       first.score - second.score <= 2,
   );
 
-  if (first?.highEligible && !ambiguous) {
+  if (
+    first?.highEligible &&
+    !ambiguous &&
+    (officialProfiles.size === 0 || officialProfiles.has(first.url))
+  ) {
     const presence: BusinessPresence = {
       instagramUrl: first.url,
       instagramUsername: first.username,
@@ -2471,17 +2483,22 @@ async function runPresenceDiscovery(body: Record<string, unknown>) {
     return json({ ok: true, mode: "presence-discovery", presence });
   }
 
-  const candidates: InstagramCandidate[] = scored
-    .filter((candidate) => candidate.score >= 6)
-    .slice(0, 3)
-    .map((candidate) => ({
-      url: candidate.url,
-      username: candidate.username,
-      confidence: "medium",
-      score: candidate.score,
-      signals: candidate.signals,
-      evidenceUrls: candidate.evidenceUrls,
-    }));
+  const candidates: InstagramCandidate[] = [
+    ...officialCandidates,
+    ...scored
+      .filter((candidate) => candidate.score >= 4)
+      .map((candidate) => ({
+        url: candidate.url,
+        username: candidate.username,
+        confidence: candidate.confidence,
+        score: candidate.score,
+        signals: candidate.signals,
+        evidenceUrls: candidate.evidenceUrls,
+      })),
+  ].filter(
+    (candidate, index, items) =>
+      items.findIndex((other) => other.url === candidate.url) === index,
+  ).slice(0, 5);
 
   const presence: BusinessPresence = {
     ...emptyPresence(checkedAt, signature, rejectedUrls),
