@@ -3,6 +3,7 @@ import {
   findBrazilianState,
   normalizeBrazilianStateCode,
 } from "../../lib/brazil-locations";
+import type { BusinessSearchResult } from "./types";
 import {
   makeLocationKey,
   normalizeLocationText,
@@ -12,6 +13,25 @@ export type SearchLocation = {
   city: string;
   state: string;
 };
+
+/**
+ * Search results can omit a locality in Google address components even when
+ * the backend verified the result belongs to the requested city and UF.
+ * Carry that verified search context into a newly saved lead.
+ */
+export function withSearchLocation(
+  business: BusinessSearchResult,
+  location: SearchLocation,
+): BusinessSearchResult {
+  const state =
+    normalizeBrazilianStateCode(business.state) ||
+    normalizeBrazilianStateCode(location.state);
+  return {
+    ...business,
+    city: business.city?.trim() || location.city,
+    state: state || null,
+  };
+}
 
 export const DEFAULT_SEARCH_LOCATION: SearchLocation = {
   city: "Lavras",
