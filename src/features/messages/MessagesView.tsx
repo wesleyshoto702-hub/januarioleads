@@ -1,4 +1,4 @@
-import { accountLocalStorage } from "../../lib/account-storage";
+import { accountLocalStorage, isLegacyWorkspaceOwner } from "../../lib/account-storage";
 import * as AlertDialog from "@radix-ui/react-alert-dialog";
 import { ArrowLeft, Check, Edit3, Plus, RotateCcw, Star, Trash2 } from "lucide-react";
 import { useState, type FormEvent } from "react";
@@ -51,7 +51,7 @@ export function MessagesView({
   const [trash, setTrash] = useState<DeletedMessage[]>(loadTrash);
   const [feedback, setFeedback] = useState("");
 
-  const missingDefaults = DEFAULT_MESSAGE_TEMPLATES.filter(
+  const missingDefaults = (isLegacyWorkspaceOwner() ? DEFAULT_MESSAGE_TEMPLATES : []).filter(
     (template) => !messages.some((message) => message.id === template.id),
   );
 
