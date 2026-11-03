@@ -36,6 +36,7 @@ export type BusinessSearchResult = {
   instagramCandidates?: InstagramCandidate[] | null;
   instagramRejectedUrls?: string[] | null;
   instagramSearchSignature?: string | null;
+  instagramSearchScope?: "site" | "web";
   instagramNeedsReview?: boolean | null;
   factualDescription?: string | null;
   googleMapsUrl: string | null;
