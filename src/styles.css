@@ -6026,3 +6026,8 @@ a{
     padding-bottom: max(20px, calc(env(safe-area-inset-bottom) + 12px));
   }
 }
+
+/* Hide Lovable badge when it is part of the app DOM. */
+#lovable-badge {
+  display: none !important;
+}
