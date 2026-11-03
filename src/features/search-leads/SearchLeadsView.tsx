@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { buildFactualBusinessDescription } from "../business-presence/business-description";
-import type { DeepEnrichmentApplied } from "../business-enrichment/types";
 import { STATUS_LABEL } from "../leads/lead-status";
 import type { LeadStatus } from "../leads/remote-leads";
 import type { BusinessPresence } from "../business-presence/types";
@@ -465,7 +464,6 @@ export function SearchLeadsView({
   existingLeads,
   onAddLead,
   onMessage,
-  onDeepEnrichmentApplied,
 }: {
   existingLeads: ExistingLeadIdentity[];
   onAddLead: (
@@ -473,10 +471,6 @@ export function SearchLeadsView({
     selectedSegment: string,
   ) => Promise<BusinessAddResult>;
   onMessage: (target: SearchMessageTarget) => void;
-  onDeepEnrichmentApplied?: (
-    leadId: string,
-    value: DeepEnrichmentApplied,
-  ) => void;
 }) {
   const initialSearchSession = useMemo(() => loadSearchLeadsSession(), []);
   const initialSearchLocation = useMemo(
@@ -567,32 +561,6 @@ export function SearchLeadsView({
     leadStatusFilter,
     searchNotice,
   ]);
-
-  function applyDeepToBusiness(
-    current: BusinessSearchResult,
-    value: DeepEnrichmentApplied,
-  ): BusinessSearchResult {
-    const nextInstagram = value.identityUpdates.instagram ?? current.instagram;
-    return {
-      ...current,
-      verifiedContent: value.verifiedContent,
-      verifiedImages: value.verifiedImages,
-      confirmedChannels: value.confirmedChannels,
-      deepEnrichmentStatus: value.status,
-      deepEnrichmentQuality: value.quality,
-      deepEnrichmentCheckedAt: value.checkedAt,
-      website: value.identityUpdates.website ?? current.website,
-      instagram: nextInstagram,
-      ...(value.identityUpdates.instagram
-        ? {
-            instagramConfidence: "high" as const,
-            instagramSource: "official_website" as const,
-            instagramCheckedAt: value.checkedAt ?? new Date().toISOString(),
-            instagramNeedsReview: false,
-          }
-        : {}),
-    };
-  }
 
   useEffect(() => {
     let active = true;
@@ -1389,18 +1357,6 @@ export function SearchLeadsView({
           onPresenceUpdate={(presence) =>
             updateBusinessPresence(details.placeId, presence)
           }
-          onDeepEnrichmentUpdate={(value) => {
-            const enriched = applyDeepToBusiness(details, value);
-            setDetails(enriched);
-            setResults((current) =>
-              current.map((item) =>
-                item.placeId === details.placeId ? enriched : item,
-              ),
-            );
-            if (duplicate?.id) {
-              onDeepEnrichmentApplied?.(duplicate.id, value);
-            }
-          }}
           onAdd={(item) => onAddLead(item, resultsSegment)}
         />
         );
