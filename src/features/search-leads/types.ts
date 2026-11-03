@@ -32,6 +32,7 @@ export type BusinessSearchResult = {
   instagramSource?: InstagramSource | null;
   instagramCheckedAt?: string | null;
   instagramUsername?: string | null;
+  instagramDisplayName?: string | null;
   instagramCandidates?: InstagramCandidate[] | null;
   instagramRejectedUrls?: string[] | null;
   instagramSearchSignature?: string | null;
