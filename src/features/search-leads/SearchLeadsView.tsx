@@ -748,6 +748,7 @@ export function SearchLeadsView({
                 instagramConfidence: existingLead?.instagramConfidence ?? "high",
                 instagramSource: existingLead?.instagramSource ?? "existing_data",
                 instagramUsername: existingLead?.instagramUsername ?? null,
+                instagramDisplayName: existingLead?.instagramDisplayName ?? null,
                 instagramCheckedAt: existingLead?.instagramCheckedAt ?? null,
                 instagramNeedsReview: false,
               }
@@ -899,6 +900,7 @@ export function SearchLeadsView({
           instagramConfidence: previous.instagramConfidence,
           instagramSource: previous.instagramSource,
           instagramUsername: previous.instagramUsername,
+          instagramDisplayName: previous.instagramDisplayName,
           instagramCheckedAt: previous.instagramCheckedAt,
           instagramSearchSignature: previous.instagramSearchSignature,
           instagramNeedsReview: false,
@@ -986,6 +988,7 @@ export function SearchLeadsView({
         ...business,
         instagramCheckedAt: presence.instagramCheckedAt,
         instagramUsername: presence.instagramUsername,
+        instagramDisplayName: presence.instagramDisplayName ?? business.instagramDisplayName ?? null,
         instagramCandidates: presence.instagramCandidates,
         instagramRejectedUrls: presence.instagramRejectedUrls,
         instagramSearchSignature: presence.instagramSearchSignature,
@@ -1460,6 +1463,15 @@ export function SearchLeadsView({
   );
 }
 
+function instagramHandle(business: BusinessSearchResult) {
+  if (business.instagramUsername?.trim()) return business.instagramUsername.trim().replace(/^@/, "");
+  try {
+    return new URL(business.instagram ?? "").pathname.split("/").filter(Boolean)[0] ?? "Instagram";
+  } catch {
+    return "Instagram";
+  }
+}
+
 function BusinessCard({
   business,
   chance,
@@ -1553,9 +1565,19 @@ function BusinessCard({
             </a>
           )}
           {hasConfirmedInstagram(business) && business.instagram ? (
-            <a href={business.instagram} target="_blank" rel="noopener noreferrer">
-              Instagram confirmado <ExternalLink size={12} />
-            </a>
+            <span className="business-instagram-identity">
+              <span
+                className="business-instagram-display-name"
+                title={business.instagramDisplayName
+                  ? "Nome público encontrado na pesquisa"
+                  : "Nome da empresa no Google Maps; o nome exibido no Instagram não foi verificado"}
+              >
+                {business.instagramDisplayName || business.name}
+              </span>
+              <a href={business.instagram} target="_blank" rel="noopener noreferrer">
+                @{instagramHandle(business)} <ExternalLink size={12} />
+              </a>
+            </span>
           ) : (business.instagramCandidates?.length ?? 0) > 0 ? (
             <button
               type="button"
