@@ -455,6 +455,41 @@ select{
   color: var(--faint);
 }
 
+.lead-location{
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  min-width: 0;
+  margin-top: 3px;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.lead-location svg{
+  flex: 0 0 13px;
+  color: var(--primary);
+}
+
+.lead-location span{
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lead-location.missing,
+.lead-location.missing svg{
+  color: var(--faint);
+}
+
+.company-cell .lead-segment,
+.lead-card .lead-segment{
+  color: var(--muted);
+  font-weight: 650;
+}
+
 .phone-cell,
 .date-cell{
   font-size: 12px;
@@ -757,6 +792,7 @@ select{
 }
 
 .lead-form input,
+.lead-form select,
 .lead-form textarea,
 .message-editor textarea{
   width: 100%;
@@ -768,10 +804,33 @@ select{
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.lead-form input{
+.lead-form input,
+.lead-form select{
+  min-width: 0;
   height: 42px;
   padding: 0 12px;
   font-size: 13px;
+}
+
+.lead-form select{
+  cursor: pointer;
+}
+
+.lead-form input:disabled{
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.lead-location-helper{
+  color: var(--faint);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.lead-location-validation{
+  margin: -4px 0 0;
+  color: var(--rejected);
+  font-size: 12px;
 }
 
 .lead-form textarea{
@@ -783,6 +842,7 @@ select{
 }
 
 .lead-form input:focus,
+.lead-form select:focus,
 .lead-form textarea:focus,
 .message-editor textarea:focus{
   border-color: var(--border-strong);
