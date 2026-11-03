@@ -887,11 +887,27 @@ export function SearchLeadsView({
     const combinedResults = append
       ? [...results, ...response.results]
       : response.results;
-    const uniqueResults = Array.from(
-      new Map(
-        combinedResults.map((item) => [item.placeId, item]),
-      ).values(),
-    );
+    // A repeated Places ID on the next page must never erase an Instagram
+    // already confirmed by the automatic or manual discovery.
+    const uniqueByPlace = new Map<string, BusinessSearchResult>();
+    for (const item of combinedResults) {
+      const previous = uniqueByPlace.get(item.placeId);
+      if (previous && hasConfirmedInstagram(previous) && !hasConfirmedInstagram(item)) {
+        uniqueByPlace.set(item.placeId, {
+          ...item,
+          instagram: previous.instagram,
+          instagramConfidence: previous.instagramConfidence,
+          instagramSource: previous.instagramSource,
+          instagramUsername: previous.instagramUsername,
+          instagramCheckedAt: previous.instagramCheckedAt,
+          instagramSearchSignature: previous.instagramSearchSignature,
+          instagramNeedsReview: false,
+        });
+      } else {
+        uniqueByPlace.set(item.placeId, item);
+      }
+    }
+    const uniqueResults = [...uniqueByPlace.values()];
 
     setResults(uniqueResults);
     setSearchNotice("");
