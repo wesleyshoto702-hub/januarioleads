@@ -1,3 +1,4 @@
+import { accountLocalStorage, accountSessionStorage } from "../../lib/account-storage";
 import {
   ArrowLeft,
   ArrowRight,
@@ -145,7 +146,7 @@ function loadSearchLeadsSession(): SearchLeadsSession | null {
   if (typeof window === "undefined") return null;
 
   try {
-    const raw = window.sessionStorage.getItem(SEARCH_LEADS_SESSION_KEY);
+    const raw = accountSessionStorage.getItem(SEARCH_LEADS_SESSION_KEY);
     if (!raw) return null;
     const saved = JSON.parse(raw) as Partial<SearchLeadsSession>;
     const filters = saved?.resultFilters;
@@ -390,7 +391,7 @@ function getRecentSearches() {
 
   try {
     const stored = JSON.parse(
-      localStorage.getItem(RECENT_SEARCHES_KEY) ?? "[]",
+      accountLocalStorage.getItem(RECENT_SEARCHES_KEY) ?? "[]",
     ) as unknown;
     if (!Array.isArray(stored)) return [];
 
@@ -443,7 +444,7 @@ function getRecentSearches() {
 
     const result = Array.from(unique.values()).slice(0, 5);
     if (migratedLegacy) {
-      localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(result));
+      accountLocalStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(result));
     }
     return result;
   } catch {
@@ -459,7 +460,7 @@ function storeRecentSearch(search: RecentSearch) {
     ...getRecentSearches().filter((item) => recentSearchKey(item) !== key),
   ].slice(0, 5);
 
-  localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
+  accountLocalStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
   return next;
 }
 
@@ -547,7 +548,7 @@ export function SearchLeadsView({
     };
 
     try {
-      window.sessionStorage.setItem(SEARCH_LEADS_SESSION_KEY, JSON.stringify(snapshot));
+      accountSessionStorage.setItem(SEARCH_LEADS_SESSION_KEY, JSON.stringify(snapshot));
     } catch {
       // Browsers with disabled/full session storage can still use the current view.
     }
@@ -603,7 +604,7 @@ export function SearchLeadsView({
         ].slice(0, 5);
 
         try {
-          localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(combined));
+          accountLocalStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(combined));
         } catch {
           // Remote state remains authoritative even if local cache is unavailable.
         }
