@@ -1459,7 +1459,10 @@ function LeadFlowApp() {
         (keepConfirmedInstagram ? previous.instagramUsername : undefined),
       instagramDisplayName:
         presence.instagramDisplayName ??
-        (keepConfirmedInstagram ? previous.instagramDisplayName : undefined),
+        ((keepConfirmedInstagram ||
+          (presence.instagramUrl && presence.instagramUrl === previous.instagram))
+          ? previous.instagramDisplayName
+          : undefined),
       instagramCandidates: presence.instagramCandidates,
       instagramRejectedUrls: presence.instagramRejectedUrls,
       instagramSearchSignature:
