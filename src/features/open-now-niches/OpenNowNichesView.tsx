@@ -26,7 +26,7 @@ import {
   findBusinessDuplicate,
   normalizeBrazilianPhone,
 } from "../search-leads/identity";
-import { normalizeSearchText } from "../search-leads/segments";
+import { normalizeSearchText, searchSegmentMatchesQuery } from "../search-leads/segments";
 import type {
   BusinessSearchResult,
 } from "../search-leads/types";
@@ -498,7 +498,7 @@ export function OpenNowNichesView({
     return OPEN_NOW_CATALOG.filter((item) => {
       if (
         normalizedQuery &&
-        !normalizeSearchText(item.segment).includes(normalizedQuery)
+        !searchSegmentMatchesQuery(item.segment, normalizedQuery)
       ) {
         return false;
       }
