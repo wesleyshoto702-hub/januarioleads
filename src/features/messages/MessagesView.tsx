@@ -1,3 +1,4 @@
+import { accountLocalStorage } from "../../lib/account-storage";
 import * as AlertDialog from "@radix-ui/react-alert-dialog";
 import { ArrowLeft, Check, Edit3, Plus, RotateCcw, Star, Trash2 } from "lucide-react";
 import { useState, type FormEvent } from "react";
@@ -14,7 +15,7 @@ const TRASH_LIMIT = 30;
 function loadTrash(): DeletedMessage[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = JSON.parse(localStorage.getItem(TRASH_KEY) ?? "[]") as unknown;
+    const raw = JSON.parse(accountLocalStorage.getItem(TRASH_KEY) ?? "[]") as unknown;
     if (!Array.isArray(raw)) return [];
     return raw.filter((row): row is DeletedMessage => {
       if (!row || typeof row !== "object") return false;
@@ -58,7 +59,7 @@ export function MessagesView({
     const limited = next.slice(0, TRASH_LIMIT);
     setTrash(limited);
     try {
-      localStorage.setItem(TRASH_KEY, JSON.stringify(limited));
+      accountLocalStorage.setItem(TRASH_KEY, JSON.stringify(limited));
     } catch {
       setFeedback("A lixeira não pôde ser armazenada neste navegador.");
     }
