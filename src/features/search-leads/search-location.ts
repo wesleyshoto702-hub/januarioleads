@@ -1,3 +1,4 @@
+import { accountLocalStorage } from "../../lib/account-storage";
 import {
   DEFAULT_BRAZIL_STATE,
   findBrazilianState,
@@ -76,7 +77,7 @@ function parseMunicipalityCache(storageKey: string) {
   if (typeof window === "undefined") return null;
   try {
     const parsed = JSON.parse(
-      localStorage.getItem(storageKey) ?? "null",
+      accountLocalStorage.getItem(storageKey) ?? "null",
     ) as CachedMunicipalities | null;
     if (!parsed || typeof parsed.checkedAt !== "string") return null;
     const values = safeMunicipalities(parsed.values);
@@ -94,7 +95,7 @@ function readMunicipalityCache(stateCode: string) {
   if (stateCode === "MG") {
     const legacy = parseMunicipalityCache(LEGACY_MG_MUNICIPALITIES_CACHE_KEY);
     if (legacy && typeof window !== "undefined") {
-      localStorage.setItem(
+      accountLocalStorage.setItem(
         municipalityCacheKey(stateCode),
         JSON.stringify(legacy),
       );
@@ -111,7 +112,7 @@ function writeMunicipalityCache(stateCode: string, values: string[]) {
     checkedAt: new Date().toISOString(),
     values,
   };
-  localStorage.setItem(
+  accountLocalStorage.setItem(
     municipalityCacheKey(stateCode),
     JSON.stringify(payload),
   );
@@ -172,7 +173,7 @@ export function loadSearchLocation(): SearchLocation {
 
   try {
     const value = JSON.parse(
-      localStorage.getItem(SEARCH_LOCATION_KEY) ?? "null",
+      accountLocalStorage.getItem(SEARCH_LOCATION_KEY) ?? "null",
     ) as { city?: unknown; state?: unknown } | null;
 
     const state = normalizeBrazilianStateCode(
@@ -197,7 +198,7 @@ export function saveSearchLocation(location: SearchLocation) {
   const state = normalizeBrazilianStateCode(location.state);
   if (!state || !validCityName(location.city)) return;
 
-  localStorage.setItem(
+  accountLocalStorage.setItem(
     SEARCH_LOCATION_KEY,
     JSON.stringify({
       city: location.city.trim(),
