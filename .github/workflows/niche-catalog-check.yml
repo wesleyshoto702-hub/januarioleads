@@ -12,6 +12,8 @@ on:
       - "src/features/open-now-niches/**"
       - "src/features/opportunities/**"
       - "src/styles.css"
+      - "src/features/messages/**"
+      - "src/routes/index.tsx"
       - ".github/workflows/niche-catalog-check.yml"
   workflow_dispatch:
 
@@ -27,7 +29,7 @@ jobs:
         with:
           deno-version: v2.x
       - name: Testar nichos e compatibilidade
-        run: deno test supabase/functions/_shared/niche-catalog.test.ts
+        run: deno test supabase/functions/_shared/niche-catalog.test.ts src/features/messages/message-templates.test.ts
       - uses: oven-sh/setup-bun@v2
       - name: Instalar dependências do frontend
         run: bun install --frozen-lockfile
