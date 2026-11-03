@@ -93,7 +93,7 @@ export async function discoverBusinessPresence(
       `${url.replace(/\/$/, "")}/functions/v1/search-places`,
       {
         method: "POST",
-        signal: options?.signal,
+        ...(options?.signal ? { signal: options.signal } : {}),
         headers: {
           "Content-Type": "application/json",
           apikey: publishableKey,
