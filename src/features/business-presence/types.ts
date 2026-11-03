@@ -11,6 +11,7 @@ export type InstagramSource =
 export type InstagramCandidate = {
   url: string;
   username: string;
+  displayName?: string | null;
   confidence: "medium" | "low";
   score: number;
   signals: string[];
@@ -20,6 +21,7 @@ export type InstagramCandidate = {
 export type BusinessPresence = {
   instagramUrl: string | null;
   instagramUsername: string | null;
+  instagramDisplayName?: string | null;
   instagramConfidence: InstagramConfidence | null;
   instagramSource: InstagramSource | null;
   instagramCheckedAt: string;
@@ -56,6 +58,7 @@ export type PresenceBusiness = Pick<
   instagramSource?: InstagramSource | null;
   instagramCheckedAt?: string | null;
   instagramUsername?: string | null;
+  instagramDisplayName?: string | null;
   instagramCandidates?: InstagramCandidate[] | null;
   instagramRejectedUrls?: string[] | null;
   instagramSearchSignature?: string | null;
