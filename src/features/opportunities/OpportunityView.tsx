@@ -343,6 +343,7 @@ export function OpportunityView({
       instagramSource: presence.instagramSource,
       instagramCheckedAt: presence.instagramCheckedAt,
       instagramUsername: presence.instagramUsername,
+      instagramDisplayName: presence.instagramDisplayName ?? null,
       instagramCandidates: presence.instagramCandidates,
       instagramRejectedUrls: presence.instagramRejectedUrls,
       instagramSearchSignature: presence.instagramSearchSignature,
