@@ -28,20 +28,28 @@ jobs:
           node --input-type=module <<'NODE'
           import { readFileSync } from 'node:fs';
           const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
-          const lock = JSON.parse(readFileSync('bun.lock', 'utf8'));
-          const root = lock.workspaces[''].dependencies;
+          // bun.lock uses JSONC (trailing commas), so check dependency entries as text.
+          const lock = readFileSync('bun.lock', 'utf8');
           for (const name of ['@tanstack/react-start','@tanstack/react-router','@tanstack/router-plugin']) {
-            if (pkg.dependencies[name] !== root[name]) throw Error('Divergencia package/lock: '+name);
+            if (!lock.includes(`"${name}": "${pkg.dependencies[name]}"`)) {
+              throw Error('Divergencia package/lock: '+name);
+            }
           }
           const installed = (name) => {
-            const resolved = lock.packages[name]?.[0] ?? '';
-            const found = resolved.match(/@(\d+)\.(\d+)\.(\d+)$/);
-            if (!found) throw Error('Versao nao encontrada no lock: '+name);
-            return found.slice(1).map(Number);
+            const marker = `"${name}": ["${name}@`;
+            const index = lock.indexOf(marker);
+            if (index < 0) throw Error('Dependencia nao encontrada no lock: '+name);
+            const version = lock.slice(index + marker.length).split('"')[0];
+            const parts = version.split('.').map(Number);
+            if (parts.length !== 3 || parts.some(Number.isNaN)) throw Error('Versao invalida: '+name+' '+version);
+            return parts;
           };
-          const gte = (v, min) => v.findIndex((n,i) => n !== min[i]) < 0 ||
-            (v.findIndex((n,i) => n !== min[i]) !== -1 &&
-            v[v.findIndex((n,i) => n !== min[i])] > min[v.findIndex((n,i) => n !== min[i])]);
+          const gte = (parts, min) => {
+            for (let i=0;i<3;i++) {
+              if (parts[i] !== min[i]) return parts[i] > min[i];
+            }
+            return true;
+          };
           const reactStart = installed('@tanstack/react-start');
           const serverCore = installed('@tanstack/start-server-core');
           if (!gte(reactStart,[1,168,60]) || !gte(serverCore,[1,169,39])) {
