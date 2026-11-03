@@ -28,6 +28,7 @@ export type BusinessPresence = {
   instagramCandidates: InstagramCandidate[];
   instagramRejectedUrls: string[];
   instagramSearchSignature: string | null;
+  instagramSearchScope?: "site" | "web";
   instagramNeedsReview: boolean;
 };
 
@@ -62,5 +63,6 @@ export type PresenceBusiness = Pick<
   instagramCandidates?: InstagramCandidate[] | null;
   instagramRejectedUrls?: string[] | null;
   instagramSearchSignature?: string | null;
+  instagramSearchScope?: "site" | "web";
   instagramNeedsReview?: boolean | null;
 };
