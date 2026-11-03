@@ -1569,19 +1569,15 @@ function BusinessCard({
             </a>
           )}
           {hasConfirmedInstagram(business) && business.instagram ? (
-            <span className="business-instagram-identity">
-              <span
-                className="business-instagram-display-name"
-                title={business.instagramDisplayName
-                  ? "Nome público encontrado na pesquisa"
-                  : "Nome da empresa no Google Maps; o nome exibido no Instagram não foi verificado"}
-              >
-                {business.instagramDisplayName || business.name}
-              </span>
-              <a href={business.instagram} target="_blank" rel="noopener noreferrer">
-                @{instagramHandle(business)} <ExternalLink size={12} />
-              </a>
-            </span>
+            <a
+              className="business-instagram-handle"
+              href={business.instagram}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Abrir Instagram confirmado"
+            >
+              @{instagramHandle(business)} <ExternalLink size={12} />
+            </a>
           ) : (business.instagramCandidates?.length ?? 0) > 0 ? (
             <button
               type="button"
