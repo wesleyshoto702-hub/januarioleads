@@ -232,7 +232,7 @@ async function readJsonBody(request: Request) {
 
 async function claimApiBudget(
   userId: string,
-  bucket: "places_search" | "lead_enrichment" | "presence_discovery",
+  bucket: "places_search" | "lead_enrichment" | "presence_discovery" | "presence_site",
 ) {
   try {
     const response = await adminRest("rpc/claim_api_request_for_user", {
@@ -1445,7 +1445,7 @@ async function readLimitedHtml(response: Response, maxBytes = 1_500_000) {
   return new TextDecoder().decode(merged);
 }
 
-async function fetchOfficialHtml(value: string) {
+async function fetchOfficialHtml(value: string, timeoutMs = 6_000) {
   let current = safePublicWebsite(value);
   if (!current) return null;
 
@@ -1453,7 +1453,7 @@ async function fetchOfficialHtml(value: string) {
     if (!(await hostnameResolvesPublicly(current.hostname))) return null;
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 6_000);
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
       const response = await fetch(current, {
@@ -1565,7 +1565,7 @@ const BIO_LINK_HOSTS = new Set([
   "solo.to",
 ]);
 
-function discoverOfficialSupplementaryPages(html: string, baseUrl: URL) {
+function discoverOfficialSupplementaryPages(html: string, baseUrl: URL, quick = false) {
   const internal = new Set<string>();
   const bioLinks = new Set<string>();
 
@@ -1592,12 +1592,13 @@ function discoverOfficialSupplementaryPages(html: string, baseUrl: URL) {
   }
 
   // Keep requests bounded to protect latency, budgets and the target websites.
-  return [...internal].slice(0, 2).concat([...bioLinks].slice(0, 1));
+  return [...internal].slice(0, quick ? 1 : 2).concat([...bioLinks].slice(0, 1));
 }
 
 async function discoverInstagramOnOfficialWebsite(
   website: string,
   rejectedUrls: string[],
+  quick = false,
 ) {
   const profiles = new Map<string, string[]>();
   const rejected = new Set(rejectedUrls);
@@ -1611,13 +1612,15 @@ async function discoverInstagramOnOfficialWebsite(
     }
   }
 
-  const root = await fetchOfficialHtml(website);
+  const root = await fetchOfficialHtml(website, quick ? 4_000 : 6_000);
   if (!root) return profiles;
   collect(root.html, root.finalUrl);
 
   if (profiles.size === 1) return profiles;
-  const pages = discoverOfficialSupplementaryPages(root.html, root.finalUrl);
-  const results = await Promise.all(pages.map((page) => fetchOfficialHtml(page)));
+  const pages = discoverOfficialSupplementaryPages(root.html, root.finalUrl, quick);
+  const results = await Promise.all(
+    pages.map((page) => fetchOfficialHtml(page, quick ? 3_000 : 6_000)),
+  );
   for (const page of results) {
     if (page) collect(page.html, page.finalUrl);
   }
@@ -2373,8 +2376,16 @@ async function runPresenceDiscovery(body: Record<string, unknown>) {
     return json({ ok: true, mode: "presence-discovery", presence });
   }
 
-  const officialProfiles = business.website
-    ? await discoverInstagramOnOfficialWebsite(business.website, rejectedUrls)
+  // A quick official-site pass already checked the website. Do not fetch it
+  // again on the subsequent web pass when no official candidates were found.
+  const skipWebsite =
+    body.allowWebSearch === true && body.skipOfficialSite === true;
+  const officialProfiles = business.website && !skipWebsite
+    ? await discoverInstagramOnOfficialWebsite(
+        business.website,
+        rejectedUrls,
+        body.allowWebSearch !== true,
+      )
     : new Map<string, string[]>();
 
   // A single profile linked from the company's own website is first-party proof.
@@ -2701,7 +2712,9 @@ async function handleRequest(request: Request) {
     mode === "lead-enrichment"
       ? "lead_enrichment"
       : mode === "presence-discovery"
-        ? "presence_discovery"
+        ? requestBody.allowWebSearch === true
+          ? "presence_discovery"
+          : "presence_site"
         : "places_search";
   const withinBudget = await claimApiBudget(
     userId,
