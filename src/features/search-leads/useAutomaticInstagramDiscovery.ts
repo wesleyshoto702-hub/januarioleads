@@ -77,7 +77,7 @@ export function useAutomaticInstagramDiscovery({
   location: SearchLocation;
   existingLeads: ExistingLeadIdentity[];
   onPresence: (placeId: string, presence: BusinessPresence) => void;
-  onSavedLeadPresence?: (leadId: string, presence: BusinessPresence) => void;
+  onSavedLeadPresence?: ((leadId: string, presence: BusinessPresence) => void) | undefined;
 }) {
   const [enabled, setEnabled] = useState(automaticSetting);
   const [progress, setProgress] =
@@ -256,6 +256,7 @@ export function useAutomaticInstagramDiscovery({
             if (stage === "site" && siteQuotaExhausted) return;
             if (stage === "web" && webQuotaExhausted) return;
             const item = items[next++];
+            if (!item) continue;
             const presence = await lookup(item, stage);
             if (
               stage === "site" &&
