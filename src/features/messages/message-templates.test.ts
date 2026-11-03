@@ -1,3 +1,4 @@
+/// <reference lib="deno.ns" />
 import {
   DEFAULT_MESSAGE_TEMPLATES,
   orderMessageTemplates,
