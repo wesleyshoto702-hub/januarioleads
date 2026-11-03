@@ -136,6 +136,22 @@
   color: var(--text);
   font: inherit;
   font-size: 10px;
+  color-scheme: light;
+}
+
+.dark .opportunity-select select {
+  color-scheme: dark;
+}
+
+.opportunity-select select option,
+.opportunity-select select optgroup {
+  background-color: var(--surface);
+  color: var(--text);
+}
+
+.opportunity-select select:disabled {
+  opacity: .65;
+  cursor: not-allowed;
 }
 
 .opportunity-select svg {
