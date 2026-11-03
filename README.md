@@ -73,6 +73,15 @@ A função:
 
 A função está configurada em `supabase/config.toml`.
 
+### Cobertura nacional em Meus Leads
+
+- **Buscar Leads** oferece as 27 unidades federativas e carrega os municípios de cada UF pela API do IBGE. Lavras/MG continua sendo apenas o ponto de partida padrão.
+- O cadastro manual em **Meus Leads** aceita estado e município; novos leads manuais precisam informar ambos. A lista do IBGE auxilia a escolha e, se estiver indisponível, é possível preencher a cidade manualmente.
+- Tabela e cartões de **Meus Leads** apresentam segmento, cidade e UF; a pesquisa local também permite filtrar por esses campos.
+- Leads obtidos em **Buscar Leads**, **Oportunidades** e **Abertos Agora** preservam a cidade/UF da pesquisa quando o Google omite algum desses campos individuais.
+- Leads antigos sem cidade/UF não recebem uma localização presumida: aparecem como **Localização não informada**, e a cidade/UF pode ser preenchida usando **Editar**.
+- Cobertura nacional não significa execução automática de buscas em todos os municípios: a prospecção continua por cidade/nicho, respeitando limites e custos da API do Google Places.
+
 
 ## Buscar informações
 
