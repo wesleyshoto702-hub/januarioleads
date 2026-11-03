@@ -1,3 +1,4 @@
+import { accountLocalStorage } from "../../lib/account-storage";
 import type {
   BusinessPresence,
   PresenceBusiness,
@@ -72,7 +73,7 @@ export async function presenceSearchSignature(business: PresenceBusiness) {
 function readCache(): PresenceCache {
   if (typeof window === "undefined") return {};
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = accountLocalStorage.getItem(STORAGE_KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw) as PresenceCache;
     return parsed && typeof parsed === "object" ? parsed : {};
@@ -105,7 +106,7 @@ export function savePresenceCache(
   if (typeof window === "undefined") return;
   const all = readCache();
   all[keyFor(business)] = presence;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+  accountLocalStorage.setItem(STORAGE_KEY, JSON.stringify(all));
 }
 
 /** Accept an Instagram profile URL or @handle, never a post or unrelated domain. */
