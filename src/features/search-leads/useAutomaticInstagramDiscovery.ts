@@ -10,7 +10,7 @@ import type { BusinessSearchResult } from "./types";
 // Let a full Google Places page be processed; the server still enforces the
 // shared 20/15-minute quota. Browser cache prevents paying for rechecks.
 const MAX_AUTOMATIC_LOOKUPS = 20;
-const WORKERS = 2;
+const WORKERS = 4;
 const SETTING_KEY = "januarioleads:auto-instagram:v1";
 
 export type AutomaticInstagramProgress = {
