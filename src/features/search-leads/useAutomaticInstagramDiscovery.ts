@@ -124,6 +124,7 @@ export function useAutomaticInstagramDiscovery({
     const confirmed = new Set<string>();
     const review = new Set<string>();
     const inFlight = new Map<string, DiscoveryStage>();
+    const siteResults = new Map<string, BusinessPresence>();
     const controller = new AbortController();
 
     const available = businessesRef.current
@@ -188,10 +189,13 @@ export function useAutomaticInstagramDiscovery({
         const located = withSearchLocation(business, location);
         presence = await discoverBusinessPresence(located, {
           allowWebSearch: stage === "web",
-          skipOfficialSite: stage === "web" && Boolean(business.website),
+          skipOfficialSite: stage === "web" &&
+            Boolean(business.website) &&
+            siteResults.get(key)?.instagramCandidates.length === 0,
           signal: controller.signal,
         });
         if (cancelled) return null;
+        if (stage === "site" && presence) siteResults.set(key, presence);
         if (presence?.instagramUrl) {
           confirmed.add(key);
           review.delete(key);
