@@ -3,7 +3,7 @@ import {
   findBrazilianState,
   normalizeBrazilianStateCode,
 } from "../_shared/brazil-locations.ts";
-import { ALL_SEARCH_SEGMENTS } from "../_shared/niche-catalog.ts";
+import { resolveSearchSegment, searchTextForSegment } from "../_shared/niche-catalog.ts";
 type BusinessSearchResult = {
   placeId: string;
   name: string;
@@ -534,10 +534,7 @@ function enrichmentLocation(lead: {
 }
 
 function validSearchSegment(value: string) {
-  const normalized = normalize(value);
-  return ALL_SEARCH_SEGMENTS.some(
-    (segment) => normalize(segment) === normalized,
-  );
+  return resolveSearchSegment(value) !== null;
 }
 
 function stateName(state: string) {
@@ -968,7 +965,7 @@ async function runSegmentSearch(
 
   const searched = await textSearch(
     googleApiKey,
-    `${segment.trim()} em ${location.city}, ${stateName(location.state)}, Brasil`,
+    `${searchTextForSegment(segment.trim()) ?? segment.trim()} em ${location.city}, ${stateName(location.state)}, Brasil`,
     20,
     typeof pageToken === "string" ? pageToken.trim() : undefined,
   );
