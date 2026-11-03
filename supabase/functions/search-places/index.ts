@@ -1510,40 +1510,108 @@ function htmlHrefValues(html: string) {
   return values;
 }
 
-function instagramFromOfficialHtml(html: string, baseUrl: URL) {
-  for (const href of htmlHrefValues(html)) {
+function instagramProfilesFromOfficialHtml(html: string, baseUrl: URL) {
+  const profiles = new Set<string>();
+  // Many sites embed social links inside JSON-LD or escaped JavaScript, not <a> tags.
+  const decoded = html
+    .replace(/\\\//g, "/")
+    .replace(/&amp;/gi, "&")
+    .replace(/&#x2f;|&#47;/gi, "/")
+    .replace(/&quot;|&#34;/gi, '"')
+    .replace(/%2f/gi, "/")
+    .replace(/%3a/gi, ":");
+
+  for (const href of htmlHrefValues(decoded)) {
     try {
-      const resolved = new URL(href, baseUrl);
-      const profile = canonicalInstagramProfile(resolved.toString());
-      if (profile) return profile;
+      const profile = canonicalInstagramProfile(new URL(href, baseUrl).toString());
+      if (profile) profiles.add(profile);
     } catch {
-      // Ignore malformed links.
+      // Ignore malformed public links.
     }
   }
 
-  return null;
+  const mentions = /(?:https?:\/\/|\/\/)(?:www\.|m\.)?instagram\.com\/[A-Za-z0-9._]{1,30}(?:\/)?/gi;
+  for (const match of decoded.matchAll(mentions)) {
+    const profile = canonicalInstagramProfile(
+      match[0].startsWith("//") ? "https:" + match[0] : match[0],
+    );
+    if (profile) profiles.add(profile);
+    if (profiles.size >= 10) break;
+  }
+
+  return Array.from(profiles);
 }
 
-function contactPageFromOfficialHtml(html: string, baseUrl: URL) {
+const OFFICIAL_SOCIAL_PAGES = /(?:^|[/_-])(contato|contact|fale-conosco|faleconosco|sobre|about|redes-sociais|social|links|link-na-bio)(?:[/_.-]|$)/i;
+const BIO_LINK_HOSTS = new Set([
+  "linktr.ee",
+  "bio.site",
+  "beacons.ai",
+  "taplink.cc",
+  "carrd.co",
+  "lnk.bio",
+  "linkbio.co",
+  "msha.ke",
+  "solo.to",
+]);
+
+function discoverOfficialSupplementaryPages(html: string, baseUrl: URL) {
+  const internal = new Set<string>();
+  const bioLinks = new Set<string>();
+
   for (const href of htmlHrefValues(html)) {
     try {
-      const resolved = new URL(href, baseUrl);
-      if (resolved.origin !== baseUrl.origin) continue;
-
-      const value = `${resolved.pathname} ${resolved.search}`.toLowerCase();
+      const url = new URL(href, baseUrl);
+      if (url.protocol !== "https:" && url.protocol !== "http:") continue;
+      url.hash = "";
       if (
-        /(^|[/_-])(contato|contact|fale-conosco|faleconosco)([/_-]|$)/.test(
-          value,
-        )
+        url.origin === baseUrl.origin &&
+        OFFICIAL_SOCIAL_PAGES.test(url.pathname + url.search) &&
+        url.toString() !== baseUrl.toString()
       ) {
-        return resolved.toString();
+        internal.add(url.toString());
+      } else if (
+        BIO_LINK_HOSTS.has(url.hostname.toLowerCase().replace(/^www\./, ""))
+      ) {
+        // Only follow a link hub when the official site itself links to it.
+        bioLinks.add(url.toString());
       }
     } catch {
-      // Ignore malformed links.
+      // Ignore malformed or unsupported links.
     }
   }
 
-  return null;
+  // Keep requests bounded to protect latency, budgets and the target websites.
+  return [...internal].slice(0, 2).concat([...bioLinks].slice(0, 1));
+}
+
+async function discoverInstagramOnOfficialWebsite(
+  website: string,
+  rejectedUrls: string[],
+) {
+  const profiles = new Map<string, string[]>();
+  const rejected = new Set(rejectedUrls);
+
+  function collect(html: string, source: URL) {
+    for (const profile of instagramProfilesFromOfficialHtml(html, source)) {
+      if (rejected.has(profile)) continue;
+      const evidence = profiles.get(profile) ?? [];
+      if (!evidence.includes(source.toString())) evidence.push(source.toString());
+      profiles.set(profile, evidence);
+    }
+  }
+
+  const root = await fetchOfficialHtml(website);
+  if (!root) return profiles;
+  collect(root.html, root.finalUrl);
+
+  if (profiles.size === 1) return profiles;
+  const pages = discoverOfficialSupplementaryPages(root.html, root.finalUrl);
+  const results = await Promise.all(pages.map((page) => fetchOfficialHtml(page)));
+  for (const page of results) {
+    if (page) collect(page.html, page.finalUrl);
+  }
+  return profiles;
 }
 
 function cleanString(value: unknown, max = 500) {
@@ -1591,7 +1659,7 @@ async function instagramSearchSignature(business: {
 }) {
   return sha256Text(
     JSON.stringify({
-      version: "instagram-discovery-v1",
+      version: "instagram-discovery-v2",
       name: normalize(business.name),
       phone: normalizeBrazilianPhone(
         business.phone || business.internationalPhone,
