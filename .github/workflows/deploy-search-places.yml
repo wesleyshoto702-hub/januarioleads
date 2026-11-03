@@ -2,6 +2,12 @@ name: Aplicar correção do banco e publicar funções
 
 on:
   push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/deploy-search-places.yml"
+      - "scripts/apply-release-migration.py"
+      - "supabase/migrations/20261103220000_allow_presence_site_rate_limit.sql"
     tags:
       - "deploy/supabase-*"
   workflow_dispatch:
