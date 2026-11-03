@@ -15,13 +15,14 @@ const PUBLIC_SUPABASE_URL = "https://czkazbianiflhldenhcj.supabase.co";
 const PUBLIC_SUPABASE_PUBLISHABLE_KEY =
   "sb_publishable_rDtFwPmhh93xceOpvf9hUg_PSlvpB8p";
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const INCONCLUSIVE_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
-function isFresh(value: string | null | undefined) {
+function isFresh(value: string | null | undefined, confirmed: boolean) {
   if (!value) return false;
   const checkedAt = new Date(value).getTime();
   return (
     Number.isFinite(checkedAt) &&
-    Date.now() - checkedAt <= CACHE_TTL_MS
+    Date.now() - checkedAt <= (confirmed ? CACHE_TTL_MS : INCONCLUSIVE_CACHE_TTL_MS)
   );
 }
 
@@ -48,7 +49,7 @@ export async function discoverBusinessPresence(
     known &&
     known.instagramSearchSignature === signature &&
     !known.instagramNeedsReview &&
-    isFresh(known.instagramCheckedAt)
+    isFresh(known.instagramCheckedAt, Boolean(known.instagramUrl))
   ) {
     savePresenceCache(business, known);
     return known;
