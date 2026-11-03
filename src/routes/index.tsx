@@ -117,10 +117,12 @@ function PrivateLeadFlowApp() {
 
   useEffect(() => {
     let active = true;
+    let verificationSerial = 0;
 
     async function verify() {
+      const currentVerification = ++verificationSerial;
       const session = await getValidSession();
-      if (!active) return;
+      if (!active || currentVerification !== verificationSerial) return;
       if (!session) {
         setAuthorizedUserId(null);
         setCheckingAccess(false);
