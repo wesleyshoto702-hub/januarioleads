@@ -176,7 +176,9 @@ function loadSearchLeadsSession(): SearchLeadsSession | null {
       (typeof saved.sort !== "string" ||
         !["chance-desc", "chance-asc", "rating", "reviews", "az", "za"].includes(saved.sort)) ||
       (typeof saved.leadStatusFilter !== "string" ||
-        !["all", "new", "send_message", "waiting", "accepted", "rejected"].includes(saved.leadStatusFilter)) ||
+        !["all", "new", "send_message", "waiting", "accepted", "rejected"].includes(
+          saved.leadStatusFilter,
+        )) ||
       typeof saved.searchNotice !== "string"
     ) {
       return null;
@@ -485,24 +487,39 @@ export function SearchLeadsView({
     useState<SearchLocation>(initialSearchLocation);
   const [resultsLocation, setResultsLocation] =
     useState<SearchLocation>(initialSearchSession?.resultsLocation ?? initialSearchLocation);
-  const [cityInput, setCityInput] = useState(initialSearchSession?.cityInput ?? initialSearchLocation.city);
+  const [cityInput, setCityInput] = useState(
+    initialSearchSession?.cityInput ?? initialSearchLocation.city,
+  );
   const selectedState =
     findBrazilianState(searchLocation.state) ?? DEFAULT_BRAZIL_STATE;
   const [municipalities, setMunicipalities] = useState<string[]>([]);
   const [municipalitiesLoading, setMunicipalitiesLoading] = useState(true);
   const [municipalitiesError, setMunicipalitiesError] = useState("");
-  const [categoryQuery, setCategoryQuery] = useState(initialSearchSession?.categoryQuery ?? "");
-  const [selectedSegment, setSelectedSegment] = useState(initialSearchSession?.selectedSegment ?? "");
-  const [resultsSegment, setResultsSegment] = useState(initialSearchSession?.resultsSegment ?? "");
-  const [results, setResults] = useState<BusinessSearchResult[]>(initialSearchSession?.results ?? []);
-  const [nextPageToken, setNextPageToken] = useState<string | null>(initialSearchSession?.nextPageToken ?? null);
-  const [screen, setScreen] = useState<"segments" | "results">(initialSearchSession?.screen ?? "segments");
+  const [categoryQuery, setCategoryQuery] = useState(
+    initialSearchSession?.categoryQuery ?? "",
+  );
+  const [selectedSegment, setSelectedSegment] = useState(
+    initialSearchSession?.selectedSegment ?? "",
+  );
+  const [resultsSegment, setResultsSegment] = useState(
+    initialSearchSession?.resultsSegment ?? "",
+  );
+  const [results, setResults] = useState<BusinessSearchResult[]>(
+    initialSearchSession?.results ?? [],
+  );
+  const [nextPageToken, setNextPageToken] = useState<string | null>(
+    initialSearchSession?.nextPageToken ?? null,
+  );
+  const [screen, setScreen] = useState<"segments" | "results">(
+    initialSearchSession?.screen ?? "segments",
+  );
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<{ code: string; message: string } | null>(null);
   const [searchNotice, setSearchNotice] = useState(initialSearchSession?.searchNotice ?? "");
-  const [resultFilters, setResultFilters] =
-    useState<ResultFilterState>(initialSearchSession?.resultFilters ?? DEFAULT_RESULT_FILTERS);
+  const [resultFilters, setResultFilters] = useState<ResultFilterState>(
+    initialSearchSession?.resultFilters ?? DEFAULT_RESULT_FILTERS,
+  );
   const [sort, setSort] = useState<ResultSort>(initialSearchSession?.sort ?? "rating");
   const [leadStatusFilter, setLeadStatusFilter] =
     useState<LeadStatusFilter>(initialSearchSession?.leadStatusFilter ?? "all");
@@ -1124,7 +1141,10 @@ export function SearchLeadsView({
                         key={segment}
                         type="button"
                         className={selectedSegment === segment ? "segment-option selected" : "segment-option"}
-                        onClick={() => { hasActiveSearchRef.current = true; setSelectedSegment(segment); }}
+                        onClick={() => {
+                          hasActiveSearchRef.current = true;
+                          setSelectedSegment(segment);
+                        }}
                       >
                         <span>{segment}</span>
                         {selectedSegment === segment && <Check size={15} />}
