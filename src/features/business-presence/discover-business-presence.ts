@@ -28,9 +28,14 @@ function isFresh(value: string | null | undefined, confirmed: boolean) {
 
 export async function discoverBusinessPresence(
   business: PresenceBusiness,
-  options?: { force?: boolean; allowWebSearch?: boolean; signal?: AbortSignal },
+  options?: { force?: boolean; allowWebSearch?: boolean; skipOfficialSite?: boolean; signal?: AbortSignal },
 ): Promise<BusinessPresence | null> {
   const known = presenceFromBusiness(business);
+  const wantsWeb = options?.allowWebSearch === true;
+  const sufficient = (presence: BusinessPresence) =>
+    Boolean(presence.instagramUrl) ||
+    !wantsWeb ||
+    presence.instagramSearchScope !== "site";
 
   // A user-confirmed Instagram is authoritative until the user explicitly
   // chooses a different profile.
@@ -49,7 +54,8 @@ export async function discoverBusinessPresence(
     known &&
     known.instagramSearchSignature === signature &&
     !known.instagramNeedsReview &&
-    isFresh(known.instagramCheckedAt, Boolean(known.instagramUrl))
+    isFresh(known.instagramCheckedAt, Boolean(known.instagramUrl)) &&
+    sufficient(known)
   ) {
     savePresenceCache(business, known);
     return known;
@@ -66,7 +72,7 @@ export async function discoverBusinessPresence(
 
   if (!options?.force) {
     const cached = getPresenceCache(business, signature);
-    if (cached) return cached;
+    if (cached && sufficient(cached)) return cached;
   }
 
   const accessToken = await getAccessToken();
@@ -95,7 +101,8 @@ export async function discoverBusinessPresence(
         },
         body: JSON.stringify({
           mode: "presence-discovery",
-          allowWebSearch: options?.allowWebSearch === true,
+          allowWebSearch: wantsWeb,
+          skipOfficialSite: wantsWeb && options?.skipOfficialSite === true,
           force: options?.force === true,
           business: {
             placeId: business.placeId,
@@ -140,8 +147,10 @@ export async function discoverBusinessPresence(
       throw new Error(message);
     }
 
-    const presence = (payload as PresenceDiscoveryResponse & { ok: true })
-      .presence;
+    const presence: BusinessPresence = {
+      ...(payload as PresenceDiscoveryResponse & { ok: true }).presence,
+      instagramSearchScope: wantsWeb ? "web" : "site",
+    };
     savePresenceCache(business, presence);
     return presence;
   } catch (error) {
