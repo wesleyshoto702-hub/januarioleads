@@ -24,6 +24,19 @@ npm run dev
 ```
 
 
+## Vercel: dependências TanStack corrigidas (CVE-2026-102989)
+
+O `@tanstack/react-start` foi atualizado para `1.168.61`, e o lockfile
+`bun.lock` foi regenerado no GitHub Actions. A versão resolvida de
+`@tanstack/start-server-core` agora é `1.169.40`. Ambas incorporam a
+correção para a vulnerabilidade XSS. O build `bun run build` foi aprovado.
+
+Para publicar, a Vercel deve construir **o commit mais recente da branch
+`main`**, e não executar *Redeploy* de um commit antigo que ainda contém a
+versão vulnerável. Não configure a variável
+`DANGEROUSLY_DEPLOY_VULNERABLE_TANSTACK_START_XSS`; ela contorna a
+proteção sem corrigir a falha.
+
 ## Busca de empresas no Brasil
 
 A área **Buscar leads** usa **Google Places API (New)** por meio da Supabase Edge Function `search-places`.
