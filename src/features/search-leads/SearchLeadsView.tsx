@@ -46,7 +46,7 @@ import {
   findBrazilianState,
   normalizeBrazilianStateCode,
 } from "../../lib/brazil-locations";
-import { normalizeSearchText, searchSegmentMatchesQuery, SEGMENT_GROUPS } from "./segments";
+import { normalizeSearchText, resolveSearchSegment, searchSegmentMatchesQuery, SEGMENT_GROUPS } from "./segments";
 import type { BusinessSearchResult } from "./types";
 import { storeRecentBusinessSearch } from "../open-now-niches/local-cache";
 import {
@@ -382,7 +382,7 @@ type RecentSearch = SearchLocation & {
 };
 
 function recentSearchKey(value: RecentSearch) {
-  return `${searchLocationKey(value)}|${normalizeSearchText(value.segment)}`;
+  return `${searchLocationKey(value)}|${normalizeSearchText(resolveSearchSegment(value.segment) ?? value.segment)}`;
 }
 
 function getRecentSearches() {
@@ -402,7 +402,7 @@ function getRecentSearches() {
         migratedLegacy = true;
         parsed.push({
           ...DEFAULT_SEARCH_LOCATION,
-          segment: item.trim(),
+          segment: resolveSearchSegment(item.trim()) ?? item.trim(),
         });
         continue;
       }
@@ -426,11 +426,12 @@ function getRecentSearches() {
         continue;
       }
 
-      if (row.state !== state) migratedLegacy = true;
+      const canonicalSegment = resolveSearchSegment(row.segment.trim()) ?? row.segment.trim();
+      if (row.state !== state || canonicalSegment !== row.segment.trim()) migratedLegacy = true;
       parsed.push({
         city: row.city.trim(),
         state,
-        segment: row.segment.trim(),
+        segment: canonicalSegment,
       });
     }
 
@@ -451,6 +452,7 @@ function getRecentSearches() {
 }
 
 function storeRecentSearch(search: RecentSearch) {
+  search = { ...search, segment: resolveSearchSegment(search.segment) ?? search.segment };
   const key = recentSearchKey(search);
   const next = [
     search,
@@ -496,10 +498,10 @@ export function SearchLeadsView({
     initialSearchSession?.categoryQuery ?? "",
   );
   const [selectedSegment, setSelectedSegment] = useState(
-    initialSearchSession?.selectedSegment ?? "",
+    resolveSearchSegment(initialSearchSession?.selectedSegment ?? "") ?? "",
   );
   const [resultsSegment, setResultsSegment] = useState(
-    initialSearchSession?.resultsSegment ?? "",
+    resolveSearchSegment(initialSearchSession?.resultsSegment ?? "") ?? initialSearchSession?.resultsSegment ?? "",
   );
   const [results, setResults] = useState<BusinessSearchResult[]>(
     initialSearchSession?.results ?? [],
@@ -585,7 +587,7 @@ export function SearchLeadsView({
         for (const sample of samples) {
           const state = normalizeBrazilianStateCode(sample.state);
           const city = sample.city.trim();
-          const segment = sample.segment.trim();
+          const segment = resolveSearchSegment(sample.segment.trim()) ?? sample.segment.trim();
           if (!state || !city || !segment) continue;
 
           const recent: RecentSearch = { city, state, segment };
@@ -615,7 +617,7 @@ export function SearchLeadsView({
 
         const state = normalizeBrazilianStateCode(latest.state);
         const city = latest.city.trim();
-        const segment = latest.segment.trim();
+        const segment = resolveSearchSegment(latest.segment.trim()) ?? latest.segment.trim();
         if (!state || !city || !segment) return;
 
         hasActiveSearchRef.current = true;
