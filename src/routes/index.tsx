@@ -12,7 +12,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { FormEvent, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { buildFactualBusinessDescription } from "../features/business-presence/business-description";
 import { discoverBusinessPresence } from "../features/business-presence/discover-business-presence";
 import { presenceFromBusiness } from "../features/business-presence/storage";
@@ -70,6 +70,7 @@ import {
   parseSavedMessageTemplates,
   type MessageTemplate,
 } from "../features/messages/message-templates";
+import { MessagesView } from "../features/messages/MessagesView";
 import { OpportunityView } from "../features/opportunities/OpportunityView";
 import { loadOpportunityData } from "../features/opportunities/opportunity-data";
 import type { OpportunityRecord } from "../features/opportunities/types";
@@ -198,6 +199,7 @@ const EMPTY_FORM: LeadForm = {
 const STORAGE = {
   leads: "leadflow:leads",
   messages: "leadflow:messages",
+  defaultMessagesRestored: "leadflow:messages:defaults-restored:2026-11-03",
   theme: "leadflow:theme",
 };
 
@@ -334,7 +336,16 @@ function LeadFlowApp() {
 
       if (storedMessages) {
         const parsed = parseSavedMessageTemplates(JSON.parse(storedMessages));
-        if (parsed) setMessages(parsed);
+        if (parsed) {
+          if (parsed.length === 0 && !localStorage.getItem(STORAGE.defaultMessagesRestored)) {
+            // One-time recovery for users who removed every original message.
+            // Custom deleted messages cannot be reconstructed without an existing backup.
+            setMessages(DEFAULT_MESSAGE_TEMPLATES.map((item) => ({ ...item })));
+            localStorage.setItem(STORAGE.defaultMessagesRestored, "1");
+          } else {
+            setMessages(parsed);
+          }
+        }
       }
 
       if (storedTheme === "dark" || storedTheme === "light") {
@@ -1431,10 +1442,15 @@ function LeadFlowApp() {
     setMessageLead(null);
   }
 
-  function saveMessages() {
-    localStorage.setItem(STORAGE.messages, JSON.stringify(messages));
-    setSavedNotice(true);
-    window.setTimeout(() => setSavedNotice(false), 1800);
+  function saveMessages(nextMessages: MessageTemplate[]) {
+    setMessages(nextMessages);
+    try {
+      localStorage.setItem(STORAGE.messages, JSON.stringify(nextMessages));
+      setSavedNotice(true);
+      window.setTimeout(() => setSavedNotice(false), 1800);
+    } catch {
+      setSavedNotice(false);
+    }
   }
 
   function applyPresenceToLead(
@@ -2234,8 +2250,7 @@ function LeadFlowApp() {
       ) : (
         <MessagesView
           messages={messages}
-          setMessages={setMessages}
-          onSave={saveMessages}
+          onCommit={saveMessages}
           savedNotice={savedNotice}
         />
       )}
@@ -2844,123 +2859,6 @@ function Select({
       </select>
       <ChevronDown size={15} />
     </label>
-  );
-}
-
-function MessagesView({
-  messages,
-  setMessages,
-  onSave,
-  savedNotice,
-}: {
-  messages: MessageTemplate[];
-  setMessages: Dispatch<SetStateAction<MessageTemplate[]>>;
-  onSave: () => void;
-  savedNotice: boolean;
-}) {
-  function addMessage() {
-    setMessages((current) => [
-      ...current,
-      {
-        id: crypto.randomUUID(),
-        title: `Mensagem ${current.length + 1}`,
-        text: "",
-        favorite: false,
-      },
-    ]);
-  }
-
-  function updateMessage(id: string, changes: Partial<MessageTemplate>) {
-    setMessages((current) =>
-      current.map((message) =>
-        message.id === id ? { ...message, ...changes } : message,
-      ),
-    );
-  }
-
-  function removeMessage(id: string) {
-    if (!window.confirm("Excluir esta mensagem? Esta ação não pode ser desfeita.")) return;
-    setMessages((current) => current.filter((message) => message.id !== id));
-  }
-
-  return (
-    <section className="page-wrap messages-page">
-      <div className="page-heading">
-        <div>
-          <p className="eyebrow">ATALHOS DE ABORDAGEM</p>
-          <h1>Mensagens</h1>
-          <p className="subtitle">
-            Crie e personalize quantas mensagens quiser. Use <code>{"{empresa}"}</code> para inserir o
-            nome do lead. Mensagens favoritas ficam fixadas no topo ao entrar em contato.
-          </p>
-        </div>
-        <div className="messages-page-actions">
-          <button className="secondary-button" onClick={addMessage} type="button">
-            <Plus size={17} />
-            Adicionar mensagem
-          </button>
-          <button className="primary-button" onClick={onSave} type="button">
-            {savedNotice ? <Check size={17} /> : null}
-            {savedNotice ? "Salvo" : "Salvar mensagens"}
-          </button>
-        </div>
-      </div>
-
-      {messages.length === 0 && (
-        <p className="modal-copy">
-          Você ainda não tem mensagens. Clique em Adicionar mensagem para criar uma.
-        </p>
-      )}
-      <div className="messages-grid">
-        {orderMessageTemplates(messages).map((message) => (
-          <article
-            className={`message-editor${message.favorite ? " favorite" : ""}`}
-            key={message.id}
-          >
-            <div className="editor-heading">
-              <input
-                className="message-title-input"
-                aria-label="Nome da mensagem"
-                placeholder="Nome da mensagem"
-                maxLength={80}
-                value={message.title}
-                onChange={(event) => updateMessage(message.id, { title: event.target.value })}
-              />
-              <div className="message-editor-actions">
-                <span className="message-character-count">{message.text.length} caracteres</span>
-                <button
-                  type="button"
-                  className="message-favorite-button"
-                  onClick={() => updateMessage(message.id, { favorite: !message.favorite })}
-                  aria-label={message.favorite ? "Desfavoritar mensagem" : "Favoritar mensagem"}
-                  aria-pressed={message.favorite}
-                  title={message.favorite ? "Remover dos favoritos" : "Fixar como favorita"}
-                >
-                  <Star size={16} fill={message.favorite ? "currentColor" : "none"} />
-                  <span>{message.favorite ? "Favorita" : "Favoritar"}</span>
-                </button>
-                <button
-                  type="button"
-                  className="message-remove-button"
-                  onClick={() => removeMessage(message.id)}
-                  aria-label={`Excluir ${message.title || "mensagem"}`}
-                  title="Excluir mensagem"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </div>
-            <textarea
-              value={message.text}
-              onChange={(event) => updateMessage(message.id, { text: event.target.value })}
-              aria-label={`Texto da mensagem ${message.title || "sem título"}`}
-              placeholder="Escreva sua mensagem aqui..."
-              rows={8}
-            />
-          </article>
-        ))}
-      </div>
-    </section>
   );
 }
 
