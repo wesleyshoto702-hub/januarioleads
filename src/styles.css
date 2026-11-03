@@ -4269,35 +4269,13 @@ a{
   text-underline-offset: 3px;
 }
 
-.business-presence > .business-instagram-identity{
+.business-presence .business-instagram-handle{
   display: inline-flex;
-  align-items: flex-start;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 100px;
-  max-width: min(270px, 100%);
-  padding-left: 9px;
-  border-left: 2px solid color-mix(in srgb, var(--primary) 42%, var(--border));
-}
-
-.business-instagram-display-name,
-.instagram-display-name{
-  font-size: 11px;
-  color: var(--text);
+  align-items: center;
+  gap: 4px;
+  color: var(--primary);
   font-weight: 750;
   overflow-wrap: anywhere;
-  line-height: 1.35;
-}
-
-.business-presence > .business-instagram-identity a{
-  color: var(--primary);
-  font-weight: 700;
-  overflow-wrap: anywhere;
-}
-
-.instagram-candidate-main .instagram-display-name{
-  display: block;
-  font-size: 10px;
 }
 
 .business-presence .business-instagram-checking{
