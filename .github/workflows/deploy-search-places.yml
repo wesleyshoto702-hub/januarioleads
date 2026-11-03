@@ -6,7 +6,7 @@ on:
       - main
     paths:
       - ".github/workflows/deploy-search-places.yml"
-      - "scripts/apply-release-migration.py"
+      - "scripts/verify-release-migration.py"
       - "supabase/migrations/20261103220000_allow_presence_site_rate_limit.sql"
     tags:
       - "deploy/supabase-*"
@@ -48,10 +48,10 @@ jobs:
       - uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf
         with:
           version: latest
-      - name: Testar executor de migração
+      - name: Testar verificador de migração
         run: python3 -m unittest discover -s tests/deployment
-      - name: Aplicar somente a migração presence_site
-        run: python3 scripts/apply-release-migration.py
+      - name: Confirmar migração presence_site em produção (somente leitura)
+        run: python3 scripts/verify-release-migration.py
       - name: Publicar search-places
         run: supabase functions deploy search-places --project-ref "$PROJECT_REF" --use-api
       - name: Publicar deep-enrich-business
