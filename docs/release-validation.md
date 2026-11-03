@@ -55,6 +55,11 @@ antigo não deve ser reaplicado sobre a baseline (ver database-recovery.md).
    locais**. As versões históricas remotas incluem migrações temporárias,
    operações de dados e referências a segredos: inspecionar e higienizar
    cuidadosamente antes de versionar qualquer SQL recuperado.
+   Inventário das 27 versões remotas sem arquivo:
+   [docs/migration-history-audit.md](migration-history-audit.md).
+   Quatro scripts simples de índices foram arquivados em
+   `docs/migration-history/recovered/*.sql.txt` apenas para auditoria;
+   os outros 23 não foram copiados ao GitHub por exigirem revisão de segurança.
    **Não executar `supabase db push`, `db reset` remoto nem reparações em lote**.
    Conferir `supabase migration list --linked`, recuperar apenas conteúdos
    revisados com `supabase migration fetch`, estabelecer um baseline coerente
