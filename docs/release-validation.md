@@ -24,16 +24,21 @@ antigo não deve ser reaplicado sobre a baseline (ver database-recovery.md).
    no histórico do Supabase CLI; reconciliar o ledger antes de um `db push`.
 2. Publicar o frontend e as funções alteradas `deep-enrich-business` e
    `search-places` (ambas importam módulos compartilhados alterados).
-3. No GitHub Actions, executar o workflow `deploy-search-places.yml` na branch
-   `main` (ou publicar uma tag `deploy/supabase-*` no commit de release).
-   Ele testa as regras e a migração localmente, depois **verifica a constraint
-   de produção com SQL somente de leitura** (`scripts/verify-release-migration.py`)
-   e publica `search-places` e `deep-enrich-business`. O segredo
-   `SUPABASE_ACCESS_TOKEN` deve estar configurado e ter permissão para publicar
-   funções. A API de consultas do projeto executa `ALTER TABLE` em transação
-   read-only (erro `25006`), por isso **nunca realizar DDL por essa conexão**.
-   Em futuras mudanças, aplicar a migração primeiro com acesso autorizado, e
-   somente depois liberar o workflow. Confirmar sucesso do run e versões ativas.
+3. O workflow `deploy-search-places.yml` separa **validação** de
+   **publicação**. Um push na `main` testa regras, banco e contrato de migração
+   e verifica a constraint de produção usando SQL somente de leitura
+   (`scripts/verify-release-migration.py`), **sem publicar funções**.
+   Para publicar pelo GitHub, disparar `workflow_dispatch` ou uma tag
+   `deploy/supabase-*` e configurar `SUPABASE_ACCESS_TOKEN` com a permissão
+   `edge_functions_write`. O token atualmente salvo no Actions não possui
+   essa permissão (HTTP 403); substituí-lo de forma segura em GitHub > Settings
+   > Secrets and variables > Actions. Nunca colocar tokens no repositório.
+   O Management API executa DDL em transação somente de leitura (erro 25006);
+   aplicar futuras migrações por mecanismo autorizado antes de publicar funções.
+   Em 03/11/2026 as versões `search-places` v27 e
+   `deep-enrich-business` v23 foram publicadas por conexão Supabase autorizada
+   e verificadas como ativas. Uma validação verde de push **não significa**
+   que ocorreu uma nova publicação.
 4. Em homologação, usar duas contas autorizadas em private_access para testar
    login, edição, exclusão, pagamentos, atualização da página e troca de conta.
    Testar com rede interrompida e restabelecida; pendências devem sobreviver.
