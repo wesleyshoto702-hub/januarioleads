@@ -30,7 +30,6 @@ import {
   type ExistingLeadIdentity,
 } from "./identity";
 import { searchBusinesses } from "./search-businesses";
-import { useAutomaticInstagramDiscovery } from "./useAutomaticInstagramDiscovery";
 import {
   DEFAULT_SEARCH_LOCATION,
   loadBrazilianMunicipalities,
@@ -1032,15 +1031,6 @@ export function SearchLeadsView({
     setDetails((current) => (current ? merge(current) : current));
   }
 
-  const autoInstagram = useAutomaticInstagramDiscovery({
-    active: screen === "results" && !loading,
-    businesses: results,
-    location: resultsLocation,
-    existingLeads,
-    onPresence: updateBusinessPresence,
-    onSavedLeadPresence: onPresenceDiscovered,
-  });
-
   if (screen === "segments") {
     return (
       <section className="page-wrap search-leads-page">
@@ -1245,48 +1235,6 @@ export function SearchLeadsView({
         </div>
       )}
 
-      <div className="auto-instagram-panel">
-        <div className="auto-instagram-heading">
-          <div>
-            <strong>Instagram automático nos resultados</strong>
-            <span>
-              O sistema procura perfis públicos e atualiza os cartões sem abrir cada empresa.
-            </span>
-          </div>
-          <label className="auto-instagram-switch">
-            <input
-              type="checkbox"
-              checked={autoInstagram.enabled}
-              onChange={(event) => autoInstagram.setEnabled(event.target.checked)}
-            />
-            <span>{autoInstagram.enabled ? "Ativado" : "Pausado"}</span>
-          </label>
-        </div>
-        {autoInstagram.enabled && results.length > 0 && (
-          <div className="auto-instagram-status" aria-live="polite">
-            <span>
-              {autoInstagram.progress.running
-                ? `Buscando Instagrams: ${autoInstagram.progress.checked}/${autoInstagram.progress.total} consultas concluídas`
-                : autoInstagram.progress.total > 0
-                  ? `Verificações concluídas: ${autoInstagram.progress.checked}/${autoInstagram.progress.total}`
-                  : "Reutilizando perfis conhecidos ou preparando a próxima busca."}
-              {autoInstagram.progress.found > 0 &&
-                ` · ${autoInstagram.progress.found} confirmado(s)`}
-              {autoInstagram.progress.candidates > 0 &&
-                ` · ${autoInstagram.progress.candidates} para conferir`}
-            </span>
-            {autoInstagram.progress.notice && (
-              <small>{autoInstagram.progress.notice}</small>
-            )}
-            <small>
-              Primeiro são verificados os sites oficiais; depois, até 8 empresas
-              sem perfil confirmado recebem uma busca web complementar. As consultas
-              têm limites e podem gerar custos.
-            </small>
-          </div>
-        )}
-      </div>
-
       <div className="results-toolbar">
         <div className="quick-filters">
           <div className="quick-filters-heading">
@@ -1401,8 +1349,6 @@ export function SearchLeadsView({
               business={business}
               chance={chance}
               existingLead={existingLead}
-              instagramChecking={autoInstagram.checkingIds.includes(business.placeId)}
-              autoInstagramEnabled={autoInstagram.enabled}
               onDetails={setDetails}
               onWhatsApp={openWhatsApp}
               onMessage={onMessage}
@@ -1484,8 +1430,6 @@ function BusinessCard({
   business,
   chance,
   existingLead,
-  instagramChecking,
-  autoInstagramEnabled,
   onDetails,
   onWhatsApp,
   onMessage,
@@ -1494,8 +1438,6 @@ function BusinessCard({
   business: BusinessSearchResult;
   chance: LeadChanceResult;
   existingLead: ExistingLeadIdentity | null;
-  instagramChecking: boolean;
-  autoInstagramEnabled: boolean;
   onDetails: (business: BusinessSearchResult) => void;
   onWhatsApp: (business: BusinessSearchResult) => void;
   onMessage: (target: SearchMessageTarget) => void;
@@ -1591,18 +1533,10 @@ function BusinessCard({
             >
               Possível Instagram · Conferir
             </button>
-          ) : instagramChecking ? (
-            <span className="business-instagram-checking">
-              Procurando Instagram...
-            </span>
           ) : business.instagramCheckedAt ? (
-            <span>Instagram ainda não identificado</span>
+            <span>Instagram não identificado</span>
           ) : (
-            <span>
-              {autoInstagramEnabled
-                ? "Instagram aguardando busca automática"
-                : "Instagram ainda não pesquisado"}
-            </span>
+            <span>Instagram não pesquisado</span>
           )}
         </div>
       </div>
