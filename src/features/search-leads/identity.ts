@@ -1,4 +1,5 @@
 import type { LeadStatus } from "../leads/remote-leads";
+import type { InstagramSource } from "../business-presence/types";
 import type { BusinessSearchResult } from "./types";
 import { normalizeSearchText } from "./segments";
 import { sameLocation } from "../../lib/location";
@@ -11,6 +12,12 @@ export type ExistingLeadIdentity = {
   address?: string;
   city?: string | undefined;
   state?: string | undefined;
+  instagram?: string | undefined;
+  instagramConfidence?: "high" | "medium" | "low" | undefined;
+  instagramSource?: InstagramSource | undefined;
+  instagramNeedsReview?: boolean | undefined;
+  instagramCheckedAt?: string | undefined;
+  instagramUsername?: string | undefined;
   status?: LeadStatus;
 };
 
