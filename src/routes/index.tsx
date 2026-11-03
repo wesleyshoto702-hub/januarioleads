@@ -224,6 +224,7 @@ function leadToBusinessSearchResult(lead: Lead): BusinessSearchResult {
     instagramSource: lead.instagramSource ?? null,
     instagramCheckedAt: lead.instagramCheckedAt ?? null,
     instagramUsername: lead.instagramUsername ?? null,
+    instagramDisplayName: lead.instagramDisplayName ?? null,
     instagramCandidates: lead.instagramCandidates ?? [],
     instagramRejectedUrls: lead.instagramRejectedUrls ?? [],
     instagramSearchSignature: lead.instagramSearchSignature ?? null,
@@ -1456,6 +1457,9 @@ function LeadFlowApp() {
       instagramUsername:
         presence.instagramUsername ??
         (keepConfirmedInstagram ? previous.instagramUsername : undefined),
+      instagramDisplayName:
+        presence.instagramDisplayName ??
+        (keepConfirmedInstagram ? previous.instagramDisplayName : undefined),
       instagramCandidates: presence.instagramCandidates,
       instagramRejectedUrls: presence.instagramRejectedUrls,
       instagramSearchSignature:
@@ -1729,6 +1733,7 @@ function LeadFlowApp() {
               instagramCheckedAt: discoveredPresence.instagramCheckedAt,
               instagramUsername:
                 discoveredPresence.instagramUsername ?? undefined,
+              instagramDisplayName: discoveredPresence.instagramDisplayName ?? undefined,
               instagramCandidates: discoveredPresence.instagramCandidates,
               instagramRejectedUrls:
                 discoveredPresence.instagramRejectedUrls,
