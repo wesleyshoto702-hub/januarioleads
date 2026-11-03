@@ -174,25 +174,6 @@ export function OpportunityView({
     };
   }, [existingLeads]);
 
-  const availableStates = useMemo(
-    () =>
-      BRAZIL_STATES.filter((item) =>
-        records.some((record) => record.state === item.code),
-      ),
-    [records],
-  );
-
-  useEffect(() => {
-    const firstState = availableStates[0]?.code ?? DEFAULT_BRAZIL_STATE.code;
-    if (!availableStates.some((item) => item.code === state)) {
-      setState(
-        availableStates.some((item) => item.code === DEFAULT_BRAZIL_STATE.code)
-          ? DEFAULT_BRAZIL_STATE.code
-          : firstState,
-      );
-    }
-  }, [availableStates, state]);
-
   const cities = useMemo(
     () =>
       Array.from(
@@ -420,9 +401,11 @@ export function OpportunityView({
           value={state}
           onChange={(value) => {
             setState(value);
+            setCity("");
+            setSegment("");
             setSelected(null);
           }}
-          options={availableStates.map(
+          options={BRAZIL_STATES.map(
             (item) => [item.code, `${item.name} (${item.code})`] as [string, string],
           )}
         />
@@ -433,6 +416,7 @@ export function OpportunityView({
             value={city}
             onChange={setCity}
             options={cities.map((value) => [value, value] as [string, string])}
+            emptyLabel="Nenhuma cidade analisada"
           />
         ) : (
           <OpportunitySelect
@@ -442,6 +426,7 @@ export function OpportunityView({
             options={segments.map(
               (value) => [value, value] as [string, string],
             )}
+            emptyLabel="Nenhum nicho analisado"
           />
         )}
 
@@ -500,7 +485,8 @@ export function OpportunityView({
           </strong>
           <p>
             O ranking só aparece depois que empresas reais foram observadas nas
-            pesquisas do JanuarioLeads.
+            pesquisas do JanuarioLeads. Todos os estados podem ser selecionados,
+            mas os resultados dependem das buscas já realizadas em cada região.
           </p>
           <button className="primary-button" type="button" onClick={onGoSearch}>
             <Search size={16} />
@@ -740,20 +726,24 @@ function OpportunitySelect({
   value,
   onChange,
   options,
+  emptyLabel = "Nenhum dado disponível",
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   options: Array<[string, string]>;
+  emptyLabel?: string;
 }) {
   return (
     <label className="opportunity-select">
       <span>{label}</span>
       <div>
         <select
-          value={value}
+          value={options.length ? value : ""}
+          disabled={options.length === 0}
           onChange={(event) => onChange(event.target.value)}
         >
+          {options.length === 0 && <option value="">{emptyLabel}</option>}
           {options.map(([optionValue, optionLabel]) => (
             <option key={optionValue} value={optionValue}>
               {optionLabel}
