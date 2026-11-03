@@ -9,7 +9,7 @@ import {
   Search,
   Star,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { buildFactualBusinessDescription } from "../business-presence/business-description";
 import type { DeepEnrichmentApplied } from "../business-enrichment/types";
 import { STATUS_LABEL } from "../leads/lead-status";
@@ -122,6 +122,71 @@ const DEFAULT_RESULT_FILTERS: ResultFilterState = {
   instagram: "all",
   chance: "all",
 };
+
+const SEARCH_LEADS_SESSION_KEY = "leadflow:search-leads-session:v1";
+
+type SearchLeadsSession = {
+  searchLocation: SearchLocation;
+  resultsLocation: SearchLocation;
+  cityInput: string;
+  categoryQuery: string;
+  selectedSegment: string;
+  resultsSegment: string;
+  results: BusinessSearchResult[];
+  nextPageToken: string | null;
+  screen: "segments" | "results";
+  resultFilters: ResultFilterState;
+  sort: ResultSort;
+  leadStatusFilter: LeadStatusFilter;
+  searchNotice: string;
+};
+
+function loadSearchLeadsSession(): SearchLeadsSession | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.sessionStorage.getItem(SEARCH_LEADS_SESSION_KEY);
+    if (!raw) return null;
+    const saved = JSON.parse(raw) as Partial<SearchLeadsSession>;
+    const filters = saved?.resultFilters;
+
+    if (
+      !saved ||
+      !saved.searchLocation ||
+      typeof saved.searchLocation.city !== "string" ||
+      typeof saved.searchLocation.state !== "string" ||
+      !saved.resultsLocation ||
+      typeof saved.resultsLocation.city !== "string" ||
+      typeof saved.resultsLocation.state !== "string" ||
+      typeof saved.cityInput !== "string" ||
+      typeof saved.categoryQuery !== "string" ||
+      typeof saved.selectedSegment !== "string" ||
+      typeof saved.resultsSegment !== "string" ||
+      !Array.isArray(saved.results) ||
+      !saved.results.every(
+        (item) => item && typeof item.placeId === "string" && typeof item.name === "string",
+      ) ||
+      (saved.nextPageToken !== null && typeof saved.nextPageToken !== "string") ||
+      (saved.screen !== "segments" && saved.screen !== "results") ||
+      !filters ||
+      !["all", "phone", "whatsapp"].includes(filters.contact) ||
+      !["all", "with-site", "without-site"].includes(filters.website) ||
+      !["all", "with-instagram", "without-instagram"].includes(filters.instagram) ||
+      !["all", "high"].includes(filters.chance) ||
+      (typeof saved.sort !== "string" ||
+        !["chance-desc", "chance-asc", "rating", "reviews", "az", "za"].includes(saved.sort)) ||
+      (typeof saved.leadStatusFilter !== "string" ||
+        !["all", "new", "send_message", "waiting", "accepted", "rejected"].includes(saved.leadStatusFilter)) ||
+      typeof saved.searchNotice !== "string"
+    ) {
+      return null;
+    }
+
+    return saved as SearchLeadsSession;
+  } catch {
+    return null;
+  }
+}
 
 const RESULT_FILTER_OPTIONS: Array<[ResultFilter, string]> = [
   ["all", "Todos"],
@@ -411,34 +476,80 @@ export function SearchLeadsView({
     value: DeepEnrichmentApplied,
   ) => void;
 }) {
-  const initialSearchLocation = useMemo(() => loadSearchLocation(), []);
+  const initialSearchSession = useMemo(() => loadSearchLeadsSession(), []);
+  const initialSearchLocation = useMemo(
+    () => initialSearchSession?.searchLocation ?? loadSearchLocation(),
+    [initialSearchSession],
+  );
   const [searchLocation, setSearchLocation] =
     useState<SearchLocation>(initialSearchLocation);
   const [resultsLocation, setResultsLocation] =
-    useState<SearchLocation>(initialSearchLocation);
-  const [cityInput, setCityInput] = useState(initialSearchLocation.city);
+    useState<SearchLocation>(initialSearchSession?.resultsLocation ?? initialSearchLocation);
+  const [cityInput, setCityInput] = useState(initialSearchSession?.cityInput ?? initialSearchLocation.city);
   const selectedState =
     findBrazilianState(searchLocation.state) ?? DEFAULT_BRAZIL_STATE;
   const [municipalities, setMunicipalities] = useState<string[]>([]);
   const [municipalitiesLoading, setMunicipalitiesLoading] = useState(true);
   const [municipalitiesError, setMunicipalitiesError] = useState("");
-  const [categoryQuery, setCategoryQuery] = useState("");
-  const [selectedSegment, setSelectedSegment] = useState("");
-  const [resultsSegment, setResultsSegment] = useState("");
-  const [results, setResults] = useState<BusinessSearchResult[]>([]);
-  const [nextPageToken, setNextPageToken] = useState<string | null>(null);
-  const [screen, setScreen] = useState<"segments" | "results">("segments");
+  const [categoryQuery, setCategoryQuery] = useState(initialSearchSession?.categoryQuery ?? "");
+  const [selectedSegment, setSelectedSegment] = useState(initialSearchSession?.selectedSegment ?? "");
+  const [resultsSegment, setResultsSegment] = useState(initialSearchSession?.resultsSegment ?? "");
+  const [results, setResults] = useState<BusinessSearchResult[]>(initialSearchSession?.results ?? []);
+  const [nextPageToken, setNextPageToken] = useState<string | null>(initialSearchSession?.nextPageToken ?? null);
+  const [screen, setScreen] = useState<"segments" | "results">(initialSearchSession?.screen ?? "segments");
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<{ code: string; message: string } | null>(null);
-  const [searchNotice, setSearchNotice] = useState("");
+  const [searchNotice, setSearchNotice] = useState(initialSearchSession?.searchNotice ?? "");
   const [resultFilters, setResultFilters] =
-    useState<ResultFilterState>(DEFAULT_RESULT_FILTERS);
-  const [sort, setSort] = useState<ResultSort>("rating");
+    useState<ResultFilterState>(initialSearchSession?.resultFilters ?? DEFAULT_RESULT_FILTERS);
+  const [sort, setSort] = useState<ResultSort>(initialSearchSession?.sort ?? "rating");
   const [leadStatusFilter, setLeadStatusFilter] =
-    useState<LeadStatusFilter>("all");
+    useState<LeadStatusFilter>(initialSearchSession?.leadStatusFilter ?? "all");
   const [details, setDetails] = useState<BusinessSearchResult | null>(null);
   const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([]);
+  const hasActiveSearchRef = useRef(Boolean(initialSearchSession));
+
+  useEffect(() => {
+    // Do not replace the remote last search with an empty default session.
+    if (!selectedSegment && !resultsSegment) return;
+
+    const snapshot: SearchLeadsSession = {
+      searchLocation,
+      resultsLocation,
+      cityInput,
+      categoryQuery,
+      selectedSegment,
+      resultsSegment,
+      results,
+      nextPageToken,
+      screen,
+      resultFilters,
+      sort,
+      leadStatusFilter,
+      searchNotice,
+    };
+
+    try {
+      window.sessionStorage.setItem(SEARCH_LEADS_SESSION_KEY, JSON.stringify(snapshot));
+    } catch {
+      // Browsers with disabled/full session storage can still use the current view.
+    }
+  }, [
+    searchLocation,
+    resultsLocation,
+    cityInput,
+    categoryQuery,
+    selectedSegment,
+    resultsSegment,
+    results,
+    nextPageToken,
+    screen,
+    resultFilters,
+    sort,
+    leadStatusFilter,
+    searchNotice,
+  ]);
 
   function applyDeepToBusiness(
     current: BusinessSearchResult,
@@ -508,6 +619,9 @@ export function SearchLeadsView({
         }
         setRecentSearches(combined);
 
+        // Refresh recents without replacing the user's current prospecting session.
+        if (hasActiveSearchRef.current) return;
+
         const latest = samples.find((sample) => sample.results.length > 0);
         if (!latest) return;
 
@@ -516,6 +630,7 @@ export function SearchLeadsView({
         const segment = latest.segment.trim();
         if (!state || !city || !segment) return;
 
+        hasActiveSearchRef.current = true;
         const location: SearchLocation = { city, state };
         saveSearchLocation(location);
         setSearchLocation(location);
@@ -525,8 +640,6 @@ export function SearchLeadsView({
         setResultsSegment(segment);
         setResults(latest.results);
         setNextPageToken(latest.nextPageToken);
-        setResultFilters(DEFAULT_RESULT_FILTERS);
-        setLeadStatusFilter("all");
         setScreen("results");
 
         const checkedAt = new Intl.DateTimeFormat("pt-BR", {
@@ -706,6 +819,8 @@ export function SearchLeadsView({
     pageToken?: string,
     append = false,
   ) {
+    // A user-initiated search takes precedence over a pending cache refresh.
+    hasActiveSearchRef.current = true;
     if (append) setLoadingMore(true);
     else setLoading(true);
     setError(null);
@@ -1009,7 +1124,7 @@ export function SearchLeadsView({
                         key={segment}
                         type="button"
                         className={selectedSegment === segment ? "segment-option selected" : "segment-option"}
-                        onClick={() => setSelectedSegment(segment)}
+                        onClick={() => { hasActiveSearchRef.current = true; setSelectedSegment(segment); }}
                       >
                         <span>{segment}</span>
                         {selectedSegment === segment && <Check size={15} />}
