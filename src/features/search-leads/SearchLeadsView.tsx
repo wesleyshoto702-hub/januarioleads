@@ -988,7 +988,11 @@ export function SearchLeadsView({
         ...business,
         instagramCheckedAt: presence.instagramCheckedAt,
         instagramUsername: presence.instagramUsername,
-        instagramDisplayName: presence.instagramDisplayName ?? business.instagramDisplayName ?? null,
+        instagramDisplayName: presence.instagramDisplayName ?? (
+          presence.instagramUrl && presence.instagramUrl === business.instagram
+            ? business.instagramDisplayName ?? null
+            : null
+        ),
         instagramCandidates: presence.instagramCandidates,
         instagramRejectedUrls: presence.instagramRejectedUrls,
         instagramSearchSignature: presence.instagramSearchSignature,
