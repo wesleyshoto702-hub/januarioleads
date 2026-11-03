@@ -1672,7 +1672,7 @@ async function instagramSearchSignature(business: {
 }) {
   return sha256Text(
     JSON.stringify({
-      version: "instagram-discovery-v2",
+      version: "instagram-discovery-v3",
       name: normalize(business.name),
       phone: normalizeBrazilianPhone(
         business.phone || business.internationalPhone,
