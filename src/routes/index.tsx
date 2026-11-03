@@ -52,7 +52,6 @@ import {
   fetchLeadUpdates,
   fetchRemoteLeads,
   markLeadUpdatesSeen,
-  migrateLocalLeads,
   saveRemoteLead,
   type LeadStatus,
   type LeadUpdateRecord,
@@ -92,6 +91,7 @@ import {
 } from "../features/search-leads/identity";
 import type { BusinessSearchResult } from "../features/search-leads/types";
 import { getValidSession, signOut, subscribeAuthChange } from "../lib/auth";
+import { accountLocalStorage } from "../lib/account-storage";
 import { openWhatsAppLink } from "../lib/whatsapp";
 import { BRAZIL_STATES, normalizeBrazilianStateCode } from "../lib/brazil-locations";
 import { normalizeLocationText } from "../lib/location";
@@ -112,7 +112,8 @@ export const Route = createFileRoute("/")({
 
 function PrivateLeadFlowApp() {
   const navigate = useNavigate();
-  const [authReady, setAuthReady] = useState(false);
+  const [authorizedUserId, setAuthorizedUserId] = useState<string | null>(null);
+  const [checkingAccess, setCheckingAccess] = useState(true);
 
   useEffect(() => {
     let active = true;
@@ -121,14 +122,22 @@ function PrivateLeadFlowApp() {
       const session = await getValidSession();
       if (!active) return;
       if (!session) {
+        setAuthorizedUserId(null);
+        setCheckingAccess(false);
         await navigate({ to: "/login", replace: true });
         return;
       }
-      setAuthReady(true);
+      setAuthorizedUserId(session.user.id);
+      setCheckingAccess(false);
     }
 
     void verify();
-    const unsubscribe = subscribeAuthChange(() => void verify());
+    const unsubscribe = subscribeAuthChange(() => {
+      // Immediately hide the previous tenant while the new session is verified.
+      setAuthorizedUserId(null);
+      setCheckingAccess(true);
+      void verify();
+    });
 
     return () => {
       active = false;
@@ -136,7 +145,7 @@ function PrivateLeadFlowApp() {
     };
   }, [navigate]);
 
-  if (!authReady) {
+  if (checkingAccess || !authorizedUserId) {
     return (
       <main className="auth-loading" aria-live="polite">
         <Loader2 size={20} className="auth-spinner" />
@@ -145,7 +154,7 @@ function PrivateLeadFlowApp() {
     );
   }
 
-  return <LeadFlowApp />;
+  return <LeadFlowApp key={authorizedUserId} />;
 }
 
 type Status = LeadStatus;
@@ -256,7 +265,7 @@ const INSTAGRAM_SOURCE_LABEL: Record<InstagramSource, string> = {
 function LeadFlowApp() {
   const navigate = useNavigate();
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [messages, setMessages] = useState<MessageTemplate[]>(DEFAULT_MESSAGE_TEMPLATES);
+  const [messages, setMessages] = useState<MessageTemplate[]>([]);
   const [theme, setTheme] = useState<"light" | "dark">("dark");
   const [hydrated, setHydrated] = useState(false);
   const [remoteReady, setRemoteReady] = useState(false);
@@ -320,9 +329,9 @@ function LeadFlowApp() {
     let localLeads: Lead[] = [];
 
     try {
-      const storedLeads = localStorage.getItem(STORAGE.leads);
-      const storedMessages = localStorage.getItem(STORAGE.messages);
-      const storedTheme = localStorage.getItem(STORAGE.theme) as
+      const storedLeads = accountLocalStorage.getItem(STORAGE.leads);
+      const storedMessages = accountLocalStorage.getItem(STORAGE.messages);
+      const storedTheme = accountLocalStorage.getItem(STORAGE.theme) as
         | "light"
         | "dark"
         | null;
@@ -337,11 +346,11 @@ function LeadFlowApp() {
       if (storedMessages) {
         const parsed = parseSavedMessageTemplates(JSON.parse(storedMessages));
         if (parsed) {
-          if (parsed.length === 0 && !localStorage.getItem(STORAGE.defaultMessagesRestored)) {
+          if (parsed.length === 0 && !accountLocalStorage.getItem(STORAGE.defaultMessagesRestored)) {
             // One-time recovery for users who removed every original message.
             // Custom deleted messages cannot be reconstructed without an existing backup.
             setMessages(DEFAULT_MESSAGE_TEMPLATES.map((item) => ({ ...item })));
-            localStorage.setItem(STORAGE.defaultMessagesRestored, "1");
+            accountLocalStorage.setItem(STORAGE.defaultMessagesRestored, "1");
           } else {
             setMessages(parsed);
           }
@@ -359,7 +368,7 @@ function LeadFlowApp() {
 
     async function connectRemoteStorage() {
       try {
-        const remoteLeads = await migrateLocalLeads(localLeads);
+        const remoteLeads = await fetchRemoteLeads();
         if (!active) return;
 
         setLeads(remoteLeads);
@@ -395,7 +404,7 @@ function LeadFlowApp() {
 
   useEffect(() => {
     if (!hydrated) return;
-    localStorage.setItem(STORAGE.leads, JSON.stringify(leads));
+    accountLocalStorage.setItem(STORAGE.leads, JSON.stringify(leads));
   }, [leads, hydrated]);
 
   useEffect(() => {
@@ -466,12 +475,12 @@ function LeadFlowApp() {
 
   useEffect(() => {
     if (!hydrated) return;
-    localStorage.setItem(STORAGE.messages, JSON.stringify(messages));
+    accountLocalStorage.setItem(STORAGE.messages, JSON.stringify(messages));
   }, [messages, hydrated]);
 
   useEffect(() => {
     if (!hydrated) return;
-    localStorage.setItem(STORAGE.theme, theme);
+    accountLocalStorage.setItem(STORAGE.theme, theme);
     document.documentElement.classList.toggle("dark", theme === "dark");
   }, [theme, hydrated]);
 
@@ -1445,7 +1454,7 @@ function LeadFlowApp() {
   function saveMessages(nextMessages: MessageTemplate[]) {
     setMessages(nextMessages);
     try {
-      localStorage.setItem(STORAGE.messages, JSON.stringify(nextMessages));
+      accountLocalStorage.setItem(STORAGE.messages, JSON.stringify(nextMessages));
       setSavedNotice(true);
       window.setTimeout(() => setSavedNotice(false), 1800);
     } catch {
