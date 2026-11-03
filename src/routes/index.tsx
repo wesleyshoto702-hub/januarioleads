@@ -91,7 +91,7 @@ import {
 } from "../features/search-leads/identity";
 import type { BusinessSearchResult } from "../features/search-leads/types";
 import { getValidSession, signOut, subscribeAuthChange } from "../lib/auth";
-import { accountLocalStorage } from "../lib/account-storage";
+import { accountLocalStorage, isLegacyWorkspaceOwner } from "../lib/account-storage";
 import { openWhatsAppLink } from "../lib/whatsapp";
 import { BRAZIL_STATES, normalizeBrazilianStateCode } from "../lib/brazil-locations";
 import { normalizeLocationText } from "../lib/location";
@@ -346,7 +346,7 @@ function LeadFlowApp() {
       if (storedMessages) {
         const parsed = parseSavedMessageTemplates(JSON.parse(storedMessages));
         if (parsed) {
-          if (parsed.length === 0 && !accountLocalStorage.getItem(STORAGE.defaultMessagesRestored)) {
+          if (parsed.length === 0 && isLegacyWorkspaceOwner() && !accountLocalStorage.getItem(STORAGE.defaultMessagesRestored)) {
             // One-time recovery for users who removed every original message.
             // Custom deleted messages cannot be reconstructed without an existing backup.
             setMessages(DEFAULT_MESSAGE_TEMPLATES.map((item) => ({ ...item })));
