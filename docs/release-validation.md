@@ -20,8 +20,10 @@ antigo não deve ser reaplicado sobre a baseline (ver database-recovery.md).
    autorizada. Ela ajusta somente uma CHECK constraint; não remove leads nem
    usuários. Ela é idempotente. Em outro ambiente, aplicá-la primeiro via
    mecanismo de migrações autorizado ou SQL Editor. Nunca usar a baseline em
-   banco existente. A aplicação manual não inscreve automaticamente esta versão
-   no histórico do Supabase CLI; reconciliar o ledger antes de um `db push`.
+   banco existente. Em 03/11/2026, após confirmar a CHECK constraint validada,
+   a versão `20261103220000` foi registrada no histórico remoto de migrações
+   **sem reaplicar o ALTER TABLE**. O Supabase confirmou a versão no ledger
+   e preservou 197 leads e 2 contas autorizadas.
 2. Publicar o frontend e as funções alteradas `deep-enrich-business` e
    `search-places` (ambas importam módulos compartilhados alterados).
 3. O workflow `deploy-search-places.yml` separa **validação** de
@@ -39,10 +41,20 @@ antigo não deve ser reaplicado sobre a baseline (ver database-recovery.md).
    `deep-enrich-business` v23 foram publicadas por conexão Supabase autorizada
    e verificadas como ativas. Uma validação verde de push **não significa**
    que ocorreu uma nova publicação.
-4. Em homologação, usar duas contas autorizadas em private_access para testar
+4. **Migrações antigas ainda divergentes**: o ledger remoto contém 49 versões,
+   mas o diretório local possui apenas 24 arquivos. Comparando timestamps,
+   35 versões estão somente no remoto e 10 somente no repositório. Isso inclui
+   migrações históricas ausentes e arquivos renomeados com timestamps diferentes.
+   **Não executar `supabase db push` em produção** antes de reconciliar todo
+   o histórico, revisar os SQLs com cuidado e fazer `supabase db push --dry-run`.
+   Usar `supabase migration list --linked` e, quando adequado, `supabase
+   migration fetch --linked`. `supabase migration repair --status applied`
+   altera somente o registro de histórico: aplicá-lo exclusivamente a mudanças
+   comprovadamente presentes, jamais para mascarar divergências reais.
+5. Em homologação, usar duas contas autorizadas em private_access para testar
    login, edição, exclusão, pagamentos, atualização da página e troca de conta.
    Testar com rede interrompida e restabelecida; pendências devem sobreviver.
-5. Executar buscas externas somente após confirmar segredos e limites de custos
+6. Executar buscas externas somente após confirmar segredos e limites de custos
    do ambiente. Não usar uma conta de cliente para testes que alteram dados.
 
 ## Provisionamento de um projeto novo
@@ -60,10 +72,13 @@ novo completo. Obter as configurações autoritativas antes de ativar o agendame
 
 ## Dependências externas ainda necessárias
 
-Nenhuma credencial de Supabase, conta de homologação ou credencial de implantação
-está disponível neste ambiente. O dump fornecido é estrutural e não concede acesso.
-A API do GitHub também rejeitou a autenticação disponível; o acesso Git é separado.
-Não registrar senhas ou tokens no repositório ou nesta documentação.
+A auditoria foi realizada com conexões autorizadas ao GitHub e ao Supabase,
+mas o token atualmente salvo no GitHub Actions **não tem** a permissão
+`edge_functions_write` necessária à publicação automática. A substituição do
+segredo `SUPABASE_ACCESS_TOKEN` deve ser feita pelo proprietário nas configurações
+do GitHub, sem colar o token no chat, no repositório ou nesta documentação.
+Contas de homologação e credenciais de terceiros devem ser providenciadas
+separadamente; o dump estrutural não fornece acesso.
 
 ## Frontend Lovable
 
