@@ -1,3 +1,4 @@
+import { safeExternalHref } from "../../lib/safe-external-url";
 import {
   ExternalLink,
   Globe,
@@ -457,7 +458,7 @@ export function BusinessDetailsModal({
             <h3>Presença online</h3>
             <div className="detail-links">
               {business.website ? (
-                <a href={business.website} target="_blank" rel="noreferrer">
+                <a href={safeExternalHref(business.website) ?? undefined} target="_blank" rel="noopener noreferrer">
                   <Globe size={15} /> Site <ExternalLink size={13} />
                 </a>
               ) : (
@@ -465,9 +466,9 @@ export function BusinessDetailsModal({
               )}
               {business.googleMapsUrl && (
                 <a
-                  href={business.googleMapsUrl}
+                  href={safeExternalHref(business.googleMapsUrl) ?? undefined}
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                 >
                   <MapPin size={15} /> Google Maps e avaliações{" "}
                   <ExternalLink size={13} />
@@ -499,9 +500,9 @@ export function BusinessDetailsModal({
                   </div>
                   <a
                     className="instagram-identified-link"
-                    href={confirmedInstagram}
+                    href={safeExternalHref(confirmedInstagram) ?? undefined}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                     aria-label="Abrir Instagram em nova aba"
                   >
                     <Instagram size={14} aria-hidden="true" />
@@ -543,9 +544,9 @@ export function BusinessDetailsModal({
                             {candidate.evidenceUrls.slice(0, 2).map((url, index) => (
                               <a
                                 key={url}
-                                href={url}
+                                href={safeExternalHref(url) ?? undefined}
                                 target="_blank"
-                                rel="noreferrer"
+                                rel="noopener noreferrer"
                               >
                                 Fonte pública {index + 1}
                                 <ExternalLink size={11} />
@@ -557,9 +558,9 @@ export function BusinessDetailsModal({
 
                       <div className="instagram-candidate-actions">
                         <a
-                          href={candidate.url}
+                          href={safeExternalHref(candidate.url) ?? undefined}
                           target="_blank"
-                          rel="noreferrer"
+                          rel="noopener noreferrer"
                         >
                           Abrir perfil
                         </a>
@@ -618,7 +619,7 @@ export function BusinessDetailsModal({
               ) : null}
 
               <div className="instagram-manual-actions">
-                <a href={googleInstagramSearch} target="_blank" rel="noopener noreferrer">
+                <a href={safeExternalHref(googleInstagramSearch) ?? undefined} target="_blank" rel="noopener noreferrer">
                   <ExternalLink size={14} /> Pesquisar no Google
                 </a>
                 <button type="button" onClick={() => {

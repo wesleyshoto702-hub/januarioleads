@@ -1,3 +1,4 @@
+import { safeExternalHref } from "../../lib/safe-external-url";
 import {
   AlertCircle,
   Check,
@@ -201,7 +202,8 @@ function openWhatsapp(business: BusinessSearchResult) {
 
   const confirmed = business.confirmedChannels?.whatsappUrl;
   if (confirmed) {
-    window.open(confirmed, "_blank", "noopener,noreferrer");
+    const href = safeExternalHref(confirmed);
+    if (href) window.open(href, "_blank", "noopener,noreferrer");
   }
 }
 

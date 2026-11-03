@@ -1,3 +1,4 @@
+import { safeExternalHref } from "../../lib/safe-external-url";
 import { accountLocalStorage, accountSessionStorage } from "../../lib/account-storage";
 import {
   ArrowLeft,
@@ -1506,21 +1507,21 @@ function BusinessCard({
 
         <div className="business-presence">
           {business.website ? (
-            <a href={business.website} target="_blank" rel="noreferrer">
+            <a href={safeExternalHref(business.website) ?? undefined} target="_blank" rel="noopener noreferrer">
               Site <ExternalLink size={12} />
             </a>
           ) : (
             <span>Site não identificado</span>
           )}
           {business.googleMapsUrl && (
-            <a href={business.googleMapsUrl} target="_blank" rel="noreferrer">
+            <a href={safeExternalHref(business.googleMapsUrl) ?? undefined} target="_blank" rel="noopener noreferrer">
               Google Maps <ExternalLink size={12} />
             </a>
           )}
           {hasConfirmedInstagram(business) && business.instagram ? (
             <a
               className="business-instagram-handle"
-              href={business.instagram}
+              href={safeExternalHref(business.instagram) ?? undefined}
               target="_blank"
               rel="noopener noreferrer"
               title="Abrir Instagram confirmado"

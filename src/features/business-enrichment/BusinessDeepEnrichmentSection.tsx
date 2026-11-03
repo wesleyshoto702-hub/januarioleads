@@ -1,3 +1,4 @@
+import { safeExternalHref } from "../../lib/safe-external-url";
 import {
   Check,
   ChevronDown,
@@ -397,7 +398,7 @@ export function BusinessDeepEnrichmentSection({
                         {factValue(fact.value) && <span>{factValue(fact.value)}</span>}
                         {fact.evidenceSummary && <small>{fact.evidenceSummary}</small>}
                         {fact.sourceUrl && (
-                          <a href={fact.sourceUrl} target="_blank" rel="noreferrer">
+                          <a href={safeExternalHref(fact.sourceUrl) ?? undefined} target="_blank" rel="noopener noreferrer">
                             Ver fonte <ExternalLink size={10} />
                           </a>
                         )}
@@ -431,7 +432,7 @@ export function BusinessDeepEnrichmentSection({
                   snapshot.sources.slice(0, 12).map((source) => (
                     <article className="deep-source-item" key={source.url}>
                       <div className="deep-source-title">
-                        <a href={source.url} target="_blank" rel="noreferrer">
+                        <a href={safeExternalHref(source.url) ?? undefined} target="_blank" rel="noopener noreferrer">
                           <span>{source.domain || source.url}</span>
                           <ExternalLink size={10} />
                         </a>

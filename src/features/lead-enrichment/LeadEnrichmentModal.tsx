@@ -1,3 +1,4 @@
+import { safeExternalHref } from "../../lib/safe-external-url";
 import {
   ExternalLink,
   Loader2,
@@ -253,27 +254,27 @@ export function LeadEnrichmentModal({
                       <div className="enrichment-links">
                         {candidate.business.website && (
                           <a
-                            href={candidate.business.website}
+                            href={safeExternalHref(candidate.business.website) ?? undefined}
                             target="_blank"
-                            rel="noreferrer"
+                            rel="noopener noreferrer"
                           >
                             Site <ExternalLink size={12} />
                           </a>
                         )}
                         {candidate.business.googleMapsUrl && (
                           <a
-                            href={candidate.business.googleMapsUrl}
+                            href={safeExternalHref(candidate.business.googleMapsUrl) ?? undefined}
                             target="_blank"
-                            rel="noreferrer"
+                            rel="noopener noreferrer"
                           >
                             Google Maps <ExternalLink size={12} />
                           </a>
                         )}
                         {candidate.business.instagram && (
                           <a
-                            href={candidate.business.instagram}
+                            href={safeExternalHref(candidate.business.instagram) ?? undefined}
                             target="_blank"
-                            rel="noreferrer"
+                            rel="noopener noreferrer"
                           >
                             Instagram <ExternalLink size={12} />
                           </a>
