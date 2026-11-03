@@ -93,19 +93,13 @@ Ao abrir **Ver empresa** e clicar em **Buscar Instagram na web**, o JanuarioLead
 4. Confere sinais de identidade e possíveis conflitos de localidade. Perfis duvidosos são apresentados como **candidatos**, nunca como confirmação automática.
 5. Oferece **Pesquisar no Google** e **Informar perfil manualmente**, para o usuário confirmar a conta oficial quando a busca automática não conseguir.
 
-### Instagram automático nos cartões de Buscar Leads
+### Instagram sob demanda nos cartões e em Ver empresa
 
-Depois que as empresas de um nicho/cidade aparecem em **Buscar Leads**, a interface já inicia, por padrão, uma **busca automática e progressiva de Instagram** para as empresas sem perfil confirmado, sem precisar abrir cada ficha. A seção de resultados mostra o andamento, perfis confirmados, candidatos para conferência e a chave para pausar a automação. Quando é encontrado um perfil confirmado, o link aparece diretamente no cartão.
+A pesquisa de **Buscar Leads** não inicia investigações de Instagram automaticamente, evitando consultas caras, espera e estouro de cotas. O cartão mostra somente o **`@usuario`** quando existe um perfil já confirmado, inclusive quando ele foi salvo anteriormente em **Meus Leads**. Perfis candidatos podem ser conferidos em **Ver empresa**.
 
-- A descoberta automática agora tem **duas etapas**: primeiro, até **20 verificações rápidas em sites oficiais** com quatro trabalhadores paralelos e cota separada (**80 verificações de site a cada 15 minutos por usuário**); em seguida, até **8 investigações web públicas mais profundas** com dois trabalhadores paralelos, dentro da cota existente de **20 buscas profundas a cada 15 minutos**. As pesquisas web podem ser lentas e gerar cobrança por consulta.
-- **Somente @perfil:** os cartões e a ficha exibem diretamente o `@usuario` confirmado, sem repetir o nome comercial da empresa. Se houver apenas candidatos com evidência limitada, o sistema pede confirmação em vez de apontar um perfil como oficial.
-- Resultados de sites oficiais aparecem assim que forem identificados, mesmo enquanto buscas profundas continuam em andamento. Pesquisas já verificadas em cache não precisam ser feitas novamente.
-- Quando o usuário usa **Carregar mais**, empresas já consultadas na mesma cidade não geram novas solicitações. Resultados e perfis confirmados em **Meus Leads** e caches existentes também são reutilizados.
-- Se o limite ou alguma credencial bloquear a descoberta, a automação para e apresenta o aviso. Perfis que não puderam ser confirmados nunca são inventados; potenciais candidatos aparecem com o botão de conferência.
-- O estado da opção **Ativado/Pausado** é mantido no navegador. A busca automática faz chamadas à API e pode gerar custos financeiros conforme o uso do Google/Supabase/OpenAI.
-- A descoberta ocorre para os resultados carregados de cada pesquisa, **não para todos os negócios de todos os municípios ao mesmo tempo**.
+Para procurar um Instagram ainda desconhecido, abra **Ver empresa → Buscar Instagram na web**. Essa ação consulta os sites oficiais e, se necessário, utiliza a pesquisa pública complementar. Você também pode abrir a busca no Google ou **informar/confirmar o @perfil manualmente**. O resultado confirmado é salvo e pode aparecer diretamente nos cartões nas próximas consultas.
 
-Resultados inconclusivos são armazenados por 24 horas; perfis encontrados usam um cache mais longo. Não há garantia de encontrar todos os perfis, especialmente para empresas sem Instagram público ou com dados incompletos.
+A função `search-places` e os limites separados do Supabase para consulta a sites e pesquisa web continuam disponíveis **somente sob demanda**. Resultados inconclusivos possuem cache de 24 horas; perfis confirmados são reaproveitados para reduzir requisições. Não há garantia de encontrar todas as empresas no Instagram, especialmente quando não possuem perfil público.
 
 ### Implantação no Supabase
 
