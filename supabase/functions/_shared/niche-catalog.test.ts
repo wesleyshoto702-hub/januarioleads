@@ -65,11 +65,14 @@ Deno.test("new industries have full mapping, not generic fallback", () => {
     "Cerimonialista", "Loja Agropecuária", "Consultoria Agrícola",
     "Móveis Planejados", "Energia Solar",
   ];
-  const mapped = new Map(CURRENT_NICHE_COVERAGE.map((row) => [row.segment, row]));
+  const mapped = new Map<string, (typeof CURRENT_NICHE_COVERAGE)[number]>(
+    CURRENT_NICHE_COVERAGE.map((row) => [row.segment, row]),
+  );
   for (const segment of expected) {
     const item = mapped.get(segment);
     assert(item !== undefined, `New niche lacks coverage: ${segment}`);
-    assert(item.family !== "generic_local_business", `Missing family: ${segment}`);
+    const family: string = item.family;
+    assert(family !== "generic_local_business", `Missing family: ${segment}`);
     assert(resolveNicheStrategy({ segment }).nicheKey === item.nicheKey,
       `Strategy does not resolve ${segment}`);
   }
