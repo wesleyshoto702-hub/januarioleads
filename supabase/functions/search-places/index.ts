@@ -1203,6 +1203,7 @@ type PresenceSource =
 type InstagramCandidate = {
   url: string;
   username: string;
+  displayName?: string | null;
   confidence: "medium" | "low";
   score: number;
   signals: string[];
@@ -1212,6 +1213,7 @@ type InstagramCandidate = {
 type BusinessPresence = {
   instagramUrl: string | null;
   instagramUsername: string | null;
+  instagramDisplayName?: string | null;
   instagramConfidence: PresenceConfidence | null;
   instagramSource: PresenceSource | null;
   instagramCheckedAt: string;
@@ -1925,6 +1927,7 @@ function scoreInstagramCandidate(
   return {
     url: candidate.instagramUrl,
     username: candidate.username,
+    displayName: candidate.publicName?.trim().slice(0, 120) || null,
     confidence,
     score,
     signals: signals.slice(0, 5),
@@ -2103,12 +2106,12 @@ async function discoverInstagramOnWeb(
     body: JSON.stringify({
       model: Deno.env.get("OPENAI_INSTAGRAM_MODEL")?.trim() || "gpt-6.1-terra",
       reasoning: { effort: "low" },
-      max_output_tokens: 3500,
-      max_tool_calls: 4,
+      max_output_tokens: 2400,
+      max_tool_calls: 3,
       tools: [
         {
           type: "web_search",
-          search_context_size: "medium",
+          search_context_size: "low",
           external_web_access: true,
         },
       ],
@@ -2299,6 +2302,7 @@ async function runPresenceDiscovery(body: Record<string, unknown>) {
     name,
     website: cleanString(rawBusiness.website, 500),
     instagram: cleanString(rawBusiness.instagram, 500),
+    instagramDisplayName: cleanString(rawBusiness.instagramDisplayName, 120),
     instagramConfidence: cleanString(rawBusiness.instagramConfidence, 20),
     instagramSource: cleanString(rawBusiness.instagramSource, 40),
     phone: cleanString(rawBusiness.phone, 80),
@@ -2341,6 +2345,7 @@ async function runPresenceDiscovery(body: Record<string, unknown>) {
     const presence: BusinessPresence = {
       instagramUrl: knownInstagram,
       instagramUsername: instagramUsername(knownInstagram),
+      instagramDisplayName: business.instagramDisplayName || null,
       instagramConfidence: "high",
       instagramSource: source,
       instagramCheckedAt: checkedAt,
@@ -2356,6 +2361,7 @@ async function runPresenceDiscovery(body: Record<string, unknown>) {
     const presence: BusinessPresence = {
       instagramUrl: knownInstagram,
       instagramUsername: instagramUsername(knownInstagram),
+      instagramDisplayName: business.instagramDisplayName || null,
       instagramConfidence: "high",
       instagramSource: "google_places",
       instagramCheckedAt: checkedAt,
@@ -2377,6 +2383,7 @@ async function runPresenceDiscovery(body: Record<string, unknown>) {
     const presence: BusinessPresence = {
       instagramUrl: profile,
       instagramUsername: instagramUsername(profile),
+      instagramDisplayName: null,
       instagramConfidence: "high",
       instagramSource: "official_website",
       instagramCheckedAt: checkedAt,
@@ -2493,6 +2500,7 @@ async function runPresenceDiscovery(body: Record<string, unknown>) {
     const presence: BusinessPresence = {
       instagramUrl: first.url,
       instagramUsername: first.username,
+      instagramDisplayName: first.displayName ?? null,
       instagramConfidence: "high",
       instagramSource: "web_search",
       instagramCheckedAt: checkedAt,
@@ -2511,6 +2519,7 @@ async function runPresenceDiscovery(body: Record<string, unknown>) {
       .map((candidate) => ({
         url: candidate.url,
         username: candidate.username,
+        displayName: candidate.displayName ?? null,
         confidence: candidate.confidence,
         score: candidate.score,
         signals: candidate.signals,
