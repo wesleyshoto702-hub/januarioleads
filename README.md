@@ -95,9 +95,19 @@ Ao abrir **Ver empresa** e clicar em **Buscar Instagram na web**, o JanuarioLead
 
 Resultados inconclusivos são armazenados por 24 horas; perfis encontrados usam um cache mais longo. A busca web é acionada sob demanda, não em lote para toda a carteira: ela tem custo de API e pode consumir cotas. Não há garantia de encontrar todos os perfis, especialmente para empresas sem Instagram público ou com dados incompletos.
 
-### Implantação
+### Implantação no Supabase
 
-O frontend precisa ser publicado normalmente pela integração do projeto. As mudanças de busca no servidor também exigem publicar a Edge Function `search-places` no projeto Supabase conectado. Configure a variável privada `OPENAI_API_KEY` no ambiente da função para habilitar a busca web complementar. Se essa chave não estiver configurada, os links de Instagram identificados diretamente em sites oficiais ainda são encontrados, mas a etapa de busca web retorna aviso de configuração.
+A função pode ser implantada por meio do workflow manual [Publicar search-places no Supabase](.github/workflows/deploy-search-places.yml), já configurado para o projeto de referência `czkazbianiflhldenhcj` identificado no código. Esse workflow **não é executado automaticamente** e publica apenas `search-places`.
+
+1. Na conta do [Supabase](https://supabase.com/dashboard/account/tokens), crie um **Personal Access Token** autorizado a administrar o projeto.
+2. Em [OpenAI API Keys](https://platform.openai.com/api-keys), crie uma **API key de plataforma** com faturamento/cotas apropriados. Uma assinatura do ChatGPT não substitui essa chave.
+3. No GitHub, abra **Settings → Secrets and variables → Actions → New repository secret** e cadastre `SUPABASE_ACCESS_TOKEN` com o token do Supabase e `OPENAI_API_KEY` com a chave da OpenAI.
+4. Vá até **Actions → Publicar search-places no Supabase → Run workflow**, escolha `main` e execute. O workflow valida que os dois segredos existem, cadastra `OPENAI_API_KEY` nos segredos privados de Edge Functions, publica apenas `search-places` e lista as funções do projeto para conferência.
+5. Com a função publicada e a versão web atualizada, teste **Ver empresa → Buscar Instagram na web** com empresas de cidades e nichos diferentes.
+
+**Segurança:** não cole tokens nas mensagens do chat nem faça commit de chaves no repositório. O workflow recebe os valores apenas pelos segredos protegidos do GitHub e os transmite à configuração privada do Supabase. Não imprime os valores deliberadamente.
+
+O modelo da busca pode ser substituído no ambiente do Supabase por `OPENAI_INSTAGRAM_MODEL`; por padrão, usa `gpt-6.1-terra`. A busca web gera cobranças de API e pode falhar por falta de crédito, permissão ou cota. O fluxo manual também exige que a implantação do frontend Lovable/publicado já tenha sido realizada.
 
 O código permanece sem acesso a perfis privados, sem login no Instagram e sem coleta por APIs não autorizadas. Recomenda-se testar com empresas de cidades distintas e comparar os resultados com os perfis públicos realmente oficiais.
 
@@ -189,7 +199,7 @@ A descoberta continua centralizada no fluxo de presença online e usa camadas co
 2. site oficial identificado, procurando links públicos diretos para perfis do Instagram na página principal e, quando disponível, na página de contato;
 3. busca pública complementar pela OpenAI Responses API com a ferramenta hospedada `web_search`, somente quando uma ação de descoberta profunda é solicitada e as camadas anteriores não confirmaram o perfil.
 
-A camada web reutiliza a `OPENAI_API_KEY` já existente no backend e o modelo `gpt-5.6-terra`. Ela não usa Browserless, não raspa google.com/Google Maps e não acessa Instagram com login.
+A camada web reutiliza a `OPENAI_API_KEY` já existente no backend e o modelo `gpt-6.1-terra`. Ela não usa Browserless, não raspa google.com/Google Maps e não acessa Instagram com login.
 
 O backend limita a busca a poucos resultados, coleta no máximo três candidatos e valida sinais como:
 
