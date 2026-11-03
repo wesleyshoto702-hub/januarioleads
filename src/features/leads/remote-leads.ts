@@ -38,6 +38,7 @@ export type PersistedLead = {
   instagramSource?: InstagramSource | undefined;
   instagramCheckedAt?: string | undefined;
   instagramUsername?: string | undefined;
+  instagramDisplayName?: string | undefined;
   instagramCandidates?: InstagramCandidate[] | undefined;
   instagramRejectedUrls?: string[] | undefined;
   instagramSearchSignature?: string | undefined;
@@ -112,6 +113,7 @@ type RemoteLead = {
   instagram_source: InstagramSource | null;
   instagram_checked_at: string | null;
   instagram_username: string | null;
+  instagram_display_name: string | null;
   instagram_candidates: InstagramCandidate[];
   instagram_rejected_urls: string[];
   instagram_search_signature: string | null;
@@ -208,6 +210,7 @@ function toRemote(lead: PersistedLead, userId: string) {
     instagram_source: lead.instagramSource,
     instagram_checked_at: lead.instagramCheckedAt,
     instagram_username: lead.instagramUsername,
+    instagram_display_name: lead.instagramDisplayName,
     instagram_candidates: lead.instagramCandidates ?? [],
     instagram_rejected_urls: lead.instagramRejectedUrls ?? [],
     instagram_search_signature: lead.instagramSearchSignature,
@@ -265,6 +268,7 @@ function fromRemote(row: RemoteLead): PersistedLead {
     instagramSource: row.instagram_source ?? undefined,
     instagramCheckedAt: row.instagram_checked_at ?? undefined,
     instagramUsername: row.instagram_username ?? undefined,
+    instagramDisplayName: row.instagram_display_name ?? undefined,
     instagramCandidates: row.instagram_candidates ?? [],
     instagramRejectedUrls: row.instagram_rejected_urls ?? [],
     instagramSearchSignature: row.instagram_search_signature ?? undefined,
