@@ -4,7 +4,7 @@ import {
   OPEN_NOW_CACHE_TTL_MS,
   type OpeningHoursSnapshot,
 } from "../_shared/open-now.ts";
-import { ALL_SEARCH_SEGMENTS } from "../_shared/niche-catalog.ts";
+import { resolveSearchSegment, searchTextForSegment } from "../_shared/niche-catalog.ts";
 import {
   findBrazilianState,
   normalizeBrazilianStateCode,
@@ -449,7 +449,7 @@ async function googleSearch(
   pageToken?: string,
 ) {
   const body: Record<string, unknown> = {
-    textQuery: `${segment} em ${city}, ${findBrazilianState(state)?.name ?? state}, Brasil`,
+    textQuery: `${searchTextForSegment(segment) ?? segment} em ${city}, ${findBrazilianState(state)?.name ?? state}, Brasil`,
     pageSize: 20,
     languageCode: "pt-BR",
     regionCode: "BR",
@@ -784,8 +784,10 @@ async function runRefresh(
   body: Record<string, unknown>,
 ) {
   const segment =
-    typeof body.segment === "string" ? body.segment.trim() : "";
-  if (!ALL_SEARCH_SEGMENTS.includes(segment)) {
+    typeof body.segment === "string"
+      ? resolveSearchSegment(body.segment.trim()) ?? ""
+      : "";
+  if (!segment) {
     return failure("INVALID_SEGMENT", "O nicho informado não existe no catálogo atual.", 400);
   }
 
