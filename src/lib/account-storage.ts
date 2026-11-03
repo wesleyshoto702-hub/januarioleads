@@ -114,3 +114,7 @@ export function migrateLegacyWorkspace(): void {
 export function currentWorkspaceUserId(): string | null {
   return workspaceUserId();
 }
+
+export function isLegacyWorkspaceOwner(): boolean {
+  return workspaceUserId() === LEGACY_WORKSPACE_OWNER;
+}
