@@ -4,6 +4,7 @@ import {
   accountSessionStorage,
   currentWorkspaceUserId,
   migrateLegacyWorkspace,
+  isLegacyWorkspaceOwner,
 } from "./account-storage.ts";
 
 type MockStorage = Storage & { values: Map<string, string> };
@@ -59,6 +60,7 @@ Deno.test("new account starts with zero leads, messages, caches and recent searc
     session.setItem("leadflow:search-leads-session:v1", '{"private":true}');
     logIn(OTHER);
     migrateLegacyWorkspace();
+    assert(!isLegacyWorkspaceOwner(), "Other accounts must not restore original messages");
 
     for (const key of [
       "leadflow:leads",
@@ -87,6 +89,7 @@ Deno.test("original owner retains old browser data without exposing it to anothe
     accountSessionStorage.setItem("leadflow:search-leads-session:v1", '{"new":true}');
     assert(accountLocalStorage.length === 2, "Wrong new account workspace count");
     logIn(ORIGINAL);
+    assert(isLegacyWorkspaceOwner(), "Original owner must be able to recover old templates");
     assert(accountLocalStorage.getItem("leadflow:messages")?.includes("My own") === true,
       "Original messages lost on migration");
     assert(accountLocalStorage.getItem("leadflow:leads")?.includes("Original lead") === true,
