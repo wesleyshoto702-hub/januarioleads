@@ -85,6 +85,7 @@ type Props = {
   existingLeads: PersistedLead[];
   onAddLead: (business: BusinessSearchResult, selectedSegment: string) => void;
   onMessage: (target: SearchMessageTarget) => void;
+  onPresenceDiscovered?: (leadId: string, presence: BusinessPresence) => void;
 };
 
 type OpenBusinessRow = {
@@ -289,6 +290,7 @@ export function OpenNowNichesView({
   existingLeads,
   onAddLead,
   onMessage,
+  onPresenceDiscovered,
 }: Props) {
   const initialLocation = useMemo(() => loadOpenNowLocation(), []);
   const [city, setCity] = useState(initialLocation.city);
@@ -1316,10 +1318,6 @@ export function OpenNowNichesView({
           (findBusinessDuplicate(details.business, existingLeads) as PersistedLead | null) ??
           null;
         const chance = calculateLeadChance(details.business,details.segment);
-        const row = {
-          business:details.business,
-          existingLead,
-        };
         return (
           <BusinessDetailsModal
             business={details.business}
@@ -1330,7 +1328,12 @@ export function OpenNowNichesView({
             onClose={()=>setDetails(null)}
             onWhatsApp={openWhatsapp}
             onMessage={onMessage}
-            onPresenceUpdate={(presence)=>applyPresence(details.business,presence)}
+            onPresenceUpdate={(presence) => {
+              applyPresence(details.business, presence);
+              if (existingLead?.id) {
+                onPresenceDiscovered?.(existingLead.id, presence);
+              }
+            }}
             onAdd={(business) =>
               onAddLead(
                 withSearchLocation(business, { city, state }),
