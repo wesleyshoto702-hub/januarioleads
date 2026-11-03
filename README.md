@@ -83,6 +83,24 @@ A função está configurada em `supabase/config.toml`.
 - Cobertura nacional não significa execução automática de buscas em todos os municípios: a prospecção continua por cidade/nicho, respeitando limites e custos da API do Google Places.
 
 
+## Busca de Instagram (cobertura ampliada)
+
+Ao abrir **Ver empresa** e clicar em **Buscar Instagram na web**, o JanuarioLeads:
+
+1. Usa o perfil que já foi confirmado manualmente, caso exista.
+2. Consulta o site oficial, incluindo links HTML/JSON-LD, páginas de contato/redes sociais e páginas de link na bio que sejam apontadas pelo próprio site.
+3. Se não encontrar um perfil inequívoco, consulta fontes públicas indexadas usando a API da OpenAI (busca web), combinando nome, nicho, cidade, UF e telefone.
+4. Confere sinais de identidade e possíveis conflitos de localidade. Perfis duvidosos são apresentados como **candidatos**, nunca como confirmação automática.
+5. Oferece **Pesquisar no Google** e **Informar perfil manualmente**, para o usuário confirmar a conta oficial quando a busca automática não conseguir.
+
+Resultados inconclusivos são armazenados por 24 horas; perfis encontrados usam um cache mais longo. A busca web é acionada sob demanda, não em lote para toda a carteira: ela tem custo de API e pode consumir cotas. Não há garantia de encontrar todos os perfis, especialmente para empresas sem Instagram público ou com dados incompletos.
+
+### Implantação
+
+O frontend precisa ser publicado normalmente pela integração do projeto. As mudanças de busca no servidor também exigem publicar a Edge Function `search-places` no projeto Supabase conectado. Configure a variável privada `OPENAI_API_KEY` no ambiente da função para habilitar a busca web complementar. Se essa chave não estiver configurada, os links de Instagram identificados diretamente em sites oficiais ainda são encontrados, mas a etapa de busca web retorna aviso de configuração.
+
+O código permanece sem acesso a perfis privados, sem login no Instagram e sem coleta por APIs não autorizadas. Recomenda-se testar com empresas de cidades distintas e comparar os resultados com os perfis públicos realmente oficiais.
+
 ## Buscar informações
 
 A ação **Buscar informações** enriquece leads adicionados manualmente com dados reais do Google Places, reutilizando a Edge Function `search-places` e a mesma `GOOGLE_PLACES_API_KEY`.
