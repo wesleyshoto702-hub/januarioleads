@@ -37,6 +37,7 @@ import {
   resolveMunicipality,
   saveSearchLocation,
   searchLocationKey,
+  withSearchLocation,
   type SearchLocation,
 } from "./search-location";
 import {
@@ -986,13 +987,13 @@ export function SearchLeadsView({
         <div className="page-heading search-page-heading">
           <div>
             <p className="eyebrow">
-              {selectedState.name.toLocaleUpperCase("pt-BR")} · {selectedState.code}
+              PROSPECÇÃO NACIONAL · BRASIL · {selectedState.name.toLocaleUpperCase("pt-BR")} ({selectedState.code})
             </p>
             <h1>
               Encontre empresas em {(selectedCity ?? cityInput.trim()) || searchLocation.city}
             </h1>
             <p className="subtitle">
-              Escolha a cidade e o segmento para encontrar possíveis clientes.
+              Pesquise empresas em qualquer município do Brasil: selecione a UF, a cidade e o nicho.
             </p>
           </div>
         </div>
@@ -1302,7 +1303,7 @@ export function SearchLeadsView({
               onWhatsApp={openWhatsApp}
               onMessage={onMessage}
               onAdd={(item) => {
-                void onAddLead(item, resultsSegment);
+                void onAddLead(withSearchLocation(item, resultsLocation), resultsSegment);
               }}
             />
           ))}
@@ -1357,7 +1358,7 @@ export function SearchLeadsView({
           onPresenceUpdate={(presence) =>
             updateBusinessPresence(details.placeId, presence)
           }
-          onAdd={(item) => onAddLead(item, resultsSegment)}
+          onAdd={(item) => onAddLead(withSearchLocation(item, resultsLocation), resultsSegment)}
         />
         );
       })()}
