@@ -1,0 +1,68 @@
+-- CÓPIA HISTÓRICA: NÃO EXECUTAR / NÃO INCLUIR EM supabase/migrations
+-- Versão aplicada anteriormente no Supabase: 20260929024235
+-- SQL recuperado do ledger remoto; seu corpo original começa após esta linha.
+
+
+create index if not exists lead_activities_lead_id_idx
+  on public.lead_activities(lead_id);
+
+drop policy if exists lead_activities_update_manual_note_own
+  on public.lead_activities;
+
+create policy lead_activities_update_manual_note_own
+on public.lead_activities
+for update
+to authenticated
+using (
+  (select auth.uid()) = user_id
+  and type = 'manual_note'
+  and exists (
+    select 1
+    from public.private_access pa
+    where pa.user_id = (select auth.uid())
+  )
+  and exists (
+    select 1
+    from public.leads l
+    where l.id = lead_id
+      and l.user_id = (select auth.uid())
+  )
+)
+with check (
+  (select auth.uid()) = user_id
+  and type = 'manual_note'
+  and exists (
+    select 1
+    from public.private_access pa
+    where pa.user_id = (select auth.uid())
+  )
+  and exists (
+    select 1
+    from public.leads l
+    where l.id = lead_id
+      and l.user_id = (select auth.uid())
+  )
+);
+
+drop policy if exists lead_activities_delete_manual_note_own
+  on public.lead_activities;
+
+create policy lead_activities_delete_manual_note_own
+on public.lead_activities
+for delete
+to authenticated
+using (
+  (select auth.uid()) = user_id
+  and type = 'manual_note'
+  and exists (
+    select 1
+    from public.private_access pa
+    where pa.user_id = (select auth.uid())
+  )
+  and exists (
+    select 1
+    from public.leads l
+    where l.id = lead_id
+      and l.user_id = (select auth.uid())
+  )
+);

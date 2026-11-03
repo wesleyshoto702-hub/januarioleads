@@ -1,0 +1,42 @@
+-- CÓPIA HISTÓRICA: NÃO EXECUTAR / NÃO INCLUIR EM supabase/migrations
+-- Versão aplicada anteriormente no Supabase: 20260929024005
+-- SQL recuperado do ledger remoto; seu corpo original começa após esta linha.
+
+
+create or replace function public.record_lead_added_activity()
+returns trigger
+language plpgsql
+security invoker
+set search_path = public
+as $$
+begin
+  insert into public.lead_activities (
+    lead_id,
+    user_id,
+    type,
+    title,
+    description,
+    metadata,
+    created_at
+  )
+  values (
+    new.id,
+    new.user_id,
+    'lead_added',
+    'Empresa adicionada aos Meus Leads',
+    null,
+    '{}'::jsonb,
+    new.created_at
+  )
+  on conflict do nothing;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists leads_record_added_activity on public.leads;
+
+create trigger leads_record_added_activity
+after insert on public.leads
+for each row
+execute function public.record_lead_added_activity();

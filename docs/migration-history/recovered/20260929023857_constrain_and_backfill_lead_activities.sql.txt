@@ -1,0 +1,38 @@
+-- CÓPIA HISTÓRICA: NÃO EXECUTAR / NÃO INCLUIR EM supabase/migrations
+-- Versão aplicada anteriormente no Supabase: 20260929023857
+-- SQL recuperado do ledger remoto; seu corpo original começa após esta linha.
+
+
+alter table public.lead_activities
+  add constraint lead_activities_type_check
+  check (
+    type in (
+      'lead_added',
+      'whatsapp_opened',
+      'prompt_generated',
+      'status_changed',
+      'company_updated',
+      'lead_edited',
+      'manual_note'
+    )
+  );
+
+insert into public.lead_activities (
+  lead_id,
+  user_id,
+  type,
+  title,
+  description,
+  metadata,
+  created_at
+)
+select
+  l.id,
+  l.user_id,
+  'lead_added',
+  'Empresa adicionada aos Meus Leads',
+  null,
+  '{}'::jsonb,
+  l.created_at
+from public.leads l
+on conflict do nothing;

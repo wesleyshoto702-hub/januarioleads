@@ -1,0 +1,8 @@
+-- CÓPIA HISTÓRICA: NÃO EXECUTAR / NÃO INCLUIR EM supabase/migrations
+-- Versão aplicada anteriormente no Supabase: 20260929024849
+-- SQL recuperado do ledger remoto; seu corpo original começa após esta linha.
+
+
+revoke all on function public.record_lead_added_activity() from public;
+revoke all on function public.record_lead_added_activity() from anon;
+revoke all on function public.record_lead_added_activity() from authenticated;

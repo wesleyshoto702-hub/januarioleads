@@ -1,0 +1,161 @@
+-- CÓPIA HISTÓRICA: NÃO EXECUTAR / NÃO INCLUIR EM supabase/migrations
+-- Versão aplicada anteriormente no Supabase: 20260929164500
+-- SQL recuperado do ledger remoto; seu corpo original começa após esta linha.
+
+
+alter table public.prompt_visual_references
+  add column if not exists reference_type text not null default 'image',
+  add column if not exists source_url text,
+  add column if not exists source_domain text,
+  add column if not exists capture_status text,
+  add column if not exists capture_error text,
+  add column if not exists capture_hash text,
+  add column if not exists capture_final_url text,
+  add column if not exists capture_title text,
+  add column if not exists captured_at timestamptz;
+
+alter table public.prompt_visual_references
+  alter column file_hash drop not null,
+  alter column storage_path drop not null,
+  alter column mime_type drop not null,
+  alter column byte_size drop not null,
+  alter column width drop not null,
+  alter column height drop not null;
+
+update public.prompt_visual_references
+set reference_type = 'image'
+where reference_type is null;
+
+alter table public.prompt_visual_references
+  drop constraint if exists prompt_visual_references_reference_type_check,
+  drop constraint if exists prompt_visual_references_capture_status_check,
+  drop constraint if exists prompt_visual_references_shape_check;
+
+alter table public.prompt_visual_references
+  add constraint prompt_visual_references_reference_type_check
+    check (reference_type in ('image','url')),
+  add constraint prompt_visual_references_capture_status_check
+    check (
+      capture_status is null
+      or capture_status in ('pending','ready','failed')
+    ),
+  add constraint prompt_visual_references_shape_check
+    check (
+      (
+        reference_type = 'image'
+        and file_hash is not null
+        and storage_path is not null
+        and mime_type = 'image/webp'
+        and byte_size is not null
+        and width is not null
+        and height is not null
+        and source_url is null
+      )
+      or
+      (
+        reference_type = 'url'
+        and source_url is not null
+        and source_domain is not null
+      )
+    );
+
+create unique index if not exists prompt_visual_references_set_url_unique_idx
+  on public.prompt_visual_references(set_id, source_url)
+  where reference_type = 'url';
+
+create table if not exists public.prompt_visual_reference_assets (
+  id uuid primary key default extensions.gen_random_uuid(),
+  reference_id uuid not null references public.prompt_visual_references(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  storage_path text not null,
+  file_hash text not null,
+  mime_type text not null default 'image/webp',
+  byte_size integer not null,
+  width integer not null,
+  height integer not null,
+  segment_kind text not null,
+  sort_order smallint not null,
+  created_at timestamptz not null default now(),
+  unique(reference_id, sort_order),
+  unique(reference_id, file_hash),
+  constraint prompt_visual_reference_assets_mime_check
+    check (mime_type = 'image/webp'),
+  constraint prompt_visual_reference_assets_segment_check
+    check (segment_kind in ('full','hero','middle','final')),
+  constraint prompt_visual_reference_assets_size_check
+    check (byte_size > 0 and byte_size <= 3145728),
+  constraint prompt_visual_reference_assets_dimensions_check
+    check (width > 0 and height > 0)
+);
+
+create index if not exists prompt_visual_reference_assets_user_id_idx
+  on public.prompt_visual_reference_assets(user_id);
+
+alter table public.prompt_visual_reference_assets enable row level security;
+
+drop policy if exists prompt_visual_reference_assets_select_own
+  on public.prompt_visual_reference_assets;
+create policy prompt_visual_reference_assets_select_own
+on public.prompt_visual_reference_assets
+for select
+to authenticated
+using (
+  (select auth.uid()) = user_id
+  and exists (
+    select 1 from public.private_access pa
+    where pa.user_id = (select auth.uid())
+  )
+  and exists (
+    select 1
+    from public.prompt_visual_references r
+    join public.prompt_visual_reference_sets s on s.id = r.set_id
+    where r.id = reference_id
+      and r.user_id = (select auth.uid())
+      and s.user_id = (select auth.uid())
+  )
+);
+
+drop policy if exists prompt_visual_reference_assets_insert_own
+  on public.prompt_visual_reference_assets;
+create policy prompt_visual_reference_assets_insert_own
+on public.prompt_visual_reference_assets
+for insert
+to authenticated
+with check (
+  (select auth.uid()) = user_id
+  and exists (
+    select 1 from public.private_access pa
+    where pa.user_id = (select auth.uid())
+  )
+  and exists (
+    select 1
+    from public.prompt_visual_references r
+    join public.prompt_visual_reference_sets s on s.id = r.set_id
+    where r.id = reference_id
+      and r.user_id = (select auth.uid())
+      and s.user_id = (select auth.uid())
+  )
+);
+
+drop policy if exists prompt_visual_reference_assets_delete_own
+  on public.prompt_visual_reference_assets;
+create policy prompt_visual_reference_assets_delete_own
+on public.prompt_visual_reference_assets
+for delete
+to authenticated
+using (
+  (select auth.uid()) = user_id
+  and exists (
+    select 1 from public.private_access pa
+    where pa.user_id = (select auth.uid())
+  )
+  and exists (
+    select 1
+    from public.prompt_visual_references r
+    where r.id = reference_id
+      and r.user_id = (select auth.uid())
+  )
+);
+
+revoke all on table public.prompt_visual_reference_assets from anon;
+grant select, insert, delete on table public.prompt_visual_reference_assets to authenticated;

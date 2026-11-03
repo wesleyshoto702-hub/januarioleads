@@ -9,11 +9,11 @@ Supabase `czkazbianiflhldenhcj`, comparado com o diretório
 - **51 migrações** registradas no banco e **24 arquivos** ativos no repositório.
 - Todas as 24 versões locais aparecem no ledger remoto.
 - **27 versões remotas** não possuem arquivo correspondente no diretório ativo.
-- Foram recuperadas **4 cópias de SQL de índices de baixo risco** em
+- Foram recuperadas **15 cópias de SQL históricos revisados** em
   `docs/migration-history/recovered/*.sql.txt`. Estes arquivos são
   **arquivos históricos**, não migrações executáveis pelo Supabase CLI.
-- **23 históricos permanecem sob revisão e sem SQL bruto no GitHub**,
-  especialmente os que tratam de cadastro privilegiado, dados, Cron,
+- **12 históricos permanecem somente no ledger remoto, com revisão de risco concluída**,
+  por envolverem cadastro privilegiado, dados, Cron,
   Vault, integrações e/ou permissões. Essa decisão evita registrar
   identificadores particulares ou material de configuração sensível.
 - O MD5 é apenas uma referência de integridade para confrontar o
@@ -70,3 +70,12 @@ Supabase `czkazbianiflhldenhcj`, comparado com o diretório
 A recuperação **parcial de 4 arquivos** não significa que a reconciliação das
 27 versões está concluída. O inventário está completo; a recuperação operacional
 permanece parcial.
+
+## Revisão aprofundada (03/11/2026)
+
+A [revisão individual das outras 23 versões](migration-history-review-23.md)
+concluiu a triagem: 11 arquivos adicionais foram arquivados como texto
+não executável, além dos 4 de índices anteriores; os outros 12 contêm
+dados ou comandos que não devem ser republicados ou reexecutados.
+Os registros originais permanecem disponíveis no ledger remoto e o
+histórico operacional não foi artificialmente reescrito.
