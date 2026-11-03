@@ -55,7 +55,7 @@ async function sha256Text(value: string) {
 export async function presenceSearchSignature(business: PresenceBusiness) {
   return sha256Text(
     JSON.stringify({
-      version: "instagram-discovery-v2",
+      version: "instagram-discovery-v3",
       name: normalizeText(business.name),
       phone: normalizePhone(
         business.phone?.trim() || business.internationalPhone?.trim(),
