@@ -32,25 +32,31 @@ antigo não deve ser reaplicado sobre a baseline (ver database-recovery.md).
    (`scripts/verify-release-migration.py`), **sem publicar funções**.
    Para publicar pelo GitHub, disparar `workflow_dispatch` ou uma tag
    `deploy/supabase-*` e configurar `SUPABASE_ACCESS_TOKEN` com a permissão
-   `edge_functions_write`. O token atualmente salvo no Actions não possui
-   essa permissão (HTTP 403); substituí-lo de forma segura em GitHub > Settings
-   > Secrets and variables > Actions. Nunca colocar tokens no repositório.
+   `edge_functions_write`. O segredo foi atualizado pelo proprietário; a
+   execução manual #10 (41736549911) foi aprovada, incluindo as duas publicações.
+   Nunca colocar tokens no repositório.
    O Management API executa DDL em transação somente de leitura (erro 25006);
    aplicar futuras migrações por mecanismo autorizado antes de publicar funções.
-   Em 03/11/2026 as versões `search-places` v27 e
-   `deep-enrich-business` v23 foram publicadas por conexão Supabase autorizada
-   e verificadas como ativas. Uma validação verde de push **não significa**
+   Depois da publicação manual aprovada, `search-places` v29 e
+   `deep-enrich-business` v25 foram confirmadas ACTIVE, com JWT habilitado. Uma validação verde de push **não significa**
    que ocorreu uma nova publicação.
-4. **Migrações antigas ainda divergentes**: o ledger remoto contém 49 versões,
-   mas o diretório local possui apenas 24 arquivos. Comparando timestamps,
-   35 versões estão somente no remoto e 10 somente no repositório. Isso inclui
-   migrações históricas ausentes e arquivos renomeados com timestamps diferentes.
-   **Não executar `supabase db push` em produção** antes de reconciliar todo
-   o histórico, revisar os SQLs com cuidado e fazer `supabase db push --dry-run`.
-   Usar `supabase migration list --linked` e, quando adequado, `supabase
-   migration fetch --linked`. `supabase migration repair --status applied`
-   altera somente o registro de histórico: aplicá-lo exclusivamente a mudanças
-   comprovadamente presentes, jamais para mascarar divergências reais.
+4. **Histórico de migrações parcialmente reconciliado em 03/11/2026**:
+   foram corrigidos no GitHub **oito nomes de migrações** para os timestamps
+   idênticos aos registrados no Supabase; sete arquivos tinham conteúdo SQL
+   exato e um tinha diferenças apenas de comentários/espaçamento.
+   As migrações locais `20260930144545` (status `send_message`) e
+   `20260930152000` (Instagram) tiveram seus efeitos conferidos em produção
+   e foram registradas **somente no ledger**, sem executar suas alterações.
+   Resultado verificado: **51 versões no remoto, 24 arquivos locais,
+   nenhuma versão local pendente no remoto, mas 27 versões remotas sem arquivos
+   locais**. As versões históricas remotas incluem migrações temporárias,
+   operações de dados e referências a segredos: inspecionar e higienizar
+   cuidadosamente antes de versionar qualquer SQL recuperado.
+   **Não executar `supabase db push`, `db reset` remoto nem reparações em lote**.
+   Conferir `supabase migration list --linked`, recuperar apenas conteúdos
+   revisados com `supabase migration fetch`, estabelecer um baseline coerente
+   para novos ambientes e usar `supabase db push --dry-run` antes de qualquer
+   push futuro. A correção do ledger não significa que o histórico está completo.
 5. Em homologação, usar duas contas autorizadas em private_access para testar
    login, edição, exclusão, pagamentos, atualização da página e troca de conta.
    Testar com rede interrompida e restabelecida; pendências devem sobreviver.
@@ -72,13 +78,13 @@ novo completo. Obter as configurações autoritativas antes de ativar o agendame
 
 ## Dependências externas ainda necessárias
 
-A auditoria foi realizada com conexões autorizadas ao GitHub e ao Supabase,
-mas o token atualmente salvo no GitHub Actions **não tem** a permissão
-`edge_functions_write` necessária à publicação automática. A substituição do
-segredo `SUPABASE_ACCESS_TOKEN` deve ser feita pelo proprietário nas configurações
-do GitHub, sem colar o token no chat, no repositório ou nesta documentação.
-Contas de homologação e credenciais de terceiros devem ser providenciadas
-separadamente; o dump estrutural não fornece acesso.
+O segredo `SUPABASE_ACCESS_TOKEN` está operacional para publicação manual
+das Edge Functions (execução GitHub Actions #10 aprovada). Renovar com segurança
+antes da expiração do token e manter escopo mínimo; nunca copiar valores de token
+para chats ou repositórios. **O deploy automático a cada push continua desativado
+por design**, mesmo com o segredo válido. Contas de homologação e credenciais de
+terceiros devem ser providenciadas separadamente; o dump estrutural não fornece
+acesso. Ver também `docs/security-review-2026-11-03.md`.
 
 ## Frontend Lovable
 

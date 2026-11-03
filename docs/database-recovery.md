@@ -43,7 +43,8 @@ precisam de migrações posteriores. Não use `supabase db reset` esperando que 
 baseline separada seja aplicada automaticamente: o CLI continua vendo o histórico
 incompleto em migrations. O caminho validado é o script acima. A reorganização do
 histórico de ambientes remotos exige primeiro consultar seu ledger de migrações;
-a exportação não inclui esse ledger e nenhum migration repair foi executado.
+a exportação não inclui esse ledger. Posteriormente, três versões já aplicadas
+foram registradas no ledger sem reaplicar DDL. A reconciliação ainda é parcial.
 
 ## Limites da exportação
 
@@ -58,4 +59,11 @@ Nenhum acesso ou alteração em produção foi realizado nesta validação.
 `claim_api_request_for_user` aceita `presence_site`, mas a constraint
 `api_request_rate_limit_bucket_check` não inclui esse valor. Portanto, essa operação
 pode falhar por violação de CHECK. O snapshot preserva fielmente essa inconsistência;
-não foi silenciosamente alterado. A correção está em `supabase/migrations/20261103220000_allow_presence_site_rate_limit.sql`. O teste restaura o snapshot, aplica essa migração duas vezes e verifica o limite de 80 chamadas, o bloqueio de clientes e buckets inválidos. A correção foi aplicada e validada no banco de produção em 03/11/2026. A execução original foi feita por SQL autorizado. Após verificar a constraint em produção, a versão `20261103220000_allow_presence_site_rate_limit` foi registrada no ledger remoto sem reaplicar o DDL; o Supabase confirmou o registro. Permanecem divergências históricas independentes desta correção: 35 timestamps somente no remoto e 10 somente no diretório local. Portanto, `supabase db push` **continua bloqueado operacionalmente** até alinhamento completo e revisão com `supabase migration list --linked` e `supabase db push --dry-run`. Nunca presumir que a reparação de uma única versão torna seguro reaplicar todo o histórico.
+não foi silenciosamente alterado. A correção está em `supabase/migrations/20261103220000_allow_presence_site_rate_limit.sql`. O teste restaura o snapshot, aplica essa migração duas vezes e verifica o limite de 80 chamadas, o bloqueio de clientes e buckets inválidos. A correção foi aplicada e validada no banco de produção em 03/11/2026. A execução original foi feita por SQL autorizado. Após verificar a constraint em produção, a versão `20261103220000_allow_presence_site_rate_limit` foi registrada no ledger remoto sem reaplicar o DDL; o Supabase confirmou o registro. Em auditoria posterior, oito arquivos locais foram renomeados para os
+timestamps remotos equivalentes. As versões `20260930144545` e
+`20260930152000` também foram registradas no ledger depois de verificar
+que seus efeitos já existiam no schema; não foram reaplicadas.
+Restam **27 versões apenas no remoto e nenhuma apenas no local**,
+em um total de 51 registros remotos e 24 arquivos versionados.
+Parte das versões remotas inclui dados de validação e configurações sensíveis:
+não copiar seu SQL histórico cegamente para o GitHub. Portanto, `supabase db push` **continua bloqueado operacionalmente** até alinhamento completo e revisão com `supabase migration list --linked` e `supabase db push --dry-run`. Nunca presumir que a reparação de uma única versão torna seguro reaplicar todo o histórico.
