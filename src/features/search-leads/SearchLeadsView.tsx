@@ -1391,6 +1391,7 @@ export function SearchLeadsView({
               chance={chance}
               existingLead={existingLead}
               instagramChecking={autoInstagram.checkingIds.includes(business.placeId)}
+              autoInstagramEnabled={autoInstagram.enabled}
               onDetails={setDetails}
               onWhatsApp={openWhatsApp}
               onMessage={onMessage}
@@ -1464,6 +1465,7 @@ function BusinessCard({
   chance,
   existingLead,
   instagramChecking,
+  autoInstagramEnabled,
   onDetails,
   onWhatsApp,
   onMessage,
@@ -1473,6 +1475,7 @@ function BusinessCard({
   chance: LeadChanceResult;
   existingLead: ExistingLeadIdentity | null;
   instagramChecking: boolean;
+  autoInstagramEnabled: boolean;
   onDetails: (business: BusinessSearchResult) => void;
   onWhatsApp: (business: BusinessSearchResult) => void;
   onMessage: (target: SearchMessageTarget) => void;
@@ -1569,7 +1572,11 @@ function BusinessCard({
           ) : business.instagramCheckedAt ? (
             <span>Instagram ainda não identificado</span>
           ) : (
-            <span>Instagram em busca automática</span>
+            <span>
+              {autoInstagramEnabled
+                ? "Instagram aguardando busca automática"
+                : "Instagram ainda não pesquisado"}
+            </span>
           )}
         </div>
       </div>
