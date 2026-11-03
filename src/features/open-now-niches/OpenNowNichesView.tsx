@@ -119,6 +119,8 @@ function mergeBusinessWithLead(
       lead.instagramCheckedAt ?? business.instagramCheckedAt,
     instagramUsername:
       lead.instagramUsername ?? business.instagramUsername,
+    instagramDisplayName:
+      lead.instagramDisplayName ?? business.instagramDisplayName,
     instagramCandidates:
       lead.instagramCandidates ?? business.instagramCandidates,
     instagramRejectedUrls:
@@ -768,6 +770,7 @@ export function OpenNowNichesView({
       instagramSource: presence.instagramSource,
       instagramCheckedAt: presence.instagramCheckedAt,
       instagramUsername: presence.instagramUsername,
+      instagramDisplayName: presence.instagramDisplayName ?? null,
       instagramCandidates: presence.instagramCandidates,
       instagramRejectedUrls: presence.instagramRejectedUrls,
       instagramSearchSignature: presence.instagramSearchSignature,
