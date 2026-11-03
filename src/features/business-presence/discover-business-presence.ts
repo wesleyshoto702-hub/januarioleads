@@ -102,6 +102,7 @@ export async function discoverBusinessPresence(
             name: business.name,
             website: business.website,
             instagram: business.instagram,
+            instagramDisplayName: business.instagramDisplayName ?? null,
             instagramConfidence: business.instagramConfidence,
             instagramSource: business.instagramSource,
             phone: business.phone,
