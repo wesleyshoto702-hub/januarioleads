@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import { buildFactualBusinessDescription } from "../business-presence/business-description";
 import { normalizeBrazilianStateCode } from "../../lib/brazil-locations";
 import { discoverBusinessPresence } from "../business-presence/discover-business-presence";
-import { presenceFromBusiness } from "../business-presence/storage";
+import { canonicalManualInstagramUrl, presenceFromBusiness } from "../business-presence/storage";
 import type {
   BusinessPresence,
   InstagramCandidate,
@@ -135,6 +135,9 @@ export function BusinessDetailsModal({
 }) {
   const [presenceLoading, setPresenceLoading] = useState(false);
   const [presenceError, setPresenceError] = useState("");
+  const [manualInstagramOpen, setManualInstagramOpen] = useState(false);
+  const [manualInstagram, setManualInstagram] = useState("");
+  const [manualInstagramError, setManualInstagramError] = useState("");
   const [activeTab, setActiveTab] = useState<"info" | "history">("info");
   const [addingLead, setAddingLead] = useState(false);
   const [commercialError, setCommercialError] = useState("");
@@ -147,9 +150,11 @@ export function BusinessDetailsModal({
     business.instagramConfidence !== "low"
       ? business.instagram
       : null;
-  const candidates = (business.instagramCandidates ?? []).filter(
-    (candidate) => candidate.confidence === "medium",
-  );
+  const candidates = business.instagramCandidates ?? [];
+  const googleInstagramSearch = `https://www.google.com/search?q=${encodeURIComponent(
+    ["site:instagram.com", `"${business.name}"`, business.city, business.state, business.phone]
+      .filter(Boolean).join(" "),
+  )}`;
   const commercialPhone =
     commercialLead?.phone ||
     business.phone ||
@@ -179,6 +184,32 @@ export function BusinessDetailsModal({
     } finally {
       setPresenceLoading(false);
     }
+  }
+
+  function confirmManualInstagram() {
+    const profile = canonicalManualInstagramUrl(manualInstagram);
+    if (!profile) {
+      setManualInstagramError(
+        "Informe um perfil do Instagram ou @usuario. Links de posts e reels não são aceitos.",
+      );
+      return;
+    }
+    const current = presenceFromBusiness(business);
+    onPresenceUpdate?.({
+      instagramUrl: profile,
+      instagramUsername: new URL(profile).pathname.split("/").filter(Boolean)[0] ?? null,
+      instagramConfidence: "high",
+      instagramSource: "manual_confirmation",
+      instagramCheckedAt: new Date().toISOString(),
+      instagramCandidates: [],
+      instagramRejectedUrls: (current?.instagramRejectedUrls ?? []).filter((url) => url !== profile),
+      instagramSearchSignature: current?.instagramSearchSignature ??
+        business.instagramSearchSignature ?? null,
+      instagramNeedsReview: false,
+    });
+    setManualInstagram("");
+    setManualInstagramError("");
+    setManualInstagramOpen(false);
   }
 
   function confirmInstagram(candidate: InstagramCandidate) {
@@ -249,6 +280,9 @@ export function BusinessDetailsModal({
     setActiveTab("info");
     setPresenceError("");
     setPresenceLoading(false);
+    setManualInstagram("");
+    setManualInstagramError("");
+    setManualInstagramOpen(false);
     setAddingLead(false);
     setCommercialError("");
   }, [business.placeId]);
@@ -475,8 +509,8 @@ export function BusinessDetailsModal({
                 <div className="instagram-candidates">
                   <strong>
                     {candidates.length === 1
-                      ? "Instagram provável"
-                      : "Possíveis Instagrams"}
+                      ? "Possível perfil do Instagram"
+                      : "Perfis encontrados para conferência"}
                   </strong>
 
                   {candidates.map((candidate) => (
@@ -486,6 +520,11 @@ export function BusinessDetailsModal({
                     >
                       <div className="instagram-candidate-main">
                         <b>@{candidate.username}</b>
+                        {candidate.confidence === "low" && (
+                          <small className="instagram-low-confidence">
+                            Evidência limitada — confira antes de confirmar
+                          </small>
+                        )}
                         {candidate.signals.length > 0 && (
                           <div className="instagram-signals">
                             <span>Sinais encontrados:</span>
@@ -539,7 +578,9 @@ export function BusinessDetailsModal({
                 </div>
               ) : (
                 <div className="instagram-not-found">
-                  <span>Instagram não identificado</span>
+                  <span>{business.instagramCheckedAt
+                    ? "Nenhum perfil confirmado nesta pesquisa"
+                    : "Busca de Instagram ainda não realizada"}</span>
                 </div>
               )}
 
@@ -568,10 +609,47 @@ export function BusinessDetailsModal({
                   }
                 >
                   {business.instagramCheckedAt
-                    ? "Buscar novamente"
-                    : "Buscar Instagram"}
+                    ? "Ampliar busca de Instagram"
+                    : "Buscar Instagram na web"}
                 </button>
               ) : null}
+
+              <div className="instagram-manual-actions">
+                <a href={googleInstagramSearch} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink size={14} /> Pesquisar no Google
+                </a>
+                <button type="button" onClick={() => {
+                  setManualInstagramOpen((current) => !current);
+                  setManualInstagramError("");
+                }}>
+                  <Instagram size={14} /> Informar perfil manualmente
+                </button>
+              </div>
+              {manualInstagramOpen && (
+                <form className="instagram-manual-form" onSubmit={(event) => {
+                  event.preventDefault();
+                  confirmManualInstagram();
+                }}>
+                  <label htmlFor="manual-instagram-profile">
+                    Cole o perfil oficial encontrado (URL ou @usuario)
+                  </label>
+                  <div>
+                    <input
+                      id="manual-instagram-profile"
+                      value={manualInstagram}
+                      onChange={(event) => {
+                        setManualInstagram(event.target.value);
+                        setManualInstagramError("");
+                      }}
+                      placeholder="https://www.instagram.com/empresa/"
+                      autoComplete="off"
+                      required
+                    />
+                    <button type="submit">Confirmar perfil</button>
+                  </div>
+                  {manualInstagramError && <small role="alert">{manualInstagramError}</small>}
+                </form>
+              )}
             </div>
           </div>
 
