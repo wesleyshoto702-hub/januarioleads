@@ -2261,6 +2261,71 @@ function LeadFlowApp() {
             </label>
 
             <label>
+              <span>Estado (UF)</span>
+              <select
+                value={form.state ?? ""}
+                required={!editingLead || Boolean(form.city?.trim())}
+                onChange={(event) => {
+                  setForm((current) => ({
+                    ...current,
+                    state: event.target.value,
+                    city: "",
+                  }));
+                  setLeadLocationError("");
+                }}
+                aria-label="Estado do lead"
+              >
+                <option value="">Selecione um estado</option>
+                {BRAZIL_STATES.map((state) => (
+                  <option key={state.code} value={state.code}>
+                    {state.name} ({state.code})
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span>Cidade / município</span>
+              <input
+                value={form.city ?? ""}
+                list="lead-municipalities"
+                disabled={!form.state}
+                required={!editingLead || Boolean(form.state)}
+                onChange={(event) => {
+                  setForm((current) => ({ ...current, city: event.target.value }));
+                  setLeadLocationError("");
+                }}
+                onBlur={() => {
+                  const canonical = resolveMunicipality(form.city ?? "", leadMunicipalities);
+                  if (canonical) setForm((current) => ({ ...current, city: canonical }));
+                }}
+                placeholder={form.state ? "Digite ou selecione a cidade" : "Selecione um estado primeiro"}
+                autoComplete="off"
+                aria-label="Cidade do lead"
+              />
+              <datalist id="lead-municipalities">
+                {leadMunicipalities.map((city) => (
+                  <option key={city} value={city} />
+                ))}
+              </datalist>
+              <small className="lead-location-helper">
+                {leadMunicipalitiesLoading
+                  ? "Carregando municípios do IBGE..."
+                  : leadMunicipalitiesError
+                    ? "Lista do IBGE indisponível; informe a cidade manualmente."
+                    : form.state
+                      ? "Escolha uma cidade do estado selecionado."
+                      : "Selecione uma das 27 unidades federativas."}
+              </small>
+            </label>
+
+            {leadLocationError && (
+              <p className="lead-location-validation full-field" role="alert">
+                {leadLocationError}
+              </p>
+            )}
+
+            <label>
               <span>Telefone / WhatsApp</span>
               <input
                 inputMode="tel"
@@ -2508,6 +2573,29 @@ function LeadFinanceMarker({ summary }: { summary: LeadFinanceSummary }) {
   );
 }
 
+function LeadLocation({ lead }: { lead: Lead }) {
+  const state = normalizeBrazilianStateCode(lead.state);
+  const city = lead.city?.trim() ?? "";
+  const location = city && state
+    ? `${city} · ${state}`
+    : city
+      ? `${city} · UF não informada`
+      : state
+        ? `${state} · Cidade não informada`
+        : "Localização não informada";
+
+  return (
+    <div
+      className={`lead-location${city && state ? "" : " missing"}`}
+      title={location}
+      aria-label={`Localização: ${location}`}
+    >
+      <MapPin size={13} aria-hidden="true" />
+      <span>{location}</span>
+    </div>
+  );
+}
+
 function LeadRow({
   lead,
   finance,
@@ -2540,7 +2628,8 @@ function LeadRow({
           <strong>{lead.company}</strong>
           {chance && <ChanceBadge chance={chance} />}
         </div>
-        <span>{lead.segment}</span>
+        <span className="lead-segment">{lead.segment}</span>
+        <LeadLocation lead={lead} />
         {finance && <LeadFinanceMarker summary={finance} />}
         {lead.enrichedAt && <small className="enriched-badge">Dados enriquecidos</small>}
         {updateCount > 0 && (
@@ -2635,7 +2724,8 @@ function LeadCard({
             <strong>{lead.company}</strong>
             {chance && <ChanceBadge chance={chance} />}
           </div>
-          <span>{lead.segment}</span>
+          <span className="lead-segment">{lead.segment}</span>
+          <LeadLocation lead={lead} />
           {lead.enrichedAt && <small className="enriched-badge">Dados enriquecidos</small>}
         {updateCount > 0 && (
           <small className="lead-update-badge">
