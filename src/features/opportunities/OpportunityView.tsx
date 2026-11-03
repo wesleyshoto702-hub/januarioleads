@@ -10,7 +10,6 @@ import {
   Star,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { DeepEnrichmentApplied } from "../business-enrichment/types";
 import type { BusinessPresence } from "../business-presence/types";
 import type { PersistedLead } from "../leads/remote-leads";
 import {
@@ -106,7 +105,6 @@ export function OpportunityView({
   existingLeads,
   onAddLead,
   onMessage,
-  onDeepEnrichmentApplied,
   onGoSearch,
 }: {
   existingLeads: PersistedLead[];
@@ -115,10 +113,6 @@ export function OpportunityView({
     selectedSegment: string,
   ) => Promise<BusinessAddResult>;
   onMessage: (target: MessageTarget) => void;
-  onDeepEnrichmentApplied?: (
-    leadId: string,
-    value: DeepEnrichmentApplied,
-  ) => void;
   onGoSearch: () => void;
 }) {
   const [records, setRecords] = useState<OpportunityRecord[]>([]);
@@ -693,12 +687,6 @@ export function OpportunityView({
           onWhatsApp={directWhatsApp}
           onMessage={(target) => onMessage(target)}
           onPresenceUpdate={(presence) => applyPresence(details, presence)}
-          {...(detailsLead?.id && onDeepEnrichmentApplied
-            ? {
-                onDeepEnrichmentUpdate: (value: DeepEnrichmentApplied) =>
-                  onDeepEnrichmentApplied(detailsLead.id!, value),
-              }
-            : {})}
           {...(!detailsLead && selected
             ? {
                 onAdd: (business: BusinessSearchResult) =>
