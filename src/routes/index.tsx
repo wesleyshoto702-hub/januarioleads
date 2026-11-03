@@ -4,6 +4,7 @@ import {
   ChevronDown,
   Edit3,
   Loader2,
+  MapPin,
   MessageCircle,
   Plus,
   Search,
@@ -80,6 +81,10 @@ import {
   type BusinessAddResult,
 } from "../features/search-leads/BusinessDetailsModal";
 import { SearchLeadsView } from "../features/search-leads/SearchLeadsView";
+import {
+  loadBrazilianMunicipalities,
+  resolveMunicipality,
+} from "../features/search-leads/search-location";
 import {
   findBusinessDuplicate,
   normalizeBrazilianPhone,
@@ -185,6 +190,8 @@ const EMPTY_FORM: LeadForm = {
   status: "send_message",
   firstContact: crmToday(),
   notes: "",
+  city: "",
+  state: "",
 };
 
 const STORAGE = {
@@ -258,6 +265,10 @@ function LeadFlowApp() {
   const [leadModal, setLeadModal] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [form, setForm] = useState<LeadForm>(EMPTY_FORM);
+  const [leadMunicipalities, setLeadMunicipalities] = useState<string[]>([]);
+  const [leadMunicipalitiesLoading, setLeadMunicipalitiesLoading] = useState(false);
+  const [leadMunicipalitiesError, setLeadMunicipalitiesError] = useState(false);
+  const [leadLocationError, setLeadLocationError] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | Status>("all");
   const [actionFilter, setActionFilter] = useState<LeadActionFilter>("all");
@@ -495,6 +506,46 @@ function LeadFlowApp() {
     dashboardOpportunitiesLoaded,
   ]);
 
+  useEffect(() => {
+    const stateCode = normalizeBrazilianStateCode(form.state);
+    if (!leadModal || !stateCode) {
+      setLeadMunicipalities([]);
+      setLeadMunicipalitiesLoading(false);
+      setLeadMunicipalitiesError(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    setLeadMunicipalities([]);
+    setLeadMunicipalitiesLoading(true);
+    setLeadMunicipalitiesError(false);
+    void loadBrazilianMunicipalities(stateCode, controller.signal)
+      .then((municipalities) => {
+        if (!controller.signal.aborted) setLeadMunicipalities(municipalities);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setLeadMunicipalitiesError(true);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLeadMunicipalitiesLoading(false);
+      });
+    return () => controller.abort();
+  }, [leadModal, form.state]);
+
+  const leadCoverage = useMemo(() => {
+    const states = new Set<string>();
+    const cities = new Set<string>();
+    for (const lead of leads) {
+      const state = normalizeBrazilianStateCode(lead.state);
+      if (!state) continue;
+      states.add(state);
+      if (lead.city?.trim()) {
+        cities.add(`${state}|${lead.city.trim().toLocaleLowerCase("pt-BR")}`);
+      }
+    }
+    return { states: states.size, cities: cities.size };
+  }, [leads]);
+
   const counts = useMemo(
     () => ({
       all: leads.length,
@@ -599,6 +650,13 @@ function LeadFlowApp() {
         !query ||
         lead.company.toLowerCase().includes(query) ||
         lead.segment.toLowerCase().includes(query) ||
+        (lead.city ?? "").toLocaleLowerCase("pt-BR").includes(query) ||
+        normalizeBrazilianStateCode(lead.state).toLowerCase().includes(query) ||
+        BRAZIL_STATES.some(
+          (state) =>
+            state.code === normalizeBrazilianStateCode(lead.state) &&
+            state.name.toLocaleLowerCase("pt-BR").includes(query),
+        ) ||
         lead.phone.replace(/\D/g, "").includes(query.replace(/\D/g, ""));
       const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
       const matchesSegment = segmentFilter === "all" || lead.segment === segmentFilter;
@@ -1001,12 +1059,14 @@ function LeadFlowApp() {
 
   function openNewLead() {
     setEditingLead(null);
+    setLeadLocationError("");
     setForm({ ...EMPTY_FORM, firstContact: crmToday() });
     setLeadModal(true);
   }
 
   function openEditLead(lead: Lead) {
     setEditingLead(lead);
+    setLeadLocationError("");
     setForm({
       company: lead.company,
       segment: lead.segment,
@@ -1014,6 +1074,8 @@ function LeadFlowApp() {
       status: lead.status,
       firstContact: lead.firstContact,
       notes: lead.notes,
+      city: lead.city ?? "",
+      state: normalizeBrazilianStateCode(lead.state),
     });
     setLeadModal(true);
   }
@@ -1022,10 +1084,29 @@ function LeadFlowApp() {
     event.preventDefault();
     if (!form.company.trim() || !form.segment.trim()) return;
 
+    const state = normalizeBrazilianStateCode(form.state);
+    const typedCity = form.city?.trim() ?? "";
+    if ((!editingLead && (!state || !typedCity)) ||
+        (Boolean(state) !== Boolean(typedCity))) {
+      setLeadLocationError("Selecione um estado e informe a cidade do lead.");
+      return;
+    }
+    const city = typedCity
+      ? resolveMunicipality(typedCity, leadMunicipalities) ?? typedCity
+      : undefined;
+    if (state && city && leadMunicipalities.length > 0 &&
+        !resolveMunicipality(city, leadMunicipalities)) {
+      setLeadLocationError("Selecione um município válido da lista do IBGE.");
+      return;
+    }
+    setLeadLocationError("");
+
     if (editingLead) {
       let nextLead: Lead = {
         ...editingLead,
         ...form,
+        city,
+        state: state || undefined,
         company: form.company.trim(),
         segment: form.segment.trim(),
       };
@@ -1090,6 +1171,8 @@ function LeadFlowApp() {
     } else {
       const newLead: Lead = {
         ...form,
+        city,
+        state,
         company: form.company.trim(),
         segment: form.segment.trim(),
         id: crypto.randomUUID(),
@@ -1809,7 +1892,11 @@ function LeadFlowApp() {
             <div>
               <p className="eyebrow">CARTEIRA COMERCIAL</p>
               <h1>Meus Leads</h1>
-              <p className="subtitle">Organize empresas, status, contatos e andamento financeiro em um único fluxo.</p>
+              <p className="subtitle">
+                Organize leads de todo o Brasil por cidade, estado e nicho.
+                {" "}Sua carteira abrange {leadCoverage.states} {leadCoverage.states === 1 ? "UF" : "UFs"}
+                {" "}e {leadCoverage.cities} {leadCoverage.cities === 1 ? "cidade" : "cidades"} identificadas.
+              </p>
             </div>
             <button className="primary-button" onClick={openNewLead} type="button">
               <Plus size={17} />
@@ -1915,8 +2002,8 @@ function LeadFlowApp() {
                 <input
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Buscar empresa..."
-                  aria-label="Buscar empresa"
+                  placeholder="Buscar empresa, nicho, cidade ou UF..."
+                  aria-label="Buscar empresa, nicho, cidade ou UF"
                 />
               </div>
 
@@ -2037,7 +2124,7 @@ function LeadFlowApp() {
 
             <div className="desktop-table">
               <div className="table-head">
-                <span>Empresa</span>
+                <span>Empresa · Nicho · Localização</span>
                 <span>WhatsApp</span>
                 <span>Status</span>
                 <span>Contato</span>
