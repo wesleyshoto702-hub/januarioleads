@@ -1,3 +1,5 @@
+import { migrateLegacyWorkspace } from "./account-storage";
+
 const SUPABASE_URL = "https://czkazbianiflhldenhcj.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY =
   "sb_publishable_rDtFwPmhh93xceOpvf9hUg_PSlvpB8p";
@@ -49,8 +51,12 @@ function readSession(): StoredSession | null {
 
 function writeSession(session: StoredSession | null, notify = true) {
   if (typeof window === "undefined") return;
-  if (session) localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
-  else localStorage.removeItem(STORAGE_KEY);
+  if (session) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+    migrateLegacyWorkspace();
+  } else {
+    localStorage.removeItem(STORAGE_KEY);
+  }
   scheduleRefresh(session);
   if (notify) window.dispatchEvent(new Event("januarioleads:auth-change"));
 }
