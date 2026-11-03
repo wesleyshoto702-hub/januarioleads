@@ -1267,6 +1267,13 @@ const INSTAGRAM_RESERVED_PATHS = new Set([
   "stories",
   "terms",
   "tv",
+  "share",
+  "static",
+  "challenge",
+  "oauth",
+  "api",
+  "tags",
+  "locations",
 ]);
 
 const GENERIC_NAME_TOKENS = new Set([
@@ -1289,7 +1296,7 @@ function canonicalInstagramProfile(value: string | null | undefined) {
 
   try {
     const url = new URL(value.trim());
-    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+    const host = url.hostname.toLowerCase().replace(/^(www|m)\./, "");
     if (host !== "instagram.com") return null;
 
     const parts = url.pathname.split("/").filter(Boolean);
@@ -1298,6 +1305,7 @@ function canonicalInstagramProfile(value: string | null | undefined) {
     const username = parts[0].trim();
     if (
       !username ||
+      username.length > 30 ||
       INSTAGRAM_RESERVED_PATHS.has(username.toLowerCase()) ||
       !/^[A-Za-z0-9._]+$/.test(username)
     ) {
@@ -1807,10 +1815,19 @@ function scoreInstagramCandidate(
         containsNormalized(value, business.city),
       ),
   );
-  const locationConflict = Boolean(
+  const otherLocation = Boolean(
     city &&
-      candidate.locations.length > 0 &&
+      candidate.locations.some((location) => {
+        const normalized = normalize(location);
+        return normalized && normalized !== "brasil";
+      }) &&
       !cityMatches
+  );
+  // Public listings often show a chain's headquarters in another city.
+  // Keep a strong phone/site/address match as a review candidate, never as
+  // a fully confirmed profile for the requested branch.
+  const locationConflict = Boolean(
+    otherLocation && !phoneMatches && !addressMatches && !websiteMatches
   );
 
   const categoryTokens = significantTokens(business.primaryCategory);
@@ -1883,6 +1900,10 @@ function scoreInstagramCandidate(
     score -= 2;
   }
   if (locationConflict) score -= 6;
+  else if (otherLocation) {
+    score -= 3;
+    signals.push("Localidade diferente: confira a filial");
+  }
 
   const veryStrong =
     phoneMatches || addressMatches || websiteMatches;
@@ -1892,7 +1913,7 @@ function scoreInstagramCandidate(
     (professionalMatch >= 0.6 || categoryMatches || usernameSimilarity >= 0.55);
 
   const highEligible =
-    !locationConflict &&
+    !otherLocation &&
     score >= 9 &&
     (veryStrong || corroboratedName);
 
