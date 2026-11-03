@@ -2101,7 +2101,7 @@ async function discoverInstagramOnWeb(
       Authorization: `Bearer ${openAiApiKey}`,
     },
     body: JSON.stringify({
-      model: "gpt-5.6-terra",
+      model: Deno.env.get("OPENAI_INSTAGRAM_MODEL")?.trim() || "gpt-6.1-terra",
       reasoning: { effort: "low" },
       max_output_tokens: 3500,
       max_tool_calls: 4,
