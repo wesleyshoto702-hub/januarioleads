@@ -244,10 +244,14 @@ export async function getAccessToken() {
 export function subscribeAuthChange(callback: () => void) {
   if (typeof window === "undefined") return () => undefined;
   const handler = () => callback();
+  const onStorage = (event: StorageEvent) => {
+    // Cross-tab cache updates are not auth changes.
+    if (event.key === STORAGE_KEY || event.key === null) callback();
+  };
   window.addEventListener("januarioleads:auth-change", handler);
-  window.addEventListener("storage", handler);
+  window.addEventListener("storage", onStorage);
   return () => {
     window.removeEventListener("januarioleads:auth-change", handler);
-    window.removeEventListener("storage", handler);
+    window.removeEventListener("storage", onStorage);
   };
 }
