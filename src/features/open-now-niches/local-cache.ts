@@ -1,3 +1,4 @@
+import { accountLocalStorage } from "../../lib/account-storage";
 import {
   isOpenNowCacheFresh,
   type OpeningHoursSnapshot,
@@ -70,7 +71,7 @@ export function saveOpenNowLocation(city: string, state: string) {
   if (typeof window === "undefined") return;
   const normalizedState = normalizeBrazilianStateCode(state);
   if (!city.trim() || !normalizedState) return;
-  localStorage.setItem(
+  accountLocalStorage.setItem(
     LOCATION_KEY,
     JSON.stringify({ city: city.trim(), state: normalizedState }),
   );
@@ -81,7 +82,7 @@ export function loadOpenNowLocation() {
     return { city: "Lavras", state: DEFAULT_BRAZIL_STATE.code };
   }
   try {
-    const value = JSON.parse(localStorage.getItem(LOCATION_KEY) ?? "null") as {
+    const value = JSON.parse(accountLocalStorage.getItem(LOCATION_KEY) ?? "null") as {
       city?: unknown;
       state?: unknown;
     } | null;
@@ -110,7 +111,7 @@ export function storeRecentBusinessSearch(
   if (options.append) {
     try {
       previous = JSON.parse(
-        localStorage.getItem(storageKey) ?? "null",
+        accountLocalStorage.getItem(storageKey) ?? "null",
       ) as LocalOpenNowCache | null;
     } catch {
       previous = null;
@@ -136,7 +137,7 @@ export function storeRecentBusinessSearch(
     checkedAt:new Date().toISOString(),
     results:Array.from(unique.values()).slice(0,60),
   };
-  localStorage.setItem(storageKey,JSON.stringify(cache));
+  accountLocalStorage.setItem(storageKey,JSON.stringify(cache));
 }
 
 export function loadRecentBusinessSearches(city: string,state: string) {
@@ -145,11 +146,11 @@ export function loadRecentBusinessSearches(city: string,state: string) {
   const expectedCity = normalizeLocationText(city);
   const expectedState = normalizeStateCode(state);
 
-  for(let index=0;index<localStorage.length;index+=1){
-    const storageKey=localStorage.key(index);
+  for(let index=0;index<accountLocalStorage.length;index+=1){
+    const storageKey=accountLocalStorage.key(index);
     if(!storageKey?.startsWith(PREFIX)) continue;
     try{
-      const raw=JSON.parse(localStorage.getItem(storageKey) ?? "null") as LocalOpenNowCache | null;
+      const raw=JSON.parse(accountLocalStorage.getItem(storageKey) ?? "null") as LocalOpenNowCache | null;
       if(
         !raw ||
         normalizeLocationText(raw.city) !== expectedCity ||
@@ -173,13 +174,13 @@ export function loadOpportunityBusinessSearches() {
   if (typeof window === "undefined") return [] as LocalOpenNowCache[];
 
   const values: LocalOpenNowCache[] = [];
-  for (let index = 0; index < localStorage.length; index += 1) {
-    const storageKey = localStorage.key(index);
+  for (let index = 0; index < accountLocalStorage.length; index += 1) {
+    const storageKey = accountLocalStorage.key(index);
     if (!storageKey?.startsWith(PREFIX)) continue;
 
     try {
       const raw = JSON.parse(
-        localStorage.getItem(storageKey) ?? "null",
+        accountLocalStorage.getItem(storageKey) ?? "null",
       ) as LocalOpenNowCache | null;
       if (
         !raw ||
