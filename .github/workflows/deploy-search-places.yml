@@ -1,4 +1,4 @@
-name: Aplicar correção do banco e publicar funções
+name: Validar banco e publicar funções sob demanda
 
 on:
   push:
@@ -21,7 +21,7 @@ concurrency:
 
 jobs:
   deploy:
-    name: Validar e publicar correções do Supabase
+    name: Validar correções do Supabase (publicar sob demanda)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -46,15 +46,24 @@ jobs:
       - name: Testar restauração, RLS e migração incremental
         run: bash scripts/test-database-baseline.sh
       - uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/deploy/supabase-')
         with:
           version: latest
       - name: Testar verificador de migração
         run: python3 -m unittest discover -s tests/deployment
       - name: Confirmar migração presence_site em produção (somente leitura)
         run: python3 scripts/verify-release-migration.py
+      - name: Validar sem publicar em pushes da branch main
+        if: github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/deploy/supabase-')
+        run: |
+          echo "Verificações concluídas. O token atual do Actions não tem edge_functions_write."
+          echo "Publicação exige um token com essa permissão e disparo manual/tag."
       - name: Publicar search-places
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/deploy/supabase-')
         run: supabase functions deploy search-places --project-ref "$PROJECT_REF" --use-api --yes
       - name: Publicar deep-enrich-business
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/deploy/supabase-')
         run: supabase functions deploy deep-enrich-business --project-ref "$PROJECT_REF" --use-api --yes
       - name: Consultar versões publicadas
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/deploy/supabase-')
         run: supabase functions list --project-ref "$PROJECT_REF"
