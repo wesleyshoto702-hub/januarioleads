@@ -4189,6 +4189,92 @@ a{
   line-height: 1.45;
 }
 
+.auto-instagram-panel{
+  display: grid;
+  gap: 10px;
+  padding: 13px 16px;
+  margin-bottom: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.auto-instagram-heading{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.auto-instagram-heading > div{
+  display: grid;
+  gap: 4px;
+  max-width: 560px;
+}
+
+.auto-instagram-heading strong{
+  font-size: 12px;
+  color: var(--text);
+}
+
+.auto-instagram-heading > div > span,
+.auto-instagram-status{
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.auto-instagram-switch{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 7px 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.auto-instagram-switch input{
+  accent-color: var(--primary);
+}
+
+.auto-instagram-status{
+  display: grid;
+  gap: 4px;
+  padding-top: 9px;
+  border-top: 1px solid var(--border);
+}
+
+.auto-instagram-status small{
+  color: var(--faint);
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.business-presence .business-instagram-review{
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--waiting);
+  font-size: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.business-presence .business-instagram-checking{
+  color: var(--muted);
+  font-size: inherit;
+  font-weight: 600;
+}
+
 .instagram-manual-actions{
   display: flex;
   flex-wrap: wrap;
