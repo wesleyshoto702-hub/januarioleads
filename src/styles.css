@@ -1160,6 +1160,327 @@ select{
   }
 }
 
+/* Mensagens: separate compose step, readable saved cards, and in-app delete confirmation. */
+.message-compose-page {
+  max-width: 900px;
+}
+
+.message-compose-header {
+  display: grid;
+  gap: 11px;
+  margin-bottom: 24px;
+}
+
+.message-compose-header .back-button {
+  justify-self: start;
+}
+
+.message-compose-header h1 {
+  margin: 0;
+  font-size: clamp(26px, 4vw, 35px);
+  letter-spacing: -0.035em;
+}
+
+.message-compose-header .subtitle {
+  margin: 0;
+  max-width: 670px;
+}
+
+.message-compose-card {
+  display: grid;
+  gap: 18px;
+  padding: clamp(17px, 3vw, 30px);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.message-compose-field {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+}
+
+.message-compose-field > span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.message-compose-field input,
+.message-compose-field textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 13px 14px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  outline: 0;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.6;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.message-compose-field textarea {
+  min-height: 260px;
+  resize: vertical;
+}
+
+.message-compose-field input:focus,
+.message-compose-field textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
+
+.message-compose-meta,
+.message-compose-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.message-compose-meta {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.message-compose-favorite {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.message-compose-favorite input {
+  accent-color: var(--primary);
+}
+
+.message-compose-actions {
+  justify-content: flex-end;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.message-compose-actions button,
+.message-recovery-section .secondary-button,
+.message-trash-row button,
+.message-delete-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.message-form-error {
+  margin: 0;
+  color: var(--rejected);
+  font-size: 12px;
+}
+
+.message-inline-feedback {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 15px;
+  color: var(--accepted);
+  font-size: 12px;
+}
+
+.message-summary-card .editor-heading {
+  gap: 10px;
+}
+
+.message-summary-title {
+  flex: 1 1 230px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: var(--text);
+}
+
+.message-summary-title strong {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.message-summary-pinned {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--primary) !important;
+  font-size: 10px !important;
+}
+
+.message-summary-text {
+  margin: 0;
+  padding: 17px 16px;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.message-summary-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 16px 13px;
+  border-top: 1px solid var(--border);
+  color: var(--faint);
+  font-size: 10px;
+}
+
+.message-summary-footer button {
+  border: 0;
+  padding: 7px 0;
+  background: transparent;
+  color: var(--primary);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.message-empty-state,
+.message-recovery-section {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.message-empty-state strong,
+.message-recovery-section h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.message-empty-state p,
+.message-recovery-section p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.message-recovery-section {
+  margin-top: 18px;
+  align-items: start;
+}
+
+.message-recovery-section .secondary-button {
+  justify-self: start;
+}
+
+.message-trash-list {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.message-trash-list > strong {
+  font-size: 12px;
+}
+
+.message-trash-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.message-delete-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: rgba(0, 0, 0, .78);
+  animation: fade-in .16s ease;
+}
+
+.message-delete-dialog {
+  position: fixed;
+  z-index: 301;
+  left: 50%;
+  top: 50%;
+  width: min(430px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  transform: translate(-50%, -50%);
+  padding: 25px;
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  outline: 0;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.message-delete-dialog > h2 {
+  margin: 0 0 11px;
+  font-size: 19px;
+}
+
+.message-delete-dialog > p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.message-delete-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 25px;
+}
+
+.message-delete-confirm {
+  padding: 10px 14px;
+  border: 1px solid var(--primary);
+  border-radius: 9px;
+  background: var(--primary-action);
+  color: var(--primary-contrast);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.message-delete-confirm:hover {
+  background: var(--primary-action-hover);
+}
+
+@media (max-width: 520px) {
+  .message-compose-actions button,
+  .message-delete-actions button {
+    flex: 1 1 125px;
+  }
+
+  .message-summary-card .editor-heading {
+    align-items: flex-start;
+  }
+
+  .message-editor-actions {
+    justify-content: flex-start;
+  }
+}
+
 @keyframes fade-in {
   from{ opacity: 0; }
   to{ opacity: 1; }
