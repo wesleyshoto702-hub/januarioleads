@@ -106,6 +106,7 @@ export function OpportunityView({
   existingLeads,
   onAddLead,
   onMessage,
+  onPresenceDiscovered,
   onGoSearch,
 }: {
   existingLeads: PersistedLead[];
@@ -114,6 +115,7 @@ export function OpportunityView({
     selectedSegment: string,
   ) => Promise<BusinessAddResult>;
   onMessage: (target: MessageTarget) => void;
+  onPresenceDiscovered?: (leadId: string, presence: BusinessPresence) => void;
   onGoSearch: () => void;
 }) {
   const [records, setRecords] = useState<OpportunityRecord[]>([]);
@@ -693,7 +695,12 @@ export function OpportunityView({
           onClose={() => setDetails(null)}
           onWhatsApp={directWhatsApp}
           onMessage={(target) => onMessage(target)}
-          onPresenceUpdate={(presence) => applyPresence(details, presence)}
+          onPresenceUpdate={(presence) => {
+            applyPresence(details, presence);
+            if (detailsLead?.id) {
+              onPresenceDiscovered?.(detailsLead.id, presence);
+            }
+          }}
           {...(!detailsLead && selected
             ? {
                 onAdd: (business: BusinessSearchResult) =>
