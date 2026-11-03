@@ -53,8 +53,8 @@ jobs:
       - name: Confirmar migração presence_site em produção (somente leitura)
         run: python3 scripts/verify-release-migration.py
       - name: Publicar search-places
-        run: supabase functions deploy search-places --project-ref "$PROJECT_REF" --use-api
+        run: supabase functions deploy search-places --project-ref "$PROJECT_REF" --use-api --yes
       - name: Publicar deep-enrich-business
-        run: supabase functions deploy deep-enrich-business --project-ref "$PROJECT_REF" --use-api
+        run: supabase functions deploy deep-enrich-business --project-ref "$PROJECT_REF" --use-api --yes
       - name: Consultar versões publicadas
         run: supabase functions list --project-ref "$PROJECT_REF"
