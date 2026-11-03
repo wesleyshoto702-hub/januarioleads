@@ -170,6 +170,7 @@ export function presenceFromBusiness(
     instagramUsername:
       business.instagramUsername?.trim() ||
       usernameFromInstagram(instagramUrl),
+    instagramDisplayName: business.instagramDisplayName?.trim() || null,
     instagramConfidence: instagramUrl
       ? business.instagramConfidence ?? "high"
       : null,
