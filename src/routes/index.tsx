@@ -1479,6 +1479,7 @@ function LeadFlowApp() {
               instagramConfidence: undefined,
               instagramSource: undefined,
               instagramUsername: undefined,
+              instagramDisplayName: undefined,
             }),
     };
 
@@ -1579,6 +1580,7 @@ function LeadFlowApp() {
             instagramCheckedAt: discoveredPresence.instagramCheckedAt,
             instagramUsername:
               discoveredPresence.instagramUsername ?? undefined,
+            instagramDisplayName: discoveredPresence.instagramDisplayName ?? undefined,
             instagramCandidates: discoveredPresence.instagramCandidates,
             instagramRejectedUrls:
               discoveredPresence.instagramRejectedUrls,
