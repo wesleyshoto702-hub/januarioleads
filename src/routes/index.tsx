@@ -93,6 +93,7 @@ import type { BusinessSearchResult } from "../features/search-leads/types";
 import { getValidSession, signOut, subscribeAuthChange } from "../lib/auth";
 import { openWhatsAppLink } from "../lib/whatsapp";
 import { BRAZIL_STATES, normalizeBrazilianStateCode } from "../lib/brazil-locations";
+import { normalizeLocationText } from "../lib/location";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -644,20 +645,22 @@ function LeadFlowApp() {
   }, [financeByLead, leadPayments]);
 
   const visibleLeads = useMemo(() => {
-    const query = search.trim().toLowerCase();
+    const query = normalizeLocationText(search);
+    const phoneQuery = search.replace(/\D/g, "");
     const filtered = leads.filter((lead) => {
       const matchesSearch =
         !query ||
-        lead.company.toLowerCase().includes(query) ||
-        lead.segment.toLowerCase().includes(query) ||
-        (lead.city ?? "").toLocaleLowerCase("pt-BR").includes(query) ||
-        normalizeBrazilianStateCode(lead.state).toLowerCase().includes(query) ||
+        normalizeLocationText(lead.company).includes(query) ||
+        normalizeLocationText(lead.segment).includes(query) ||
+        normalizeLocationText(lead.city).includes(query) ||
+        normalizeLocationText(normalizeBrazilianStateCode(lead.state)).includes(query) ||
         BRAZIL_STATES.some(
           (state) =>
             state.code === normalizeBrazilianStateCode(lead.state) &&
-            state.name.toLocaleLowerCase("pt-BR").includes(query),
+            normalizeLocationText(state.name).includes(query),
         ) ||
-        lead.phone.replace(/\D/g, "").includes(query.replace(/\D/g, ""));
+        (phoneQuery.length > 0 &&
+          lead.phone.replace(/\D/g, "").includes(phoneQuery));
       const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
       const matchesSegment = segmentFilter === "all" || lead.segment === segmentFilter;
       const matchesState =
