@@ -17,7 +17,6 @@ import {
   isOpenState,
   type OpenNowEvaluation,
 } from "../../../supabase/functions/_shared/open-now.ts";
-import type { DeepEnrichmentApplied } from "../business-enrichment/types";
 import type { BusinessPresence } from "../business-presence/types";
 import { ChanceBadge } from "../lead-chance/ChanceBadge";
 import { calculateLeadChance } from "../lead-chance/lead-chance";
@@ -85,10 +84,6 @@ type Props = {
   existingLeads: PersistedLead[];
   onAddLead: (business: BusinessSearchResult, selectedSegment: string) => void;
   onMessage: (target: SearchMessageTarget) => void;
-  onDeepEnrichmentApplied?: (
-    leadId: string,
-    value: DeepEnrichmentApplied,
-  ) => void;
 };
 
 type OpenBusinessRow = {
@@ -293,7 +288,6 @@ export function OpenNowNichesView({
   existingLeads,
   onAddLead,
   onMessage,
-  onDeepEnrichmentApplied,
 }: Props) {
   const initialLocation = useMemo(() => loadOpenNowLocation(), []);
   const [city, setCity] = useState(initialLocation.city);
@@ -776,33 +770,6 @@ export function OpenNowNichesView({
       instagramSearchSignature: presence.instagramSearchSignature,
       instagramNeedsReview: presence.instagramNeedsReview,
     });
-  }
-
-  function applyDeep(
-    row: { business: OpenNowBusiness; existingLead: PersistedLead | null },
-    value: DeepEnrichmentApplied,
-  ) {
-    patchBusiness(row.business.placeId, {
-      verifiedContent: value.verifiedContent,
-      verifiedImages: value.verifiedImages,
-      confirmedChannels: value.confirmedChannels,
-      deepEnrichmentStatus: value.status,
-      deepEnrichmentQuality: value.quality,
-      deepEnrichmentCheckedAt: value.checkedAt,
-      ...(value.identityUpdates.website
-        ? { website: value.identityUpdates.website }
-        : {}),
-      ...(value.identityUpdates.instagram
-        ? {
-            instagram: value.identityUpdates.instagram,
-            instagramConfidence: "high",
-            instagramSource: "official_website",
-          }
-        : {}),
-    });
-    if (row.existingLead?.id) {
-      onDeepEnrichmentApplied?.(row.existingLead.id, value);
-    }
   }
 
   const expandedStats = expandedSegment
@@ -1358,7 +1325,6 @@ export function OpenNowNichesView({
             onWhatsApp={openWhatsapp}
             onMessage={onMessage}
             onPresenceUpdate={(presence)=>applyPresence(details.business,presence)}
-            onDeepEnrichmentUpdate={(value)=>applyDeep(row,value)}
             onAdd={(business)=>onAddLead(business,details.segment)}
           />
         );
