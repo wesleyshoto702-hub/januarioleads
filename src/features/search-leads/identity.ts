@@ -1,6 +1,7 @@
 import type { LeadStatus } from "../leads/remote-leads";
 import type { BusinessSearchResult } from "./types";
 import { normalizeSearchText } from "./segments";
+import { sameLocation } from "../../lib/location";
 
 export type ExistingLeadIdentity = {
   id?: string;
@@ -8,6 +9,8 @@ export type ExistingLeadIdentity = {
   phone: string;
   placeId?: string;
   address?: string;
+  city?: string | undefined;
+  state?: string | undefined;
   status?: LeadStatus;
 };
 
@@ -46,7 +49,21 @@ export function findBusinessDuplicate(
       }
 
       const leadPhone = normalizeBrazilianPhone(lead.phone);
-      if (businessPhone && leadPhone && businessPhone === leadPhone) {
+      // Separate branches may share a public phone. When both companies have
+      // verified different municipalities/UFs, the phone alone isn't enough.
+      const knownDifferentCities = Boolean(
+        business.city?.trim() &&
+        business.state?.trim() &&
+        lead.city?.trim() &&
+        lead.state?.trim() &&
+        !sameLocation(business, lead),
+      );
+      if (
+        businessPhone &&
+        leadPhone &&
+        businessPhone === leadPhone &&
+        !knownDifferentCities
+      ) {
         return true;
       }
 
