@@ -21,6 +21,7 @@ import {
   normalizeBrazilianPhone,
 } from "../search-leads/identity";
 import type { BusinessSearchResult } from "../search-leads/types";
+import { withSearchLocation } from "../search-leads/search-location";
 import {
   hasBusinessPhone,
   hasIdentifiedWebsite,
@@ -640,7 +641,13 @@ export function OpportunityView({
                           type="button"
                           className="primary-button"
                           onClick={() =>
-                            void onAddLead(business, selected.segment)
+                            void onAddLead(
+                              withSearchLocation(business, {
+                                city: selected.city,
+                                state: selected.state,
+                              }),
+                              selected.segment,
+                            )
                           }
                         >
                           Adicionar aos leads
@@ -690,7 +697,13 @@ export function OpportunityView({
           {...(!detailsLead && selected
             ? {
                 onAdd: (business: BusinessSearchResult) =>
-                  onAddLead(business, selected.segment),
+                  onAddLead(
+                    withSearchLocation(business, {
+                      city: selected.city,
+                      state: selected.state,
+                    }),
+                    selected.segment,
+                  ),
               }
             : {})}
         />
