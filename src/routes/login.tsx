@@ -28,7 +28,7 @@ function LoginPage() {
   const [theme, setTheme] = useState<"light" | "dark">("dark");
 
   useEffect(() => {
-    const stored = localStorage.getItem("leadflow:theme");
+    const stored = localStorage.getItem("januarioleads:login-theme");
     const current = stored === "light" ? "light" : "dark";
     setTheme(current);
     document.documentElement.classList.toggle("dark", current === "dark");
@@ -45,7 +45,7 @@ function LoginPage() {
   function toggleTheme() {
     setTheme((current) => {
       const next = current === "light" ? "dark" : "light";
-      localStorage.setItem("leadflow:theme", next);
+      localStorage.setItem("januarioleads:login-theme", next);
       document.documentElement.classList.toggle("dark", next === "dark");
       return next;
     });
