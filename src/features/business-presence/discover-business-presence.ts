@@ -5,15 +5,12 @@ import {
   presenceSearchSignature,
   savePresenceCache,
 } from "./storage";
-import type {
-  BusinessPresence,
-  PresenceBusiness,
-  PresenceDiscoveryResponse,
-} from "./types";
+import type { BusinessPresence, PresenceBusiness, PresenceDiscoveryResponse } from "./types";
 
-const PUBLIC_SUPABASE_URL = "https://czkazbianiflhldenhcj.supabase.co";
-const PUBLIC_SUPABASE_PUBLISHABLE_KEY =
-  "sb_publishable_rDtFwPmhh93xceOpvf9hUg_PSlvpB8p";
+import {
+  SUPABASE_URL as PUBLIC_SUPABASE_URL,
+  SUPABASE_PUBLISHABLE_KEY as PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+} from "../../lib/supabase-config";
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const INCONCLUSIVE_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -28,21 +25,21 @@ function isFresh(value: string | null | undefined, confirmed: boolean) {
 
 export async function discoverBusinessPresence(
   business: PresenceBusiness,
-  options?: { force?: boolean; allowWebSearch?: boolean; skipOfficialSite?: boolean; signal?: AbortSignal },
+  options?: {
+    force?: boolean;
+    allowWebSearch?: boolean;
+    skipOfficialSite?: boolean;
+    signal?: AbortSignal;
+  },
 ): Promise<BusinessPresence | null> {
   const known = presenceFromBusiness(business);
   const wantsWeb = options?.allowWebSearch === true;
   const sufficient = (presence: BusinessPresence) =>
-    Boolean(presence.instagramUrl) ||
-    !wantsWeb ||
-    presence.instagramSearchScope !== "site";
+    Boolean(presence.instagramUrl) || !wantsWeb || presence.instagramSearchScope !== "site";
 
   // A user-confirmed Instagram is authoritative until the user explicitly
   // chooses a different profile.
-  if (
-    known?.instagramConfidence === "high" &&
-    known.instagramSource === "manual_confirmation"
-  ) {
+  if (known?.instagramConfidence === "high" && known.instagramSource === "manual_confirmation") {
     savePresenceCache(business, known);
     return known;
   }
@@ -61,11 +58,7 @@ export async function discoverBusinessPresence(
     return known;
   }
 
-  if (
-    !options?.force &&
-    known?.instagramConfidence === "high" &&
-    !known.instagramNeedsReview
-  ) {
+  if (!options?.force && known?.instagramConfidence === "high" && !known.instagramNeedsReview) {
     savePresenceCache(business, known);
     return known;
   }
@@ -77,52 +70,45 @@ export async function discoverBusinessPresence(
 
   const accessToken = await getAccessToken();
   if (!accessToken) {
-    throw new Error(
-      "Sua sessão expirou. Entre novamente para buscar Instagram.",
-    );
+    throw new Error("Sua sessão expirou. Entre novamente para buscar Instagram.");
   }
 
-  const url =
-    import.meta.env["VITE_SUPABASE_URL"]?.trim() || PUBLIC_SUPABASE_URL;
+  const url = import.meta.env["VITE_SUPABASE_URL"]?.trim() || PUBLIC_SUPABASE_URL;
   const publishableKey =
-    import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"]?.trim() ||
-    PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+    import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"]?.trim() || PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
   try {
-    const response = await fetch(
-      `${url.replace(/\/$/, "")}/functions/v1/search-places`,
-      {
-        method: "POST",
-        ...(options?.signal ? { signal: options.signal } : {}),
-        headers: {
-          "Content-Type": "application/json",
-          apikey: publishableKey,
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          mode: "presence-discovery",
-          allowWebSearch: wantsWeb,
-          skipOfficialSite: wantsWeb && options?.skipOfficialSite === true,
-          force: options?.force === true,
-          business: {
-            placeId: business.placeId,
-            name: business.name,
-            website: business.website,
-            instagram: business.instagram,
-            instagramDisplayName: business.instagramDisplayName ?? null,
-            instagramConfidence: business.instagramConfidence,
-            instagramSource: business.instagramSource,
-            phone: business.phone,
-            internationalPhone: business.internationalPhone,
-            address: business.address,
-            city: business.city,
-            state: business.state,
-            primaryCategory: business.primaryCategory,
-            instagramRejectedUrls: business.instagramRejectedUrls ?? [],
-          },
-        }),
+    const response = await fetch(`${url.replace(/\/$/, "")}/functions/v1/search-places`, {
+      method: "POST",
+      ...(options?.signal ? { signal: options.signal } : {}),
+      headers: {
+        "Content-Type": "application/json",
+        apikey: publishableKey,
+        Authorization: `Bearer ${accessToken}`,
       },
-    );
+      body: JSON.stringify({
+        mode: "presence-discovery",
+        allowWebSearch: wantsWeb,
+        skipOfficialSite: wantsWeb && options?.skipOfficialSite === true,
+        force: options?.force === true,
+        business: {
+          placeId: business.placeId,
+          name: business.name,
+          website: business.website,
+          instagram: business.instagram,
+          instagramDisplayName: business.instagramDisplayName ?? null,
+          instagramConfidence: business.instagramConfidence,
+          instagramSource: business.instagramSource,
+          phone: business.phone,
+          internationalPhone: business.internationalPhone,
+          address: business.address,
+          city: business.city,
+          state: business.state,
+          primaryCategory: business.primaryCategory,
+          instagramRejectedUrls: business.instagramRejectedUrls ?? [],
+        },
+      }),
+    });
 
     let payload: unknown;
     try {

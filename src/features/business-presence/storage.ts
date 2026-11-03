@@ -1,8 +1,5 @@
 import { accountLocalStorage } from "../../lib/account-storage";
-import type {
-  BusinessPresence,
-  PresenceBusiness,
-} from "./types";
+import type { BusinessPresence, PresenceBusiness } from "./types";
 
 const STORAGE_KEY = "januarioleads:business-presence";
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -44,10 +41,7 @@ function normalizeWebsite(value: string | null | undefined) {
 }
 
 async function sha256Text(value: string) {
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(value),
-  );
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
   return Array.from(new Uint8Array(digest))
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("");
@@ -58,9 +52,7 @@ export async function presenceSearchSignature(business: PresenceBusiness) {
     JSON.stringify({
       version: "instagram-discovery-v3",
       name: normalizeText(business.name),
-      phone: normalizePhone(
-        business.phone?.trim() || business.internationalPhone?.trim(),
-      ),
+      phone: normalizePhone(business.phone?.trim() || business.internationalPhone?.trim()),
       address: normalizeText(business.address),
       city: normalizeText(business.city),
       state: normalizeText(business.state),
@@ -99,10 +91,7 @@ export function getPresenceCache(
   return cached;
 }
 
-export function savePresenceCache(
-  business: PresenceBusiness,
-  presence: BusinessPresence,
-) {
+export function savePresenceCache(business: PresenceBusiness, presence: BusinessPresence) {
   if (typeof window === "undefined") return;
   const all = readCache();
   all[keyFor(business)] = presence;
@@ -115,8 +104,7 @@ export function canonicalManualInstagramUrl(value: string) {
   if (!trimmed) return null;
   const raw = trimmed.startsWith("@")
     ? `https://www.instagram.com/${trimmed.slice(1)}/`
-    : trimmed.startsWith("instagram.com/") ||
-        trimmed.startsWith("www.instagram.com/")
+    : trimmed.startsWith("instagram.com/") || trimmed.startsWith("www.instagram.com/")
       ? `https://${trimmed}`
       : trimmed;
 
@@ -126,16 +114,26 @@ export function canonicalManualInstagramUrl(value: string) {
     const pieces = url.pathname.split("/").filter(Boolean);
     const username = pieces[0] ?? "";
     if (
-      url.protocol !== "https:" && url.protocol !== "http:" ||
+      (url.protocol !== "https:" && url.protocol !== "http:") ||
       host !== "instagram.com" ||
       pieces.length !== 1 ||
       username.length > 30 ||
       !/^[A-Za-z0-9._]+$/.test(username) ||
       [
-        "accounts", "about", "developer", "direct", "explore",
-        "legal", "p", "reel", "reels", "stories", "tv",
+        "accounts",
+        "about",
+        "developer",
+        "direct",
+        "explore",
+        "legal",
+        "p",
+        "reel",
+        "reels",
+        "stories",
+        "tv",
       ].includes(username.toLowerCase())
-    ) return null;
+    )
+      return null;
     return `https://www.instagram.com/${username}/`;
   } catch {
     return null;
@@ -153,14 +151,12 @@ function usernameFromInstagram(value: string | null | undefined) {
   }
 }
 
-export function presenceFromBusiness(
-  business: PresenceBusiness,
-): BusinessPresence | null {
+export function presenceFromBusiness(business: PresenceBusiness): BusinessPresence | null {
   const hasStoredAttempt = Boolean(
     business.instagram?.trim() ||
-      business.instagramCheckedAt ||
-      business.instagramCandidates?.length ||
-      business.instagramSearchSignature,
+    business.instagramCheckedAt ||
+    business.instagramCandidates?.length ||
+    business.instagramSearchSignature,
   );
   if (!hasStoredAttempt) return null;
 
@@ -169,18 +165,13 @@ export function presenceFromBusiness(
   return {
     instagramUrl,
     instagramUsername:
-      business.instagramUsername?.trim() ||
-      usernameFromInstagram(instagramUrl),
+      business.instagramUsername?.trim() || (usernameFromInstagram(instagramUrl) ?? null),
     instagramDisplayName: business.instagramDisplayName?.trim() || null,
-    instagramConfidence: instagramUrl
-      ? business.instagramConfidence ?? "high"
-      : null,
+    instagramConfidence: instagramUrl ? (business.instagramConfidence ?? "high") : null,
     instagramSource: instagramUrl
-      ? business.instagramSource ??
-        (business.placeId?.trim() ? "google_places" : "existing_data")
+      ? (business.instagramSource ?? (business.placeId?.trim() ? "google_places" : "existing_data"))
       : null,
-    instagramCheckedAt:
-      business.instagramCheckedAt ?? new Date(0).toISOString(),
+    instagramCheckedAt: business.instagramCheckedAt ?? new Date(0).toISOString(),
     instagramCandidates: business.instagramCandidates ?? [],
     instagramRejectedUrls: business.instagramRejectedUrls ?? [],
     instagramSearchSignature: business.instagramSearchSignature ?? null,

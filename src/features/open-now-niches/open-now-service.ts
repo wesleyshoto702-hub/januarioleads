@@ -1,8 +1,5 @@
 import { getAccessToken } from "../../lib/auth";
-import type {
-  OpenNowCacheResponse,
-  OpenNowRefreshResponse,
-} from "./types";
+import type { OpenNowCacheResponse, OpenNowRefreshResponse } from "./types";
 
 export class OpenNowServiceError extends Error {
   code: string;
@@ -20,33 +17,29 @@ export function openNowServiceErrorMessage(error: unknown) {
   return "Não foi possível acessar Nichos Abertos Agora.";
 }
 
-const PUBLIC_SUPABASE_URL = "https://czkazbianiflhldenhcj.supabase.co";
-const PUBLIC_SUPABASE_PUBLISHABLE_KEY =
-  "sb_publishable_rDtFwPmhh93xceOpvf9hUg_PSlvpB8p";
+import {
+  SUPABASE_URL as PUBLIC_SUPABASE_URL,
+  SUPABASE_PUBLISHABLE_KEY as PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+} from "../../lib/supabase-config";
 
 function endpoint() {
-  const url =
-    import.meta.env["VITE_SUPABASE_URL"]?.trim() || PUBLIC_SUPABASE_URL;
+  const url = import.meta.env["VITE_SUPABASE_URL"]?.trim() || PUBLIC_SUPABASE_URL;
   return `${url.replace(/\/$/, "")}/functions/v1/open-now-niches`;
 }
 
 function publishableKey() {
   return (
-    import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"]?.trim() ||
-    PUBLIC_SUPABASE_PUBLISHABLE_KEY
+    import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"]?.trim() || PUBLIC_SUPABASE_PUBLISHABLE_KEY
   );
 }
 
-async function callOpenNow<T>(
-  body: Record<string, unknown>,
-  signal?: AbortSignal,
-): Promise<T> {
+async function callOpenNow<T>(body: Record<string, unknown>, signal?: AbortSignal): Promise<T> {
   const token = await getAccessToken();
   if (!token) throw new Error("AUTH_REQUIRED");
 
   const response = await fetch(endpoint(), {
     method: "POST",
-    signal,
+    signal: signal ?? null,
     headers: {
       "Content-Type": "application/json",
       apikey: publishableKey(),
@@ -62,11 +55,7 @@ async function callOpenNow<T>(
     // Some platform-level failures can return a non-JSON body.
   }
 
-  if (
-    payload &&
-    typeof payload === "object" &&
-    "ok" in payload
-  ) {
+  if (payload && typeof payload === "object" && "ok" in payload) {
     return payload as T;
   }
 
@@ -84,21 +73,11 @@ async function callOpenNow<T>(
     );
   }
 
-  throw new OpenNowServiceError(
-    "REQUEST_FAILED",
-    "Não foi possível acessar Nichos Abertos Agora.",
-  );
+  throw new OpenNowServiceError("REQUEST_FAILED", "Não foi possível acessar Nichos Abertos Agora.");
 }
 
-export function fetchOpenNowCache(
-  city: string,
-  state: string,
-  signal?: AbortSignal,
-) {
-  return callOpenNow<OpenNowCacheResponse>(
-    { mode: "cache", city, state },
-    signal,
-  );
+export function fetchOpenNowCache(city: string, state: string, signal?: AbortSignal) {
+  return callOpenNow<OpenNowCacheResponse>({ mode: "cache", city, state }, signal);
 }
 
 export function refreshOpenNowNiche(
@@ -106,8 +85,8 @@ export function refreshOpenNowNiche(
     city: string;
     state: string;
     segment: string;
-    force?: boolean;
-    pageToken?: string | null;
+    force?: boolean | undefined;
+    pageToken?: string | null | undefined;
   },
   signal?: AbortSignal,
 ) {

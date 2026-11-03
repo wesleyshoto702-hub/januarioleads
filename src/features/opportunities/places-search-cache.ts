@@ -4,9 +4,7 @@ import type { BusinessSearchResult } from "../search-leads/types";
 import { safeBusinessResult } from "./opportunity-businesses";
 import type { OpportunitySample } from "./types";
 
-const SUPABASE_URL = "https://czkazbianiflhldenhcj.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY =
-  "sb_publishable_rDtFwPmhh93xceOpvf9hUg_PSlvpB8p";
+import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "../../lib/supabase-config";
 
 type RemotePlacesSearchCache = {
   city: string;
@@ -18,10 +16,7 @@ type RemotePlacesSearchCache = {
   results: unknown;
 };
 
-export async function opportunityAuthedRequest(
-  path: string,
-  init: RequestInit = {},
-) {
+export async function opportunityAuthedRequest(path: string, init: RequestInit = {}) {
   const session = await getValidSession();
   if (!session) throw new Error("AUTH_REQUIRED");
 
@@ -45,15 +40,10 @@ function safeResults(value: unknown) {
 
 export async function fetchPlacesSearchSamples(): Promise<OpportunitySample[]> {
   const params = new URLSearchParams();
-  params.set(
-    "select",
-    "city,state,segment,checked_at,next_page_token,page_count,results",
-  );
+  params.set("select", "city,state,segment,checked_at,next_page_token,page_count,results");
   params.set("order", "checked_at.desc");
 
-  const response = await opportunityAuthedRequest(
-    `places_search_cache?${params.toString()}`,
-  );
+  const response = await opportunityAuthedRequest(`places_search_cache?${params.toString()}`);
   if (!response.ok) {
     throw new Error(`PLACES_SEARCH_CACHE_${response.status}`);
   }
@@ -84,16 +74,11 @@ export async function fetchRecentPlacesSearchSamples(
   limit = 5,
 ): Promise<CachedPlacesSearchSample[]> {
   const params = new URLSearchParams();
-  params.set(
-    "select",
-    "city,state,segment,checked_at,next_page_token,page_count,results",
-  );
+  params.set("select", "city,state,segment,checked_at,next_page_token,page_count,results");
   params.set("order", "checked_at.desc");
   params.set("limit", String(Math.max(1, Math.min(20, limit))));
 
-  const response = await opportunityAuthedRequest(
-    `places_search_cache?${params.toString()}`,
-  );
+  const response = await opportunityAuthedRequest(`places_search_cache?${params.toString()}`);
   if (!response.ok) {
     throw new Error(`PLACES_SEARCH_CACHE_RECENT_${response.status}`);
   }
@@ -109,31 +94,19 @@ export async function fetchRecentPlacesSearchSamples(
       pageCount: row.page_count,
     }))
     .filter(
-      (row) =>
-        Boolean(row.checkedAt) &&
-        Boolean(row.city.trim()) &&
-        Boolean(row.segment.trim()),
+      (row) => Boolean(row.checkedAt) && Boolean(row.city.trim()) && Boolean(row.segment.trim()),
     );
 }
 
-async function fetchExistingSample(
-  userId: string,
-  locationKey: string,
-  segment: string,
-) {
+async function fetchExistingSample(userId: string, locationKey: string, segment: string) {
   const params = new URLSearchParams();
-  params.set(
-    "select",
-    "city,state,segment,checked_at,next_page_token,page_count,results",
-  );
+  params.set("select", "city,state,segment,checked_at,next_page_token,page_count,results");
   params.set("user_id", `eq.${userId}`);
   params.set("location_key", `eq.${locationKey}`);
   params.set("segment", `eq.${segment}`);
   params.set("limit", "1");
 
-  const response = await opportunityAuthedRequest(
-    `places_search_cache?${params.toString()}`,
-  );
+  const response = await opportunityAuthedRequest(`places_search_cache?${params.toString()}`);
   if (!response.ok) return null;
 
   const rows = (await response.json()) as RemotePlacesSearchCache[];
@@ -147,11 +120,7 @@ export async function fetchCachedPlacesSearchSample(
   const session = await getValidSession();
   if (!session) return null;
 
-  const row = await fetchExistingSample(
-    session.user.id,
-    searchLocationKey(location),
-    segment,
-  );
+  const row = await fetchExistingSample(session.user.id, searchLocationKey(location), segment);
   if (!row) return null;
 
   const results = safeResults(row.results);
@@ -183,9 +152,7 @@ export async function persistPlacesSearchSample(input: {
     ? await fetchExistingSample(session.user.id, locationKey, input.segment)
     : null;
   const previousResults = previous ? safeResults(previous.results) : [];
-  const combined = input.append
-    ? [...previousResults, ...input.results]
-    : input.results;
+  const combined = input.append ? [...previousResults, ...input.results] : input.results;
 
   const unique = new Map<string, BusinessSearchResult>();
   for (const business of combined) {

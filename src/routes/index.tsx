@@ -1,3 +1,12 @@
+import { useLeadWorkspace, STORAGE } from "../features/leads/use-lead-workspace";
+import { PrivateWorkspace } from "../components/app-shell/PrivateWorkspace";
+import { LeadRow, LeadCard, Select, Modal, EmptyState } from "../features/leads/LeadPresentation";
+import {
+  enqueueLead,
+  flushPendingLeads,
+  mergePendingLeads,
+  leadMutationVersion,
+} from "../features/leads/pending-leads";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   Check,
@@ -16,10 +25,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { buildFactualBusinessDescription } from "../features/business-presence/business-description";
 import { discoverBusinessPresence } from "../features/business-presence/discover-business-presence";
 import { presenceFromBusiness } from "../features/business-presence/storage";
-import type {
-  BusinessPresence,
-  InstagramSource,
-} from "../features/business-presence/types";
+import type { BusinessPresence, InstagramSource } from "../features/business-presence/types";
 import { LeadEnrichmentModal } from "../features/lead-enrichment/LeadEnrichmentModal";
 import { createLeadActivity } from "../features/lead-activities/lead-activities";
 import type { LeadActivityType } from "../features/lead-activities/types";
@@ -85,10 +91,7 @@ import {
   loadBrazilianMunicipalities,
   resolveMunicipality,
 } from "../features/search-leads/search-location";
-import {
-  findBusinessDuplicate,
-  normalizeBrazilianPhone,
-} from "../features/search-leads/identity";
+import { findBusinessDuplicate, normalizeBrazilianPhone } from "../features/search-leads/identity";
 import type { BusinessSearchResult } from "../features/search-leads/types";
 import { getValidSession, signOut, subscribeAuthChange } from "../lib/auth";
 import { accountLocalStorage, isLegacyWorkspaceOwner } from "../lib/account-storage";
@@ -100,9 +103,15 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "JanuarioLeads — Dashboard" },
-      { name: "description", content: "Organize seus leads e contatos de prospecção no JanuarioLeads." },
+      {
+        name: "description",
+        content: "Organize seus leads e contatos de prospecção no JanuarioLeads.",
+      },
       { property: "og:title", content: "JanuarioLeads — Dashboard" },
-      { property: "og:description", content: "Organize seus leads e contatos de prospecção no JanuarioLeads." },
+      {
+        property: "og:description",
+        content: "Organize seus leads e contatos de prospecção no JanuarioLeads.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -111,52 +120,7 @@ export const Route = createFileRoute("/")({
 });
 
 function PrivateLeadFlowApp() {
-  const navigate = useNavigate();
-  const [authorizedUserId, setAuthorizedUserId] = useState<string | null>(null);
-  const [checkingAccess, setCheckingAccess] = useState(true);
-
-  useEffect(() => {
-    let active = true;
-    let verificationSerial = 0;
-
-    async function verify() {
-      const currentVerification = ++verificationSerial;
-      const session = await getValidSession();
-      if (!active || currentVerification !== verificationSerial) return;
-      if (!session) {
-        setAuthorizedUserId(null);
-        setCheckingAccess(false);
-        await navigate({ to: "/login", replace: true });
-        return;
-      }
-      setAuthorizedUserId(session.user.id);
-      setCheckingAccess(false);
-    }
-
-    void verify();
-    const unsubscribe = subscribeAuthChange(() => {
-      // Immediately hide the previous tenant while the new session is verified.
-      setAuthorizedUserId(null);
-      setCheckingAccess(true);
-      void verify();
-    });
-
-    return () => {
-      active = false;
-      unsubscribe();
-    };
-  }, [navigate]);
-
-  if (checkingAccess || !authorizedUserId) {
-    return (
-      <main className="auth-loading" aria-live="polite">
-        <Loader2 size={20} className="auth-spinner" />
-        <span>Verificando acesso...</span>
-      </main>
-    );
-  }
-
-  return <LeadFlowApp key={authorizedUserId} />;
+  return <PrivateWorkspace>{(userId) => <LeadFlowApp key={userId} />}</PrivateWorkspace>;
 }
 
 type Status = LeadStatus;
@@ -205,13 +169,6 @@ const EMPTY_FORM: LeadForm = {
   notes: "",
   city: "",
   state: "",
-};
-
-const STORAGE = {
-  leads: "leadflow:leads",
-  messages: "leadflow:messages",
-  defaultMessagesRestored: "leadflow:messages:defaults-restored:2026-11-03",
-  theme: "leadflow:theme",
 };
 
 function leadToBusinessSearchResult(lead: Lead): BusinessSearchResult {
@@ -266,16 +223,24 @@ const INSTAGRAM_SOURCE_LABEL: Record<InstagramSource, string> = {
 
 function LeadFlowApp() {
   const navigate = useNavigate();
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [messages, setMessages] = useState<MessageTemplate[]>([]);
-  const [theme, setTheme] = useState<"light" | "dark">("dark");
-  const [hydrated, setHydrated] = useState(false);
-  const [remoteReady, setRemoteReady] = useState(false);
-  const [remoteError, setRemoteError] = useState("");
-  const [leadUpdates, setLeadUpdates] = useState<LeadUpdateRecord[]>([]);
-  const [leadPayments, setLeadPayments] = useState<LeadPayment[]>([]);
-  const [financeLoaded, setFinanceLoaded] = useState(false);
-  const [financeError, setFinanceError] = useState("");
+  const {
+    leads,
+    setLeads,
+    messages,
+    setMessages,
+    theme,
+    setTheme,
+    hydrated,
+    remoteReady,
+    remoteError,
+    setRemoteError,
+    leadUpdates,
+    setLeadUpdates,
+    leadPayments,
+    setLeadPayments,
+    financeLoaded,
+    financeError,
+  } = useLeadWorkspace();
   const [view, setView] = useState<AppView>("dashboard");
   const [leadModal, setLeadModal] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
@@ -287,9 +252,7 @@ function LeadFlowApp() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | Status>("all");
   const [actionFilter, setActionFilter] = useState<LeadActionFilter>("all");
-  const [financialFilter, setFinancialFilter] = useState<
-    "all" | FinancialStatus
-  >("all");
+  const [financialFilter, setFinancialFilter] = useState<"all" | FinancialStatus>("all");
   const [segmentFilter, setSegmentFilter] = useState("all");
   const [stateFilter, setStateFilter] = useState("all");
   const [cityFilter, setCityFilter] = useState("all");
@@ -312,179 +275,12 @@ function LeadFlowApp() {
     ? [...availableMessages.filter((template) => template.favorite), ...FOLLOW_UP_MESSAGES]
     : availableMessages;
   const activePickerMessage =
-    pickerMessages.find((template) => template.id === selectedMessage) ??
-    pickerMessages[0] ??
-    null;
+    pickerMessages.find((template) => template.id === selectedMessage) ?? pickerMessages[0] ?? null;
 
-  const [dashboardOpportunities, setDashboardOpportunities] = useState<
-    OpportunityRecord[]
-  >([]);
-  const [dashboardOpportunitiesLoading, setDashboardOpportunitiesLoading] =
-    useState(false);
-  const [dashboardOpportunitiesError, setDashboardOpportunitiesError] =
-    useState("");
-  const [dashboardOpportunitiesLoaded, setDashboardOpportunitiesLoaded] =
-    useState(false);
-
-  useEffect(() => {
-    let active = true;
-    let localLeads: Lead[] = [];
-
-    try {
-      const storedLeads = accountLocalStorage.getItem(STORAGE.leads);
-      const storedMessages = accountLocalStorage.getItem(STORAGE.messages);
-      const storedTheme = accountLocalStorage.getItem(STORAGE.theme) as
-        | "light"
-        | "dark"
-        | null;
-
-      if (storedLeads) {
-        const parsed = JSON.parse(storedLeads);
-        if (Array.isArray(parsed)) localLeads = parsed as Lead[];
-      }
-
-      setLeads(localLeads);
-
-      if (storedMessages) {
-        const parsed = parseSavedMessageTemplates(JSON.parse(storedMessages));
-        if (parsed) {
-          if (parsed.length === 0 && isLegacyWorkspaceOwner() && !accountLocalStorage.getItem(STORAGE.defaultMessagesRestored)) {
-            // One-time recovery for users who removed every original message.
-            // Custom deleted messages cannot be reconstructed without an existing backup.
-            setMessages(DEFAULT_MESSAGE_TEMPLATES.map((item) => ({ ...item })));
-            accountLocalStorage.setItem(STORAGE.defaultMessagesRestored, "1");
-          } else {
-            setMessages(parsed);
-          }
-        }
-      }
-
-      if (storedTheme === "dark" || storedTheme === "light") {
-        setTheme(storedTheme);
-      }
-    } catch {
-      // Corrupted local data never blocks access; backend migration still runs.
-    } finally {
-      setHydrated(true);
-    }
-
-    async function connectRemoteStorage() {
-      try {
-        const remoteLeads = await fetchRemoteLeads();
-        if (!active) return;
-
-        setLeads(remoteLeads);
-        setLeadUpdates(await fetchLeadUpdates());
-        try {
-          setLeadPayments(await fetchLeadPayments());
-          setFinanceLoaded(true);
-          setFinanceError("");
-        } catch {
-          setLeadPayments([]);
-          setFinanceLoaded(false);
-          setFinanceError(
-            "Não foi possível carregar os recebimentos agora. O restante do CRM continua disponível.",
-          );
-        }
-        setRemoteReady(true);
-        setRemoteError("");
-      } catch {
-        if (!active) return;
-        setRemoteReady(false);
-        setRemoteError(
-          "Sincronização automática indisponível agora. Seus dados locais continuam preservados.",
-        );
-      }
-    }
-
-    void connectRemoteStorage();
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    accountLocalStorage.setItem(STORAGE.leads, JSON.stringify(leads));
-  }, [leads, hydrated]);
-
-  useEffect(() => {
-    let active = true;
-    let refreshInFlight = false;
-
-    async function refreshRemoteState() {
-      if (!active || refreshInFlight) return;
-      refreshInFlight = true;
-
-      try {
-        const [remoteLeads, updates] = await Promise.all([
-          fetchRemoteLeads(),
-          fetchLeadUpdates(),
-        ]);
-
-        if (!active) return;
-        setLeads(remoteLeads);
-        setLeadUpdates(updates);
-        setRemoteReady(true);
-        try {
-          setLeadPayments(await fetchLeadPayments());
-          setFinanceLoaded(true);
-          setFinanceError("");
-        } catch {
-          setFinanceError(
-            "Não foi possível atualizar os recebimentos agora. Os dados financeiros exibidos podem estar desatualizados.",
-          );
-        }
-        setRemoteError("");
-      } catch {
-        if (!active) return;
-        setRemoteError(
-          "Não foi possível atualizar a cópia remota agora. O CRM continua disponível localmente.",
-        );
-      } finally {
-        refreshInFlight = false;
-      }
-    }
-
-    function refreshWhenVisible() {
-      if (document.visibilityState === "visible") {
-        void refreshRemoteState();
-      }
-    }
-
-    function refreshAfterPageRestore(event: PageTransitionEvent) {
-      if (event.persisted) {
-        void refreshRemoteState();
-      }
-    }
-
-    // These listeners are intentionally registered even when the initial
-    // Supabase connection fails, so a suspended mobile tab can recover later.
-    window.addEventListener("focus", refreshRemoteState);
-    window.addEventListener("online", refreshRemoteState);
-    document.addEventListener("visibilitychange", refreshWhenVisible);
-    window.addEventListener("pageshow", refreshAfterPageRestore);
-
-    return () => {
-      active = false;
-      window.removeEventListener("focus", refreshRemoteState);
-      window.removeEventListener("online", refreshRemoteState);
-      document.removeEventListener("visibilitychange", refreshWhenVisible);
-      window.removeEventListener("pageshow", refreshAfterPageRestore);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    accountLocalStorage.setItem(STORAGE.messages, JSON.stringify(messages));
-  }, [messages, hydrated]);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    accountLocalStorage.setItem(STORAGE.theme, theme);
-    document.documentElement.classList.toggle("dark", theme === "dark");
-  }, [theme, hydrated]);
+  const [dashboardOpportunities, setDashboardOpportunities] = useState<OpportunityRecord[]>([]);
+  const [dashboardOpportunitiesLoading, setDashboardOpportunitiesLoading] = useState(false);
+  const [dashboardOpportunitiesError, setDashboardOpportunitiesError] = useState("");
+  const [dashboardOpportunitiesLoaded, setDashboardOpportunitiesLoaded] = useState(false);
 
   useEffect(() => {
     setMessageActionPending(false);
@@ -492,11 +288,7 @@ function LeadFlowApp() {
   }, [messageLead?.id, messageLead?.company]);
 
   useEffect(() => {
-    if (
-      view !== "dashboard" ||
-      !remoteReady ||
-      dashboardOpportunitiesLoaded
-    ) {
+    if (view !== "dashboard" || !remoteReady || dashboardOpportunitiesLoaded) {
       return;
     }
 
@@ -523,12 +315,7 @@ function LeadFlowApp() {
     return () => {
       active = false;
     };
-  }, [
-    view,
-    remoteReady,
-    leads,
-    dashboardOpportunitiesLoaded,
-  ]);
+  }, [view, remoteReady, leads, dashboardOpportunitiesLoaded]);
 
   useEffect(() => {
     const stateCode = normalizeBrazilianStateCode(form.state);
@@ -589,9 +376,7 @@ function LeadFlowApp() {
   const availableStates = useMemo(
     () =>
       BRAZIL_STATES.filter((state) =>
-        leads.some(
-          (lead) => normalizeBrazilianStateCode(lead.state) === state.code,
-        ),
+        leads.some((lead) => normalizeBrazilianStateCode(lead.state) === state.code),
       ),
     [leads],
   );
@@ -603,8 +388,7 @@ function LeadFlowApp() {
         leads
           .filter(
             (lead) =>
-              normalizeBrazilianStateCode(lead.state) === stateFilter &&
-              Boolean(lead.city?.trim()),
+              normalizeBrazilianStateCode(lead.state) === stateFilter && Boolean(lead.city?.trim()),
           )
           .map((lead) => lead.city!.trim()),
       ),
@@ -631,10 +415,7 @@ function LeadFlowApp() {
     const map = new Map<string, LeadFinanceSummary>();
     if (!financeLoaded) return map;
     for (const lead of leads) {
-      const summary = summarizeLeadFinance(
-        lead,
-        paymentsByLead.get(lead.id) ?? [],
-      );
+      const summary = summarizeLeadFinance(lead, paymentsByLead.get(lead.id) ?? []);
       if (summary) map.set(lead.id, summary);
     }
     return map;
@@ -682,32 +463,27 @@ function LeadFlowApp() {
             state.code === normalizeBrazilianStateCode(lead.state) &&
             normalizeLocationText(state.name).includes(query),
         ) ||
-        (phoneQuery.length > 0 &&
-          lead.phone.replace(/\D/g, "").includes(phoneQuery));
+        (phoneQuery.length > 0 && lead.phone.replace(/\D/g, "").includes(phoneQuery));
       const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
       const matchesSegment = segmentFilter === "all" || lead.segment === segmentFilter;
       const matchesState =
-        stateFilter === "all" ||
-        normalizeBrazilianStateCode(lead.state) === stateFilter;
-      const matchesCity =
-        cityFilter === "all" || lead.city?.trim() === cityFilter;
+        stateFilter === "all" || normalizeBrazilianStateCode(lead.state) === stateFilter;
+      const matchesCity = cityFilter === "all" || lead.city?.trim() === cityFilter;
       const finance = financeByLead.get(lead.id);
-      const matchesFinancial =
-        financialFilter === "all" || finance?.status === financialFilter;
+      const matchesFinancial = financialFilter === "all" || finance?.status === financialFilter;
       const actionSummary = getLeadActionSummary(lead);
       const matchesAction =
         actionFilter === "all" ||
         (actionFilter === "today" &&
           Boolean(
             actionSummary.saved?.date &&
-              actionSummary.temporal.daysDelta !== null &&
-              actionSummary.temporal.daysDelta <= 0,
+            actionSummary.temporal.daysDelta !== null &&
+            actionSummary.temporal.daysDelta <= 0,
           )) ||
         (actionFilter === "follow-up" &&
           (actionSummary.saved?.type === "follow_up" ||
             (!actionSummary.saved && actionSummary.followUp.recommended))) ||
-        (actionFilter === "overdue" &&
-          actionSummary.temporal.urgency === "overdue");
+        (actionFilter === "overdue" && actionSummary.temporal.urgency === "overdue");
       return (
         matchesSearch &&
         matchesStatus &&
@@ -775,10 +551,7 @@ function LeadFlowApp() {
       ) {
         today += 1;
       }
-      if (
-        summary.saved?.type === "follow_up" ||
-        (!summary.saved && summary.followUp.recommended)
-      ) {
+      if (summary.saved?.type === "follow_up" || (!summary.saved && summary.followUp.recommended)) {
         followUp += 1;
       }
       if (summary.temporal.urgency === "overdue") {
@@ -798,10 +571,7 @@ function LeadFlowApp() {
     return counts;
   }, [leadUpdates]);
 
-  const recentLeadUpdates = useMemo(
-    () => leadUpdates.slice(0, 6),
-    [leadUpdates],
-  );
+  const recentLeadUpdates = useMemo(() => leadUpdates.slice(0, 6), [leadUpdates]);
 
   function recordActivity(
     leadId: string,
@@ -813,15 +583,17 @@ function LeadFlowApp() {
       createdAt?: string;
     },
   ) {
-    void createLeadActivity({
-      leadId,
-      ...input,
-    }).catch(() => {
-      setActivityError(
-        "A ação foi concluída, mas o histórico não pôde ser atualizado agora.",
-      );
-      window.setTimeout(() => setActivityError(""), 5000);
-    });
+    void flushPendingLeads()
+      .then(() =>
+        createLeadActivity({
+          leadId,
+          ...input,
+        }),
+      )
+      .catch(() => {
+        setActivityError("A ação foi concluída, mas o histórico não pôde ser atualizado agora.");
+        window.setTimeout(() => setActivityError(""), 5000);
+      });
   }
 
   function relevantLeadChanges(previous: Lead, next: Lead) {
@@ -833,9 +605,7 @@ function LeadFlowApp() {
       ["notes", "Observações"],
     ];
 
-    return checks
-      .filter(([key]) => previous[key] !== next[key])
-      .map(([, label]) => label);
+    return checks.filter(([key]) => previous[key] !== next[key]).map(([, label]) => label);
   }
 
   function enrichmentChanges(previous: Lead, next: Lead) {
@@ -885,9 +655,7 @@ function LeadFlowApp() {
       {
         field: "googleMapsUrl",
         changed: previous.googleMapsUrl !== next.googleMapsUrl,
-        label: previous.googleMapsUrl
-          ? "Google Maps atualizado"
-          : "Google Maps identificado",
+        label: previous.googleMapsUrl ? "Google Maps atualizado" : "Google Maps identificado",
       },
       {
         field: "factualDescription",
@@ -902,9 +670,7 @@ function LeadFlowApp() {
       {
         field: "instagram",
         changed: previous.instagram !== next.instagram,
-        label: previous.instagram
-          ? "Instagram atualizado"
-          : "Instagram identificado",
+        label: previous.instagram ? "Instagram atualizado" : "Instagram identificado",
       },
       {
         field: "rating",
@@ -918,9 +684,7 @@ function LeadFlowApp() {
       },
       {
         field: "openingHours",
-        changed:
-          normalizedArray(previous.openingHours) !==
-          normalizedArray(next.openingHours),
+        changed: normalizedArray(previous.openingHours) !== normalizedArray(next.openingHours),
         label: "Horário atualizado",
       },
       {
@@ -935,9 +699,7 @@ function LeadFlowApp() {
       },
       {
         field: "categories",
-        changed:
-          normalizedArray(previous.categories) !==
-          normalizedArray(next.categories),
+        changed: normalizedArray(previous.categories) !== normalizedArray(next.categories),
         label: "Categorias atualizadas",
       },
     ];
@@ -946,28 +708,20 @@ function LeadFlowApp() {
   }
 
   function persistLeadChange(lead: Lead) {
-    if (!remoteReady) return;
-    void saveRemoteLead(lead).then((ok) => {
-      if (!ok) {
-        setRemoteError(
-          "Uma alteração ficou salva localmente, mas ainda não foi confirmada no Supabase.",
-        );
-      }
-    });
+    enqueueLead(lead.id, lead);
+    void flushPendingLeads().catch(() =>
+      setRemoteError(
+        "Alteração pendente. Será reenviada ao reconectar; sua cópia local está preservada.",
+      ),
+    );
   }
 
-  function updateLeadLocally(
-    id: string,
-    updater: (lead: Lead) => Lead,
-  ) {
-    setLeads((current) =>
-      current.map((lead) => {
-        if (lead.id !== id) return lead;
-        const next = updater(lead);
-        persistLeadChange(next);
-        return next;
-      }),
-    );
+  function updateLeadLocally(id: string, updater: (lead: Lead) => Lead) {
+    const current = leads.find((lead) => lead.id === id);
+    if (!current) return;
+    const next = updater(current);
+    persistLeadChange(next);
+    setLeads((rows) => rows.map((lead) => (lead.id === id ? next : lead)));
   }
 
   function saveNextAction(id: string, patch: NextActionPatch) {
@@ -993,9 +747,7 @@ function LeadFlowApp() {
     const previousLabel = previous.nextActionType
       ? NEXT_ACTION_LABEL[previous.nextActionType]
       : null;
-    const nextLabel = next.nextActionType
-      ? NEXT_ACTION_LABEL[next.nextActionType]
-      : null;
+    const nextLabel = next.nextActionType ? NEXT_ACTION_LABEL[next.nextActionType] : null;
 
     recordActivity(id, {
       type: "next_action_set",
@@ -1055,30 +807,21 @@ function LeadFlowApp() {
   }
 
   function removeLeadLocally(id: string) {
+    enqueueLead(id, null);
     setLeads((current) => current.filter((lead) => lead.id !== id));
-    if (remoteReady) {
-      void deleteRemoteLead(id).then((ok) => {
-        if (!ok) {
-          setRemoteError(
-            "O lead foi removido localmente, mas a exclusão remota ainda não foi confirmada.",
-          );
-        }
-      });
-    }
+    void flushPendingLeads().catch(() =>
+      setRemoteError("Exclusão pendente. Será reenviada ao reconectar."),
+    );
   }
 
   function openLeadDetails(lead: Lead) {
     setLeadDetailsId(lead.id);
 
-    const hasUnseen = leadUpdates.some(
-      (update) => update.leadId === lead.id && !update.isSeen,
-    );
+    const hasUnseen = leadUpdates.some((update) => update.leadId === lead.id && !update.isSeen);
     if (!hasUnseen || !remoteReady) return;
 
     setLeadUpdates((current) =>
-      current.map((update) =>
-        update.leadId === lead.id ? { ...update, isSeen: true } : update,
-      ),
+      current.map((update) => (update.leadId === lead.id ? { ...update, isSeen: true } : update)),
     );
     void markLeadUpdatesSeen(lead.id);
   }
@@ -1112,16 +855,19 @@ function LeadFlowApp() {
 
     const state = normalizeBrazilianStateCode(form.state);
     const typedCity = form.city?.trim() ?? "";
-    if ((!editingLead && (!state || !typedCity)) ||
-        (Boolean(state) !== Boolean(typedCity))) {
+    if ((!editingLead && (!state || !typedCity)) || Boolean(state) !== Boolean(typedCity)) {
       setLeadLocationError("Selecione um estado e informe a cidade do lead.");
       return;
     }
     const city = typedCity
-      ? resolveMunicipality(typedCity, leadMunicipalities) ?? typedCity
+      ? (resolveMunicipality(typedCity, leadMunicipalities) ?? typedCity)
       : undefined;
-    if (state && city && leadMunicipalities.length > 0 &&
-        !resolveMunicipality(city, leadMunicipalities)) {
+    if (
+      state &&
+      city &&
+      leadMunicipalities.length > 0 &&
+      !resolveMunicipality(city, leadMunicipalities)
+    ) {
       setLeadLocationError("Selecione um município válido da lista do IBGE.");
       return;
     }
@@ -1142,8 +888,7 @@ function LeadFlowApp() {
       }
       const changedFields = relevantLeadChanges(editingLead, nextLead);
       const instagramIdentityChanged =
-        editingLead.company !== nextLead.company ||
-        editingLead.phone !== nextLead.phone;
+        editingLead.company !== nextLead.company || editingLead.phone !== nextLead.phone;
 
       if (
         instagramIdentityChanged &&
@@ -1159,9 +904,7 @@ function LeadFlowApp() {
         const previousStatus = STATUS_LABEL[editingLead.status];
         const newStatus = STATUS_LABEL[nextLead.status];
         const editedSuffix =
-          changedFields.length > 0
-            ? ` · Também editado: ${changedFields.join(" · ")}`
-            : "";
+          changedFields.length > 0 ? ` · Também editado: ${changedFields.join(" · ")}` : "";
 
         recordActivity(editingLead.id, {
           type: "status_changed",
@@ -1248,9 +991,7 @@ function LeadFlowApp() {
   function confirmDelete() {
     if (!deleteLead) return;
     removeLeadLocally(deleteLead.id);
-    setLeadUpdates((current) =>
-      current.filter((update) => update.leadId !== deleteLead.id),
-    );
+    setLeadUpdates((current) => current.filter((update) => update.leadId !== deleteLead.id));
     setDeleteLead(null);
   }
 
@@ -1259,9 +1000,7 @@ function LeadFlowApp() {
 
     const phone = normalizeBrazilianPhone(messageLead.phone);
     if (phone.length !== 12 && phone.length !== 13) {
-      setMessageActionError(
-        "Este lead não possui um telefone válido para abrir o WhatsApp.",
-      );
+      setMessageActionError("Este lead não possui um telefone válido para abrir o WhatsApp.");
       return;
     }
 
@@ -1270,10 +1009,7 @@ function LeadFlowApp() {
       return;
     }
 
-    const personalized = activePickerMessage.text.replaceAll(
-      "{empresa}",
-      messageLead.company,
-    );
+    const personalized = activePickerMessage.text.replaceAll("{empresa}", messageLead.company);
 
     setMessageActionPending(true);
     setMessageActionError("");
@@ -1309,16 +1045,12 @@ function LeadFlowApp() {
 
     const today = crmToday();
     const shouldAdvanceToWaiting = currentLead.status === "send_message";
-    const isFollowUp =
-      Boolean(messageLead.followUp) && currentLead.status === "waiting";
+    const isFollowUp = Boolean(messageLead.followUp) && currentLead.status === "waiting";
     const completedInitialContact =
-      shouldAdvanceToWaiting &&
-      currentLead.nextActionType === "initial_contact";
-    const completedScheduledFollowUp =
-      isFollowUp && currentLead.nextActionType === "follow_up";
+      shouldAdvanceToWaiting && currentLead.nextActionType === "initial_contact";
+    const completedScheduledFollowUp = isFollowUp && currentLead.nextActionType === "follow_up";
     const shouldScheduleDefaultFollowUp =
-      shouldAdvanceToWaiting &&
-      (!currentLead.nextActionType || completedInitialContact);
+      shouldAdvanceToWaiting && (!currentLead.nextActionType || completedInitialContact);
 
     let nextLead: Lead = {
       ...currentLead,
@@ -1356,6 +1088,7 @@ function LeadFlowApp() {
 
     let persisted = false;
     try {
+      await flushPendingLeads();
       persisted = await saveRemoteLead(nextLead);
     } catch {
       persisted = false;
@@ -1371,9 +1104,7 @@ function LeadFlowApp() {
       return;
     }
 
-    setLeads((current) =>
-      current.map((lead) => (lead.id === nextLead.id ? nextLead : lead)),
-    );
+    setLeads((current) => current.map((lead) => (lead.id === nextLead.id ? nextLead : lead)));
     setRemoteError("");
 
     recordActivity(nextLead.id, {
@@ -1464,19 +1195,12 @@ function LeadFlowApp() {
     }
   }
 
-  function applyPresenceToLead(
-    leadId: string,
-    presence: BusinessPresence,
-    baselineLead?: Lead,
-  ) {
-    const previous =
-      baselineLead ?? leads.find((lead) => lead.id === leadId);
+  function applyPresenceToLead(leadId: string, presence: BusinessPresence, baselineLead?: Lead) {
+    const previous = baselineLead ?? leads.find((lead) => lead.id === leadId);
     if (!previous) return;
 
     const keepConfirmedInstagram =
-      !presence.instagramUrl &&
-      previous.instagram &&
-      previous.instagramConfidence === "high";
+      !presence.instagramUrl && previous.instagram && previous.instagramConfidence === "high";
 
     const nextLead: Lead = {
       ...previous,
@@ -1486,8 +1210,8 @@ function LeadFlowApp() {
         (keepConfirmedInstagram ? previous.instagramUsername : undefined),
       instagramDisplayName:
         presence.instagramDisplayName ??
-        ((keepConfirmedInstagram ||
-          (presence.instagramUrl && presence.instagramUrl === previous.instagram))
+        (keepConfirmedInstagram ||
+        (presence.instagramUrl && presence.instagramUrl === previous.instagram)
           ? previous.instagramDisplayName
           : undefined),
       instagramCandidates: presence.instagramCandidates,
@@ -1499,8 +1223,7 @@ function LeadFlowApp() {
         ? {
             instagram: presence.instagramUrl,
             instagramConfidence: presence.instagramConfidence ?? "high",
-            instagramSource:
-              presence.instagramSource ?? "official_website",
+            instagramSource: presence.instagramSource ?? "official_website",
           }
         : keepConfirmedInstagram
           ? {}
@@ -1518,11 +1241,9 @@ function LeadFlowApp() {
     const becameConfirmed =
       Boolean(presence.instagramUrl) &&
       presence.instagramConfidence === "high" &&
-      (
-        previous.instagram !== presence.instagramUrl ||
+      (previous.instagram !== presence.instagramUrl ||
         previous.instagramConfidence !== "high" ||
-        previous.instagramSource !== presence.instagramSource
-      );
+        previous.instagramSource !== presence.instagramSource);
 
     if (becameConfirmed && presence.instagramUrl) {
       const manual = presence.instagramSource === "manual_confirmation";
@@ -1530,9 +1251,7 @@ function LeadFlowApp() {
         type: "company_updated",
         title: manual ? "Instagram confirmado" : "Instagram identificado",
         description: [
-          presence.instagramUsername
-            ? `@${presence.instagramUsername}`
-            : presence.instagramUrl,
+          presence.instagramUsername ? `@${presence.instagramUsername}` : presence.instagramUrl,
           presence.instagramSource
             ? `Fonte: ${INSTAGRAM_SOURCE_LABEL[presence.instagramSource]}`
             : null,
@@ -1549,10 +1268,7 @@ function LeadFlowApp() {
     }
   }
 
-  function openBusinessWhatsApp(
-    business: BusinessSearchResult,
-    activityLeadId?: string,
-  ) {
+  function openBusinessWhatsApp(business: BusinessSearchResult, activityLeadId?: string) {
     const value = business.phone ?? business.internationalPhone;
     if (!value) return;
     const phone = normalizeBrazilianPhone(value);
@@ -1594,11 +1310,10 @@ function LeadFlowApp() {
 
     const discoveredPresence = presenceFromBusiness(business);
     const factualDescription = buildFactualBusinessDescription(business);
-    const officialPhone =
-      business.phone ?? business.internationalPhone ?? previous.phone;
+    const officialPhone = business.phone ?? business.internationalPhone ?? previous.phone;
 
     const nextLead: Lead = {
-        ...previous,
+      ...previous,
       company: business.name || previous.company,
       phone: officialPhone,
       placeId: business.placeId,
@@ -1608,23 +1323,17 @@ function LeadFlowApp() {
       ...(discoveredPresence
         ? {
             instagramCheckedAt: discoveredPresence.instagramCheckedAt,
-            instagramUsername:
-              discoveredPresence.instagramUsername ?? undefined,
+            instagramUsername: discoveredPresence.instagramUsername ?? undefined,
             instagramDisplayName: discoveredPresence.instagramDisplayName ?? undefined,
             instagramCandidates: discoveredPresence.instagramCandidates,
-            instagramRejectedUrls:
-              discoveredPresence.instagramRejectedUrls,
-            instagramSearchSignature:
-              discoveredPresence.instagramSearchSignature ?? undefined,
-            instagramNeedsReview:
-              discoveredPresence.instagramNeedsReview,
+            instagramRejectedUrls: discoveredPresence.instagramRejectedUrls,
+            instagramSearchSignature: discoveredPresence.instagramSearchSignature ?? undefined,
+            instagramNeedsReview: discoveredPresence.instagramNeedsReview,
             ...(discoveredPresence.instagramUrl
               ? {
                   instagram: discoveredPresence.instagramUrl,
-                  instagramConfidence:
-                    discoveredPresence.instagramConfidence ?? "high",
-                  instagramSource:
-                    discoveredPresence.instagramSource ?? "existing_data",
+                  instagramConfidence: discoveredPresence.instagramConfidence ?? "high",
+                  instagramSource: discoveredPresence.instagramSource ?? "existing_data",
                 }
               : {}),
           }
@@ -1632,48 +1341,26 @@ function LeadFlowApp() {
       ...(business.address ? { address: business.address } : {}),
       ...(business.website ? { website: business.website } : {}),
       ...(business.googleMapsUrl ? { googleMapsUrl: business.googleMapsUrl } : {}),
-        ...(business.instagram && !discoveredPresence?.instagramUrl
-          ? { instagram: business.instagram }
-          : {}),
-      ...(business.primaryCategory
-        ? { primaryCategory: business.primaryCategory }
+      ...(business.instagram && !discoveredPresence?.instagramUrl
+        ? { instagram: business.instagram }
         : {}),
-      ...(business.categories.length > 0
-        ? { categories: business.categories }
-        : {}),
+      ...(business.primaryCategory ? { primaryCategory: business.primaryCategory } : {}),
+      ...(business.categories.length > 0 ? { categories: business.categories } : {}),
       ...(business.description ? { description: business.description } : {}),
       ...(business.neighborhood ? { neighborhood: business.neighborhood } : {}),
       ...(business.city ? { city: business.city } : {}),
       ...(business.state ? { state: business.state } : {}),
-      ...(business.internationalPhone
-        ? { internationalPhone: business.internationalPhone }
-        : {}),
+      ...(business.internationalPhone ? { internationalPhone: business.internationalPhone } : {}),
       ...(business.rating !== null ? { rating: business.rating } : {}),
-      ...(business.reviewCount !== null
-        ? { reviewCount: business.reviewCount }
-        : {}),
-      ...(business.isOpenNow !== null
-        ? { isOpenNow: business.isOpenNow }
-        : {}),
-      ...(business.openingHours.length > 0
-        ? { openingHours: business.openingHours }
-        : {}),
-      ...(business.businessStatus
-        ? { businessStatus: business.businessStatus }
-        : {}),
+      ...(business.reviewCount !== null ? { reviewCount: business.reviewCount } : {}),
+      ...(business.isOpenNow !== null ? { isOpenNow: business.isOpenNow } : {}),
+      ...(business.openingHours.length > 0 ? { openingHours: business.openingHours } : {}),
+      ...(business.businessStatus ? { businessStatus: business.businessStatus } : {}),
       ...(business.latitude !== null ? { latitude: business.latitude } : {}),
-      ...(business.longitude !== null
-        ? { longitude: business.longitude }
-        : {}),
-      ...(business.verifiedContent
-        ? { verifiedContent: business.verifiedContent }
-        : {}),
-      ...(business.verifiedImages
-        ? { verifiedImages: business.verifiedImages }
-        : {}),
-      ...(business.confirmedChannels
-        ? { confirmedChannels: business.confirmedChannels }
-        : {}),
+      ...(business.longitude !== null ? { longitude: business.longitude } : {}),
+      ...(business.verifiedContent ? { verifiedContent: business.verifiedContent } : {}),
+      ...(business.verifiedImages ? { verifiedImages: business.verifiedImages } : {}),
+      ...(business.confirmedChannels ? { confirmedChannels: business.confirmedChannels } : {}),
       ...(business.deepEnrichmentStatus
         ? { deepEnrichmentStatus: business.deepEnrichmentStatus }
         : {}),
@@ -1706,9 +1393,7 @@ function LeadFlowApp() {
       recordActivity(leadId, {
         type: "company_updated",
         title: "Informações da empresa atualizadas",
-        description:
-          shown.join(" · ") +
-          (remaining > 0 ? ` · +${remaining} alterações` : ""),
+        description: shown.join(" · ") + (remaining > 0 ? ` · +${remaining} alterações` : ""),
         metadata: {
           changedFields: changed.map((item) => item.field),
         },
@@ -1720,121 +1405,96 @@ function LeadFlowApp() {
     // Keep the existing first-enrichment behavior, now with the deeper
     // discovery layer. Updates only mark old Instagram data for review.
     if (!previous.placeId) {
-      void refreshLeadPresence(
-        leadId,
-        leadToBusinessSearchResult(nextLead),
-        false,
-        true,
-        nextLead,
-      );
+      void refreshLeadPresence(leadId, leadToBusinessSearchResult(nextLead), false, true, nextLead);
     }
   }
 
-  function buildFoundLead(
-    business: BusinessSearchResult,
-    selectedSegment: string,
-  ): Lead {
+  function buildFoundLead(business: BusinessSearchResult, selectedSegment: string): Lead {
     const foundPhone = business.phone ?? business.internationalPhone ?? "";
-      const details = [
-        business.city
-          ? `Lead encontrado através do buscador de empresas em ${business.city}${business.state ? ` - ${business.state}` : ""}.`
-          : "Lead encontrado através do buscador de empresas.",
-        business.address ? `Endereço: ${business.address}` : "",
-        business.website ? `Site: ${business.website}` : "",
-        business.instagram ? `Instagram: ${business.instagram}` : "",
-        business.googleMapsUrl ? `Google Maps: ${business.googleMapsUrl}` : "",
-      ].filter(Boolean);
-  
-      const discoveredPresence = presenceFromBusiness(business);
-      const factualDescription = buildFactualBusinessDescription(business);
-  
-      const newLead: Lead = {
-        id: crypto.randomUUID(),
-        company: business.name,
-        segment: selectedSegment,
-        phone: foundPhone,
-        status: "send_message",
-        firstContact: new Date().toISOString().slice(0, 10),
-        notes: details.join("\n"),
-        createdAt: new Date().toISOString(),
-        placeId: business.placeId,
-        source: "places-search",
-        factualDescription,
-        ...(discoveredPresence
-          ? {
-              instagramCheckedAt: discoveredPresence.instagramCheckedAt,
-              instagramUsername:
-                discoveredPresence.instagramUsername ?? undefined,
-              instagramDisplayName: discoveredPresence.instagramDisplayName ?? undefined,
-              instagramCandidates: discoveredPresence.instagramCandidates,
-              instagramRejectedUrls:
-                discoveredPresence.instagramRejectedUrls,
-              instagramSearchSignature:
-                discoveredPresence.instagramSearchSignature ?? undefined,
-              instagramNeedsReview:
-                discoveredPresence.instagramNeedsReview,
-              ...(discoveredPresence.instagramUrl
-                ? {
-                    instagram: discoveredPresence.instagramUrl,
-                    instagramConfidence:
-                      discoveredPresence.instagramConfidence ?? "high",
-                    instagramSource:
-                      discoveredPresence.instagramSource ?? "existing_data",
-                  }
-                : {}),
-            }
-          : {}),
-        ...(business.address ? { address: business.address } : {}),
-        ...(business.website ? { website: business.website } : {}),
-        ...(business.googleMapsUrl ? { googleMapsUrl: business.googleMapsUrl } : {}),
-        ...(business.instagram && !discoveredPresence?.instagramUrl
-          ? { instagram: business.instagram }
-          : {}),
-        ...(business.primaryCategory ? { primaryCategory: business.primaryCategory } : {}),
-        ...(business.categories.length ? { categories: business.categories } : {}),
-        ...(business.description ? { description: business.description } : {}),
-        ...(business.neighborhood ? { neighborhood: business.neighborhood } : {}),
-        ...(business.city ? { city: business.city } : {}),
-        ...(business.state
-          ? {
-              state:
-                normalizeBrazilianStateCode(business.state) || business.state,
-            }
-          : {}),
-        ...(business.internationalPhone ? { internationalPhone: business.internationalPhone } : {}),
-        ...(business.rating !== null ? { rating: business.rating } : {}),
-        ...(business.reviewCount !== null ? { reviewCount: business.reviewCount } : {}),
-        ...(business.isOpenNow !== null ? { isOpenNow: business.isOpenNow } : {}),
-        ...(business.openingHours.length ? { openingHours: business.openingHours } : {}),
-        ...(business.businessStatus ? { businessStatus: business.businessStatus } : {}),
-        ...(business.latitude !== null ? { latitude: business.latitude } : {}),
-        ...(business.longitude !== null ? { longitude: business.longitude } : {}),
-        ...(business.verifiedContent
-          ? { verifiedContent: business.verifiedContent }
-          : {}),
-        ...(business.verifiedImages
-          ? { verifiedImages: business.verifiedImages }
-          : {}),
-        ...(business.confirmedChannels
-          ? { confirmedChannels: business.confirmedChannels }
-          : {}),
-        ...(business.deepEnrichmentStatus
-          ? { deepEnrichmentStatus: business.deepEnrichmentStatus }
-          : {}),
-        ...(business.deepEnrichmentQuality
-          ? { deepEnrichmentQuality: business.deepEnrichmentQuality }
-          : {}),
-        ...(business.deepEnrichmentCheckedAt
-          ? { deepEnrichmentCheckedAt: business.deepEnrichmentCheckedAt }
-          : {}),
-      };
+    const details = [
+      business.city
+        ? `Lead encontrado através do buscador de empresas em ${business.city}${business.state ? ` - ${business.state}` : ""}.`
+        : "Lead encontrado através do buscador de empresas.",
+      business.address ? `Endereço: ${business.address}` : "",
+      business.website ? `Site: ${business.website}` : "",
+      business.instagram ? `Instagram: ${business.instagram}` : "",
+      business.googleMapsUrl ? `Google Maps: ${business.googleMapsUrl}` : "",
+    ].filter(Boolean);
+
+    const discoveredPresence = presenceFromBusiness(business);
+    const factualDescription = buildFactualBusinessDescription(business);
+
+    const newLead: Lead = {
+      id: crypto.randomUUID(),
+      company: business.name,
+      segment: selectedSegment,
+      phone: foundPhone,
+      status: "send_message",
+      firstContact: new Date().toISOString().slice(0, 10),
+      notes: details.join("\n"),
+      createdAt: new Date().toISOString(),
+      placeId: business.placeId,
+      source: "places-search",
+      factualDescription,
+      ...(discoveredPresence
+        ? {
+            instagramCheckedAt: discoveredPresence.instagramCheckedAt,
+            instagramUsername: discoveredPresence.instagramUsername ?? undefined,
+            instagramDisplayName: discoveredPresence.instagramDisplayName ?? undefined,
+            instagramCandidates: discoveredPresence.instagramCandidates,
+            instagramRejectedUrls: discoveredPresence.instagramRejectedUrls,
+            instagramSearchSignature: discoveredPresence.instagramSearchSignature ?? undefined,
+            instagramNeedsReview: discoveredPresence.instagramNeedsReview,
+            ...(discoveredPresence.instagramUrl
+              ? {
+                  instagram: discoveredPresence.instagramUrl,
+                  instagramConfidence: discoveredPresence.instagramConfidence ?? "high",
+                  instagramSource: discoveredPresence.instagramSource ?? "existing_data",
+                }
+              : {}),
+          }
+        : {}),
+      ...(business.address ? { address: business.address } : {}),
+      ...(business.website ? { website: business.website } : {}),
+      ...(business.googleMapsUrl ? { googleMapsUrl: business.googleMapsUrl } : {}),
+      ...(business.instagram && !discoveredPresence?.instagramUrl
+        ? { instagram: business.instagram }
+        : {}),
+      ...(business.primaryCategory ? { primaryCategory: business.primaryCategory } : {}),
+      ...(business.categories.length ? { categories: business.categories } : {}),
+      ...(business.description ? { description: business.description } : {}),
+      ...(business.neighborhood ? { neighborhood: business.neighborhood } : {}),
+      ...(business.city ? { city: business.city } : {}),
+      ...(business.state
+        ? {
+            state: normalizeBrazilianStateCode(business.state) || business.state,
+          }
+        : {}),
+      ...(business.internationalPhone ? { internationalPhone: business.internationalPhone } : {}),
+      ...(business.rating !== null ? { rating: business.rating } : {}),
+      ...(business.reviewCount !== null ? { reviewCount: business.reviewCount } : {}),
+      ...(business.isOpenNow !== null ? { isOpenNow: business.isOpenNow } : {}),
+      ...(business.openingHours.length ? { openingHours: business.openingHours } : {}),
+      ...(business.businessStatus ? { businessStatus: business.businessStatus } : {}),
+      ...(business.latitude !== null ? { latitude: business.latitude } : {}),
+      ...(business.longitude !== null ? { longitude: business.longitude } : {}),
+      ...(business.verifiedContent ? { verifiedContent: business.verifiedContent } : {}),
+      ...(business.verifiedImages ? { verifiedImages: business.verifiedImages } : {}),
+      ...(business.confirmedChannels ? { confirmedChannels: business.confirmedChannels } : {}),
+      ...(business.deepEnrichmentStatus
+        ? { deepEnrichmentStatus: business.deepEnrichmentStatus }
+        : {}),
+      ...(business.deepEnrichmentQuality
+        ? { deepEnrichmentQuality: business.deepEnrichmentQuality }
+        : {}),
+      ...(business.deepEnrichmentCheckedAt
+        ? { deepEnrichmentCheckedAt: business.deepEnrichmentCheckedAt }
+        : {}),
+    };
     return newLead;
   }
 
-  function addFoundLead(
-    business: BusinessSearchResult,
-    selectedSegment: string,
-  ) {
+  function addFoundLead(business: BusinessSearchResult, selectedSegment: string) {
     const duplicate = findBusinessDuplicate(business, leads);
     if (duplicate) return;
 
@@ -1861,19 +1521,17 @@ function LeadFlowApp() {
     const newLead = buildFoundLead(business, selectedSegment);
     let persisted = false;
     try {
+      await flushPendingLeads();
       persisted = await saveRemoteLead(newLead);
     } catch {
       persisted = false;
     }
 
     if (!persisted) {
-      setRemoteError(
-        "Não foi possível confirmar a criação deste lead no Supabase.",
-      );
+      setRemoteError("Não foi possível confirmar a criação deste lead no Supabase.");
       return {
         ok: false,
-        message:
-          "Não foi possível adicionar este lead agora. Tente novamente.",
+        message: "Não foi possível adicionar este lead agora. Tente novamente.",
       };
     }
 
@@ -1898,9 +1556,7 @@ function LeadFlowApp() {
       activeView={view}
       theme={theme}
       onNavigate={setView}
-      onToggleTheme={() =>
-        setTheme((current) => (current === "light" ? "dark" : "light"))
-      }
+      onToggleTheme={() => setTheme((current) => (current === "light" ? "dark" : "light"))}
       onLogout={async () => {
         await signOut();
         await navigate({ to: "/login", replace: true });
@@ -1933,9 +1589,10 @@ function LeadFlowApp() {
               <p className="eyebrow">CARTEIRA COMERCIAL</p>
               <h1>Meus Leads</h1>
               <p className="subtitle">
-                Organize leads de todo o Brasil por cidade, estado e nicho.
-                {" "}Sua carteira abrange {leadCoverage.states} {leadCoverage.states === 1 ? "UF" : "UFs"}
-                {" "}e {leadCoverage.cities} {leadCoverage.cities === 1 ? "cidade" : "cidades"} identificadas.
+                Organize leads de todo o Brasil por cidade, estado e nicho. Sua carteira abrange{" "}
+                {leadCoverage.states} {leadCoverage.states === 1 ? "UF" : "UFs"} e{" "}
+                {leadCoverage.cities} {leadCoverage.cities === 1 ? "cidade" : "cidades"}{" "}
+                identificadas.
               </p>
             </div>
             <button className="primary-button" onClick={openNewLead} type="button">
@@ -1964,10 +1621,7 @@ function LeadFlowApp() {
                 label="Recebido no mês"
                 value={formatCurrency(financialOverview.receivedThisMonth)}
               />
-              <FinanceStat
-                label="A receber"
-                value={formatCurrency(financialOverview.receivable)}
-              />
+              <FinanceStat label="A receber" value={formatCurrency(financialOverview.receivable)} />
               <FinanceStat
                 label="Projetos pagos"
                 value={String(financialOverview.paidProjects)}
@@ -2021,7 +1675,9 @@ function LeadFlowApp() {
                     >
                       <span>
                         <strong>{update.message}</strong>
-                        <small>{lead?.company ?? "Lead"} · {formatDateTime(update.createdAt)}</small>
+                        <small>
+                          {lead?.company ?? "Lead"} · {formatDateTime(update.createdAt)}
+                        </small>
                       </span>
                       {!update.isSeen && <b>Novo</b>}
                     </button>
@@ -2029,9 +1685,7 @@ function LeadFlowApp() {
                 })}
               </div>
             ) : (
-              <p className="recent-updates-empty">
-                Nenhuma mudança automática detectada ainda.
-              </p>
+              <p className="recent-updates-empty">Nenhuma mudança automática detectada ainda.</p>
             )}
           </section>
 
@@ -2058,8 +1712,7 @@ function LeadFlowApp() {
                   options={[
                     ["all", "Todos os estados"],
                     ...availableStates.map(
-                      (state) =>
-                        [state.code, `${state.name} (${state.code})`] as [string, string],
+                      (state) => [state.code, `${state.name} (${state.code})`] as [string, string],
                     ),
                   ]}
                 />
@@ -2069,9 +1722,7 @@ function LeadFlowApp() {
                   ariaLabel="Filtrar por cidade"
                   options={[
                     ["all", stateFilter === "all" ? "Selecione um estado" : "Todas as cidades"],
-                    ...availableCities.map(
-                      (city) => [city, city] as [string, string],
-                    ),
+                    ...availableCities.map((city) => [city, city] as [string, string]),
                   ]}
                 />
                 <Select
@@ -2102,13 +1753,15 @@ function LeadFlowApp() {
             </div>
 
             <div className="filter-row">
-              {([
-                ["all", "Todos", counts.all],
-                ["send_message", "Enviar mensagem", counts.send_message],
-                ["waiting", "Aguardando", counts.waiting],
-                ["accepted", "Aceitos", counts.accepted],
-                ["rejected", "Recusados", counts.rejected],
-              ] as const).map(([value, label, count]) => (
+              {(
+                [
+                  ["all", "Todos", counts.all],
+                  ["send_message", "Enviar mensagem", counts.send_message],
+                  ["waiting", "Aguardando", counts.waiting],
+                  ["accepted", "Aceitos", counts.accepted],
+                  ["rejected", "Recusados", counts.rejected],
+                ] as const
+              ).map(([value, label, count]) => (
                 <button
                   key={value}
                   type="button"
@@ -2122,12 +1775,14 @@ function LeadFlowApp() {
 
             <div className="filter-row action-filter-row">
               <span className="filter-row-label">Acompanhamento</span>
-              {([
-                ["all", "Todas as ações", leads.length],
-                ["today", "Ações para hoje", actionCounts.today],
-                ["follow-up", "Follow-up", actionCounts.followUp],
-                ["overdue", "Atrasadas", actionCounts.overdue],
-              ] as const).map(([value, label, count]) => (
+              {(
+                [
+                  ["all", "Todas as ações", leads.length],
+                  ["today", "Ações para hoje", actionCounts.today],
+                  ["follow-up", "Follow-up", actionCounts.followUp],
+                  ["overdue", "Atrasadas", actionCounts.overdue],
+                ] as const
+              ).map(([value, label, count]) => (
                 <button
                   key={value}
                   type="button"
@@ -2141,20 +1796,18 @@ function LeadFlowApp() {
 
             <div className="filter-row financial-filter-row">
               <span className="filter-row-label">Financeiro</span>
-              {([
-                ["all", "Todos", leads.length],
-                ["pending", "Pendente", financialOverview.pendingProjects],
-                ["partial", "Parcial", financialOverview.partialProjects],
-                ["paid", "Pago", financialOverview.paidProjects],
-              ] as const).map(([value, label, count]) => (
+              {(
+                [
+                  ["all", "Todos", leads.length],
+                  ["pending", "Pendente", financialOverview.pendingProjects],
+                  ["partial", "Parcial", financialOverview.partialProjects],
+                  ["paid", "Pago", financialOverview.paidProjects],
+                ] as const
+              ).map(([value, label, count]) => (
                 <button
                   key={value}
                   type="button"
-                  className={
-                    financialFilter === value
-                      ? "filter-chip active"
-                      : "filter-chip"
-                  }
+                  className={financialFilter === value ? "filter-chip active" : "filter-chip"}
                   onClick={() => setFinancialFilter(value)}
                 >
                   {label} <span>{count}</span>
@@ -2259,11 +1912,7 @@ function LeadFlowApp() {
           onOpenLead={openLeadDetails}
         />
       ) : (
-        <MessagesView
-          messages={messages}
-          onCommit={saveMessages}
-          savedNotice={savedNotice}
-        />
+        <MessagesView messages={messages} onCommit={saveMessages} savedNotice={savedNotice} />
       )}
 
       {followUpNotice && (
@@ -2274,7 +1923,10 @@ function LeadFlowApp() {
       )}
 
       {leadModal && (
-        <Modal onClose={() => setLeadModal(false)} title={editingLead ? "Editar lead" : "Novo lead"}>
+        <Modal
+          onClose={() => setLeadModal(false)}
+          title={editingLead ? "Editar lead" : "Novo lead"}
+        >
           <form className="lead-form" onSubmit={saveLead}>
             <label>
               <span>Nome da empresa</span>
@@ -2341,7 +1993,9 @@ function LeadFlowApp() {
                   const canonical = resolveMunicipality(form.city ?? "", leadMunicipalities);
                   if (canonical) setForm((current) => ({ ...current, city: canonical }));
                 }}
-                placeholder={form.state ? "Digite ou selecione a cidade" : "Selecione um estado primeiro"}
+                placeholder={
+                  form.state ? "Digite ou selecione a cidade" : "Selecione um estado primeiro"
+                }
                 autoComplete="off"
                 aria-label="Cidade do lead"
               />
@@ -2397,7 +2051,9 @@ function LeadFlowApp() {
                     className={`status-option ${status} ${form.status === status ? "selected" : ""}`}
                     onClick={() => setForm({ ...form, status })}
                   >
-                    <span className="check-box">{form.status === status && <Check size={13} />}</span>
+                    <span className="check-box">
+                      {form.status === status && <Check size={13} />}
+                    </span>
                     {STATUS_LABEL[status]}
                   </button>
                 ))}
@@ -2415,7 +2071,11 @@ function LeadFlowApp() {
             </label>
 
             <div className="modal-actions full-field">
-              <button type="button" className="secondary-button" onClick={() => setLeadModal(false)}>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => setLeadModal(false)}
+              >
                 Cancelar
               </button>
               <button type="submit" className="primary-button">
@@ -2436,13 +2096,17 @@ function LeadFlowApp() {
         >
           <div className="message-picker">
             <p className="modal-copy">
-              {messageLead.followUp ? "Escolha a mensagem para o follow-up com " : "Escolha uma mensagem para "}
-              <strong>{messageLead.company}</strong>. A conversa será aberta
-              com o texto preenchido, mas nada será enviado automaticamente.
+              {messageLead.followUp
+                ? "Escolha a mensagem para o follow-up com "
+                : "Escolha uma mensagem para "}
+              <strong>{messageLead.company}</strong>. A conversa será aberta com o texto preenchido,
+              mas nada será enviado automaticamente.
             </p>
             <div className="message-options">
               {pickerMessages.length === 0 && (
-                <p className="modal-copy">Nenhuma mensagem disponível. Crie uma na seção Mensagens.</p>
+                <p className="modal-copy">
+                  Nenhuma mensagem disponível. Crie uma na seção Mensagens.
+                </p>
               )}
               {pickerMessages.map((template) => (
                 <button
@@ -2490,50 +2154,47 @@ function LeadFlowApp() {
         </Modal>
       )}
 
-      {leadDetailsId && (() => {
-        const lead = leads.find((item) => item.id === leadDetailsId);
-        if (!lead) return null;
+      {leadDetailsId &&
+        (() => {
+          const lead = leads.find((item) => item.id === leadDetailsId);
+          if (!lead) return null;
 
-        const business = leadToBusinessSearchResult(lead);
-        const chance = hasEnoughDataForLeadChance(lead)
-          ? calculateLeadChance(lead, lead.segment)
-          : null;
+          const business = leadToBusinessSearchResult(lead);
+          const chance = hasEnoughDataForLeadChance(lead)
+            ? calculateLeadChance(lead, lead.segment)
+            : null;
 
-        return (
-          <BusinessDetailsModal
-            business={business}
-            chance={chance}
-            segmentLabel={lead.segment}
-            lastSyncedAt={lead.lastSyncedAt ?? null}
-            updates={leadUpdates.filter((update) => update.leadId === lead.id)}
-            activityLeadId={lead.id}
-            onClose={() => setLeadDetailsId(null)}
-            onWhatsApp={(business) => openBusinessWhatsApp(business, lead.id)}
-            onMessage={() => {
-              setSelectedMessage(null);
-              setMessageLead(lead);
-            }}
-            onPresenceUpdate={(presence) =>
-              applyPresenceToLead(lead.id, presence)
-            }
-            financeLead={financeLoaded ? lead : null}
-            financePayments={paymentsByLead.get(lead.id) ?? []}
-            followUpLead={lead}
-            onNextActionSave={(patch) => saveNextAction(lead.id, patch)}
-            onNextActionComplete={() => completeNextAction(lead.id)}
-            onFollowUp={() => startFollowUp(lead)}
-            onFinanceUpdate={(leadId, patch) =>
-              updateLeadLocally(leadId, (current) => ({
-                ...current,
-                ...patch,
-              }))
-            }
-            onPaymentSaved={(payment) =>
-              setLeadPayments((current) => [payment, ...current])
-            }
-          />
-        );
-      })()}
+          return (
+            <BusinessDetailsModal
+              business={business}
+              chance={chance}
+              segmentLabel={lead.segment}
+              lastSyncedAt={lead.lastSyncedAt ?? null}
+              updates={leadUpdates.filter((update) => update.leadId === lead.id)}
+              activityLeadId={lead.id}
+              onClose={() => setLeadDetailsId(null)}
+              onWhatsApp={(business) => openBusinessWhatsApp(business, lead.id)}
+              onMessage={() => {
+                setSelectedMessage(null);
+                setMessageLead(lead);
+              }}
+              onPresenceUpdate={(presence) => applyPresenceToLead(lead.id, presence)}
+              financeLead={financeLoaded ? lead : null}
+              financePayments={paymentsByLead.get(lead.id) ?? []}
+              followUpLead={lead}
+              onNextActionSave={(patch) => saveNextAction(lead.id, patch)}
+              onNextActionComplete={() => completeNextAction(lead.id)}
+              onFollowUp={() => startFollowUp(lead)}
+              onFinanceUpdate={(leadId, patch) =>
+                updateLeadLocally(leadId, (current) => ({
+                  ...current,
+                  ...patch,
+                }))
+              }
+              onPaymentSaved={(payment) => setLeadPayments((current) => [payment, ...current])}
+            />
+          );
+        })()}
 
       {enrichmentLead && (
         <LeadEnrichmentModal
@@ -2564,15 +2225,7 @@ function LeadFlowApp() {
   );
 }
 
-function Stat({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: number;
-  tone: "neutral" | Status;
-}) {
+function Stat({ label, value, tone }: { label: string; value: number; tone: "neutral" | Status }) {
   return (
     <div className="stat-item">
       <span className={`stat-dot ${tone}`} />
@@ -2597,329 +2250,6 @@ function FinanceStat({
     <div className={`finance-summary-item ${tone}`}>
       <span>{label}</span>
       <strong>{value}</strong>
-    </div>
-  );
-}
-
-function LeadFinanceMarker({ summary }: { summary: LeadFinanceSummary }) {
-  return (
-    <div className="lead-finance-marker">
-      <span className={`financial-status-badge ${summary.status}`}>
-        {FINANCIAL_STATUS_LABEL[summary.status]}
-      </span>
-      <strong>{formatCurrency(summary.projectValue)}</strong>
-      {summary.status !== "paid" && (
-        <small>{formatCurrency(summary.remainingValue)} restante</small>
-      )}
-    </div>
-  );
-}
-
-function LeadLocation({ lead }: { lead: Lead }) {
-  const state = normalizeBrazilianStateCode(lead.state);
-  const city = lead.city?.trim() ?? "";
-  const location = city && state
-    ? `${city} · ${state}`
-    : city
-      ? `${city} · UF não informada`
-      : state
-        ? `${state} · Cidade não informada`
-        : "Localização não informada";
-
-  return (
-    <div
-      className={`lead-location${city && state ? "" : " missing"}`}
-      title={location}
-      aria-label={`Localização: ${location}`}
-    >
-      <MapPin size={13} aria-hidden="true" />
-      <span>{location}</span>
-    </div>
-  );
-}
-
-function LeadRow({
-  lead,
-  finance,
-  onStatus,
-  onMessage,
-  onDetails,
-  updateCount,
-  onEnrich,
-  onEdit,
-  onDelete,
-}: {
-  lead: Lead;
-  finance: LeadFinanceSummary | null;
-  onStatus: (id: string, status: Status) => void;
-  onMessage: (lead: Lead) => void;
-  onDetails: (lead: Lead) => void;
-  updateCount: number;
-  onEnrich: (lead: Lead) => void;
-  onEdit: (lead: Lead) => void;
-  onDelete: (lead: Lead) => void;
-}) {
-  const chance = hasEnoughDataForLeadChance(lead)
-    ? calculateLeadChance(lead, lead.segment)
-    : null;
-
-  return (
-    <article className="table-row">
-      <div className="company-cell">
-        <div className="lead-company-name-line">
-          <strong>{lead.company}</strong>
-          {chance && <ChanceBadge chance={chance} />}
-        </div>
-        <span className="lead-segment">{lead.segment}</span>
-        <LeadLocation lead={lead} />
-        {finance && <LeadFinanceMarker summary={finance} />}
-        {lead.enrichedAt && <small className="enriched-badge">Dados enriquecidos</small>}
-        {updateCount > 0 && (
-          <small className="lead-update-badge">
-            {updateCount} {updateCount === 1 ? "atualização" : "atualizações"}
-          </small>
-        )}
-        {lead.notes && <small title={lead.notes}>{lead.notes}</small>}
-      </div>
-      <div className="phone-cell">{lead.phone || "Sem telefone"}</div>
-      <div className="lead-status-stack">
-        <StatusControl lead={lead} onStatus={onStatus} />
-        <LeadActionSummary lead={lead} compact />
-      </div>
-      <div className="date-cell">
-        <span>{formatDate(lead.firstContact)}</span>
-        <small>
-          {lead.lastContact ? `Último: ${formatDate(lead.lastContact)}` : "Sem novo contato"}
-        </small>
-      </div>
-      <div className="actions-cell">
-        <button
-          className="lead-details-button"
-          onClick={() => onDetails(lead)}
-          type="button"
-        >
-          Ver empresa
-        </button>
-        {lead.phone && (
-          <button
-            className="message-button"
-            onClick={() => onMessage(lead)}
-            type="button"
-            title="Mandar mensagem"
-          >
-            <MessageCircle size={16} />
-            <span>Mandar mensagem</span>
-          </button>
-        )}
-        {lead.source !== "lavras-search" && (
-          <button
-            className="enrichment-button"
-            onClick={() => onEnrich(lead)}
-            type="button"
-            title={lead.placeId ? "Atualizar informações" : "Buscar informações"}
-          >
-            <Search size={15} />
-            <span>{lead.placeId ? "Atualizar informações" : "Buscar informações"}</span>
-          </button>
-        )}
-        <button className="row-icon" onClick={() => onEdit(lead)} type="button" title="Editar">
-          <Edit3 size={16} />
-        </button>
-        <button className="row-icon danger" onClick={() => onDelete(lead)} type="button" title="Excluir">
-          <Trash2 size={16} />
-        </button>
-      </div>
-    </article>
-  );
-}
-
-function LeadCard({
-  lead,
-  finance,
-  onStatus,
-  onMessage,
-  onDetails,
-  updateCount,
-  onEnrich,
-  onEdit,
-  onDelete,
-}: {
-  lead: Lead;
-  finance: LeadFinanceSummary | null;
-  onStatus: (id: string, status: Status) => void;
-  onMessage: (lead: Lead) => void;
-  onDetails: (lead: Lead) => void;
-  updateCount: number;
-  onEnrich: (lead: Lead) => void;
-  onEdit: (lead: Lead) => void;
-  onDelete: (lead: Lead) => void;
-}) {
-  const chance = hasEnoughDataForLeadChance(lead)
-    ? calculateLeadChance(lead, lead.segment)
-    : null;
-
-  return (
-    <article className="lead-card">
-      <div className="card-top">
-        <div>
-          <div className="lead-company-name-line">
-            <strong>{lead.company}</strong>
-            {chance && <ChanceBadge chance={chance} />}
-          </div>
-          <span className="lead-segment">{lead.segment}</span>
-          <LeadLocation lead={lead} />
-          {lead.enrichedAt && <small className="enriched-badge">Dados enriquecidos</small>}
-        {updateCount > 0 && (
-          <small className="lead-update-badge">
-            {updateCount} {updateCount === 1 ? "atualização" : "atualizações"}
-          </small>
-        )}
-        </div>
-        <span className={`status-badge ${lead.status}`}>{STATUS_LABEL[lead.status]}</span>
-      </div>
-      <div className="card-phone">{lead.phone || "Sem telefone disponível"}</div>
-      {finance && <LeadFinanceMarker summary={finance} />}
-      <StatusControl lead={lead} onStatus={onStatus} />
-      <LeadActionSummary lead={lead} />
-      <div className="card-meta">
-        <span>Primeiro contato: {formatDate(lead.firstContact)}</span>
-        {lead.lastContact && <span>Último contato: {formatDate(lead.lastContact)}</span>}
-      </div>
-      {lead.notes && <p className="card-notes">{lead.notes}</p>}
-      <div className="card-actions">
-        <button
-          className="lead-details-button"
-          onClick={() => onDetails(lead)}
-          type="button"
-        >
-          Ver empresa
-        </button>
-        {lead.phone && (
-          <button className="message-button" onClick={() => onMessage(lead)} type="button">
-            <MessageCircle size={16} />
-            Mandar mensagem
-          </button>
-        )}
-        {lead.source !== "lavras-search" && (
-          <button className="enrichment-button" onClick={() => onEnrich(lead)} type="button">
-            <Search size={15} />
-            {lead.placeId ? "Atualizar informações" : "Buscar informações"}
-          </button>
-        )}
-        <button className="row-icon" onClick={() => onEdit(lead)} type="button" aria-label="Editar">
-          <Edit3 size={17} />
-        </button>
-        <button
-          className="row-icon danger"
-          onClick={() => onDelete(lead)}
-          type="button"
-          aria-label="Excluir"
-        >
-          <Trash2 size={17} />
-        </button>
-      </div>
-    </article>
-  );
-}
-
-function StatusControl({
-  lead,
-  onStatus,
-}: {
-  lead: Lead;
-  onStatus: (id: string, status: Status) => void;
-}) {
-  return (
-    <div className="inline-status" aria-label="Alterar status">
-      {(["send_message", "waiting", "accepted", "rejected"] as Status[]).map((status) => (
-        <button
-          key={status}
-          type="button"
-          className={`status-tick ${status} ${lead.status === status ? "selected" : ""}`}
-          onClick={() => onStatus(lead.id, status)}
-          title={STATUS_LABEL[status]}
-          aria-label={STATUS_LABEL[status]}
-        >
-          {lead.status === status && <Check size={11} />}
-        </button>
-      ))}
-      <span className={`status-text ${lead.status}`}>{STATUS_LABEL[lead.status]}</span>
-    </div>
-  );
-}
-
-function Select({
-  value,
-  onChange,
-  options,
-  ariaLabel,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  options: [string, string][];
-  ariaLabel: string;
-}) {
-  return (
-    <label className="select-wrap">
-      <select value={value} onChange={(event) => onChange(event.target.value)} aria-label={ariaLabel}>
-        {options.map(([optionValue, label]) => (
-          <option key={optionValue} value={optionValue}>
-            {label}
-          </option>
-        ))}
-      </select>
-      <ChevronDown size={15} />
-    </label>
-  );
-}
-
-function Modal({
-  children,
-  onClose,
-  title,
-  compact = false,
-}: {
-  children: React.ReactNode;
-  onClose: () => void;
-  title: string;
-  compact?: boolean;
-}) {
-  return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
-      <section
-        className={compact ? "modal-card compact" : "modal-card"}
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <div className="modal-header">
-          <h2>{title}</h2>
-          <button className="icon-button" onClick={onClose} type="button" aria-label="Fechar">
-            <X size={18} />
-          </button>
-        </div>
-        {children}
-      </section>
-    </div>
-  );
-}
-
-function EmptyState({ onNew, hasLeads }: { onNew: () => void; hasLeads: boolean }) {
-  return (
-    <div className="empty-state">
-      <div className="empty-icon">{hasLeads ? <Search size={20} /> : <Plus size={20} />}</div>
-      <strong>{hasLeads ? "Nenhum lead encontrado" : "Seu primeiro lead começa aqui"}</strong>
-      <p>
-        {hasLeads
-          ? "Tente mudar a busca ou os filtros."
-          : "Cadastre uma empresa e ela entra como Enviar mensagem."}
-      </p>
-      {!hasLeads && (
-        <button className="secondary-button" type="button" onClick={onNew}>
-          Adicionar lead
-        </button>
-      )}
     </div>
   );
 }

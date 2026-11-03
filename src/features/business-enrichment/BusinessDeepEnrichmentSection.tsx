@@ -15,22 +15,15 @@ import {
   getDeepEnrichmentStatus,
   reviewDeepEnrichmentFact,
 } from "./business-enrichment";
-import type {
-  DeepEnrichmentApplied,
-  DeepEnrichmentSnapshot,
-} from "./types";
+import type { DeepEnrichmentApplied, DeepEnrichmentSnapshot } from "./types";
 
-function sourceKindLabel(
-  value: DeepEnrichmentSnapshot["sources"][number]["sourceKind"],
-) {
+function sourceKindLabel(value: DeepEnrichmentSnapshot["sources"][number]["sourceKind"]) {
   if (value === "official_linked_platform") return "Plataforma comercial vinculada";
   if (value === "official_website") return "Site oficial";
   return "Busca pública";
 }
 
-function extractionLabel(
-  value: DeepEnrichmentSnapshot["sources"][number]["extractionStatus"],
-) {
+function extractionLabel(value: DeepEnrichmentSnapshot["sources"][number]["extractionStatus"]) {
   if (value === "successful") return "Bem-sucedida";
   if (value === "partial") return "Parcial";
   if (value === "inconclusive") return "Inconclusiva";
@@ -38,9 +31,7 @@ function extractionLabel(
   return "Falhou";
 }
 
-function methodLabel(
-  value: DeepEnrichmentSnapshot["sources"][number]["method"],
-) {
+function methodLabel(value: DeepEnrichmentSnapshot["sources"][number]["method"]) {
   if (value === "http+browserless") return "HTTP + Browserless";
   if (value === "browserless") return "Browserless";
   if (value === "web_search") return "Web Search";
@@ -48,7 +39,7 @@ function methodLabel(
 }
 
 function browserlessReasonLabel(value: string) {
-  const labels: Record<string,string> = {
+  const labels: Record<string, string> = {
     dynamic_app_detected: "Aplicação dinâmica detectada",
     commercial_content_missing: "Conteúdo comercial possivelmente incompleto",
     spa_shell: "App shell / SPA detectada",
@@ -58,16 +49,13 @@ function browserlessReasonLabel(value: string) {
     commercial_content_present: "Conteúdo comercial já presente no HTML",
     browserless_unavailable: "Browserless indisponível",
     browserless_failed: "Renderização não concluída",
-    identity_insufficient_dynamic:
-      "Identidade insuficiente e conteúdo dinâmico provável",
+    identity_insufficient_dynamic: "Identidade insuficiente e conteúdo dinâmico provável",
     identity_mismatch: "Identidade da plataforma não correspondeu",
   };
   return labels[value] ?? value.replaceAll("_", " ");
 }
 
-function identityLabel(
-  value: DeepEnrichmentSnapshot["sources"][number]["identityStatus"],
-) {
+function identityLabel(value: DeepEnrichmentSnapshot["sources"][number]["identityStatus"]) {
   if (value === "confirmed") return "Confirmada";
   if (value === "probable") return "Provável";
   if (value === "mismatch") return "Incompatível";
@@ -75,7 +63,7 @@ function identityLabel(
 }
 
 function identityReasonLabel(value: string) {
-  const labels: Record<string,string> = {
+  const labels: Record<string, string> = {
     strong_matching_identity_signals: "Nome e sinais locais correspondem.",
     matching_identity_signals_without_full_branch_confirmation:
       "Há sinais correspondentes, mas ainda não confirmação completa da unidade.",
@@ -90,8 +78,7 @@ function identityReasonLabel(value: string) {
     public_source_identity_probable: "Busca pública com sinais de identidade correspondentes.",
     public_source_identity_insufficient:
       "Busca pública sem sinais suficientes para confirmar a empresa.",
-    "different_business_name+different_phone":
-      "Nome e telefone observados indicam outra empresa.",
+    "different_business_name+different_phone": "Nome e telefone observados indicam outra empresa.",
     "different_business_name+different_address":
       "Nome e endereço observados indicam outra empresa.",
     source_blocked_before_identity_confirmation:
@@ -116,15 +103,15 @@ function qualityLabel(value: DeepEnrichmentSnapshot["quality"]) {
 
 function factValue(value: Record<string, unknown>) {
   const candidates = [
-    value.name,
-    value.role,
-    value.detail,
-    value.price,
-    value.url,
-    value.imageUrl,
+    value["name"],
+    value["role"],
+    value["detail"],
+    value["price"],
+    value["url"],
+    value["imageUrl"],
   ];
   return candidates
-    .filter((item): item is string => typeof item === "string" && item.trim())
+    .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
     .join(" · ");
 }
 
@@ -226,7 +213,7 @@ export function BusinessDeepEnrichmentSection({
     };
   }, [snapshot?.status, researching, business.placeId, leadId, segment]);
 
-    async function run(force: boolean) {
+  async function run(force: boolean) {
     if (researching) return;
     setResearching(true);
     setError("");
@@ -275,14 +262,9 @@ export function BusinessDeepEnrichmentSection({
     }
   }
 
-  const notStarted =
-    !snapshot || snapshot.status === "not_started";
-  const hasPriceToReview =
-    snapshot?.reviewFacts.some((fact) => fact.type === "price") ?? false;
-  const done =
-    snapshot &&
-    (snapshot.status === "completed" ||
-      snapshot.status === "needs_review");
+  const notStarted = !snapshot || snapshot.status === "not_started";
+  const hasPriceToReview = snapshot?.reviewFacts.some((fact) => fact.type === "price") ?? false;
+  const done = snapshot && (snapshot.status === "completed" || snapshot.status === "needs_review");
 
   return (
     <div className="detail-section deep-enrichment-section">
@@ -290,18 +272,14 @@ export function BusinessDeepEnrichmentSection({
         <div>
           <span>PESQUISA APROFUNDADA</span>
           <strong>Aprofundar empresa</strong>
-          <small>
-            Pesquisa manual de fontes públicas com evidência e validação de identidade.
-          </small>
+          <small>Pesquisa manual de fontes públicas com evidência e validação de identidade.</small>
         </div>
         {done && (
           <div className="deep-quality-wrap">
             <span className={`deep-quality ${snapshot.quality ?? "low"}`}>
               Evidências {qualityLabel(snapshot.quality)}
             </span>
-            <span className="deep-coverage">
-              Cobertura {coverageLabel(snapshot.completeness)}
-            </span>
+            <span className="deep-coverage">Cobertura {coverageLabel(snapshot.completeness)}</span>
             {snapshot.generatedWithOldEngine && (
               <small>Resultado gerado com versão anterior da pesquisa.</small>
             )}
@@ -385,35 +363,23 @@ export function BusinessDeepEnrichmentSection({
             )}
           </div>
 
-          {snapshot.status === "needs_review" &&
-            snapshot.reviewFacts.length > 0 && (
-              <div className="deep-review-notice">
-                <strong>
-                  {snapshot.reviewFacts.length}{" "}
-                  {snapshot.reviewFacts.length === 1
-                    ? "informação precisa"
-                    : "informações precisam"}{" "}
-                  de revisão
-                </strong>
-                <span>
-                  Dados MEDIUM exigem confirmação antes de serem aplicados ao cadastro.
-                </span>
-              </div>
-            )}
+          {snapshot.status === "needs_review" && snapshot.reviewFacts.length > 0 && (
+            <div className="deep-review-notice">
+              <strong>
+                {snapshot.reviewFacts.length}{" "}
+                {snapshot.reviewFacts.length === 1 ? "informação precisa" : "informações precisam"}{" "}
+                de revisão
+              </strong>
+              <span>Dados MEDIUM exigem confirmação antes de serem aplicados ao cadastro.</span>
+            </div>
+          )}
 
           <div className="deep-enrichment-actions">
-            <button
-              type="button"
-              onClick={() => setDetailsOpen((current) => !current)}
-            >
+            <button type="button" onClick={() => setDetailsOpen((current) => !current)}>
               {detailsOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
               {detailsOpen ? "Ocultar detalhes" : "Ver detalhes"}
             </button>
-            <button
-              type="button"
-              disabled={researching}
-              onClick={() => void run(true)}
-            >
+            <button type="button" disabled={researching} onClick={() => void run(true)}>
               <RefreshCw size={13} />
               {researching ? "Pesquisando..." : "Pesquisar novamente"}
             </button>
@@ -428,18 +394,10 @@ export function BusinessDeepEnrichmentSection({
                     <article className="deep-review-item" key={fact.id}>
                       <div>
                         <strong>{fact.label}</strong>
-                        {factValue(fact.value) && (
-                          <span>{factValue(fact.value)}</span>
-                        )}
-                        {fact.evidenceSummary && (
-                          <small>{fact.evidenceSummary}</small>
-                        )}
+                        {factValue(fact.value) && <span>{factValue(fact.value)}</span>}
+                        {fact.evidenceSummary && <small>{fact.evidenceSummary}</small>}
                         {fact.sourceUrl && (
-                          <a
-                            href={fact.sourceUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
+                          <a href={fact.sourceUrl} target="_blank" rel="noreferrer">
                             Ver fonte <ExternalLink size={10} />
                           </a>
                         )}
@@ -473,11 +431,7 @@ export function BusinessDeepEnrichmentSection({
                   snapshot.sources.slice(0, 12).map((source) => (
                     <article className="deep-source-item" key={source.url}>
                       <div className="deep-source-title">
-                        <a
-                          href={source.url}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
+                        <a href={source.url} target="_blank" rel="noreferrer">
                           <span>{source.domain || source.url}</span>
                           <ExternalLink size={10} />
                         </a>
@@ -530,26 +484,17 @@ export function BusinessDeepEnrichmentSection({
                       {source.found.facts > 0 && (
                         <div className="deep-source-found">
                           {source.found.products + source.found.menuItems > 0 && (
-                            <span>
-                              {source.found.products + source.found.menuItems} itens
-                            </span>
+                            <span>{source.found.products + source.found.menuItems} itens</span>
                           )}
-                          {source.found.prices > 0 && (
-                            <span>{source.found.prices} preços</span>
-                          )}
-                          {source.found.images > 0 && (
-                            <span>{source.found.images} imagens</span>
-                          )}
+                          {source.found.prices > 0 && <span>{source.found.prices} preços</span>}
+                          {source.found.images > 0 && <span>{source.found.images} imagens</span>}
                           {source.found.services > 0 && (
                             <span>{source.found.services} serviços</span>
                           )}
-                          {source.found.channels > 0 && (
-                            <span>{source.found.channels} canais</span>
-                          )}
+                          {source.found.channels > 0 && <span>{source.found.channels} canais</span>}
                         </div>
                       )}
-                      {!snapshot.generatedWithOldEngine &&
-                        source.method !== "web_search" && (
+                      {!snapshot.generatedWithOldEngine && source.method !== "web_search" && (
                         <div className="deep-source-tech">
                           <span>{source.textLength} caracteres de texto</span>
                           <span>{source.linkCount} links</span>
@@ -568,33 +513,21 @@ export function BusinessDeepEnrichmentSection({
               </div>
 
               <div className="deep-enrichment-metrics">
+                <span>{snapshot.metrics.httpPagesFetched} páginas HTTP buscadas</span>
+                <span>{snapshot.metrics.pagesAnalyzed} páginas consolidadas</span>
                 <span>
-                  {snapshot.metrics.httpPagesFetched} páginas HTTP buscadas
+                  {snapshot.metrics.browserlessRenders ?? snapshot.metrics.browserlessCalls}{" "}
+                  renderizações Browserless
                 </span>
-                <span>
-                  {snapshot.metrics.pagesAnalyzed} páginas consolidadas
-                </span>
-                <span>
-                  {snapshot.metrics.browserlessRenders ??
-                    snapshot.metrics.browserlessCalls} renderizações Browserless
-                </span>
-                <span>
-                  {snapshot.metrics.webSearchCalls} buscas públicas
-                </span>
+                <span>{snapshot.metrics.webSearchCalls} buscas públicas</span>
                 {snapshot.metrics.sourcesInconclusive > 0 && (
-                  <span>
-                    {snapshot.metrics.sourcesInconclusive} fontes inconclusivas
-                  </span>
+                  <span>{snapshot.metrics.sourcesInconclusive} fontes inconclusivas</span>
                 )}
                 {snapshot.metrics.sourcesRejected > 0 && (
-                  <span>
-                    {snapshot.metrics.sourcesRejected} fontes rejeitadas
-                  </span>
+                  <span>{snapshot.metrics.sourcesRejected} fontes rejeitadas</span>
                 )}
                 {snapshot.metrics.sourcesFailed > 0 && (
-                  <span>
-                    {snapshot.metrics.sourcesFailed} falhas técnicas
-                  </span>
+                  <span>{snapshot.metrics.sourcesFailed} falhas técnicas</span>
                 )}
                 {snapshot.summary.conflicts > 0 && (
                   <span>{snapshot.summary.conflicts} conflitos registrados</span>
@@ -606,8 +539,8 @@ export function BusinessDeepEnrichmentSection({
       ) : pollTimedOut ? (
         <div className="deep-enrichment-empty">
           <p>
-            A pesquisa está demorando mais que o esperado. Verifique o estado
-            novamente antes de iniciar outra.
+            A pesquisa está demorando mais que o esperado. Verifique o estado novamente antes de
+            iniciar outra.
           </p>
           <button
             type="button"

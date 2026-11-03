@@ -1,14 +1,8 @@
 import { getValidSession } from "../../lib/auth";
-import type {
-  CreateLeadActivityInput,
-  LeadActivity,
-  LeadActivityPage,
-} from "./types";
+import type { CreateLeadActivityInput, LeadActivity, LeadActivityPage } from "./types";
 import { LEAD_ACTIVITY_PAGE_SIZE } from "./types";
 
-const SUPABASE_URL = "https://czkazbianiflhldenhcj.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY =
-  "sb_publishable_rDtFwPmhh93xceOpvf9hUg_PSlvpB8p";
+import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "../../lib/supabase-config";
 
 type RemoteLeadActivity = {
   id: number;
@@ -58,18 +52,13 @@ export async function fetchLeadActivities(
   limit = LEAD_ACTIVITY_PAGE_SIZE,
 ): Promise<LeadActivityPage> {
   const params = new URLSearchParams();
-  params.set(
-    "select",
-    "id,lead_id,user_id,type,title,description,metadata,created_at",
-  );
+  params.set("select", "id,lead_id,user_id,type,title,description,metadata,created_at");
   params.set("lead_id", `eq.${leadId}`);
   params.set("order", "created_at.desc,id.desc");
   params.set("offset", String(offset));
   params.set("limit", String(limit + 1));
 
-  const { response } = await authedRequest(
-    `lead_activities?${params.toString()}`,
-  );
+  const { response } = await authedRequest(`lead_activities?${params.toString()}`);
 
   if (!response.ok) {
     throw new Error(`LEAD_ACTIVITIES_${response.status}`);
@@ -89,7 +78,9 @@ export async function fetchLeadActivities(
 export async function createLeadActivity(
   input: CreateLeadActivityInput,
 ): Promise<LeadActivity | null> {
-  const { session, response } = await authedRequest("lead_activities", {
+  const session = await getValidSession();
+  if (!session) throw new Error("AUTH_REQUIRED");
+  const { response } = await authedRequest("lead_activities", {
     method: "POST",
     headers: {
       Prefer: "return=representation",
@@ -99,9 +90,7 @@ export async function createLeadActivity(
       user_id: session.user.id,
       type: input.type,
       title: input.title.trim().slice(0, 180),
-      description: input.description?.trim()
-        ? input.description.trim().slice(0, 1200)
-        : null,
+      description: input.description?.trim() ? input.description.trim().slice(0, 1200) : null,
       metadata: input.metadata ?? {},
       ...(input.createdAt ? { created_at: input.createdAt } : {}),
     }),

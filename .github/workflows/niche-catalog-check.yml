@@ -3,25 +3,7 @@ name: Validar catálogo de nichos
 on:
   push:
     branches: [main]
-    paths:
-      - "supabase/functions/_shared/niche-catalog.ts"
-      - "supabase/functions/_shared/niche-coverage.ts"
-      - "supabase/functions/_shared/niche-strategies.ts"
-      - "supabase/functions/_shared/niche-catalog.test.ts"
-      - "src/features/search-leads/**"
-      - "src/features/open-now-niches/**"
-      - "src/features/opportunities/**"
-      - "src/styles.css"
-      - "src/features/messages/**"
-      - "src/routes/index.tsx"
-      - "src/routes/__root.tsx"
-      - "public/favicon.png"
-      - "src/routes/login.tsx"
-      - "src/lib/auth.ts"
-      - "src/lib/account-storage.ts"
-      - "src/lib/account-storage.test.ts"
-      - "src/features/leads/remote-leads.ts"
-      - ".github/workflows/niche-catalog-check.yml"
+  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -36,9 +18,25 @@ jobs:
         with:
           deno-version: v2.x
       - name: Testar nichos e compatibilidade
-        run: deno test supabase/functions/_shared/niche-catalog.test.ts src/features/messages/message-templates.test.ts src/lib/account-storage.test.ts
+        run: deno test src/lib/*.test.ts src/features/messages/*.test.ts supabase/functions/_shared/
       - uses: oven-sh/setup-bun@v2
       - name: Instalar dependências do frontend
         run: bun install --frozen-lockfile
+      - name: Verificar tipos
+        run: bun run typecheck
+      - name: Instalar navegador de teste
+        run: bunx playwright install --with-deps chromium
+      - name: Testar navegador com backend simulado
+        run: bun run test:browser
       - name: Compilar frontend
         run: bun run build
+
+  database-baseline:
+    name: Restaurar esquema e validar isolamento
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restaurar banco descartável e testar RLS
+        run: bash scripts/test-database-baseline.sh

@@ -33,13 +33,18 @@ function LoginPage() {
     setTheme(current);
     document.documentElement.classList.toggle("dark", current === "dark");
 
-    void getValidSession().then((session) => {
-      if (session) {
-        void navigate({ to: "/" });
-        return;
-      }
-      setChecking(false);
-    });
+    void getValidSession()
+      .then((session) => {
+        if (session) {
+          void navigate({ to: "/" });
+          return;
+        }
+        setChecking(false);
+      })
+      .catch(() => {
+        setChecking(false);
+        setError("Não foi possível verificar sua sessão. Tente novamente.");
+      });
   }, [navigate]);
 
   function toggleTheme() {
@@ -57,14 +62,18 @@ function LoginPage() {
     setLoading(true);
     setError("");
 
-    const result = await signIn(email.trim(), password);
-    if (!result.ok) {
-      setError(result.message);
+    try {
+      const result = await signIn(email.trim(), password);
+      if (!result.ok) {
+        setError(result.message);
+        return;
+      }
+      await navigate({ to: "/" });
+    } catch {
+      setError("Não foi possível conectar. Verifique sua conexão e tente novamente.");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    await navigate({ to: "/" });
   }
 
   if (checking) {
@@ -91,7 +100,10 @@ function LoginPage() {
         <div className="login-brand">
           <span className="brand-mark">J</span>
           <div>
-            <strong><span>Januario</span><span className="brand-accent">Leads</span></strong>
+            <strong>
+              <span>Januario</span>
+              <span className="brand-accent">Leads</span>
+            </strong>
             <span>Acesso privado</span>
           </div>
         </div>

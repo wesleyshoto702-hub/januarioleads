@@ -1,20 +1,15 @@
 export type LeadChanceInput = {
-  website?: string | null;
-  instagram?: string | null;
-  instagramConfidence?: "high" | "medium" | "low" | null;
-  phone?: string | null;
-  internationalPhone?: string | null;
-  rating?: number | null;
-  reviewCount?: number | null;
-  businessStatus?: string | null;
+  website?: string | null | undefined;
+  instagram?: string | null | undefined;
+  instagramConfidence?: "high" | "medium" | "low" | null | undefined;
+  phone?: string | null | undefined;
+  internationalPhone?: string | null | undefined;
+  rating?: number | null | undefined;
+  reviewCount?: number | null | undefined;
+  businessStatus?: string | null | undefined;
 };
 
-export type LeadChanceBand =
-  | "very-low"
-  | "low"
-  | "medium"
-  | "high"
-  | "very-high";
+export type LeadChanceBand = "very-low" | "low" | "medium" | "high" | "very-high";
 
 export type LeadChanceReason = {
   key: string;
@@ -76,12 +71,7 @@ function clampScore(value: number) {
   return Math.min(100, Math.max(1, Math.round(value)));
 }
 
-function pushReason(
-  breakdown: LeadChanceReason[],
-  key: string,
-  label: string,
-  points: number,
-) {
+function pushReason(breakdown: LeadChanceReason[], key: string, label: string, points: number) {
   breakdown.push({ key, label, points });
 }
 
@@ -90,38 +80,24 @@ export function calculateLeadChance(
   segment?: string | null,
 ): LeadChanceResult {
   const breakdown: LeadChanceReason[] = [];
-  let score = LEAD_CHANCE_WEIGHTS.base;
+  let score: number = LEAD_CHANCE_WEIGHTS.base;
 
   const hasSite = Boolean(business.website?.trim());
   const hasInstagram = Boolean(
     business.instagram?.trim() &&
-      business.instagramConfidence !== "medium" &&
-      business.instagramConfidence !== "low",
+    business.instagramConfidence !== "medium" &&
+    business.instagramConfidence !== "low",
   );
-  const hasPhone = Boolean(
-    business.phone?.trim() || business.internationalPhone?.trim(),
-  );
+  const hasPhone = Boolean(business.phone?.trim() || business.internationalPhone?.trim());
   const reviews =
-    typeof business.reviewCount === "number" && business.reviewCount > 0
-      ? business.reviewCount
-      : 0;
+    typeof business.reviewCount === "number" && business.reviewCount > 0 ? business.reviewCount : 0;
 
   if (hasSite) {
     score += LEAD_CHANCE_WEIGHTS.siteIdentified;
-    pushReason(
-      breakdown,
-      "site",
-      "Site identificado",
-      LEAD_CHANCE_WEIGHTS.siteIdentified,
-    );
+    pushReason(breakdown, "site", "Site identificado", LEAD_CHANCE_WEIGHTS.siteIdentified);
   } else {
     score += LEAD_CHANCE_WEIGHTS.siteNotIdentified;
-    pushReason(
-      breakdown,
-      "site",
-      "Site não identificado",
-      LEAD_CHANCE_WEIGHTS.siteNotIdentified,
-    );
+    pushReason(breakdown, "site", "Site não identificado", LEAD_CHANCE_WEIGHTS.siteNotIdentified);
   }
 
   if (hasPhone) {
@@ -173,11 +149,7 @@ export function calculateLeadChance(
     );
   }
 
-  if (
-    reviews >= 10 &&
-    typeof business.rating === "number" &&
-    business.rating >= 4.2
-  ) {
+  if (reviews >= 10 && typeof business.rating === "number" && business.rating >= 4.2) {
     score += LEAD_CHANCE_WEIGHTS.ratingStrong;
     pushReason(
       breakdown,
@@ -185,28 +157,14 @@ export function calculateLeadChance(
       "Boa avaliação com volume mínimo de avaliações",
       LEAD_CHANCE_WEIGHTS.ratingStrong,
     );
-  } else if (
-    reviews >= 10 &&
-    typeof business.rating === "number" &&
-    business.rating < 3.5
-  ) {
+  } else if (reviews >= 10 && typeof business.rating === "number" && business.rating < 3.5) {
     score += LEAD_CHANCE_WEIGHTS.ratingWeak;
-    pushReason(
-      breakdown,
-      "rating",
-      "Avaliação baixa no Google",
-      LEAD_CHANCE_WEIGHTS.ratingWeak,
-    );
+    pushReason(breakdown, "rating", "Avaliação baixa no Google", LEAD_CHANCE_WEIGHTS.ratingWeak);
   }
 
   if (business.businessStatus === "OPERATIONAL") {
     score += LEAD_CHANCE_WEIGHTS.operational;
-    pushReason(
-      breakdown,
-      "status",
-      "Empresa operacional",
-      LEAD_CHANCE_WEIGHTS.operational,
-    );
+    pushReason(breakdown, "status", "Empresa operacional", LEAD_CHANCE_WEIGHTS.operational);
   } else if (business.businessStatus === "CLOSED_TEMPORARILY") {
     score += LEAD_CHANCE_WEIGHTS.temporarilyClosed;
     pushReason(
@@ -218,9 +176,7 @@ export function calculateLeadChance(
   }
 
   const segmentAdjustment =
-    segment && SEGMENT_CHANCE_ADJUSTMENTS[segment]
-      ? SEGMENT_CHANCE_ADJUSTMENTS[segment]
-      : 0;
+    segment && SEGMENT_CHANCE_ADJUSTMENTS[segment] ? SEGMENT_CHANCE_ADJUSTMENTS[segment] : 0;
 
   if (segmentAdjustment) {
     score += segmentAdjustment;
@@ -234,12 +190,7 @@ export function calculateLeadChance(
 
   if (business.businessStatus === "CLOSED_PERMANENTLY") {
     score = Math.min(score, LEAD_CHANCE_WEIGHTS.permanentlyClosedCap);
-    pushReason(
-      breakdown,
-      "status",
-      "Empresa permanentemente fechada",
-      -100,
-    );
+    pushReason(breakdown, "status", "Empresa permanentemente fechada", -100);
   }
 
   const finalScore = clampScore(score);
@@ -256,14 +207,12 @@ export function calculateLeadChance(
   };
 }
 
-export function hasEnoughDataForLeadChance(business: LeadChanceInput & {
-  placeId?: string | null;
-  enrichedAt?: string | null;
-  source?: string | null;
-}) {
-  return Boolean(
-    business.placeId ||
-      business.enrichedAt ||
-      business.source === "lavras-search",
-  );
+export function hasEnoughDataForLeadChance(
+  business: LeadChanceInput & {
+    placeId?: string | null | undefined;
+    enrichedAt?: string | null | undefined;
+    source?: string | null | undefined;
+  },
+) {
+  return Boolean(business.placeId || business.enrichedAt || business.source === "lavras-search");
 }

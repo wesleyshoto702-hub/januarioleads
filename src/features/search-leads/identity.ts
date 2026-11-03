@@ -5,11 +5,11 @@ import { normalizeSearchText } from "./segments";
 import { sameLocation } from "../../lib/location";
 
 export type ExistingLeadIdentity = {
-  id?: string;
+  id?: string | undefined;
   company: string;
   phone: string;
-  placeId?: string;
-  address?: string;
+  placeId?: string | undefined;
+  address?: string | undefined;
   city?: string | undefined;
   state?: string | undefined;
   instagram?: string | undefined;
@@ -19,7 +19,7 @@ export type ExistingLeadIdentity = {
   instagramCheckedAt?: string | undefined;
   instagramUsername?: string | undefined;
   instagramDisplayName?: string | undefined;
-  status?: LeadStatus;
+  status?: LeadStatus | undefined;
 };
 
 export function normalizeBrazilianPhone(value: string | null | undefined) {
@@ -39,8 +39,7 @@ export function findBusinessDuplicate(
   excludeId?: string,
 ) {
   const businessPhone =
-    normalizeBrazilianPhone(business.phone) ||
-    normalizeBrazilianPhone(business.internationalPhone);
+    normalizeBrazilianPhone(business.phone) || normalizeBrazilianPhone(business.internationalPhone);
   const businessName = normalizeIdentity(business.name);
   const businessAddress = normalizeIdentity(business.address);
 
@@ -48,11 +47,7 @@ export function findBusinessDuplicate(
     leads.find((lead) => {
       if (excludeId && lead.id === excludeId) return false;
 
-      if (
-        business.placeId &&
-        lead.placeId &&
-        business.placeId === lead.placeId
-      ) {
+      if (business.placeId && lead.placeId && business.placeId === lead.placeId) {
         return true;
       }
 
@@ -66,12 +61,7 @@ export function findBusinessDuplicate(
         lead.state?.trim() &&
         !sameLocation(business, lead),
       );
-      if (
-        businessPhone &&
-        leadPhone &&
-        businessPhone === leadPhone &&
-        !knownDifferentCities
-      ) {
+      if (businessPhone && leadPhone && businessPhone === leadPhone && !knownDifferentCities) {
         return true;
       }
 

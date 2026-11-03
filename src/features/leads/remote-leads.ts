@@ -1,8 +1,6 @@
+import { fetchAllRows } from "../../lib/rest-pagination";
 import { getValidSession } from "../../lib/auth";
-import type {
-  InstagramCandidate,
-  InstagramSource,
-} from "../business-presence/types";
+import type { InstagramCandidate, InstagramSource } from "../business-presence/types";
 import type { NextActionType } from "../next-actions/types";
 import type {
   DeepConfirmedChannels,
@@ -12,9 +10,7 @@ import type {
   DeepVerifiedImage,
 } from "../business-enrichment/types";
 
-const SUPABASE_URL = "https://czkazbianiflhldenhcj.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY =
-  "sb_publishable_rDtFwPmhh93xceOpvf9hUg_PSlvpB8p";
+import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "../../lib/supabase-config";
 
 export type LeadStatus = "send_message" | "waiting" | "accepted" | "rejected";
 
@@ -167,8 +163,12 @@ type RemoteLeadUpdate = {
   created_at: string;
 };
 
-async function authedRequest(path: string, init: RequestInit = {}) {
-  const session = await getValidSession();
+async function authedRequest(
+  path: string,
+  init: RequestInit = {},
+  suppliedSession?: Awaited<ReturnType<typeof getValidSession>>,
+) {
+  const session = suppliedSession ?? (await getValidSession());
   if (!session) throw new Error("AUTH_REQUIRED");
 
   return fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
@@ -183,9 +183,7 @@ async function authedRequest(path: string, init: RequestInit = {}) {
 }
 
 function compact<T extends Record<string, unknown>>(value: T) {
-  return Object.fromEntries(
-    Object.entries(value).filter(([, item]) => item !== undefined),
-  );
+  return Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined));
 }
 
 function toRemote(lead: PersistedLead, userId: string) {
@@ -314,41 +312,43 @@ function fromRemote(row: RemoteLead): PersistedLead {
 }
 
 export async function fetchRemoteLeads() {
-  const response = await authedRequest(
-    "leads?select=*&order=created_at.desc",
-  );
-  if (!response.ok) {
-    throw new Error(`REMOTE_LEADS_${response.status}`);
-  }
-
-  return ((await response.json()) as RemoteLead[]).map(fromRemote);
+  return (
+    await fetchAllRows<RemoteLead>(authedRequest, "leads?select=*&order=created_at.desc,id.desc")
+  ).map(fromRemote);
 }
 
 // The legacy client-to-server bulk migration was removed when account isolation
 // became mandatory. A fresh account must NEVER import old browser CRM data.
 
-export async function saveRemoteLead(lead: PersistedLead) {
+export async function saveRemoteLead(lead: PersistedLead, expectedUserId?: string) {
   const session = await getValidSession();
-  if (!session) return false;
+  if (!session || (expectedUserId && session.user.id !== expectedUserId)) return false;
 
-  const response = await authedRequest("leads?on_conflict=id", {
-    method: "POST",
-    headers: {
-      Prefer: "resolution=merge-duplicates,return=minimal",
+  const response = await authedRequest(
+    "leads?on_conflict=id",
+    {
+      method: "POST",
+      headers: {
+        Prefer: "resolution=merge-duplicates,return=minimal",
+      },
+      body: JSON.stringify(toRemote(lead, session.user.id)),
     },
-    body: JSON.stringify(toRemote(lead, session.user.id)),
-  });
+    session,
+  );
 
   return response.ok;
 }
 
-export async function deleteRemoteLead(id: string) {
+export async function deleteRemoteLead(id: string, expectedUserId?: string) {
+  const session = await getValidSession();
+  if (!session || (expectedUserId && session.user.id !== expectedUserId)) return false;
   const response = await authedRequest(
     `leads?id=eq.${encodeURIComponent(id)}`,
     {
       method: "DELETE",
       headers: { Prefer: "return=minimal" },
     },
+    session,
   );
 
   return response.ok;
@@ -368,22 +368,20 @@ export async function fetchLeadUpdates(limit = 60) {
     throw new Error(`LEAD_UPDATES_${response.status}`);
   }
 
-  return ((await response.json()) as RemoteLeadUpdate[]).map(
-    (row): LeadUpdateRecord => ({
-      id: row.id,
-      leadId: row.lead_id,
-      placeId: row.place_id,
-      changeType: row.change_type,
-      fieldName: row.field_name,
-      oldValue: row.old_value,
-      newValue: row.new_value,
-      message: row.message,
-      importance: row.importance,
-      source: row.source,
-      isSeen: row.is_seen,
-      createdAt: row.created_at,
-    }),
-  );
+  return ((await response.json()) as RemoteLeadUpdate[]).map((row): LeadUpdateRecord => ({
+    id: row.id,
+    leadId: row.lead_id,
+    placeId: row.place_id,
+    changeType: row.change_type,
+    fieldName: row.field_name,
+    oldValue: row.old_value,
+    newValue: row.new_value,
+    message: row.message,
+    importance: row.importance,
+    source: row.source,
+    isSeen: row.is_seen,
+    createdAt: row.created_at,
+  }));
 }
 
 export async function markLeadUpdatesSeen(leadId: string) {

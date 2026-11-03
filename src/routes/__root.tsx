@@ -35,7 +35,7 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+function ErrorComponent({ error, reset }: { error: unknown; reset: () => void }) {
   console.error(error);
   const router = useRouter();
   useEffect(() => {
@@ -79,13 +79,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "JanuarioLeads — Plataforma de Prospecção" },
-      { name: "description", content: "Plataforma privada para organizar leads, prospecção, oportunidades e financeiro." },
+      {
+        name: "description",
+        content: "Plataforma privada para organizar leads, prospecção, oportunidades e financeiro.",
+      },
       { name: "author", content: "JanuarioLeads" },
       { property: "og:title", content: "JanuarioLeads — Plataforma de Prospecção" },
-      { property: "og:description", content: "Plataforma privada para organizar leads, prospecção, oportunidades e financeiro." },
+      {
+        property: "og:description",
+        content: "Plataforma privada para organizar leads, prospecção, oportunidades e financeiro.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      
     ],
     links: [
       {

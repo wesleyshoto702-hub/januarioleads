@@ -2,42 +2,38 @@ import { getAccessToken } from "../../lib/auth";
 import type { BusinessSearchResult } from "../search-leads/types";
 import type { DeepEnrichmentSnapshot } from "./types";
 
-const PUBLIC_SUPABASE_URL = "https://czkazbianiflhldenhcj.supabase.co";
-const PUBLIC_SUPABASE_PUBLISHABLE_KEY =
-  "sb_publishable_rDtFwPmhh93xceOpvf9hUg_PSlvpB8p";
+import {
+  SUPABASE_URL as PUBLIC_SUPABASE_URL,
+  SUPABASE_PUBLISHABLE_KEY as PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+} from "../../lib/supabase-config";
 
 type ResponsePayload =
   | { ok: true; snapshot: DeepEnrichmentSnapshot; identityChanged?: boolean }
-  | { ok: false; code?: string; message?: string };
+  | { ok: false; code?: string | undefined; message?: string };
 
 async function request(payload: Record<string, unknown>) {
   const accessToken = await getAccessToken();
   if (!accessToken) throw new Error("Sua sessão expirou. Entre novamente.");
 
-  const url =
-    import.meta.env["VITE_SUPABASE_URL"]?.trim() || PUBLIC_SUPABASE_URL;
+  const url = import.meta.env["VITE_SUPABASE_URL"]?.trim() || PUBLIC_SUPABASE_URL;
   const publishableKey =
-    import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"]?.trim() ||
-    PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+    import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"]?.trim() || PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 150_000);
 
   let response: Response;
   try {
-    response = await fetch(
-      `${url.replace(/\/$/, "")}/functions/v1/deep-enrich-business`,
-      {
-        method: "POST",
-        signal: controller.signal,
-        headers: {
-          "Content-Type": "application/json",
-          apikey: publishableKey,
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify(payload),
+    response = await fetch(`${url.replace(/\/$/, "")}/functions/v1/deep-enrich-business`, {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        apikey: publishableKey,
+        Authorization: `Bearer ${accessToken}`,
       },
-    );
+      body: JSON.stringify(payload),
+    });
   } catch (cause) {
     if (cause instanceof DOMException && cause.name === "AbortError") {
       throw new Error(
@@ -78,7 +74,7 @@ function businessPayload(business: BusinessSearchResult, segment: string) {
 export async function getDeepEnrichmentStatus(input: {
   business: BusinessSearchResult;
   segment: string;
-  leadId?: string | null;
+  leadId?: string | null | undefined;
 }) {
   return request({
     mode: "status",
@@ -91,8 +87,8 @@ export async function getDeepEnrichmentStatus(input: {
 export async function deepenBusiness(input: {
   business: BusinessSearchResult;
   segment: string;
-  leadId?: string | null;
-  force?: boolean;
+  leadId?: string | null | undefined;
+  force?: boolean | undefined;
 }) {
   return request({
     mode: "run",

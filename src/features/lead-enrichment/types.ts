@@ -1,10 +1,6 @@
 import type { BusinessSearchResult, BusinessSearchFailure } from "../search-leads/types";
 
-export type LeadEnrichmentMethod =
-  | "placeId"
-  | "phone"
-  | "name-location"
-  | "name-segment-location";
+export type LeadEnrichmentMethod = "placeId" | "phone" | "name-location" | "name-segment-location";
 
 export type LeadEnrichmentConfidence = "high" | "probable" | "uncertain";
 
@@ -24,17 +20,15 @@ export type LeadEnrichmentSuccess = {
   attemptedLayers: LeadEnrichmentMethod[];
 };
 
-export type LeadEnrichmentResponse =
-  | LeadEnrichmentSuccess
-  | BusinessSearchFailure;
+export type LeadEnrichmentResponse = LeadEnrichmentSuccess | BusinessSearchFailure;
 
 export type EnrichmentLead = {
   id: string;
   company: string;
   segment: string;
   phone: string;
-  placeId?: string;
-  address?: string;
-  city?: string;
-  state?: string;
+  placeId?: string | undefined;
+  address?: string | undefined;
+  city?: string | undefined;
+  state?: string | undefined;
 };

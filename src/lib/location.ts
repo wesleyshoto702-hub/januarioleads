@@ -15,8 +15,8 @@ export function normalizeStateCode(value: string | null | undefined) {
 }
 
 export function sameLocation(
-  left: { city?: string | null; state?: string | null },
-  right: { city?: string | null; state?: string | null },
+  left: { city?: string | null | undefined; state?: string | null | undefined },
+  right: { city?: string | null | undefined; state?: string | null | undefined },
 ) {
   return (
     normalizeLocationText(left.city) === normalizeLocationText(right.city) &&

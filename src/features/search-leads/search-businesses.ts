@@ -7,16 +7,15 @@ type SearchBusinessesInput = SearchLocation & {
   pageToken?: string;
 };
 
-const PUBLIC_SUPABASE_URL = "https://czkazbianiflhldenhcj.supabase.co";
-const PUBLIC_SUPABASE_PUBLISHABLE_KEY =
-  "sb_publishable_rDtFwPmhh93xceOpvf9hUg_PSlvpB8p";
+import {
+  SUPABASE_URL as PUBLIC_SUPABASE_URL,
+  SUPABASE_PUBLISHABLE_KEY as PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+} from "../../lib/supabase-config";
 
 function getSupabaseConfig() {
-  const url =
-    import.meta.env["VITE_SUPABASE_URL"]?.trim() || PUBLIC_SUPABASE_URL;
+  const url = import.meta.env["VITE_SUPABASE_URL"]?.trim() || PUBLIC_SUPABASE_URL;
   const publishableKey =
-    import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"]?.trim() ||
-    PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+    import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"]?.trim() || PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
   return {
     functionUrl: `${url.replace(/\/$/, "")}/functions/v1/search-places`,
@@ -33,8 +32,7 @@ export async function searchBusinesses(
     return {
       ok: false,
       code: "NOT_CONFIGURED",
-      message:
-        "A conexão pública com o Supabase ainda não está configurada neste ambiente.",
+      message: "A conexão pública com o Supabase ainda não está configurada neste ambiente.",
     };
   }
 
@@ -95,8 +93,7 @@ export async function searchBusinesses(
     return {
       ok: false,
       code: "REQUEST_FAILED",
-      message:
-        "Não foi possível buscar empresas agora. Tente novamente.",
+      message: "Não foi possível buscar empresas agora. Tente novamente.",
     };
   } catch {
     return {

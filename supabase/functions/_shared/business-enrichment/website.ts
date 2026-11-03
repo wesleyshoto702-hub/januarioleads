@@ -18,8 +18,7 @@ import {
   tokenSimilarity,
 } from "./security.ts";
 
-const BROWSERLESS_ENDPOINT =
-  "https://production-sfo.browserless.io/chromium/function";
+const BROWSERLESS_ENDPOINT = "https://production-sfo.browserless.io/chromium/function";
 const MAX_HTML_BYTES = 1_500_000;
 const MAX_PAGES = 5;
 const MAX_BROWSERLESS = 2;
@@ -91,9 +90,7 @@ function embeddedJsonOf(html: string) {
   if (next) candidates.push(next);
 
   const scripts =
-    html.match(
-      /<script[^>]+type\s*=\s*(["'])application\/json\1[^>]*>[\s\S]*?<\/script>/gi,
-    ) ?? [];
+    html.match(/<script[^>]+type\s*=\s*(["'])application\/json\1[^>]*>[\s\S]*?<\/script>/gi) ?? [];
   for (const script of scripts.slice(0, 20)) {
     const raw = script.replace(/^<script[^>]*>/i, "").replace(/<\/script>$/i, "");
     if (raw.trim()) candidates.push(raw);
@@ -128,7 +125,7 @@ function linksOf(html: string, base: URL) {
   while ((match = regex.exec(html)) !== null && out.length < 500) {
     try {
       const resolved = new URL(decodeEntities(match[2]), base);
-      if (!["http:","https:"].includes(resolved.protocol)) continue;
+      if (!["http:", "https:"].includes(resolved.protocol)) continue;
       resolved.hash = "";
       out.push({ url: resolved.toString(), text: cleanText(match[3]).slice(0, 160) });
     } catch {
@@ -146,7 +143,7 @@ function imagesOf(html: string, base: URL) {
     if (!raw) continue;
     try {
       const resolved = new URL(decodeEntities(raw), base);
-      if (!["http:","https:"].includes(resolved.protocol)) continue;
+      if (!["http:", "https:"].includes(resolved.protocol)) continue;
       out.push({ url: resolved.toString(), alt: decodeEntities(attr(tag, "alt")).slice(0, 220) });
     } catch {
       // Ignore malformed images.
@@ -166,7 +163,7 @@ function parsePage(
     finalUrl: url.toString(),
     domain: url.hostname.toLowerCase().replace(/^www\./, ""),
     title: titleOf(html),
-    metaDescription: metaContent(html, ["description","og:description"]),
+    metaDescription: metaContent(html, ["description", "og:description"]),
     text: cleanText(html).slice(0, 80_000),
     html: html.slice(0, MAX_HTML_BYTES),
     jsonLd: jsonLdOf(html),
@@ -234,7 +231,8 @@ export async function fetchPublicHtml(value: string, timeoutMs = 7_000) {
       }
       if (!response.ok) return null;
       const type = response.headers.get("content-type")?.toLowerCase() ?? "";
-      if (type && !type.includes("text/html") && !type.includes("application/xhtml+xml")) return null;
+      if (type && !type.includes("text/html") && !type.includes("application/xhtml+xml"))
+        return null;
       const length = Number(response.headers.get("content-length") ?? "0");
       if (Number.isFinite(length) && length > 2_000_000) return null;
       const html = await readLimited(response);
@@ -315,10 +313,7 @@ type BrowserlessFetchResult = {
   error: string | null;
 };
 
-async function fetchWithBrowserless(
-  value: string,
-  token: string,
-): Promise<BrowserlessFetchResult> {
+async function fetchWithBrowserless(value: string, token: string): Promise<BrowserlessFetchResult> {
   const normalized = safePublicUrl(value);
   if (!normalized || !(await hostnameResolvesPublicly(normalized.hostname))) {
     return { page: null, blocked: true, error: "unsafe_target" };
@@ -341,10 +336,11 @@ async function fetchWithBrowserless(
     if (!response.ok) {
       return { page: null, blocked: false, error: "browserless_http_error" };
     }
-    const raw = await response.json() as Record<string, unknown>;
-    const payload = (
-      raw.data && typeof raw.data === "object" ? raw.data : raw
-    ) as Record<string, unknown>;
+    const raw = (await response.json()) as Record<string, unknown>;
+    const payload = (raw.data && typeof raw.data === "object" ? raw.data : raw) as Record<
+      string,
+      unknown
+    >;
     if (payload.blocked === true) {
       return { page: null, blocked: true, error: "protected_page" };
     }
@@ -352,16 +348,11 @@ async function fetchWithBrowserless(
       return {
         page: null,
         blocked: false,
-        error:
-          typeof payload.error === "string"
-            ? payload.error
-            : "browserless_invalid_payload",
+        error: typeof payload.error === "string" ? payload.error : "browserless_invalid_payload",
       };
     }
     const finalUrl = safePublicUrl(
-      typeof payload.finalUrl === "string"
-        ? payload.finalUrl
-        : normalized.toString(),
+      typeof payload.finalUrl === "string" ? payload.finalUrl : normalized.toString(),
     );
     if (!finalUrl || !(await hostnameResolvesPublicly(finalUrl.hostname))) {
       return { page: null, blocked: true, error: "unsafe_final_url" };
@@ -421,7 +412,8 @@ function frameworkSignals(html: string) {
   const out = new Set<string>();
   if (/__NEXT_DATA__|\/_next\//i.test(html)) out.add("nextjs");
   if (/__NUXT__|\/_nuxt\//i.test(html)) out.add("nuxt");
-  if (/data-reactroot|react(?:\.production)?\.min|react-dom|react-refresh/i.test(html)) out.add("react");
+  if (/data-reactroot|react(?:\.production)?\.min|react-dom|react-refresh/i.test(html))
+    out.add("react");
   if (/data-v-[a-f0-9]+|vue(?:\.runtime)?|__VUE__/i.test(html)) out.add("vue");
   if (/ng-version|<app-root\b|angular/i.test(html)) out.add("angular");
   if (/@vite|vite\/client|react-refresh/i.test(html)) out.add("vite");
@@ -447,24 +439,41 @@ function priceSignalCount(text: string) {
 
 function commercialTokens(priorities: string[]) {
   const base = [
-    "produto","item","cardapio","menu","preco","pedido","adicionar","carrinho",
-    "categoria","bebida","lanche","entrega","retirada","delivery","agendamento",
-    "reserv","comprar","shop","servico","tratamento","portfolio",
+    "produto",
+    "item",
+    "cardapio",
+    "menu",
+    "preco",
+    "pedido",
+    "adicionar",
+    "carrinho",
+    "categoria",
+    "bebida",
+    "lanche",
+    "entrega",
+    "retirada",
+    "delivery",
+    "agendamento",
+    "reserv",
+    "comprar",
+    "shop",
+    "servico",
+    "tratamento",
+    "portfolio",
   ];
   return Array.from(
     new Set([
       ...base,
       ...priorities.flatMap((value) =>
-        normalizeText(value).split(" ").filter((token) => token.length >= 4)
+        normalizeText(value)
+          .split(" ")
+          .filter((token) => token.length >= 4),
       ),
     ]),
   ).slice(0, 60);
 }
 
-export function analyzeCommercialPage(
-  page: PageSnapshot,
-  priorities: string[],
-) {
+export function analyzeCommercialPage(page: PageSnapshot, priorities: string[]) {
   const html = page.html;
   const normalizedText = normalizeText(page.text);
   const words = normalizedText.split(" ").filter(Boolean);
@@ -480,24 +489,16 @@ export function analyzeCommercialPage(
   const scripts = scriptStats(html);
   const frameworks = frameworkSignals(html);
   const mainText = appContainerText(html);
-  const hasAppContainer =
-    /id\s*=\s*(["'])(?:root|app|__next)\1|<app-root\b/i.test(html);
+  const hasAppContainer = /id\s*=\s*(["'])(?:root|app|__next)\1|<app-root\b/i.test(html);
   const spaShell =
-    hasAppContainer &&
-    mainText.length < 180 &&
-    (frameworks.length > 0 || scripts.count >= 4);
+    hasAppContainer && mainText.length < 180 && (frameworks.length > 0 || scripts.count >= 4);
   const scriptDominance =
-    html.length > 0 &&
-    scripts.bytes / html.length >= 0.35 &&
-    page.text.length < 2500;
-  const loadingShell =
-    /(?:skeleton|loading|loader|carregando|aguarde)/i.test(
-      `${mainText} ${page.text.slice(0, 1200)}`,
-    );
+    html.length > 0 && scripts.bytes / html.length >= 0.35 && page.text.length < 2500;
+  const loadingShell = /(?:skeleton|loading|loader|carregando|aguarde)/i.test(
+    `${mainText} ${page.text.slice(0, 1200)}`,
+  );
   const clientSideSignals =
-    /\b(fetch\s*\(|axios\.|XMLHttpRequest|graphql|hydrateRoot|createRoot\s*\()/i.test(
-      html,
-    );
+    /\b(fetch\s*\(|axios\.|XMLHttpRequest|graphql|hydrateRoot|createRoot\s*\()/i.test(html);
   const routeCommercial = isCommercialPlatformUrl(page.finalUrl);
   const commercialContentDensity =
     Math.round((signals / Math.max(words.length, 1)) * 1000 * 100) / 100;
@@ -536,10 +537,17 @@ export function shouldUseBrowserless(
   const profile = analyzeCommercialPage(page, priorities);
   const commercialFacts = deterministicFacts.filter((fact) =>
     [
-      "product","menu_item","price","service","treatment",
-      "channel_delivery","channel_menu","channel_booking",
-      "channel_reservation","channel_ecommerce",
-    ].includes(fact.type)
+      "product",
+      "menu_item",
+      "price",
+      "service",
+      "treatment",
+      "channel_delivery",
+      "channel_menu",
+      "channel_booking",
+      "channel_reservation",
+      "channel_ecommerce",
+    ].includes(fact.type),
   ).length;
   const dynamicScore =
     (profile.spaShell ? 4 : 0) +
@@ -548,15 +556,11 @@ export function shouldUseBrowserless(
     (profile.loadingShell ? 2 : 0) +
     (profile.frameworkSignals.length > 0 ? 1 : 0);
   const commerciallyRelevant =
-    profile.routeCommercial ||
-    profile.commercialSignals >= 4 ||
-    profile.explicitPriceSignals > 0;
-  const thinDynamicHtml =
-    page.text.length < 300 &&
-    profile.scriptCount >= 2;
+    profile.routeCommercial || profile.commercialSignals >= 4 || profile.explicitPriceSignals > 0;
+  const thinDynamicHtml = page.text.length < 300 && profile.scriptCount >= 2;
 
   if (identityStatus === "mismatch") {
-    return { use:false, reason:"identity_mismatch" };
+    return { use: false, reason: "identity_mismatch" };
   }
 
   if (
@@ -564,46 +568,28 @@ export function shouldUseBrowserless(
     sourceKind === "official_linked_platform" &&
     commerciallyRelevant &&
     commercialFacts <= 1 &&
-    (
-      thinDynamicHtml ||
+    (thinDynamicHtml ||
       profile.spaShell ||
       profile.scriptDominance ||
       profile.clientSideSignals ||
-      profile.loadingShell
-    )
+      profile.loadingShell)
   ) {
-    return { use:true, reason:"identity_insufficient_dynamic" };
+    return { use: true, reason: "identity_insufficient_dynamic" };
   }
 
-  if (
-    page.text.length < 350 &&
-    page.jsonLd.length === 0 &&
-    commercialFacts === 0
-  ) {
+  if (page.text.length < 350 && page.jsonLd.length === 0 && commercialFacts === 0) {
     return { use: true, reason: "html_insufficient" };
   }
   if (profile.spaShell && commercialFacts <= 1) {
     return { use: true, reason: "spa_shell" };
   }
-  if (
-    commerciallyRelevant &&
-    commercialFacts === 0 &&
-    dynamicScore >= 2
-  ) {
+  if (commerciallyRelevant && commercialFacts === 0 && dynamicScore >= 2) {
     return { use: true, reason: "commercial_content_missing" };
   }
-  if (
-    commerciallyRelevant &&
-    commercialFacts <= 1 &&
-    dynamicScore >= 4
-  ) {
+  if (commerciallyRelevant && commercialFacts <= 1 && dynamicScore >= 4) {
     return { use: true, reason: "dynamic_app_detected" };
   }
-  if (
-    profile.routeCommercial &&
-    commercialFacts === 0 &&
-    profile.commercialContentDensity < 3
-  ) {
+  if (profile.routeCommercial && commercialFacts === 0 && profile.commercialContentDensity < 3) {
     return { use: true, reason: "js_render_required" };
   }
 
@@ -617,16 +603,35 @@ export function shouldUseBrowserless(
 }
 
 const COMMON_RELEVANT = [
-  "servic","service","tratament","especial","equipe","team","profission","barbeir",
-  "dentist","menu","cardap","produto","portfolio","galeria","trabalho","preco","price",
-  "plano","agend","booking","reserv","contato","contact","sobre","about","facility",
+  "servic",
+  "service",
+  "tratament",
+  "especial",
+  "equipe",
+  "team",
+  "profission",
+  "barbeir",
+  "dentist",
+  "menu",
+  "cardap",
+  "produto",
+  "portfolio",
+  "galeria",
+  "trabalho",
+  "preco",
+  "price",
+  "plano",
+  "agend",
+  "booking",
+  "reserv",
+  "contato",
+  "contact",
+  "sobre",
+  "about",
+  "facility",
 ];
 
-export function selectInternalLinks(
-  home: PageSnapshot,
-  priorities: string[],
-  limit = 4,
-) {
+export function selectInternalLinks(home: PageSnapshot, priorities: string[], limit = 4) {
   const base = new URL(home.finalUrl);
   const priorityTokens = priorities
     .flatMap((value) => normalizeText(value).split(" "))
@@ -655,7 +660,10 @@ export function selectInternalLinks(
       // Ignore malformed links.
     }
   }
-  return scored.sort((a,b) => b.score - a.score).slice(0, limit).map((item) => item.url);
+  return scored
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map((item) => item.url);
 }
 
 function assignSource(
@@ -719,14 +727,12 @@ function sourceDiagnostic(
     identityStatus:
       page.sourceIdentityStatus ??
       (identityScore >= 80 ? "confirmed" : identityScore >= 45 ? "probable" : "insufficient"),
-    identityReason:
-      page.sourceIdentityReason ?? "identity_not_explicitly_assessed",
-    rejectionReason:null,
+    identityReason: page.sourceIdentityReason ?? "identity_not_explicitly_assessed",
+    rejectionReason: null,
     browserlessDecision: decision,
     browserlessReason: reason,
     identityScore,
-    confidence:
-      identityScore >= 80 ? "high" : identityScore >= 45 ? "medium" : "low",
+    confidence: identityScore >= 80 ? "high" : identityScore >= 45 ? "medium" : "low",
     htmlBytes: profile.htmlBytes,
     textLength: profile.textLength,
     linkCount: profile.linkCount,
@@ -750,17 +756,18 @@ export type IdentityAssessment = {
 };
 
 function phoneCandidates(value: string) {
-  const matches =
-    value.match(/(?:\+?55\s*)?(?:\(?\d{2}\)?[\s.-]*)?9?\d{4}[\s.-]*\d{4}/g) ?? [];
+  const matches = value.match(/(?:\+?55\s*)?(?:\(?\d{2}\)?[\s.-]*)?9?\d{4}[\s.-]*\d{4}/g) ?? [];
   return Array.from(
-    new Set(matches.map((item)=>item.replace(/\D/g,"")).filter((item)=>item.length >= 10)),
+    new Set(matches.map((item) => item.replace(/\D/g, "")).filter((item) => item.length >= 10)),
   );
 }
 
 function genericPlatformTitle(value: string) {
   const text = normalizeText(value);
   if (!text) return true;
-  return /cardapio|pedido|delivery|loja|sistema|plataforma|sisfood|aiqfome|menu digital|faca seu pedido/.test(text);
+  return /cardapio|pedido|delivery|loja|sistema|plataforma|sisfood|aiqfome|menu digital|faca seu pedido/.test(
+    text,
+  );
 }
 
 export function assessLinkedPlatformIdentity(
@@ -772,7 +779,7 @@ export function assessLinkedPlatformIdentity(
   const positiveSignals: string[] = [];
   const conflictSignals: string[] = [];
 
-  const nameSimilarity = tokenSimilarity(fingerprint.canonicalName,text);
+  const nameSimilarity = tokenSimilarity(fingerprint.canonicalName, text);
   const exactName =
     Boolean(normalizeText(fingerprint.canonicalName)) &&
     normalized.includes(normalizeText(fingerprint.canonicalName));
@@ -781,31 +788,25 @@ export function assessLinkedPlatformIdentity(
   const expectedPhone = fingerprint.phone.slice(-10);
   const phones = phoneCandidates(text);
   const phoneMatch =
-    Boolean(expectedPhone) &&
-    phones.some((phone)=>phone.endsWith(expectedPhone));
+    Boolean(expectedPhone) && phones.some((phone) => phone.endsWith(expectedPhone));
   if (phoneMatch) positiveSignals.push("phone_match");
 
   const cityMatch =
-    Boolean(fingerprint.city) &&
-    normalized.includes(normalizeText(fingerprint.city));
+    Boolean(fingerprint.city) && normalized.includes(normalizeText(fingerprint.city));
   if (cityMatch) positiveSignals.push("city_match");
 
   const addressNumber = fingerprint.address.match(/\b\d{1,6}\b/)?.[0] ?? "";
-  const addressMatch =
-    Boolean(addressNumber) &&
-    new RegExp(`\\b${addressNumber}\\b`).test(text);
+  const addressMatch = Boolean(addressNumber) && new RegExp(`\\b${addressNumber}\\b`).test(text);
   if (addressMatch) positiveSignals.push("address_match");
 
-  const routeHay = normalizeText(
-    `${page.domain} ${new URL(page.finalUrl).pathname}`,
-  );
+  const routeHay = normalizeText(`${page.domain} ${new URL(page.finalUrl).pathname}`);
   const nameTokens = normalizeText(fingerprint.canonicalName)
     .split(" ")
-    .filter((token)=>token.length >= 4);
+    .filter((token) => token.length >= 4);
   const routeNameMatch =
     nameTokens.length > 0 &&
-    nameTokens.filter((token)=>routeHay.includes(token)).length >=
-      Math.max(1,Math.ceil(nameTokens.length * 0.6));
+    nameTokens.filter((token) => routeHay.includes(token)).length >=
+      Math.max(1, Math.ceil(nameTokens.length * 0.6));
   if (routeNameMatch) positiveSignals.push("route_name_match");
 
   if (page.linkedFrom === "google_places_website") {
@@ -815,14 +816,8 @@ export function assessLinkedPlatformIdentity(
   }
 
   const foreignPhones =
-    Boolean(expectedPhone) &&
-    phones.filter((phone)=>!phone.endsWith(expectedPhone));
-  if (
-    expectedPhone &&
-    !phoneMatch &&
-    foreignPhones &&
-    foreignPhones.length > 0
-  ) {
+    Boolean(expectedPhone) && phones.filter((phone) => !phone.endsWith(expectedPhone));
+  if (expectedPhone && !phoneMatch && foreignPhones && foreignPhones.length > 0) {
     conflictSignals.push("different_phone");
   }
 
@@ -830,21 +825,14 @@ export function assessLinkedPlatformIdentity(
     Boolean(page.title) &&
     !genericPlatformTitle(page.title) &&
     !exactName &&
-    tokenSimilarity(fingerprint.canonicalName,page.title) < 0.2;
+    normalizeText(fingerprint.canonicalName) !== normalizeText(page.title) &&
+    !normalizeText(page.title).includes(normalizeText(fingerprint.canonicalName));
   if (titleNameConflict) conflictSignals.push("different_business_name");
 
   const addressNumbers = Array.from(
-    new Set(
-      (text.match(/\b\d{2,6}\b/g) ?? [])
-        .filter((value)=>value !== addressNumber),
-    ),
+    new Set((text.match(/\b\d{2,6}\b/g) ?? []).filter((value) => value !== addressNumber)),
   );
-  if (
-    addressNumber &&
-    !addressMatch &&
-    addressNumbers.length > 0 &&
-    normalized.includes("rua ")
-  ) {
+  if (addressNumber && !addressMatch && addressNumbers.length > 0 && normalized.includes("rua ")) {
     conflictSignals.push("different_address");
   }
 
@@ -852,60 +840,57 @@ export function assessLinkedPlatformIdentity(
   // expected identity signals is never enough.
   const strongMismatch =
     conflictSignals.includes("different_business_name") &&
-    (
-      conflictSignals.includes("different_phone") ||
-      conflictSignals.includes("different_address")
-    );
+    (conflictSignals.includes("different_phone") || conflictSignals.includes("different_address"));
 
   if (strongMismatch) {
     return {
-      status:"mismatch",
-      score:0,
-      reason:conflictSignals.join("+"),
+      status: "mismatch",
+      score: 0,
+      reason: conflictSignals.join("+"),
       positiveSignals,
       conflictSignals,
     };
   }
 
-  let score = branchIdentityScoreFromText(fingerprint,text);
+  let score = branchIdentityScoreFromText(fingerprint, text);
   if (routeNameMatch) score += 10;
   if (page.linkedFrom === "google_places_website") score += 10;
   else if (page.linkedFrom) score += 15;
-  score = Math.min(100,score);
+  score = Math.min(100, score);
 
   const confirmed =
-    phoneMatch && (exactName || cityMatch || addressMatch) ||
-    exactName && cityMatch && addressMatch;
+    (phoneMatch && (exactName || cityMatch || addressMatch)) ||
+    (exactName && cityMatch && addressMatch);
 
   if (confirmed) {
     return {
-      status:"confirmed",
-      score:Math.max(80,score),
-      reason:"strong_matching_identity_signals",
+      status: "confirmed",
+      score: Math.max(80, score),
+      reason: "strong_matching_identity_signals",
       positiveSignals,
       conflictSignals,
     };
   }
 
   const probable =
-    exactName && (cityMatch || addressMatch) ||
+    (exactName && (cityMatch || addressMatch)) ||
     phoneMatch ||
     (exactName && page.linkedFrom && score >= 45);
 
   if (probable) {
     return {
-      status:"probable",
-      score:Math.max(45,Math.min(79,score)),
-      reason:"matching_identity_signals_without_full_branch_confirmation",
+      status: "probable",
+      score: Math.max(45, Math.min(79, score)),
+      reason: "matching_identity_signals_without_full_branch_confirmation",
       positiveSignals,
       conflictSignals,
     };
   }
 
   return {
-    status:"insufficient",
-    score:Math.min(44,score),
-    reason:"insufficient_visible_identity",
+    status: "insufficient",
+    score: Math.min(44, score),
+    reason: "insufficient_visible_identity",
     positiveSignals,
     conflictSignals,
   };
@@ -917,7 +902,7 @@ function identityForSource(
   sourceKind: EnrichmentSourceKind,
 ): IdentityAssessment {
   if (sourceKind === "official_linked_platform") {
-    return assessLinkedPlatformIdentity(fingerprint,page);
+    return assessLinkedPlatformIdentity(fingerprint, page);
   }
   const score = identityScoreFromText(
     fingerprint,
@@ -925,7 +910,7 @@ function identityForSource(
     `${page.title} ${page.metaDescription} ${page.text.slice(0, 12000)}`,
   );
   return {
-    status:score >= 80 ? "confirmed" : score >= 45 ? "probable" : "insufficient",
+    status: score >= 80 ? "confirmed" : score >= 45 ? "probable" : "insufficient",
     score,
     reason:
       score >= 80
@@ -933,8 +918,8 @@ function identityForSource(
         : score >= 45
           ? "official_source_identity_probable"
           : "official_source_identity_insufficient",
-    positiveSignals:[],
-    conflictSignals:[],
+    positiveSignals: [],
+    conflictSignals: [],
   };
 }
 
@@ -953,18 +938,16 @@ async function materializePage(
     metrics.httpPages += 1;
     metrics.httpPagesFetched += 1;
   }
-  let page = http?.page
-    ? assignSource(http.page, sourceKind, linkedFrom)
-    : null;
+  let page = http?.page ? assignSource(http.page, sourceKind, linkedFrom) : null;
 
   let identity = page
-    ? identityForSource(fingerprint,page,sourceKind)
+    ? identityForSource(fingerprint, page, sourceKind)
     : {
-        status:"insufficient" as const,
-        score:0,
-        reason:"source_unavailable",
-        positiveSignals:[] as string[],
-        conflictSignals:[] as string[],
+        status: "insufficient" as const,
+        score: 0,
+        reason: "source_unavailable",
+        positiveSignals: [] as string[],
+        conflictSignals: [] as string[],
       };
 
   if (page) {
@@ -973,9 +956,7 @@ async function materializePage(
     page.sourceIdentityReason = identity.reason;
   }
 
-  const initialFacts = page
-    ? deterministicOfficialFacts([page], fingerprint)
-    : [];
+  const initialFacts = page ? deterministicOfficialFacts([page], fingerprint) : [];
   const decision = shouldUseBrowserless(
     page,
     priorities,
@@ -983,17 +964,14 @@ async function materializePage(
     identity.status,
     sourceKind,
   );
-  let browserlessDecision: SourceDiagnostic["browserlessDecision"] =
-    decision.use ? "unavailable" : "not_needed";
+  let browserlessDecision: SourceDiagnostic["browserlessDecision"] = decision.use
+    ? "unavailable"
+    : "not_needed";
   let browserlessReason = decision.reason;
   let method: SourceDiagnostic["method"] = "http";
   let browserlessBlocked = false;
 
-  if (
-    decision.use &&
-    browserlessToken &&
-    browserlessBudget.used < MAX_BROWSERLESS
-  ) {
+  if (decision.use && browserlessToken && browserlessBudget.used < MAX_BROWSERLESS) {
     const rendered = await fetchWithBrowserless(url, browserlessToken);
     browserlessBudget.used += 1;
     metrics.browserlessCalls += 1;
@@ -1003,7 +981,7 @@ async function materializePage(
       page = assignSource(rendered.page, sourceKind, linkedFrom);
       method = http?.page ? "http+browserless" : "browserless";
       browserlessDecision = "used";
-      identity = identityForSource(fingerprint,page,sourceKind);
+      identity = identityForSource(fingerprint, page, sourceKind);
       page.sourceIdentityScore = identity.score;
       page.sourceIdentityStatus = identity.status;
       page.sourceIdentityReason = identity.reason;
@@ -1022,33 +1000,33 @@ async function materializePage(
       const safe = safePublicUrl(url);
       const domain = safe ? domainOf(safe.toString()) : "";
       const diagnostic: SourceDiagnostic = {
-        url:safe?.toString() ?? url,
+        url: safe?.toString() ?? url,
         domain,
-        title:null,
+        title: null,
         sourceKind,
         linkedFrom,
-        method:"browserless",
-        extractionStatus:"blocked",
-        identityStatus:"insufficient",
-        identityReason:"source_blocked_before_identity_confirmation",
-        rejectionReason:"blocked",
-        browserlessDecision:"failed",
-        browserlessReason:"browserless_failed",
-        identityScore:0,
-        confidence:"low",
-        htmlBytes:0,
-        textLength:0,
-        linkCount:0,
-        scriptCount:0,
-        frameworkSignals:[],
-        jsonLdCount:0,
-        embeddedJsonCount:0,
-        imageCount:0,
-        commercialSignals:0,
-        commercialContentDensity:0,
-        found:emptyFound(),
+        method: "browserless",
+        extractionStatus: "blocked",
+        identityStatus: "insufficient",
+        identityReason: "source_blocked_before_identity_confirmation",
+        rejectionReason: "blocked",
+        browserlessDecision: "failed",
+        browserlessReason: "browserless_failed",
+        identityScore: 0,
+        confidence: "low",
+        htmlBytes: 0,
+        textLength: 0,
+        linkCount: 0,
+        scriptCount: 0,
+        frameworkSignals: [],
+        jsonLdCount: 0,
+        embeddedJsonCount: 0,
+        imageCount: 0,
+        commercialSignals: 0,
+        commercialContentDensity: 0,
+        found: emptyFound(),
       };
-      return { page:null, diagnostic, error:"source_blocked" };
+      return { page: null, diagnostic, error: "source_blocked" };
     }
     return {
       page: null,
@@ -1069,8 +1047,7 @@ async function materializePage(
   );
   diagnostic.identityStatus = identity.status;
   diagnostic.identityReason = identity.reason;
-  diagnostic.rejectionReason =
-    identity.status === "mismatch" ? "identity_mismatch" : null;
+  diagnostic.rejectionReason = identity.status === "mismatch" ? "identity_mismatch" : null;
 
   if (browserlessBlocked) {
     diagnostic.extractionStatus = "blocked";
@@ -1080,20 +1057,17 @@ async function materializePage(
     diagnostic.extractionStatus = "partial";
     diagnostic.browserlessReason = "identity_mismatch";
     return {
-      page:null,
+      page: null,
       diagnostic,
-      error:"linked_platform_identity_mismatch",
+      error: "linked_platform_identity_mismatch",
     };
   }
 
-  if (
-    sourceKind === "official_linked_platform" &&
-    identity.status === "insufficient"
-  ) {
+  if (sourceKind === "official_linked_platform" && identity.status === "insufficient") {
     diagnostic.extractionStatus = "inconclusive";
   }
 
-  return { page, diagnostic, error:null };
+  return { page, diagnostic, error: null };
 }
 
 export async function crawlOfficialWebsite(
@@ -1116,9 +1090,7 @@ export async function crawlOfficialWebsite(
   const errors: string[] = [];
   const browserlessToken = Deno.env.get("BROWSERLESS_API_TOKEN")?.trim() ?? "";
   const browserlessBudget = { used: 0 };
-  const rootKind: EnrichmentSourceKind = isCommercialPlatformUrl(
-    rootUrl.toString(),
-  )
+  const rootKind: EnrichmentSourceKind = isCommercialPlatformUrl(rootUrl.toString())
     ? "official_linked_platform"
     : "official_website";
 
@@ -1162,11 +1134,7 @@ export async function crawlOfficialWebsite(
     else errors.push(linked.error ?? "linked_platform_unavailable");
   }
 
-  const links = selectInternalLinks(
-    root.page,
-    priorities,
-    Math.max(0, MAX_PAGES - pages.length),
-  );
+  const links = selectInternalLinks(root.page, priorities, Math.max(0, MAX_PAGES - pages.length));
   for (const url of links) {
     if (pages.length >= MAX_PAGES) break;
     const internal = await materializePage(
@@ -1188,10 +1156,7 @@ export async function crawlOfficialWebsite(
   return { pages, diagnostics, errors };
 }
 
-export function finalizeSourceDiagnostics(
-  diagnostics: SourceDiagnostic[],
-  facts: FactCandidate[],
-) {
+export function finalizeSourceDiagnostics(diagnostics: SourceDiagnostic[], facts: FactCandidate[]) {
   const byUrl = new Map(
     diagnostics.map((item) => [item.url.replace(/\/$/, ""), { ...item, found: { ...item.found } }]),
   );
@@ -1255,7 +1220,9 @@ function fact(
   identityScore = 100,
 ): FactCandidate {
   const normalizedValue = normalizeText(
-    value.url || value.imageUrl || [value.name,value.price,value.role,value.detail].filter(Boolean).join(" "),
+    value.url ||
+      value.imageUrl ||
+      [value.name, value.price, value.role, value.detail].filter(Boolean).join(" "),
   );
   return {
     type,
@@ -1283,7 +1250,20 @@ function schemaObjects(input: unknown): Record<string, unknown>[] {
     }
     const row = value as Record<string, unknown>;
     out.push(row);
-    for (const key of ["@graph","itemListElement","makesOffer","hasOfferCatalog","itemOffered","employee","founder","member","department","menuSection","hasMenuSection","hasMenuItem"]) {
+    for (const key of [
+      "@graph",
+      "itemListElement",
+      "makesOffer",
+      "hasOfferCatalog",
+      "itemOffered",
+      "employee",
+      "founder",
+      "member",
+      "department",
+      "menuSection",
+      "hasMenuSection",
+      "hasMenuItem",
+    ]) {
       if (key in row) visit(row[key]);
     }
   };
@@ -1310,22 +1290,20 @@ export function deterministicOfficialFacts(
     const sourceType = (
       websiteType: FactCandidate["sourceType"],
       platformType: FactCandidate["sourceType"],
-    ) => isPlatform ? platformType : websiteType;
+    ) => (isPlatform ? platformType : websiteType);
     const identityScore = isPlatform
-      ? (
-          typeof page.sourceIdentityScore === "number"
-            ? page.sourceIdentityScore
-            : assessLinkedPlatformIdentity(fingerprint,page).score
-        )
+      ? typeof page.sourceIdentityScore === "number"
+        ? page.sourceIdentityScore
+        : assessLinkedPlatformIdentity(fingerprint, page).score
       : identityScoreFromText(
           fingerprint,
           page.finalUrl,
-          `${page.title} ${page.metaDescription} ${page.text.slice(0,8000)}`,
+          `${page.title} ${page.metaDescription} ${page.text.slice(0, 8000)}`,
         );
 
     const localIdentityScore = branchIdentityScoreFromText(
       fingerprint,
-      `${page.title} ${page.metaDescription} ${page.text.slice(0,12000)}`,
+      `${page.title} ${page.metaDescription} ${page.text.slice(0, 12000)}`,
     );
 
     for (const link of page.links) {
@@ -1339,13 +1317,17 @@ export function deterministicOfficialFacts(
         host === "api.whatsapp.com" ||
         host === "whatsapp.com" ||
         /\bwhats(app)?\b/.test(hay)
-      ) type = "channel_whatsapp";
-      else if (host.includes("ifood.com") || /delivery|pedido|order/.test(hay)) type = "channel_delivery";
+      )
+        type = "channel_whatsapp";
+      else if (host.includes("ifood.com") || /delivery|pedido|order/.test(hay))
+        type = "channel_delivery";
       else if (/agend|booking|booksy|trinks/.test(hay)) type = "channel_booking";
       else if (/reserv/.test(hay)) type = "channel_reservation";
       else if (/cardap|menu/.test(hay)) type = "channel_menu";
-      else if (/checkout|ecommerce|e-commerce|comprar|shop|store/.test(hay)) type = "channel_ecommerce";
-      else if (host === "instagram.com" && url.pathname.split("/").filter(Boolean).length === 1) type = "official_instagram";
+      else if (/checkout|ecommerce|e-commerce|comprar|shop|store/.test(hay))
+        type = "channel_ecommerce";
+      else if (host === "instagram.com" && url.pathname.split("/").filter(Boolean).length === 1)
+        type = "official_instagram";
       if (!type) continue;
 
       let linkIdentityScore = identityScore;
@@ -1383,10 +1365,14 @@ export function deterministicOfficialFacts(
       if (/logo|icon|favicon|sprite|placeholder|banner/.test(hay)) continue;
       let type = "";
       if (/antes.*depois|before.*after|beforeafter/.test(hay)) type = "before_after_image";
-      else if (/portfolio|portifolio|galeria|trabalho|resultado|cliente/.test(hay)) type = "portfolio_image";
-      else if (/equipe|team|profission|barbeir|dentist|doctor|dra |dr /.test(hay)) type = "professional_image";
-      else if (/ambiente|fachada|interior|clinica|salao|loja|oficina|facility/.test(hay)) type = "facility_image";
-      else if (/produto|product|burger|pizza|prato|dish|roupa|shoe/.test(hay)) type = "product_image";
+      else if (/portfolio|portifolio|galeria|trabalho|resultado|cliente/.test(hay))
+        type = "portfolio_image";
+      else if (/equipe|team|profission|barbeir|dentist|doctor|dra |dr /.test(hay))
+        type = "professional_image";
+      else if (/ambiente|fachada|interior|clinica|salao|loja|oficina|facility/.test(hay))
+        type = "facility_image";
+      else if (/produto|product|burger|pizza|prato|dish|roupa|shoe/.test(hay))
+        type = "product_image";
       if (!type) continue;
       const imageIdentityScore =
         type === "professional_image" || type === "facility_image"
@@ -1411,13 +1397,43 @@ export function deterministicOfficialFacts(
         const types = schemaType(row);
         const name = schemaName(row);
         if (types.some((t) => /Service/i.test(t)) && name) {
-          facts.push(fact("service", name, { name, description: typeof row.description === "string" ? row.description.slice(0,500) : "" }, page, sourceType("official_schema", "official_platform_schema"), "json_ld", name, identityScore));
+          facts.push(
+            fact(
+              "service",
+              name,
+              {
+                name,
+                description:
+                  typeof row.description === "string" ? row.description.slice(0, 500) : "",
+              },
+              page,
+              sourceType("official_schema", "official_platform_schema"),
+              "json_ld",
+              name,
+              identityScore,
+            ),
+          );
         }
         if (types.some((t) => /Product|MenuItem/i.test(t)) && name) {
-          facts.push(fact(types.some((t)=>/MenuItem/i.test(t)) ? "menu_item" : "product", name, { name, description: typeof row.description === "string" ? row.description.slice(0,500) : "" }, page, sourceType("official_schema", "official_platform_schema"), "json_ld", name, identityScore));
+          facts.push(
+            fact(
+              types.some((t) => /MenuItem/i.test(t)) ? "menu_item" : "product",
+              name,
+              {
+                name,
+                description:
+                  typeof row.description === "string" ? row.description.slice(0, 500) : "",
+              },
+              page,
+              sourceType("official_schema", "official_platform_schema"),
+              "json_ld",
+              name,
+              identityScore,
+            ),
+          );
         }
         if (types.some((t) => /Person/i.test(t)) && name) {
-          const role = typeof row.jobTitle === "string" ? row.jobTitle.slice(0,180) : "";
+          const role = typeof row.jobTitle === "string" ? row.jobTitle.slice(0, 180) : "";
           facts.push(
             fact(
               "professional",
@@ -1426,28 +1442,71 @@ export function deterministicOfficialFacts(
               page,
               sourceType("official_schema", "official_platform_schema"),
               "json_ld",
-              [name,role].filter(Boolean).join(" — "),
+              [name, role].filter(Boolean).join(" — "),
               localIdentityScore,
             ),
           );
         }
         if (types.some((t) => /Offer/i.test(t))) {
-          const price = typeof row.price === "string" || typeof row.price === "number" ? String(row.price) : "";
+          const price =
+            typeof row.price === "string" || typeof row.price === "number" ? String(row.price) : "";
           const currency = typeof row.priceCurrency === "string" ? row.priceCurrency : "BRL";
-          const offered = row.itemOffered && typeof row.itemOffered === "object" ? schemaName(row.itemOffered as Record<string,unknown>) : "";
-          if (price) facts.push(fact("price", offered || name || "Preço publicado", { name: offered || name, price, currency }, page, sourceType("official_schema", "official_platform_schema"), "json_ld", [offered || name,price,currency].filter(Boolean).join(" "), identityScore));
+          const offered =
+            row.itemOffered && typeof row.itemOffered === "object"
+              ? schemaName(row.itemOffered as Record<string, unknown>)
+              : "";
+          if (price)
+            facts.push(
+              fact(
+                "price",
+                offered || name || "Preço publicado",
+                { name: offered || name, price, currency },
+                page,
+                sourceType("official_schema", "official_platform_schema"),
+                "json_ld",
+                [offered || name, price, currency].filter(Boolean).join(" "),
+                identityScore,
+              ),
+            );
         }
         if (typeof row.hasMenu === "string") {
           const menu = safePublicUrl(row.hasMenu);
-          if (menu) facts.push(fact("channel_menu", "Cardápio", { url: menu.toString() }, page, sourceType("official_schema", "official_platform_schema"), "json_ld", menu.toString(), identityScore));
+          if (menu)
+            facts.push(
+              fact(
+                "channel_menu",
+                "Cardápio",
+                { url: menu.toString() },
+                page,
+                sourceType("official_schema", "official_platform_schema"),
+                "json_ld",
+                menu.toString(),
+                identityScore,
+              ),
+            );
         }
-        const sameAs = Array.isArray(row.sameAs) ? row.sameAs : typeof row.sameAs === "string" ? [row.sameAs] : [];
+        const sameAs = Array.isArray(row.sameAs)
+          ? row.sameAs
+          : typeof row.sameAs === "string"
+            ? [row.sameAs]
+            : [];
         for (const value of sameAs) {
           const url = safePublicUrl(value);
           if (!url) continue;
           const host = domainOf(url.toString());
           if (host === "instagram.com" && url.pathname.split("/").filter(Boolean).length === 1) {
-            facts.push(fact("official_instagram", "Instagram oficial", { url: url.toString() }, page, sourceType("official_schema", "official_platform_schema"), "json_ld", url.toString(), identityScore));
+            facts.push(
+              fact(
+                "official_instagram",
+                "Instagram oficial",
+                { url: url.toString() },
+                page,
+                sourceType("official_schema", "official_platform_schema"),
+                "json_ld",
+                url.toString(),
+                identityScore,
+              ),
+            );
           }
         }
       }
@@ -1460,11 +1519,9 @@ export function deterministicOfficialFacts(
       ? "official_platform_embedded_data"
       : "official_embedded_data";
     const identityScore = isPlatform
-      ? (
-          typeof page.sourceIdentityScore === "number"
-            ? page.sourceIdentityScore
-            : assessLinkedPlatformIdentity(fingerprint, page).score
-        )
+      ? typeof page.sourceIdentityScore === "number"
+        ? page.sourceIdentityScore
+        : assessLinkedPlatformIdentity(fingerprint, page).score
       : identityScoreFromText(
           fingerprint,
           page.finalUrl,
@@ -1487,11 +1544,12 @@ export function deterministicOfficialFacts(
             : typeof row.nome === "string"
               ? row.nome.trim()
               : "";
-      const priceRaw =
-        row.price ?? row.preco ?? row.valor ?? row.amount ?? row.unitPrice;
+      const priceRaw = row.price ?? row.preco ?? row.valor ?? row.amount ?? row.unitPrice;
       const price =
         typeof priceRaw === "number" || typeof priceRaw === "string"
-          ? String(priceRaw).replace(/^R\$\s*/i, "").trim()
+          ? String(priceRaw)
+              .replace(/^R\$\s*/i, "")
+              .trim()
           : "";
       const description =
         typeof row.description === "string"
@@ -1507,9 +1565,7 @@ export function deterministicOfficialFacts(
             : typeof row.imagem === "string"
               ? row.imagem
               : "";
-      const imageUrl = imageRaw
-        ? safePublicUrl(imageRaw)?.toString() ?? ""
-        : "";
+      const imageUrl = imageRaw ? (safePublicUrl(imageRaw)?.toString() ?? "") : "";
 
       if (
         name &&
@@ -1553,8 +1609,7 @@ export function deterministicOfficialFacts(
 
     for (const payload of page.embeddedJson ?? []) visit(payload);
 
-    const blockRegex =
-      /<(article|li)\b[^>]*>([\s\S]{0,5000}?)<\/\1>/gi;
+    const blockRegex = /<(article|li)\b[^>]*>([\s\S]{0,5000}?)<\/\1>/gi;
     const cards: Array<{ name: string; price: string; description: string }> = [];
     let match: RegExpExecArray | null;
     while ((match = blockRegex.exec(page.html)) !== null && cards.length < 80) {
@@ -1570,10 +1625,16 @@ export function deterministicOfficialFacts(
       cards.push({
         name,
         price,
-        description: text.replace(name, "").replace(/R\$\s*\d{1,5}(?:[.,]\d{2})?/i, "").trim().slice(0, 500),
+        description: text
+          .replace(name, "")
+          .replace(/R\$\s*\d{1,5}(?:[.,]\d{2})?/i, "")
+          .trim()
+          .slice(0, 500),
       });
     }
-    const distinctCards = new Map(cards.map((card) => [`${normalizeText(card.name)}|${card.price}`, card]));
+    const distinctCards = new Map(
+      cards.map((card) => [`${normalizeText(card.name)}|${card.price}`, card]),
+    );
     if (
       distinctCards.size >= 2 ||
       (isCommercialPlatformUrl(page.finalUrl) && distinctCards.size >= 1)
@@ -1603,7 +1664,7 @@ export function deterministicOfficialFacts(
   const dedupe = new Map<string, FactCandidate>();
   for (const item of facts) {
     const key = `${item.type}|${item.normalizedValue}|${item.sourceUrl}`;
-    if (!dedupe.has(key)) dedupe.set(key,item);
+    if (!dedupe.has(key)) dedupe.set(key, item);
   }
-  return Array.from(dedupe.values()).slice(0,120);
+  return Array.from(dedupe.values()).slice(0, 120);
 }

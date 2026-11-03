@@ -2,11 +2,7 @@ import type { BusinessSearchFailure, BusinessSearchResult } from "../search-lead
 
 export type InstagramConfidence = "high" | "medium" | "low";
 export type InstagramSource =
-  | "google_places"
-  | "official_website"
-  | "web_search"
-  | "manual_confirmation"
-  | "existing_data";
+  "google_places" | "official_website" | "web_search" | "manual_confirmation" | "existing_data";
 
 export type InstagramCandidate = {
   url: string;
@@ -28,7 +24,7 @@ export type BusinessPresence = {
   instagramCandidates: InstagramCandidate[];
   instagramRejectedUrls: string[];
   instagramSearchSignature: string | null;
-  instagramSearchScope?: "site" | "web";
+  instagramSearchScope?: "site" | "web" | undefined;
   instagramNeedsReview: boolean;
 };
 
@@ -38,9 +34,7 @@ export type PresenceDiscoverySuccess = {
   presence: BusinessPresence;
 };
 
-export type PresenceDiscoveryResponse =
-  | PresenceDiscoverySuccess
-  | BusinessSearchFailure;
+export type PresenceDiscoveryResponse = PresenceDiscoverySuccess | BusinessSearchFailure;
 
 export type PresenceBusiness = Pick<
   BusinessSearchResult,
@@ -55,14 +49,14 @@ export type PresenceBusiness = Pick<
   | "state"
   | "primaryCategory"
 > & {
-  instagramConfidence?: InstagramConfidence | null;
-  instagramSource?: InstagramSource | null;
-  instagramCheckedAt?: string | null;
-  instagramUsername?: string | null;
-  instagramDisplayName?: string | null;
-  instagramCandidates?: InstagramCandidate[] | null;
-  instagramRejectedUrls?: string[] | null;
-  instagramSearchSignature?: string | null;
-  instagramSearchScope?: "site" | "web";
-  instagramNeedsReview?: boolean | null;
+  instagramConfidence?: InstagramConfidence | null | undefined;
+  instagramSource?: InstagramSource | null | undefined;
+  instagramCheckedAt?: string | null | undefined;
+  instagramUsername?: string | null | undefined;
+  instagramDisplayName?: string | null | undefined;
+  instagramCandidates?: InstagramCandidate[] | null | undefined;
+  instagramRejectedUrls?: string[] | null | undefined;
+  instagramSearchSignature?: string | null | undefined;
+  instagramSearchScope?: "site" | "web" | undefined;
+  instagramNeedsReview?: boolean | null | undefined;
 };

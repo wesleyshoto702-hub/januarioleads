@@ -1,8 +1,6 @@
-import { migrateLegacyWorkspace } from "./account-storage";
+import { migrateLegacyWorkspace } from "./account-storage.ts";
 
-const SUPABASE_URL = "https://czkazbianiflhldenhcj.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY =
-  "sb_publishable_rDtFwPmhh93xceOpvf9hUg_PSlvpB8p";
+import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "./supabase-config.ts";
 const STORAGE_KEY = "januarioleads:auth-session";
 
 export type AuthUser = {
@@ -35,12 +33,7 @@ function readSession(): StoredSession | null {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as StoredSession;
-    if (
-      !parsed.accessToken ||
-      !parsed.refreshToken ||
-      !parsed.expiresAt ||
-      !parsed.user?.id
-    ) {
+    if (!parsed.accessToken || !parsed.refreshToken || !parsed.expiresAt || !parsed.user?.id) {
       return null;
     }
     return parsed;
@@ -176,11 +169,17 @@ async function revokeSession(accessToken: string) {
 
 export async function signOut() {
   const session = readSession();
-  if (session?.accessToken) await revokeSession(session.accessToken);
   writeSession(null);
+  if (session?.accessToken) await revokeSession(session.accessToken);
 }
 
-export async function refreshSession() {
+let refreshInFlight: Promise<StoredSession | null> | null = null;
+export function refreshSession() {
+  return (refreshInFlight ??= performRefresh().finally(() => {
+    refreshInFlight = null;
+  }));
+}
+async function performRefresh() {
   const current = readSession();
   if (!current?.refreshToken) {
     writeSession(null);
@@ -194,30 +193,44 @@ export async function refreshSession() {
     });
     const data = (await response.json()) as PasswordResponse;
     if (!response.ok) {
-      writeSession(null);
+      if (readSession()?.refreshToken === current.refreshToken) writeSession(null);
       return null;
     }
 
     const session = fromAuthResponse(data);
     if (!session) {
-      writeSession(null);
+      if (readSession()?.refreshToken === current.refreshToken) writeSession(null);
       return null;
     }
 
     if (!(await isAuthorizedUser(session.accessToken, session.user.id))) {
       await revokeSession(session.accessToken);
-      writeSession(null);
+      if (readSession()?.refreshToken === current.refreshToken) writeSession(null);
       return null;
     }
 
+    if (readSession()?.refreshToken !== current.refreshToken) return null;
     writeSession(session);
     return session;
   } catch {
-    return current.expiresAt > Date.now() ? current : null;
+    return readSession()?.refreshToken === current.refreshToken && current.expiresAt > Date.now()
+      ? current
+      : null;
   }
 }
 
-export async function getValidSession() {
+let validation: { token: string; promise: Promise<StoredSession | null> } | null = null;
+export function getValidSession(): Promise<StoredSession | null> {
+  const session = readSession();
+  if (!session) return Promise.resolve(null);
+  if (validation?.token === session.accessToken) return validation.promise;
+  const promise = validateSession().finally(() => {
+    if (validation?.promise === promise) validation = null;
+  });
+  validation = { token: session.accessToken, promise };
+  return promise;
+}
+async function validateSession() {
   const session = readSession();
   if (!session) return null;
 
@@ -227,10 +240,11 @@ export async function getValidSession() {
 
   const user = await validateUser(session.accessToken);
   if (!user || !(await isAuthorizedUser(session.accessToken, user.id))) {
-    writeSession(null);
+    if (readSession()?.accessToken === session.accessToken) writeSession(null);
     return null;
   }
 
+  if (readSession()?.accessToken !== session.accessToken) return null;
   const next = { ...session, user };
   writeSession(next, false);
   return next;

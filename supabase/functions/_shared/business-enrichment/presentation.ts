@@ -1,46 +1,29 @@
-import type {
-  BusinessInput,
-  PersistedFact,
-  SourceDiagnostic,
-} from "./types.ts";
-import {
-  buildVerifiedSnapshot,
-  summaryOf,
-} from "./consolidate.ts";
-import {
-  normalizeText,
-} from "./security.ts";
-import {
-  resolveNicheStrategy,
-} from "../niche-strategies.ts";
+import type { BusinessInput, PersistedFact, SourceDiagnostic } from "./types.ts";
+import { buildVerifiedSnapshot, summaryOf } from "./consolidate.ts";
+import { normalizeText } from "./security.ts";
+import { resolveNicheStrategy } from "../niche-strategies.ts";
 
-export function evidenceQualityFrom(
-  facts: PersistedFact[],
-  diagnostics: SourceDiagnostic[],
-) {
-  const usable = facts.filter((fact)=>
-    fact.resolution !== "rejected" &&
-    fact.resolution !== "low_confidence"
+export function evidenceQualityFrom(facts: PersistedFact[], diagnostics: SourceDiagnostic[]) {
+  const usable = facts.filter(
+    (fact) => fact.resolution !== "rejected" && fact.resolution !== "low_confidence",
   );
   if (!usable.length) return "low" as const;
 
-  const manuallyVerified = usable.some(
-    (fact)=>fact.resolution === "manual_verified"
-  );
-  const strongOfficial = usable.some((fact)=>
-    fact.resolution === "auto_verified" &&
-    fact.confidence === "high" &&
-    fact.identityScore >= 80 &&
-    fact.sourceType !== "web_search"
+  const manuallyVerified = usable.some((fact) => fact.resolution === "manual_verified");
+  const strongOfficial = usable.some(
+    (fact) =>
+      fact.resolution === "auto_verified" &&
+      fact.confidence === "high" &&
+      fact.identityScore >= 80 &&
+      fact.sourceType !== "web_search",
   );
   if (manuallyVerified || strongOfficial) return "high" as const;
 
-  const probableSources = diagnostics.filter((source)=>
-    source.identityStatus === "confirmed" ||
-    source.identityStatus === "probable"
+  const probableSources = diagnostics.filter(
+    (source) => source.identityStatus === "confirmed" || source.identityStatus === "probable",
   ).length;
-  const mediumOrBetter = usable.filter((fact)=>
-    fact.confidence === "high" || fact.confidence === "medium"
+  const mediumOrBetter = usable.filter(
+    (fact) => fact.confidence === "high" || fact.confidence === "medium",
   ).length;
 
   if (mediumOrBetter >= 2 || probableSources >= 1) return "medium" as const;
@@ -61,12 +44,12 @@ export function buildSummaryIndicators(
   summary: ReturnType<typeof summaryOf>,
   snapshot: ReturnType<typeof buildVerifiedSnapshot>,
 ) {
-  const indicators: Array<{key:string;label:string;value:string}> = [];
+  const indicators: Array<{ key: string; label: string; value: string }> = [];
   const seen = new Set<string>();
-  const add = (key:string,label:string,value:string) => {
+  const add = (key: string, label: string, value: string) => {
     if (seen.has(key) || indicators.length >= 6) return;
     seen.add(key);
-    indicators.push({key,label,value});
+    indicators.push({ key, label, value });
   };
 
   const content = snapshot.verifiedContent;
@@ -77,56 +60,48 @@ export function buildSummaryIndicators(
   const applyPriority = (raw: string) => {
     const value = normalizeText(raw);
     if (/produto|cardap|menu|pizza|sabor|lanche/.test(value)) {
-      add(
-        "products_menu",
-        "Produtos / Cardápio",
-        countValue(summary.products + summary.menuItems),
-      );
-      add("prices","Preços",countValue(summary.prices));
+      add("products_menu", "Produtos / Cardápio", countValue(summary.products + summary.menuItems));
+      add("prices", "Preços", countValue(summary.prices));
       return;
     }
     if (/preco|valor/.test(value)) {
-      add("prices","Preços",countValue(summary.prices));
+      add("prices", "Preços", countValue(summary.prices));
       return;
     }
     if (/tratamento/.test(value)) {
-      add("treatments","Tratamentos",countValue(contentCount("treatments")));
+      add("treatments", "Tratamentos", countValue(contentCount("treatments")));
       return;
     }
     if (/servic|procediment/.test(value)) {
-      add("services","Serviços",countValue(summary.services));
+      add("services", "Serviços", countValue(summary.services));
       return;
     }
-    if (/credencial|especializacao|formacao|registro/.test(value)) {
-      add("credentials","Credenciais",countValue(contentCount("credentials")));
+    if (/credencia|especializacao|formacao|registro/.test(value)) {
+      add("credentials", "Credenciais", countValue(contentCount("credentials")));
       return;
     }
     if (/profission|equipe|artista|barbeir|dentist/.test(value)) {
-      add("professionals","Profissionais",countValue(summary.professionals));
+      add("professionals", "Profissionais", countValue(summary.professionals));
       return;
     }
     if (/portfolio|trabalho|resultado/.test(value)) {
-      add(
-        "portfolio",
-        "Portfólio",
-        summary.portfolioImages > 0 ? "Disponível" : "Não encontrado",
-      );
+      add("portfolio", "Portfólio", summary.portfolioImages > 0 ? "Disponível" : "Não encontrado");
       return;
     }
     if (/estilo|especialidade/.test(value)) {
-      add("specialties","Estilos / Especialidades",countValue(contentCount("specialties")));
+      add("specialties", "Estilos / Especialidades", countValue(contentCount("specialties")));
       return;
     }
     if (/estrutura|ambiente|oficina|clinica/.test(value)) {
-      add("facilities","Estrutura",countValue(contentCount("facilities")));
+      add("facilities", "Estrutura", countValue(contentCount("facilities")));
       return;
     }
     if (/veiculo|carro|moto/.test(value)) {
-      add("vehicles","Veículos atendidos",countValue(contentCount("vehicleTypes")));
+      add("vehicles", "Veículos atendidos", countValue(contentCount("vehicleTypes")));
       return;
     }
     if (/foto|fotografia|imagem/.test(value)) {
-      add("images","Imagens",countValue(summary.verifiedImages));
+      add("images", "Imagens", countValue(summary.verifiedImages));
       return;
     }
     if (/delivery|pedido|entrega|retirada/.test(value)) {
@@ -146,7 +121,7 @@ export function buildSummaryIndicators(
       return;
     }
     if (/instagram/.test(value)) {
-      add("instagram","Instagram",business.instagram ? "Confirmado" : "Não confirmado");
+      add("instagram", "Instagram", business.instagram ? "Confirmado" : "Não confirmado");
       return;
     }
     if (/orcamento/.test(value)) {
@@ -172,22 +147,15 @@ export function buildSummaryIndicators(
     if (action === "delivery") applyPriority("delivery pedido");
     else if (action === "booking") applyPriority("agendamento");
     else if (action === "whatsapp") {
-      add(
-        "whatsapp",
-        "WhatsApp",
-        confirmationValue(Boolean(channels.whatsappUrl)),
-      );
+      add("whatsapp", "WhatsApp", confirmationValue(Boolean(channels.whatsappUrl)));
     } else if (action === "instagram") applyPriority("Instagram");
   }
 
   if (indicators.length < 6 && summary.verifiedImages > 0) {
-    add("images","Imagens",countValue(summary.verifiedImages));
+    add("images", "Imagens", countValue(summary.verifiedImages));
   }
 
-  if (
-    indicators.length < 6 &&
-    (business.address || business.openingHours?.length)
-  ) {
+  if (indicators.length < 6 && (business.address || business.openingHours?.length)) {
     add(
       "location_hours",
       "Localização / horários",
@@ -197,5 +165,5 @@ export function buildSummaryIndicators(
     );
   }
 
-  return indicators.slice(0,6);
+  return indicators.slice(0, 6);
 }

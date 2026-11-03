@@ -1,0 +1,11 @@
+{
+  "source_file": "januario-schema-20261103-184356.sql",
+  "sha256": "a71b68b52e7e0cb3eeae2482b57fff77380afb404506d8e4ac5549924080436b",
+  "repository_head": "82e30afec3313dbff3cf8becfec36a70c5f78dec",
+  "schema": "public",
+  "tables": 17,
+  "functions": 4,
+  "policies": 38,
+  "historical_migration_boundary": "20261103181928",
+  "boundary_note": "Repository boundary only. Remote migration ledger was not included in export; do not mark remote migrations applied automatically."
+}

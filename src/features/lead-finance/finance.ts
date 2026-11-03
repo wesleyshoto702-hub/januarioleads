@@ -1,9 +1,8 @@
+import { fetchAllRows } from "../../lib/rest-pagination";
 import { getValidSession } from "../../lib/auth";
 import type { PersistedLead } from "../leads/remote-leads";
 
-const SUPABASE_URL = "https://czkazbianiflhldenhcj.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY =
-  "sb_publishable_rDtFwPmhh93xceOpvf9hUg_PSlvpB8p";
+import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "../../lib/supabase-config";
 
 export type PaymentMethod = "pix" | "cash" | "card" | "transfer" | "other";
 export type FinancialStatus = "pending" | "partial" | "paid";
@@ -113,11 +112,7 @@ export function summarizeLeadFinance(
   );
   const remainingValue = cents(Math.max(0, projectValue - receivedValue));
   const status: FinancialStatus =
-    receivedValue <= 0
-      ? "pending"
-      : receivedValue >= projectValue
-        ? "paid"
-        : "partial";
+    receivedValue <= 0 ? "pending" : receivedValue >= projectValue ? "paid" : "partial";
 
   return {
     projectValue,
@@ -139,8 +134,7 @@ export function formatCurrency(value: number) {
 export function formatPaymentMethod(payment: LeadPayment | null) {
   if (!payment) return "—";
   const label =
-    PAYMENT_METHOD_OPTIONS.find(([value]) => value === payment.paymentMethod)?.[1] ??
-    "Outro";
+    PAYMENT_METHOD_OPTIONS.find(([value]) => value === payment.paymentMethod)?.[1] ?? "Outro";
   if (payment.paymentMethod === "other" && payment.paymentMethodOther?.trim()) {
     return `${label} · ${payment.paymentMethodOther.trim()}`;
   }
@@ -174,13 +168,12 @@ export function localToday(date = new Date()) {
 }
 
 export async function fetchLeadPayments() {
-  const response = await authedRequest(
-    "lead_payments?select=id,lead_id,amount,payment_date,payment_method,payment_method_other,notes,created_at&order=payment_date.desc,created_at.desc",
-  );
-  if (!response.ok) {
-    throw new Error(`LEAD_PAYMENTS_${response.status}`);
-  }
-  return ((await response.json()) as RemoteLeadPayment[]).map(fromRemote);
+  return (
+    await fetchAllRows<RemoteLeadPayment>(
+      authedRequest,
+      "lead_payments?select=id,lead_id,amount,payment_date,payment_method,payment_method_other,notes,created_at&order=payment_date.desc,created_at.desc,id.desc",
+    )
+  ).map(fromRemote);
 }
 
 export async function createLeadPayment(input: {
@@ -206,9 +199,7 @@ export async function createLeadPayment(input: {
       payment_date: input.paymentDate,
       payment_method: input.paymentMethod,
       payment_method_other:
-        input.paymentMethod === "other"
-          ? input.paymentMethodOther?.trim() || null
-          : null,
+        input.paymentMethod === "other" ? input.paymentMethodOther?.trim() || null : null,
       notes: input.notes?.trim() || null,
     }),
   });
