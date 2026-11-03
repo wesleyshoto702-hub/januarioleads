@@ -14,6 +14,10 @@ on:
       - "src/styles.css"
       - "src/features/messages/**"
       - "src/routes/index.tsx"
+      - "src/lib/auth.ts"
+      - "src/lib/account-storage.ts"
+      - "src/lib/account-storage.test.ts"
+      - "src/features/leads/remote-leads.ts"
       - ".github/workflows/niche-catalog-check.yml"
   workflow_dispatch:
 
@@ -29,7 +33,7 @@ jobs:
         with:
           deno-version: v2.x
       - name: Testar nichos e compatibilidade
-        run: deno test supabase/functions/_shared/niche-catalog.test.ts src/features/messages/message-templates.test.ts
+        run: deno test supabase/functions/_shared/niche-catalog.test.ts src/features/messages/message-templates.test.ts src/lib/account-storage.test.ts
       - uses: oven-sh/setup-bun@v2
       - name: Instalar dependências do frontend
         run: bun install --frozen-lockfile
