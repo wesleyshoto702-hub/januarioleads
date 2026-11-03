@@ -487,16 +487,10 @@ export function BusinessDetailsModal({
                 <div className="instagram-confirmed">
                   <div>
                     <strong>Instagram identificado</strong>
-                    <span className="instagram-display-name">
-                      {business.instagramDisplayName?.trim() || business.name}
-                    </span>
                     <span>
                       @{business.instagramUsername ??
                         instagramUsername(confirmedInstagram)}
                     </span>
-                    {!business.instagramDisplayName && (
-                      <small>Nome da empresa no Google Maps; nome do perfil não confirmado.</small>
-                    )}
                     {business.instagramSource && (
                       <small>
                         Fonte: {INSTAGRAM_SOURCE_LABEL[business.instagramSource]}
@@ -528,9 +522,6 @@ export function BusinessDetailsModal({
                       key={candidate.url}
                     >
                       <div className="instagram-candidate-main">
-                        {candidate.displayName && (
-                          <span className="instagram-display-name">{candidate.displayName}</span>
-                        )}
                         <b>@{candidate.username}</b>
                         {candidate.confidence === "low" && (
                           <small className="instagram-low-confidence">
