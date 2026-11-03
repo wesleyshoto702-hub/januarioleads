@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { buildFactualBusinessDescription } from "../features/business-presence/business-description";
-import type { DeepEnrichmentApplied } from "../features/business-enrichment/types";
 import { discoverBusinessPresence } from "../features/business-presence/discover-business-presence";
 import { presenceFromBusiness } from "../features/business-presence/storage";
 import type {
@@ -1351,37 +1350,6 @@ function LeadFlowApp() {
     window.setTimeout(() => setSavedNotice(false), 1800);
   }
 
-  function applyDeepEnrichmentToLead(
-    leadId: string,
-    value: DeepEnrichmentApplied,
-  ) {
-    const previous = leads.find((lead) => lead.id === leadId);
-    if (!previous) return;
-
-    updateLeadLocally(leadId, (lead) => ({
-      ...lead,
-      verifiedContent: value.verifiedContent,
-      verifiedImages: value.verifiedImages,
-      confirmedChannels: value.confirmedChannels,
-      deepEnrichmentStatus: value.status,
-      deepEnrichmentQuality: value.quality ?? undefined,
-      deepEnrichmentCheckedAt: value.checkedAt ?? undefined,
-      ...(value.identityUpdates.website
-        ? { website: value.identityUpdates.website }
-        : {}),
-      ...(value.identityUpdates.instagram
-        ? {
-            instagram: value.identityUpdates.instagram,
-            instagramConfidence: "high" as const,
-            instagramSource: "official_website" as const,
-            instagramCheckedAt:
-              value.checkedAt ?? new Date().toISOString(),
-            instagramNeedsReview: false,
-          }
-        : {}),
-    }));
-  }
-
   function applyPresenceToLead(
     leadId: string,
     presence: BusinessPresence,
@@ -2127,7 +2095,6 @@ function LeadFlowApp() {
         <SearchLeadsView
           existingLeads={leads}
           onAddLead={addFoundLeadConfirmed}
-          onDeepEnrichmentApplied={applyDeepEnrichmentToLead}
           onMessage={(target) => {
             setSelectedMessage(null);
             setMessageLead(target);
@@ -2137,7 +2104,6 @@ function LeadFlowApp() {
         <OpenNowNichesView
           existingLeads={leads}
           onAddLead={addFoundLead}
-          onDeepEnrichmentApplied={applyDeepEnrichmentToLead}
           onMessage={(target) => {
             setSelectedMessage(null);
             setMessageLead(target);
@@ -2147,7 +2113,6 @@ function LeadFlowApp() {
         <OpportunityView
           existingLeads={leads}
           onAddLead={addFoundLeadConfirmed}
-          onDeepEnrichmentApplied={applyDeepEnrichmentToLead}
           onMessage={(target) => {
             setSelectedMessage(null);
             setMessageLead(target);
@@ -2356,9 +2321,6 @@ function LeadFlowApp() {
             }}
             onPresenceUpdate={(presence) =>
               applyPresenceToLead(lead.id, presence)
-            }
-            onDeepEnrichmentUpdate={(value) =>
-              applyDeepEnrichmentToLead(lead.id, value)
             }
             financeLead={financeLoaded ? lead : null}
             financePayments={paymentsByLead.get(lead.id) ?? []}
