@@ -83,6 +83,59 @@ A função está configurada em `supabase/config.toml`.
 - Cobertura nacional não significa execução automática de buscas em todos os municípios: a prospecção continua por cidade/nicho, respeitando limites e custos da API do Google Places.
 
 
+## Contas independentes e proteção de dados
+
+O mesmo projeto Supabase pode atender várias contas: **não se deve criar um projeto
+Supabase separado por assinante**. Cada usuário tem seu UUID em `auth.users`,
+e os dados remotos (leads, atualizações, pagamentos, atividades, oportunidades,
+pré-visualizações e caches) são protegidos por **Row Level Security (RLS)** usando
+`auth.uid() = user_id`. O frontend nunca deve usar um ID de usuário enviado
+arbitrariamente por outra conta para ler os dados.
+
+Os dados persistidos no navegador usam `accountLocalStorage` e
+`accountSessionStorage` (em `src/lib/account-storage.ts`), com um namespace
+diferente para cada usuário autenticado. A versão antiga possuía chaves globais
+`leadflow:...`; seus dados legados são migrados **exclusivamente para a conta
+original**, preservando os leads já presentes no Supabase. A migração automática
+de leads locais para uma conta nova foi desativada; o Supabase é a fonte de
+verdade para o CRM. O estado do aplicativo é recriado quando a conta muda, sem
+carregar mensagens ou pesquisas da conta anterior. Contas novas começam com
+**zero leads, zero mensagens próprias e zero histórico local**. Os três modelos
+antigos de mensagens podem ser restaurados apenas pela conta original.
+
+### Como testar uma nova conta criada no Supabase
+
+1. No **Authentication > Users** do Supabase, adicione um usuário de teste
+   com outro e-mail e senha. Não reutilize o mesmo `user_id`.
+2. O JanuarioLeads atualmente exige autorização explícita em
+   `public.private_access`. No SQL Editor (como administrador), autorize
+   somente o UUID do novo usuário:
+   `insert into public.private_access (user_id) values ('UUID-DO-NOVO-USUARIO') on conflict do nothing;`
+3. Saia da conta original e entre com a conta de teste. Verifique o dashboard,
+   CRM, mensagens, oportunidades, pesquisas recentes e favoritos: os dados
+   pessoais da conta original não devem aparecer.
+4. Crie um lead e uma mensagem **somente na nova conta**. Saia e entre
+   novamente na conta original; verifique que os seus registros ainda existem.
+   Volte à conta de teste para confirmar que os dados são independentes.
+5. Nunca rode `DELETE` ou `TRUNCATE` no banco para «zerar» uma nova conta:
+   uma nova conta já nasce com tabelas sem registros daquele `user_id`.
+
+**Cadastro comercial futuro:** a tela de cadastro e a assinatura ainda
+precisam ser implementadas. Não conceda `private_access` automaticamente
+para qualquer e-mail antes de existir uma política de ativação/assinatura,
+limites de uso e verificação de e-mail. A área de autenticação deve vincular
+cada login ao seu UUID, e todas as novas tabelas devem ter RLS por proprietário.
+
+**Limitação atual de segurança local:** os templates de mensagens e alguns
+caches ainda são guardados no próprio navegador, separados por namespace.
+Um dispositivo compartilhado **não é um cofre contra alguém com acesso às
+ferramentas de desenvolvedor do navegador**. Antes de vender o SaaS
+publicamente, mover as mensagens personalizadas para tabelas Supabase com RLS
+e reduzir o armazenamento local de dados sensíveis. Use perfis de navegador
+separados durante os testes de contas até essa etapa.
+
+Teste automatizado: `deno test src/lib/account-storage.test.ts`.
+
 ## Catálogo nacional de nichos
 
 **Buscar Leads** e **Nichos Abertos Agora** compartilham o mesmo catálogo central:
