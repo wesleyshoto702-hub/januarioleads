@@ -5,6 +5,7 @@ import type {
 
 const STORAGE_KEY = "januarioleads:business-presence";
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const INCONCLUSIVE_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 type PresenceCache = Record<string, BusinessPresence>;
 
@@ -54,7 +55,7 @@ async function sha256Text(value: string) {
 export async function presenceSearchSignature(business: PresenceBusiness) {
   return sha256Text(
     JSON.stringify({
-      version: "instagram-discovery-v1",
+      version: "instagram-discovery-v2",
       name: normalizeText(business.name),
       phone: normalizePhone(
         business.phone?.trim() || business.internationalPhone?.trim(),
@@ -92,7 +93,8 @@ export function getPresenceCache(
   const checkedAt = new Date(cached.instagramCheckedAt).getTime();
   if (!Number.isFinite(checkedAt)) return null;
 
-  if (!allowStale && Date.now() - checkedAt > CACHE_TTL_MS) return null;
+  const ttl = cached.instagramUrl ? CACHE_TTL_MS : INCONCLUSIVE_CACHE_TTL_MS;
+  if (!allowStale && Date.now() - checkedAt > ttl) return null;
   return cached;
 }
 
@@ -104,6 +106,39 @@ export function savePresenceCache(
   const all = readCache();
   all[keyFor(business)] = presence;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+}
+
+/** Accept an Instagram profile URL or @handle, never a post or unrelated domain. */
+export function canonicalManualInstagramUrl(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const raw = trimmed.startsWith("@")
+    ? `https://www.instagram.com/${trimmed.slice(1)}/`
+    : trimmed.startsWith("instagram.com/") ||
+        trimmed.startsWith("www.instagram.com/")
+      ? `https://${trimmed}`
+      : trimmed;
+
+  try {
+    const url = new URL(raw);
+    const host = url.hostname.toLowerCase().replace(/^www\.|^m\./, "");
+    const pieces = url.pathname.split("/").filter(Boolean);
+    const username = pieces[0] ?? "";
+    if (
+      url.protocol !== "https:" && url.protocol !== "http:" ||
+      host !== "instagram.com" ||
+      pieces.length !== 1 ||
+      username.length > 30 ||
+      !/^[A-Za-z0-9._]+$/.test(username) ||
+      [
+        "accounts", "about", "developer", "direct", "explore",
+        "legal", "p", "reel", "reels", "stories", "tv",
+      ].includes(username.toLowerCase())
+    ) return null;
+    return `https://www.instagram.com/${username}/`;
+  } catch {
+    return null;
+  }
 }
 
 function usernameFromInstagram(value: string | null | undefined) {
