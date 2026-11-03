@@ -465,6 +465,7 @@ export function SearchLeadsView({
   existingLeads,
   onAddLead,
   onMessage,
+  onPresenceDiscovered,
 }: {
   existingLeads: ExistingLeadIdentity[];
   onAddLead: (
@@ -472,6 +473,7 @@ export function SearchLeadsView({
     selectedSegment: string,
   ) => Promise<BusinessAddResult>;
   onMessage: (target: SearchMessageTarget) => void;
+  onPresenceDiscovered?: (leadId: string, presence: BusinessPresence) => void;
 }) {
   const initialSearchSession = useMemo(() => loadSearchLeadsSession(), []);
   const initialSearchLocation = useMemo(
@@ -1355,9 +1357,10 @@ export function SearchLeadsView({
               ...(leadId ? { id: leadId } : {}),
             });
           }}
-          onPresenceUpdate={(presence) =>
-            updateBusinessPresence(details.placeId, presence)
-          }
+          onPresenceUpdate={(presence) => {
+            updateBusinessPresence(details.placeId, presence);
+            if (duplicate?.id) onPresenceDiscovered?.(duplicate.id, presence);
+          }}
           onAdd={(item) => onAddLead(withSearchLocation(item, resultsLocation), resultsSegment)}
         />
         );
