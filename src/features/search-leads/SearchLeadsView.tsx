@@ -996,6 +996,7 @@ export function SearchLeadsView({
         instagramCandidates: presence.instagramCandidates,
         instagramRejectedUrls: presence.instagramRejectedUrls,
         instagramSearchSignature: presence.instagramSearchSignature,
+        instagramSearchScope: presence.instagramSearchScope,
         instagramNeedsReview: presence.instagramNeedsReview,
         ...(presence.instagramUrl
           ? {
@@ -1030,7 +1031,7 @@ export function SearchLeadsView({
   }
 
   const autoInstagram = useAutomaticInstagramDiscovery({
-    active: screen === "results" && !loading && !loadingMore,
+    active: screen === "results" && !loading,
     businesses: results,
     location: resultsLocation,
     existingLeads,
@@ -1263,10 +1264,10 @@ export function SearchLeadsView({
           <div className="auto-instagram-status" aria-live="polite">
             <span>
               {autoInstagram.progress.running
-                ? `Investigando perfis: ${autoInstagram.progress.checked}/${autoInstagram.progress.total}`
+                ? `Buscando Instagrams: ${autoInstagram.progress.checked}/${autoInstagram.progress.total} consultas concluídas`
                 : autoInstagram.progress.total > 0
-                  ? `Consulta concluída: ${autoInstagram.progress.checked}/${autoInstagram.progress.total}`
-                  : "Preparando ou reutilizando Instagrams já conhecidos."}
+                  ? `Verificações concluídas: ${autoInstagram.progress.checked}/${autoInstagram.progress.total}`
+                  : "Reutilizando perfis conhecidos ou preparando a próxima busca."}
               {autoInstagram.progress.found > 0 &&
                 ` · ${autoInstagram.progress.found} confirmado(s)`}
               {autoInstagram.progress.candidates > 0 &&
@@ -1276,8 +1277,9 @@ export function SearchLeadsView({
               <small>{autoInstagram.progress.notice}</small>
             )}
             <small>
-              A descoberta pública usa APIs com limite e possível custo. Os perfis não
-              confirmados exigem conferência; resultados anteriores são reutilizados.
+              Primeiro são verificados os sites oficiais; depois, até 8 empresas
+              sem perfil confirmado recebem uma busca web complementar. As consultas
+              têm limites e podem gerar custos.
             </small>
           </div>
         )}
