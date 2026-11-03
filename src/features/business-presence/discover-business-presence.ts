@@ -28,7 +28,7 @@ function isFresh(value: string | null | undefined, confirmed: boolean) {
 
 export async function discoverBusinessPresence(
   business: PresenceBusiness,
-  options?: { force?: boolean; allowWebSearch?: boolean },
+  options?: { force?: boolean; allowWebSearch?: boolean; signal?: AbortSignal },
 ): Promise<BusinessPresence | null> {
   const known = presenceFromBusiness(business);
 
@@ -87,6 +87,7 @@ export async function discoverBusinessPresence(
       `${url.replace(/\/$/, "")}/functions/v1/search-places`,
       {
         method: "POST",
+        signal: options?.signal,
         headers: {
           "Content-Type": "application/json",
           apikey: publishableKey,
