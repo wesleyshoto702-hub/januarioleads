@@ -8,8 +8,6 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { buildFactualBusinessDescription } from "../business-presence/business-description";
-import { BusinessDeepEnrichmentSection } from "../business-enrichment/BusinessDeepEnrichmentSection";
-import type { DeepEnrichmentApplied } from "../business-enrichment/types";
 import { discoverBusinessPresence } from "../business-presence/discover-business-presence";
 import { presenceFromBusiness } from "../business-presence/storage";
 import type {
@@ -97,7 +95,6 @@ export function BusinessDetailsModal({
   onWhatsApp,
   onMessage,
   onPresenceUpdate,
-  onDeepEnrichmentUpdate,
   financeLead,
   financePayments = [],
   onFinanceUpdate,
@@ -120,7 +117,6 @@ export function BusinessDetailsModal({
   onWhatsApp: (business: BusinessSearchResult) => void;
   onMessage: (target: BusinessDetailsMessageTarget) => void;
   onPresenceUpdate?: (presence: BusinessPresence) => void;
-  onDeepEnrichmentUpdate?: (value: DeepEnrichmentApplied) => void;
   financeLead?: PersistedLead | null;
   financePayments?: LeadPayment[];
   onFinanceUpdate?: (
@@ -571,15 +567,6 @@ export function BusinessDetailsModal({
               ) : null}
             </div>
           </div>
-
-          <BusinessDeepEnrichmentSection
-            business={business}
-            segment={segmentLabel ?? business.primaryCategory ?? "Empresa local"}
-            leadId={activityLeadId}
-            {...(onDeepEnrichmentUpdate
-              ? { onApply: onDeepEnrichmentUpdate }
-              : {})}
-          />
 
           {updates.length > 0 && (
             <div className="detail-section lead-update-history">
