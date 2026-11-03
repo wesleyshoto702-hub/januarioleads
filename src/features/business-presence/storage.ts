@@ -183,7 +183,9 @@ export function presenceFromBusiness(
     instagramCandidates: business.instagramCandidates ?? [],
     instagramRejectedUrls: business.instagramRejectedUrls ?? [],
     instagramSearchSignature: business.instagramSearchSignature ?? null,
-    instagramSearchScope: business.instagramSearchScope,
+    ...(business.instagramSearchScope
+      ? { instagramSearchScope: business.instagramSearchScope }
+      : {}),
     instagramNeedsReview: business.instagramNeedsReview ?? false,
   };
 }
