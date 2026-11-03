@@ -7,10 +7,11 @@ import {
   MessageCircle,
   Plus,
   Search,
+  Star,
   Trash2,
   X,
 } from "lucide-react";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { buildFactualBusinessDescription } from "../features/business-presence/business-description";
 import type { DeepEnrichmentApplied } from "../features/business-enrichment/types";
 import { discoverBusinessPresence } from "../features/business-presence/discover-business-presence";
@@ -63,6 +64,12 @@ import {
   hasEnoughDataForLeadChance,
 } from "../features/lead-chance/lead-chance";
 import { OpenNowNichesView } from "../features/open-now-niches/OpenNowNichesView";
+import {
+  DEFAULT_MESSAGE_TEMPLATES,
+  orderMessageTemplates,
+  parseSavedMessageTemplates,
+  type MessageTemplate,
+} from "../features/messages/message-templates";
 import { OpportunityView } from "../features/opportunities/OpportunityView";
 import { loadOpportunityData } from "../features/opportunities/opportunity-data";
 import type { OpportunityRecord } from "../features/opportunities/types";
@@ -161,17 +168,16 @@ const SEGMENTS = [
   "Outro",
 ];
 
-const DEFAULT_MESSAGES = [
-  "Olá! Meu nome é Wesley. Conheci um pouco do trabalho da {empresa} e gostaria de saber se teriam interesse em ter um site profissional para a empresa.",
-  "Olá! Trabalho com criação de sites e landing pages para negócios e queria apresentar uma ideia que poderia fortalecer a presença online da {empresa}.",
-  "Olá! Tudo bem? Trabalho desenvolvendo sites para empresas e gostaria de saber se vocês teriam interesse em conhecer uma proposta para a {empresa}.",
-];
-
-const FOLLOW_UP_MESSAGES = [
+const FOLLOW_UP_MESSAGES: MessageTemplate[] = [
   "Olá! Tudo bem? Passando para dar continuidade à mensagem que enviei sobre a possibilidade de criar um site profissional para a {empresa}. Conseguiu dar uma olhada?",
   "Oi! Estou retomando o contato sobre a ideia de um site para a {empresa}, caso tenha interesse.",
   "Olá! Só passando mais uma vez para saber se existe interesse em conversar sobre um site para a {empresa}. Se agora não for o momento, sem problema — fico à disposição caso queira falar sobre isso mais pra frente.",
-];
+].map((text, index) => ({
+  id: `follow-up-${index + 1}`,
+  title: `Follow-up ${index + 1}`,
+  text,
+  favorite: false,
+}));
 
 const EMPTY_FORM: LeadForm = {
   company: "",
@@ -240,7 +246,7 @@ const INSTAGRAM_SOURCE_LABEL: Record<InstagramSource, string> = {
 function LeadFlowApp() {
   const navigate = useNavigate();
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [messages, setMessages] = useState(DEFAULT_MESSAGES);
+  const [messages, setMessages] = useState<MessageTemplate[]>(DEFAULT_MESSAGE_TEMPLATES);
   const [theme, setTheme] = useState<"light" | "dark">("dark");
   const [hydrated, setHydrated] = useState(false);
   const [remoteReady, setRemoteReady] = useState(false);
@@ -264,7 +270,7 @@ function LeadFlowApp() {
   const [cityFilter, setCityFilter] = useState("all");
   const [sort, setSort] = useState("recent");
   const [messageLead, setMessageLead] = useState<MessageLead | null>(null);
-  const [selectedMessage, setSelectedMessage] = useState(0);
+  const [selectedMessage, setSelectedMessage] = useState<string | null>(null);
   const [messageActionPending, setMessageActionPending] = useState(false);
   const [messageActionError, setMessageActionError] = useState("");
   const [deleteLead, setDeleteLead] = useState<Lead | null>(null);
@@ -273,6 +279,18 @@ function LeadFlowApp() {
   const [activityError, setActivityError] = useState("");
   const [savedNotice, setSavedNotice] = useState(false);
   const [followUpNotice, setFollowUpNotice] = useState("");
+  const availableMessages = useMemo(
+    () => orderMessageTemplates(messages).filter((template) => template.text.trim()),
+    [messages],
+  );
+  const pickerMessages = messageLead?.followUp
+    ? [...availableMessages.filter((template) => template.favorite), ...FOLLOW_UP_MESSAGES]
+    : availableMessages;
+  const activePickerMessage =
+    pickerMessages.find((template) => template.id === selectedMessage) ??
+    pickerMessages[0] ??
+    null;
+
   const [dashboardOpportunities, setDashboardOpportunities] = useState<
     OpportunityRecord[]
   >([]);
@@ -303,8 +321,8 @@ function LeadFlowApp() {
       setLeads(localLeads);
 
       if (storedMessages) {
-        const parsed = JSON.parse(storedMessages);
-        if (Array.isArray(parsed) && parsed.length === 3) setMessages(parsed);
+        const parsed = parseSavedMessageTemplates(JSON.parse(storedMessages));
+        if (parsed) setMessages(parsed);
       }
 
       if (storedTheme === "dark" || storedTheme === "light") {
@@ -939,7 +957,7 @@ function LeadFlowApp() {
 
   function startFollowUp(lead: Lead) {
     setLeadDetailsId(null);
-    setSelectedMessage(0);
+    setSelectedMessage(null);
     setMessageLead({
       id: lead.id,
       company: lead.company,
@@ -1139,10 +1157,12 @@ function LeadFlowApp() {
       return;
     }
 
-    const messageTemplates = messageLead.followUp
-      ? FOLLOW_UP_MESSAGES
-      : messages;
-    const personalized = (messageTemplates[selectedMessage] ?? "").replaceAll(
+    if (!activePickerMessage) {
+      setMessageActionError("Crie uma mensagem com texto antes de abrir o WhatsApp.");
+      return;
+    }
+
+    const personalized = activePickerMessage.text.replaceAll(
       "{empresa}",
       messageLead.company,
     );
@@ -1252,7 +1272,7 @@ function LeadFlowApp() {
       type: "whatsapp_opened",
       title: "WhatsApp aberto",
       metadata: {
-        messageTemplate: `Mensagem ${selectedMessage + 1}`,
+        messageTemplate: activePickerMessage.title,
       },
     });
 
@@ -1262,7 +1282,7 @@ function LeadFlowApp() {
         title: "Follow-up realizado",
         description: "WhatsApp aberto pelo fluxo de follow-up.",
         metadata: {
-          messageTemplate: `Follow-up ${selectedMessage + 1}`,
+          messageTemplate: activePickerMessage.title,
           contactDate: today,
         },
       });
@@ -2063,7 +2083,7 @@ function LeadFlowApp() {
                     finance={financeByLead.get(lead.id) ?? null}
                     onStatus={changeStatus}
                     onMessage={(item) => {
-                      setSelectedMessage(0);
+                      setSelectedMessage(null);
                       setMessageLead(item);
                     }}
                     onDetails={openLeadDetails}
@@ -2087,7 +2107,7 @@ function LeadFlowApp() {
                     finance={financeByLead.get(lead.id) ?? null}
                     onStatus={changeStatus}
                     onMessage={(item) => {
-                      setSelectedMessage(0);
+                      setSelectedMessage(null);
                       setMessageLead(item);
                     }}
                     onDetails={openLeadDetails}
@@ -2109,7 +2129,7 @@ function LeadFlowApp() {
           onAddLead={addFoundLeadConfirmed}
           onDeepEnrichmentApplied={applyDeepEnrichmentToLead}
           onMessage={(target) => {
-            setSelectedMessage(0);
+            setSelectedMessage(null);
             setMessageLead(target);
           }}
         />
@@ -2119,7 +2139,7 @@ function LeadFlowApp() {
           onAddLead={addFoundLead}
           onDeepEnrichmentApplied={applyDeepEnrichmentToLead}
           onMessage={(target) => {
-            setSelectedMessage(0);
+            setSelectedMessage(null);
             setMessageLead(target);
           }}
         />
@@ -2129,7 +2149,7 @@ function LeadFlowApp() {
           onAddLead={addFoundLeadConfirmed}
           onDeepEnrichmentApplied={applyDeepEnrichmentToLead}
           onMessage={(target) => {
-            setSelectedMessage(0);
+            setSelectedMessage(null);
             setMessageLead(target);
           }}
           onGoSearch={() => setView("search")}
@@ -2262,16 +2282,24 @@ function LeadFlowApp() {
               com o texto preenchido, mas nada será enviado automaticamente.
             </p>
             <div className="message-options">
-              {(messageLead.followUp ? FOLLOW_UP_MESSAGES : messages).map((message, index) => (
+              {pickerMessages.length === 0 && (
+                <p className="modal-copy">Nenhuma mensagem disponível. Crie uma na seção Mensagens.</p>
+              )}
+              {pickerMessages.map((template) => (
                 <button
-                  key={index}
+                  key={template.id}
                   type="button"
-                  className={selectedMessage === index ? "message-option selected" : "message-option"}
-                  onClick={() => setSelectedMessage(index)}
+                  className={`message-option${activePickerMessage?.id === template.id ? " selected" : ""}${template.favorite ? " favorite" : ""}`}
+                  onClick={() => setSelectedMessage(template.id)}
                   disabled={messageActionPending}
+                  aria-pressed={activePickerMessage?.id === template.id}
                 >
-                  <span>{messageLead.followUp ? `Follow-up ${index + 1}` : `Mensagem ${index + 1}`}</span>
-                  <p>{message.replaceAll("{empresa}", messageLead.company)}</p>
+                  <span className="message-option-label">
+                    {template.favorite && <Star size={14} fill="currentColor" aria-hidden="true" />}
+                    {template.title.trim() || "Mensagem sem título"}
+                    {template.favorite && <small>Favorita</small>}
+                  </span>
+                  <p>{template.text.replaceAll("{empresa}", messageLead.company)}</p>
                 </button>
               ))}
             </div>
@@ -2293,7 +2321,7 @@ function LeadFlowApp() {
                 type="button"
                 className="whatsapp-button"
                 onClick={() => void openWhatsApp()}
-                disabled={messageActionPending}
+                disabled={messageActionPending || !activePickerMessage}
               >
                 <MessageCircle size={17} />
                 {messageActionPending ? "Atualizando..." : "Abrir no WhatsApp"}
@@ -2323,7 +2351,7 @@ function LeadFlowApp() {
             onClose={() => setLeadDetailsId(null)}
             onWhatsApp={(business) => openBusinessWhatsApp(business, lead.id)}
             onMessage={() => {
-              setSelectedMessage(0);
+              setSelectedMessage(null);
               setMessageLead(lead);
             }}
             onPresenceUpdate={(presence) =>
@@ -2670,11 +2698,36 @@ function MessagesView({
   onSave,
   savedNotice,
 }: {
-  messages: string[];
-  setMessages: (messages: string[]) => void;
+  messages: MessageTemplate[];
+  setMessages: Dispatch<SetStateAction<MessageTemplate[]>>;
   onSave: () => void;
   savedNotice: boolean;
 }) {
+  function addMessage() {
+    setMessages((current) => [
+      ...current,
+      {
+        id: crypto.randomUUID(),
+        title: `Mensagem ${current.length + 1}`,
+        text: "",
+        favorite: false,
+      },
+    ]);
+  }
+
+  function updateMessage(id: string, changes: Partial<MessageTemplate>) {
+    setMessages((current) =>
+      current.map((message) =>
+        message.id === id ? { ...message, ...changes } : message,
+      ),
+    );
+  }
+
+  function removeMessage(id: string) {
+    if (!window.confirm("Excluir esta mensagem? Esta ação não pode ser desfeita.")) return;
+    setMessages((current) => current.filter((message) => message.id !== id));
+  }
+
   return (
     <section className="page-wrap messages-page">
       <div className="page-heading">
@@ -2682,32 +2735,74 @@ function MessagesView({
           <p className="eyebrow">ATALHOS DE ABORDAGEM</p>
           <h1>Mensagens</h1>
           <p className="subtitle">
-            Edite seus três textos fixos. Use <code>{"{empresa}"}</code> para inserir o nome do lead.
+            Crie e personalize quantas mensagens quiser. Use <code>{"{empresa}"}</code> para inserir o
+            nome do lead. Mensagens favoritas ficam fixadas no topo ao entrar em contato.
           </p>
         </div>
-        <button className="primary-button" onClick={onSave} type="button">
-          {savedNotice ? <Check size={17} /> : null}
-          {savedNotice ? "Salvo" : "Salvar mensagens"}
-        </button>
+        <div className="messages-page-actions">
+          <button className="secondary-button" onClick={addMessage} type="button">
+            <Plus size={17} />
+            Adicionar mensagem
+          </button>
+          <button className="primary-button" onClick={onSave} type="button">
+            {savedNotice ? <Check size={17} /> : null}
+            {savedNotice ? "Salvo" : "Salvar mensagens"}
+          </button>
+        </div>
       </div>
 
+      {messages.length === 0 && (
+        <p className="modal-copy">
+          Você ainda não tem mensagens. Clique em Adicionar mensagem para criar uma.
+        </p>
+      )}
       <div className="messages-grid">
-        {messages.map((message, index) => (
-          <label className="message-editor" key={index}>
+        {orderMessageTemplates(messages).map((message) => (
+          <article
+            className={`message-editor${message.favorite ? " favorite" : ""}`}
+            key={message.id}
+          >
             <div className="editor-heading">
-              <strong>Mensagem {index + 1}</strong>
-              <span>{message.length} caracteres</span>
+              <input
+                className="message-title-input"
+                aria-label="Nome da mensagem"
+                placeholder="Nome da mensagem"
+                maxLength={80}
+                value={message.title}
+                onChange={(event) => updateMessage(message.id, { title: event.target.value })}
+              />
+              <div className="message-editor-actions">
+                <span className="message-character-count">{message.text.length} caracteres</span>
+                <button
+                  type="button"
+                  className="message-favorite-button"
+                  onClick={() => updateMessage(message.id, { favorite: !message.favorite })}
+                  aria-label={message.favorite ? "Desfavoritar mensagem" : "Favoritar mensagem"}
+                  aria-pressed={message.favorite}
+                  title={message.favorite ? "Remover dos favoritos" : "Fixar como favorita"}
+                >
+                  <Star size={16} fill={message.favorite ? "currentColor" : "none"} />
+                  <span>{message.favorite ? "Favorita" : "Favoritar"}</span>
+                </button>
+                <button
+                  type="button"
+                  className="message-remove-button"
+                  onClick={() => removeMessage(message.id)}
+                  aria-label={`Excluir ${message.title || "mensagem"}`}
+                  title="Excluir mensagem"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
             </div>
             <textarea
-              value={message}
-              onChange={(event) => {
-                const next = [...messages];
-                next[index] = event.target.value;
-                setMessages(next);
-              }}
+              value={message.text}
+              onChange={(event) => updateMessage(message.id, { text: event.target.value })}
+              aria-label={`Texto da mensagem ${message.title || "sem título"}`}
+              placeholder="Escreva sua mensagem aqui..."
               rows={8}
             />
-          </label>
+          </article>
         ))}
       </div>
     </section>
