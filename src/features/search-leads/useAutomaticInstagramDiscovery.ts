@@ -7,8 +7,9 @@ import { withSearchLocation, type SearchLocation } from "./search-location";
 import type { BusinessSearchResult } from "./types";
 
 // Backend limit: 20 presence_discovery calls / 15 min / user.
-// Leave two calls for a manual check; reuse local + lead caches first.
-const MAX_AUTOMATIC_LOOKUPS = 18;
+// Let a full Google Places page be processed; the server still enforces the
+// shared 20/15-minute quota. Browser cache prevents paying for rechecks.
+const MAX_AUTOMATIC_LOOKUPS = 20;
 const WORKERS = 2;
 const SETTING_KEY = "januarioleads:auto-instagram:v1";
 
@@ -95,7 +96,8 @@ export function useAutomaticInstagramDiscovery({
   // Adding Instagram metadata should not restart the queue; only a new set
   // of Places IDs or a new location should start a new automatic pass.
   const resultKeys = businesses.map((business) => business.placeId).join("|");
-  const batchKey = `${location.city}|${location.state}|${resultKeys}`;
+  const locationKey = `${location.city}|${location.state}`;
+  const batchKey = `${locationKey}|${resultKeys}`;
 
   useEffect(() => {
     try {
@@ -127,7 +129,7 @@ export function useAutomaticInstagramDiscovery({
         if (confirmedInstagram(business) || confirmedSavedInstagram(saved)) {
           return false;
         }
-        return !attemptedRef.current.has(`${batchKey}|${business.placeId}`);
+        return !attemptedRef.current.has(`${locationKey}|${business.placeId}`);
       })
       .sort((a, b) => Number(Boolean(b.website)) - Number(Boolean(a.website)));
 
@@ -145,7 +147,7 @@ export function useAutomaticInstagramDiscovery({
     async function worker() {
       while (!cancelled && !stop && cursor < planned.length) {
         const business = planned[cursor++];
-        const key = `${batchKey}|${business.placeId}`;
+        const key = `${locationKey}|${business.placeId}`;
         if (attemptedRef.current.has(key)) continue;
         attemptedRef.current.add(key);
         setCheckingIds((current) =>
