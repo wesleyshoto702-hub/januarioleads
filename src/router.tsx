@@ -13,13 +13,14 @@ const getCspNonce = createIsomorphicFn()
 
 export const getRouter = () => {
   const queryClient = new QueryClient();
+  const cspNonce = getCspNonce();
 
   const router = createRouter({
     routeTree,
     context: { queryClient },
     scrollRestoration: true,
     defaultPreloadStaleTime: 0,
-    ssr: { nonce: getCspNonce() },
+    ...(cspNonce ? { ssr: { nonce: cspNonce } } : {}),
   });
 
   return router;
