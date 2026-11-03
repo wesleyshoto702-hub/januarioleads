@@ -996,7 +996,9 @@ export function SearchLeadsView({
         instagramCandidates: presence.instagramCandidates,
         instagramRejectedUrls: presence.instagramRejectedUrls,
         instagramSearchSignature: presence.instagramSearchSignature,
-        instagramSearchScope: presence.instagramSearchScope,
+        ...(presence.instagramSearchScope
+          ? { instagramSearchScope: presence.instagramSearchScope }
+          : {}),
         instagramNeedsReview: presence.instagramNeedsReview,
         ...(presence.instagramUrl
           ? {
