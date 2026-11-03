@@ -121,6 +121,7 @@ export function useAutomaticInstagramDiscovery({
     let found = 0;
     let candidates = 0;
     let notice = "";
+    const inFlightKeys = new Set<string>();
     const controller = new AbortController();
     const queue = businessesRef.current
       .filter((business) => {
@@ -150,6 +151,7 @@ export function useAutomaticInstagramDiscovery({
         const key = `${locationKey}|${business.placeId}`;
         if (attemptedRef.current.has(key)) continue;
         attemptedRef.current.add(key);
+        inFlightKeys.add(key);
         setCheckingIds((current) =>
           current.includes(business.placeId)
             ? current
@@ -188,6 +190,7 @@ export function useAutomaticInstagramDiscovery({
             notice = "Alguns perfis não puderam ser consultados. Você pode tentar novamente nos detalhes da empresa.";
           }
         } finally {
+          inFlightKeys.delete(key);
           if (cancelled) {
             // An interrupted screen transition must not permanently skip this
             // company when the user returns to the result list.
@@ -233,6 +236,9 @@ export function useAutomaticInstagramDiscovery({
     return () => {
       cancelled = true;
       controller.abort();
+      // React StrictMode and quick navigation must not mark an unfinished
+      // request as permanently checked.
+      for (const key of inFlightKeys) attemptedRef.current.delete(key);
     };
   }, [active, enabled, batchKey, resultKeys, location.city, location.state]);
 
