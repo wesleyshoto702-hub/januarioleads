@@ -101,3 +101,24 @@ acesso. Ver também `docs/security-review-2026-11-03.md`.
 O proprietário confirmou que o frontend está no Lovable. Alterações em main
 sincronizam com o editor conectado. A publicação do site exige a sessão Lovable
 ou integração de deploy autorizada; um push não comprova que o site foi publicado.
+
+## Fechamento técnico das quatro frentes (03/11/2026)
+
+- Histórico remoto: gate [`verify-migration-ledger.py`](../scripts/verify-migration-ledger.py)
+  aprovado e configurado para falhar se aparecer nova divergência. As 27
+  migrações remotas permanecem apenas no ledger; **`db push` não foi liberado**.
+- Isolamento com duas contas: RLS em PostgreSQL descartável validada e
+  [workflow de staging](../.github/workflows/staging-rls.yml) preparado,
+  mas **não executado com Auth/PostgREST real**, por faltar projeto
+  Supabase de homologação com contas fictícias.
+- HttpOnly: BFF opt-in integrado à `main` por PR #22; criptografia,
+  proxy, login e navegador simulado aprovados. **Flags desativadas**:
+  o login de produção permanece legado até avaliação no staging.
+- Vercel: [site público](https://januleads.vercel.app/login)
+  respondeu HTTP 200 com CSP nonce e HSTS na
+  [execução 41747061455](https://github.com/wesleyshoto702-hub/januarioleads/actions/runs/41747061455).
+  Versão exata e sincronização interna Lovable ainda não verificadas.
+
+Não existe justificativa para aplicar migrações antigas, mudar o Auth de
+produção, copiar dados reais para staging ou habilitar HttpOnly antes
+dos testes restantes. [Detalhes de liberação](session-security-migration.md).

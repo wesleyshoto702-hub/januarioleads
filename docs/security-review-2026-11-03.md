@@ -49,16 +49,17 @@ de autenticação, APIs e autorização com duas contas.
      evita cache HTTP nas requisições de autenticação. O formato persistido e
      os tokens de sessões válidas foram preservados; os testes de refresh,
      logout e leitura legada passaram no CI.
-   - **Risco residual importante:** access/refresh tokens continuam em
-     `localStorage`; scripts maliciosos que consigam executar código na origem
-     ainda poderiam tentar lê-los. Uma migração real para cookies HttpOnly e
-     proxy autenticado de chamadas REST/Edge Functions **NÃO foi implementada**
-     e exigiria alterações transversais que poderiam quebrar os usuários
-     existentes. A estratégia com rollout e rollback está descrita em
-     [session-security-migration.md](session-security-migration.md).
-   - A CSP restringe scripts, mas não é uma política completa de recursos;
-     ainda são necessários teste real de produção, revisão de dependências,
-     de conteúdo HTML dinâmico e dos cabeçalhos servidos pelo host Lovable.
+   - A implementação opcional de HttpOnly foi integrada à `main` pela
+     [PR #22](https://github.com/wesleyshoto702-hub/januarioleads/pull/22):
+     BFF same-origin, cookies AES-256-GCM com `HttpOnly`, verificação
+     da allowlist e proxy REST/Functions, com testes simulados aprovados.
+     **Permanece desativada por padrão** até homologação com Auth real.
+     Em produção, access/refresh tokens **ainda permanecem em
+     `localStorage`** enquanto o modo legado estiver ativo.
+     Ver [plano de liberação e rollback](session-security-migration.md).
+   - A CSP restringe scripts, mas ainda exige revisão das dependências
+     e validação de ponta a ponta na URL real do aplicativo.
+
 4. **GitHub:** a branch `main` não tinha proteção de branch na auditoria.
    Planejar proteção compatível com o sync bidirecional GitHub–Lovable.
 
@@ -78,10 +79,10 @@ de autenticação, APIs e autorização com duas contas.
 
 O README aponta para o projeto
 [Lovable JanuarioLeads](https://lovable.dev/projects/cfc45a7b-7f48-4b0a-82fc-daf876974a6f),
-com sincronização de mudanças da `main` para o editor. **Não existe URL
-pública de produção verificada** na documentação do repositório, e a página
-privada do Lovable exige acesso de conta. A publicação do frontend e a
-versão ao vivo continuam **não verificadas**: confirmar via Lovable conectado,
-registrar a URL pública, verificar commit/build e comparar a resposta
-HTTP/headers do site. Não assumir que deploy das Edge Functions atualiza o
-frontend.
+com sincronização de mudanças da `main` para o editor. O repositório informa o endereço público
+[https://januleads.vercel.app/login](https://januleads.vercel.app/login).
+A [verificação HTTP no GitHub Actions](https://github.com/wesleyshoto702-hub/januarioleads/actions/runs/41747061455)
+confirmou HTTP 200, identidade do aplicativo, CSP com nonce e HSTS no
+domínio da Vercel. Isso **não confirma a versão exata do commit publicado**
+nem a sincronização interna do Lovable. A ativação do modo HttpOnly não foi
+testada neste endereço e continua proibida até staging aprovado.

@@ -5,6 +5,14 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/verify-live-frontend.yml"
+      - "src/server.ts"
+      - "src/start.ts"
+      - "src/router.tsx"
+      - "src/lib/csp.ts"
+      - "src/lib/auth.ts"
+      - "src/lib/bff-*.ts"
+      - "src/lib/supabase-config.ts"
+      - "docs/session-security-migration.md"
   workflow_dispatch:
 
 permissions:
