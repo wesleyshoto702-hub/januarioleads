@@ -1558,8 +1558,12 @@ function LeadFlowApp() {
       onNavigate={setView}
       onToggleTheme={() => setTheme((current) => (current === "light" ? "dark" : "light"))}
       onLogout={async () => {
-        await signOut();
-        await navigate({ to: "/login", replace: true });
+        try {
+          await signOut();
+          await navigate({ to: "/login", replace: true });
+        } catch {
+          window.alert("Não foi possível encerrar sua sessão. Verifique a conexão e tente novamente.");
+        }
       }}
     >
       {view === "dashboard" ? (
