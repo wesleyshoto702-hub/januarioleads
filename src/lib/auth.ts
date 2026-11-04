@@ -155,16 +155,15 @@ async function bffSignIn(email: string, password: string) {
 }
 
 async function bffSignOut() {
-  // A late session refresh must never resurrect the browser login after logout.
+  // HttpOnly cookies cannot be cleared by browser JS. Do not tell the user
+  // they are signed out unless the same-origin server confirmed cookie removal.
   bffGeneration++;
   bffValidation = null;
+  const response = await fetch("/api/session", {
+    method: "DELETE", credentials: "same-origin", cache: "no-store",
+  });
+  if (!response.ok) throw new Error("Não foi possível encerrar sua sessão. Tente novamente.");
   writeSession(null);
-  try {
-    await fetch("/api/session", { method: "DELETE", credentials: "same-origin", cache: "no-store" });
-  } catch {
-    // Browser session marker is discarded; server cookie is still HttpOnly
-    // and will expire. Offline sign-out should be retried on reconnection.
-  }
 }
 
 async function request(path: string, init: RequestInit) {
