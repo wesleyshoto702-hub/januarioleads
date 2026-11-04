@@ -1,0 +1,42 @@
+name: Validar responsividade em Firefox e WebKit
+
+on:
+  pull_request:
+    paths:
+      - "src/styles.css"
+      - "src/styles/**"
+      - "src/features/**"
+      - "src/components/**"
+      - "tests/browser/responsive.spec.ts"
+      - "playwright.responsive.config.ts"
+      - ".github/workflows/responsive-cross-browser.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cross-browser-responsive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+      - name: Instalar dependências
+        run: bun install --frozen-lockfile
+      - name: Instalar Firefox e WebKit do Playwright
+        run: bunx playwright install --with-deps firefox webkit
+      - name: Verificar celulares, tablet e desktop em motores diferentes
+        run: >-
+          bunx playwright test --config playwright.responsive.config.ts
+          --grep '320px|390px|768px|1920px|landscape phone|small portrait'
+      - name: Salvar capturas de responsividade
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: responsividade-firefox-webkit
+          path: test-results/responsive/
+          if-no-files-found: ignore
+          retention-days: 7

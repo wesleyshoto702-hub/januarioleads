@@ -1005,3 +1005,133 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Dense operational data stays readable across notebook and phone layouts. */
+.open-now-page,
+.open-now-control-panel,
+.open-now-location,
+.prospect-now,
+.prospect-company,
+.open-now-niche-card,
+.open-now-niche-grid,
+.open-now-business-panel,
+.open-now-business-row {
+  min-width: 0;
+}
+
+.open-now-section-heading span,
+.open-now-section-heading > small,
+.open-now-family-summary small,
+.open-now-family-summary span,
+.open-now-niche-top small,
+.open-now-niche-stats span,
+.open-now-niche-meta,
+.open-now-business-heading span {
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.open-now-business-heading p,
+.open-now-card-error,
+.open-now-location-error,
+.prospect-company small,
+.open-now-coverage span,
+.open-now-section-heading small {
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.open-now-filter-row button,
+.open-now-niche-actions button,
+.open-now-business-actions button,
+.open-now-refresh-actions button,
+.prospect-actions button {
+  min-height: 40px;
+  font-size: 11px;
+}
+
+.open-now-location input,
+.open-now-location select,
+.open-now-toolbar input,
+.open-now-toolbar select {
+  min-width: 0;
+}
+
+.open-now-niche-top h3,
+.open-now-business-name strong,
+.prospect-company strong,
+.open-now-card-error {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 760px) {
+  .open-now-family-summary button,
+  .open-now-filter-row button,
+  .open-now-niche-actions button,
+  .open-now-business-actions button,
+  .prospect-actions button {
+    min-height: 44px;
+  }
+
+  .open-now-family-summary,
+  .open-now-filter-row {
+    overscroll-behavior-x: contain;
+  }
+
+  .open-now-niche-card,
+  .open-now-business-row {
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 360px) {
+  .open-now-niche-stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* The page lives beside a fixed SaaS sidebar on notebooks. Keep the single
+   grid track shrinkable instead of inheriting the min-content width of the
+   control panel (which previously overflowed at 768/1024/1280px). */
+.open-now-page {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.open-now-page > *,
+.open-now-control-panel > *,
+.open-now-location > *,
+.open-now-coverage > *,
+.open-now-refresh-actions > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+@media (min-width: 1081px) and (max-width: 1400px) {
+  .open-now-control-panel {
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, .75fr);
+    gap: 12px;
+  }
+
+  .open-now-refresh-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 1080px) {
+  .open-now-control-panel {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .open-now-coverage {
+    border-left: 0;
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+  }
+
+  .open-now-refresh-actions {
+    grid-column: auto;
+    justify-content: flex-start;
+  }
+}

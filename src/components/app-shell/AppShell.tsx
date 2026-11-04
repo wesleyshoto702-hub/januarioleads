@@ -12,7 +12,7 @@ import {
   WalletCards,
   X,
 } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 export type AppView =
   | "dashboard"
@@ -63,10 +63,60 @@ export function AppShell({
   children: ReactNode;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const mobileMenuButton = useRef<HTMLButtonElement>(null);
+  const mobileDrawer = useRef<HTMLElement>(null);
 
   useEffect(() => {
     setMobileOpen(false);
   }, [activeView]);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+
+    const media = window.matchMedia("(min-width: 901px)");
+    if (media.matches) {
+      setMobileOpen(false);
+      return;
+    }
+
+    // Keep the main page from scrolling behind the mobile navigation.
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    mobileDrawer.current?.querySelector<HTMLButtonElement>(".saas-mobile-close")?.focus();
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setMobileOpen(false);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusables = mobileDrawer.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), a[href], input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusables?.length) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    };
+    const onResize = () => {
+      if (media.matches) setMobileOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    media.addEventListener("change", onResize);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+      media.removeEventListener("change", onResize);
+      mobileMenuButton.current?.focus();
+    };
+  }, [mobileOpen]);
 
   function navigate(view: AppView) {
     onNavigate(view);
@@ -141,6 +191,7 @@ export function AppShell({
         <button
           type="button"
           className="saas-mobile-menu"
+          ref={mobileMenuButton}
           onClick={() => setMobileOpen(true)}
           aria-label="Abrir menu"
           aria-expanded={mobileOpen}
@@ -172,6 +223,7 @@ export function AppShell({
         >
           <aside
             className="saas-mobile-drawer"
+            ref={mobileDrawer}
             role="dialog"
             aria-modal="true"
             aria-label="Menu principal"

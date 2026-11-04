@@ -688,3 +688,87 @@
     justify-self: start;
   }
 }
+
+/* Consistent SaaS density: readable metrics and controls without rearranging
+   the underlying commercial information. */
+.opportunity-page,
+.opportunity-summary,
+.opportunity-filters,
+.opportunity-card,
+.opportunity-company-card,
+.opportunity-business-panel {
+  min-width: 0;
+}
+
+.opportunity-select > span,
+.opportunity-summary span,
+.opportunity-card-top small,
+.opportunity-score span,
+.opportunity-stale,
+.opportunity-company-badges span {
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.opportunity-select select,
+.opportunity-check,
+.opportunity-company-main p,
+.opportunity-company-metrics,
+.opportunity-card-footer span,
+.opportunity-card-footer small,
+.opportunity-reasons summary,
+.opportunity-reasons ul {
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.opportunity-card-stats span {
+  font-size: 10px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.opportunity-card-footer,
+.opportunity-card-top,
+.opportunity-company-main,
+.opportunity-company-actions {
+  min-width: 0;
+}
+
+.opportunity-company-actions > *,
+.opportunity-card-footer button,
+.opportunity-company-filters button,
+.opportunity-mode-tabs button {
+  min-height: 44px;
+}
+
+@media (min-width: 761px) and (max-width: 1100px) {
+  .opportunity-ranking {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .opportunity-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .opportunity-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .opportunity-mode-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .opportunity-card-stats,
+  .opportunity-card-top,
+  .opportunity-card-footer,
+  .opportunity-company-badges {
+    min-width: 0;
+  }
+
+  .opportunity-company-filters {
+    overscroll-behavior-x: contain;
+  }
+}
