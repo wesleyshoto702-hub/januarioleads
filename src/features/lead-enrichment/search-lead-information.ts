@@ -3,11 +3,14 @@ import type { LeadEnrichmentResponse, EnrichmentLead } from "./types";
 
 import {
   SUPABASE_URL as PUBLIC_SUPABASE_URL,
+  USE_HTTPONLY_SESSION,
   SUPABASE_PUBLISHABLE_KEY as PUBLIC_SUPABASE_PUBLISHABLE_KEY,
 } from "../../lib/supabase-config";
 
 export async function searchLeadInformation(lead: EnrichmentLead): Promise<LeadEnrichmentResponse> {
-  const url = import.meta.env["VITE_SUPABASE_URL"]?.trim() || PUBLIC_SUPABASE_URL;
+  const url = (USE_HTTPONLY_SESSION
+    ? PUBLIC_SUPABASE_URL
+    : import.meta.env["VITE_SUPABASE_URL"]?.trim() || PUBLIC_SUPABASE_URL);
   const publishableKey =
     import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"]?.trim() || PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   const accessToken = await getAccessToken();

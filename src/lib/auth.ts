@@ -1,6 +1,6 @@
 import { migrateLegacyWorkspace } from "./account-storage.ts";
 
-import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "./supabase-config.ts";
+import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, USE_HTTPONLY_SESSION } from "./supabase-config.ts";
 const STORAGE_KEY = "januarioleads:auth-session";
 
 export type AuthUser = {
@@ -86,6 +86,70 @@ function scheduleRefresh(session: StoredSession | null) {
   }, delay);
 }
 
+
+/**
+ * In BFF mode, browser storage contains only an account ID and sentinel strings.
+ * Real Supabase access/refresh tokens stay encrypted inside an HttpOnly cookie.
+ */
+function browserBffSession(value: unknown): StoredSession | null {
+  if (!value || typeof value !== "object") return null;
+  const data = value as { ok?: unknown; user?: AuthUser; expiresAt?: unknown };
+  if (data.ok !== true || !data.user || typeof data.expiresAt !== "number") return null;
+  const session = {
+    user: data.user,
+    accessToken: "http-only-server-proxy",
+    refreshToken: "http-only-server-proxy",
+    expiresAt: data.expiresAt,
+  };
+  return isStoredSession(session) ? session : null;
+}
+
+let bffValidation: Promise<StoredSession | null> | null = null;
+function getBffSession(): Promise<StoredSession | null> {
+  if (typeof window === "undefined") return Promise.resolve(null);
+  return (bffValidation ??= (async () => {
+    try {
+      const response = await fetch("/api/session", { cache: "no-store", credentials: "same-origin" });
+      const payload: unknown = await response.json();
+      const session = response.ok ? browserBffSession(payload) : null;
+      writeSession(session, false);
+      return session;
+    } catch {
+      return null;
+    }
+  })().finally(() => { bffValidation = null; }));
+}
+
+async function bffSignIn(email: string, password: string) {
+  const response = await fetch("/api/session", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
+    cache: "no-store",
+    body: JSON.stringify({ email, password }),
+  });
+  const payload: unknown = await response.json();
+  const session = response.ok ? browserBffSession(payload) : null;
+  if (!session) return {
+    ok: false as const,
+    message: response.status === 403
+      ? "Esta conta não está autorizada a acessar o JanuarioLeads."
+      : "Não foi possível iniciar sessão. Verifique as credenciais ou a configuração.",
+  };
+  writeSession(session);
+  return { ok: true as const, user: session.user };
+}
+
+async function bffSignOut() {
+  writeSession(null);
+  try {
+    await fetch("/api/session", { method: "DELETE", credentials: "same-origin", cache: "no-store" });
+  } catch {
+    // Browser session marker is discarded; server cookie is still HttpOnly
+    // and will expire. Offline sign-out should be retried on reconnection.
+  }
+}
+
 async function request(path: string, init: RequestInit) {
   return fetch(`${SUPABASE_URL}${path}`, {
     ...init,
@@ -143,6 +207,7 @@ function fromAuthResponse(data: PasswordResponse): StoredSession | null {
 }
 
 export async function signIn(email: string, password: string) {
+  if (USE_HTTPONLY_SESSION) return bffSignIn(email, password);
   const response = await request("/auth/v1/token?grant_type=password", {
     method: "POST",
     body: JSON.stringify({ email, password }),
@@ -189,6 +254,7 @@ async function revokeSession(accessToken: string) {
 }
 
 export async function signOut() {
+  if (USE_HTTPONLY_SESSION) return bffSignOut();
   const session = readSession();
   writeSession(null);
   if (session?.accessToken) await revokeSession(session.accessToken);
@@ -196,6 +262,7 @@ export async function signOut() {
 
 let refreshInFlight: Promise<StoredSession | null> | null = null;
 export function refreshSession() {
+  if (USE_HTTPONLY_SESSION) return getBffSession();
   return (refreshInFlight ??= performRefresh().finally(() => {
     refreshInFlight = null;
   }));
@@ -242,6 +309,7 @@ async function performRefresh() {
 
 let validation: { token: string; promise: Promise<StoredSession | null> } | null = null;
 export function getValidSession(): Promise<StoredSession | null> {
+  if (USE_HTTPONLY_SESSION) return getBffSession();
   const session = readSession();
   if (!session) return Promise.resolve(null);
   if (validation?.token === session.accessToken) return validation.promise;

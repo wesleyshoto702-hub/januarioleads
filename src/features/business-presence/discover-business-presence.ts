@@ -9,6 +9,7 @@ import type { BusinessPresence, PresenceBusiness, PresenceDiscoveryResponse } fr
 
 import {
   SUPABASE_URL as PUBLIC_SUPABASE_URL,
+  USE_HTTPONLY_SESSION,
   SUPABASE_PUBLISHABLE_KEY as PUBLIC_SUPABASE_PUBLISHABLE_KEY,
 } from "../../lib/supabase-config";
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -73,7 +74,9 @@ export async function discoverBusinessPresence(
     throw new Error("Sua sessão expirou. Entre novamente para buscar Instagram.");
   }
 
-  const url = import.meta.env["VITE_SUPABASE_URL"]?.trim() || PUBLIC_SUPABASE_URL;
+  const url = (USE_HTTPONLY_SESSION
+    ? PUBLIC_SUPABASE_URL
+    : import.meta.env["VITE_SUPABASE_URL"]?.trim() || PUBLIC_SUPABASE_URL);
   const publishableKey =
     import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"]?.trim() || PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
