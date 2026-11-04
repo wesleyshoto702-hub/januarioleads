@@ -22,6 +22,7 @@ export function isAllowedBrowserOrigin(
       (host === "localhost" || host === "127.0.0.1");
     const isLovable =
       parsed.protocol === "https:" &&
+      parsed.port === "" &&
       (
         host === "lovable.app" ||
         host.endsWith(".lovable.app") ||
@@ -29,7 +30,9 @@ export function isAllowedBrowserOrigin(
         host.endsWith(".lovable.dev")
       );
     const isPublishedApp =
-      parsed.protocol === "https:" && host === "januleads.vercel.app";
+      parsed.protocol === "https:" &&
+      parsed.port === "" &&
+      host === "januleads.vercel.app";
     const isExplicitlyConfigured = additionalOrigins
       .split(",")
       .some((configured) => configured.trim() === origin);
