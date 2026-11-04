@@ -1,0 +1,53 @@
+name: Verificar frontend público do JanuarioLeads
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/verify-live-frontend.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-site:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Conferir site público configurado no GitHub (somente leitura)
+        shell: bash
+        run: |
+          set -euo pipefail
+          site="https://januleads.vercel.app/login"
+          headers="$(mktemp)"
+          html="$(mktemp)"
+          trap 'rm -f "$headers" "$html"' EXIT
+          status="$(curl --silent --show-error --location --max-time 20 --retry 2             --retry-delay 2 --output "$html" --dump-header "$headers"             --write-out '%{http_code}' "$site")"
+          echo "Página testada: $site"
+          echo "HTTP: $status"
+          if [[ "$status" != "200" ]]; then
+            echo "Site público não retornou HTTP 200. Verifique deploy e permissões." >&2
+            exit 1
+          fi
+          # HEAD/redirect chains can contain multiple header blocks; grep the final
+          # response headers only (case-insensitive) and never print cookies/tokens.
+          csp="$(grep -i '^content-security-policy:' "$headers" | tail -n 1 || true)"
+          hsts="$(grep -i '^strict-transport-security:' "$headers" | tail -n 1 || true)"
+          if [[ -z "$csp" ]]; then
+            echo "Header CSP ausente: deploy/cadeia de proxy não foi validado." >&2
+            exit 1
+          fi
+          if [[ "$csp" != *"script-src"* || "$csp" != *"nonce-"* ]]; then
+            echo "A CSP publicada não confirma script-src com nonce: versão antiga ou host alterou cabeçalhos." >&2
+            exit 1
+          fi
+          if [[ -z "$hsts" ]]; then
+            echo "HSTS ausente no domínio HTTPS publicado." >&2
+            exit 1
+          fi
+          if ! grep -qi 'JanuarioLeads' "$html"; then
+            echo "O HTML não contém a identificação do aplicativo; conferir domínio." >&2
+            exit 1
+          fi
+          echo "Frontend público validado: HTTP 200, título do app, CSP nonce e HSTS."
