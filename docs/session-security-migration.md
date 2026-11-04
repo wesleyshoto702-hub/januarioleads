@@ -78,3 +78,13 @@ A PR contém um BFF funcional com cookie cifrado, não um sistema completo
 de sessões opacas armazenadas no backend. Para exigências maiores (SaaS
 com assinantes) planejar armazenamento de sessão revogável no servidor
 e proteção contra sessões roubadas antes de ampliar o uso.
+
+## Correção de logout — 04/11/2026
+
+O BFF agora exige resposta de sucesso do Supabase Auth antes de apagar o cookie.
+Falhas HTTP e de rede retornam 503 sem Set-Cookie, preservando a possibilidade de
+nova tentativa. O frontend mantém a sessão e mostra o erro. Há regressões para
+401/403/429/500/503, falha de rede e retry bem-sucedido, além do teste de navegador
+com backend simulado. Isso não substitui a homologação real ou resolve por si só
+revogação de JWTs já emitidos, concorrência distribuída e múltiplas abas.
+As flags de produção continuam desativadas.

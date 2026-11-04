@@ -122,3 +122,16 @@ ou integração de deploy autorizada; um push não comprova que o site foi publi
 Não existe justificativa para aplicar migrações antigas, mudar o Auth de
 produção, copiar dados reais para staging ou habilitar HttpOnly antes
 dos testes restantes. [Detalhes de liberação](session-security-migration.md).
+
+## Prioridades corrigidas — 04/11/2026
+
+- open-now-niches usa a mesma validação de origens que search-places e
+  deep-enrich-business. O deploy e o teste público de preflight cobrem as três.
+- O preflight também exige rejeição de origens com portas não autorizadas.
+- Logout HttpOnly exige confirmação do Auth e preserva o cookie quando há falha.
+- Validação local: 107 testes Deno, 28 testes Python, TypeScript, build e cenário
+  de navegador HttpOnly com falha de logout seguida de retry aprovados.
+- O teste real de staging não executou: faltam os seis parâmetros JANUARIO_STAGING
+  neste ambiente. Configurá-los de forma segura conforme staging-two-accounts.md.
+- Push e tag de release não são prova de deploy concluído: conferir o workflow e
+  o preflight publicado. Não ativar o modo HttpOnly em produção nesta etapa.

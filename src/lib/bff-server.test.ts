@@ -112,3 +112,34 @@ Deno.test("BFF blocks cross-site mutation and accidental production activation",
     mock.restore();
   }
 });
+
+Deno.test("BFF logout retains cookie on upstream rejection or network failure and allows retry", async () => {
+  const mock = fakeSupabase();
+  try {
+    const login = await handleBffRequest(new Request(origin + "/api/session", {
+      method: "POST", headers: { Origin: origin },
+      body: JSON.stringify({ email: "a@example.invalid", password: "test-only" }),
+    }), config);
+    const cookie = login!.headers.get("set-cookie")!.split(";")[0]!;
+    const successfulFetch = globalThis.fetch;
+    for (const status of [401, 403, 429, 500, 503, 0]) {
+      globalThis.fetch = () => status
+        ? Promise.resolve(new Response("private upstream details", { status }))
+        : Promise.reject(new Error("network"));
+      const result = await handleBffRequest(new Request(origin + "/api/session", {
+        method: "DELETE", headers: { cookie, Origin: origin },
+      }), config);
+      if (result?.status !== 503 || result.headers.has("set-cookie")) {
+        throw new Error("Failed revocation claimed success or destroyed retry cookie");
+      }
+      if ((await result.text()).includes("private upstream details")) throw new Error("Upstream leak");
+    }
+    globalThis.fetch = successfulFetch;
+    const retry = await handleBffRequest(new Request(origin + "/api/session", {
+      method: "DELETE", headers: { cookie, Origin: origin },
+    }), config);
+    if (retry?.status !== 204 || !retry.headers.get("set-cookie")?.includes("Max-Age=0")) {
+      throw new Error("Confirmed revocation did not clear cookie");
+    }
+  } finally { mock.restore(); }
+});

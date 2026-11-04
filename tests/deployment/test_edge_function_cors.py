@@ -1,5 +1,6 @@
 import importlib.util
 import unittest
+from unittest.mock import patch
 from email.message import Message
 from pathlib import Path
 from urllib.error import HTTPError
@@ -22,6 +23,14 @@ class FakeResponse:
 
 
 class CORSSmokeTests(unittest.TestCase):
+    def test_live_matrix_covers_every_browser_function_and_port_lookalikes(self):
+        with patch.object(mod, "check_preflight") as check:
+            mod.main()
+        calls = check.call_args_list
+        for slug in ("search-places", "deep-enrich-business", "open-now-niches"):
+            self.assertTrue(any(c.args == (slug, "https://januleads.vercel.app") for c in calls))
+            self.assertTrue(any(c.args == (slug, "https://preview.lovable.app:9443", False) for c in calls))
+
     def test_approved_origin(self):
         def opener(req, timeout):
             self.assertEqual(req.get_method(), "OPTIONS")

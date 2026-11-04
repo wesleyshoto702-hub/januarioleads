@@ -75,6 +75,9 @@ jobs:
       - name: Publicar deep-enrich-business
         if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/deploy/supabase-')
         run: supabase functions deploy deep-enrich-business --project-ref "$PROJECT_REF" --use-api --yes
+      - name: Publicar open-now-niches
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/deploy/supabase-')
+        run: supabase functions deploy open-now-niches --project-ref "$PROJECT_REF" --use-api --yes
       - name: Consultar versões publicadas
         if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/deploy/supabase-')
         run: supabase functions list --project-ref "$PROJECT_REF"

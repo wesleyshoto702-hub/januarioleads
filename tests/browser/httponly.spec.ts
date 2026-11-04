@@ -10,6 +10,7 @@ const testUser = {
 
 test("HttpOnly frontend mode never stores tokens and proxies data same-origin", async ({ page }) => {
   let loggedIn = false;
+  let failLogout = true;
   const externalCalls: string[] = [];
   await page.route("**/*.supabase.co/**", (route) => {
     externalCalls.push(route.request().url());
@@ -27,6 +28,7 @@ test("HttpOnly frontend mode never stores tokens and proxies data same-origin", 
       });
     }
     if (method === "DELETE") {
+      if (failLogout) return route.fulfill({ status: 503, contentType: "application/json", body: '{"ok":false}' });
       loggedIn = false;
       return route.fulfill({ status: 204, body: "" });
     }
@@ -67,6 +69,15 @@ test("HttpOnly frontend mode never stores tokens and proxies data same-origin", 
   expect(proxied).toBeGreaterThan(0);
   expect(externalCalls).toHaveLength(0);
 
+  const alertMessage = new Promise<string>(resolve => page.once("dialog", async dialog => {
+    resolve(dialog.message());
+    await dialog.accept();
+  }));
+  await page.getByRole("button", { name: "Sair", exact: true }).click();
+  expect(await alertMessage).toContain("Não foi possível encerrar");
+  await expect(page.getByRole("button", { name: "Sair", exact: true })).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem("januarioleads:auth-session"))).not.toBeNull();
+  failLogout = false;
   await page.getByRole("button", { name: "Sair", exact: true }).click();
   await expect(page).toHaveURL(/\/login$/);
   expect(await page.evaluate(() => localStorage.getItem("januarioleads:auth-session"))).toBeNull();

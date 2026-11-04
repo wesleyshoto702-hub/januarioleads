@@ -174,9 +174,11 @@ async function handleSession(request: Request, config: Config): Promise<Response
     const session = cookie ? await openSession(cookie, config.secret) : null;
     if (session) {
       try {
-        await supabaseRequest(config, "/auth/v1/logout", "POST", session.accessToken);
+        const revoked = await supabaseRequest(config, "/auth/v1/logout", "POST", session.accessToken);
+        if (!revoked.ok) return error(503, "Não foi possível encerrar a sessão. Tente novamente.");
       } catch {
-        // Local HttpOnly cookie removal still takes effect when offline.
+        // Preserve the cookie so a retry can still revoke the remote session.
+        return error(503, "Não foi possível encerrar a sessão. Tente novamente.");
       }
     }
     return noStore(new Response(null, { status: 204 }), sessionClearCookie());

@@ -7,7 +7,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 BASE = "https://czkazbianiflhldenhcj.supabase.co/functions/v1"
-SLUGS = ("search-places", "deep-enrich-business")
+SLUGS = ("search-places", "deep-enrich-business", "open-now-niches")
 ORIGINS = (
     "https://januleads.vercel.app",
     "https://lovable.dev",
@@ -56,8 +56,9 @@ def main():
     for slug in SLUGS:
         for origin in ORIGINS:
             check_preflight(slug, origin)
-        check_preflight(slug, "https://attacker.example", False)
-    print("CORS preflight passed for both Edge Functions and all approved app hosts.")
+        for origin in ("https://attacker.example", "https://januleads.vercel.app:9443", "https://preview.lovable.app:9443"):
+            check_preflight(slug, origin, False)
+    print("CORS preflight passed for all three Edge Functions and all approved app hosts.")
 
 
 if __name__ == "__main__":
