@@ -8,6 +8,8 @@ on:
       - ".github/workflows/deploy-search-places.yml"
       - "scripts/verify-release-migration.py"
       - "scripts/verify-production-security.py"
+      - "scripts/verify-edge-function-cors.py"
+      - "tests/deployment/test_edge_function_cors.py"
       - "scripts/verify-migration-ledger.py"
       - "tests/deployment/test_migration_gate.py"
       - "docs/migration-history/expected-remote-only.json"
@@ -65,8 +67,8 @@ jobs:
       - name: Validar sem publicar em pushes da branch main
         if: github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/deploy/supabase-')
         run: |
-          echo "Verificações concluídas. O token atual do Actions não tem edge_functions_write."
-          echo "Publicação exige um token com essa permissão e disparo manual/tag."
+          echo "Verificações concluídas. Publicação de funções permanece manual ou por tag."
+          echo "O segredo atual precisa manter edge_functions_write para o deploy."
       - name: Publicar search-places
         if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/deploy/supabase-')
         run: supabase functions deploy search-places --project-ref "$PROJECT_REF" --use-api --yes
@@ -76,3 +78,6 @@ jobs:
       - name: Consultar versões publicadas
         if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/deploy/supabase-')
         run: supabase functions list --project-ref "$PROJECT_REF"
+      - name: Verificar preflight CORS de origens do app (sem tokens)
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/deploy/supabase-')
+        run: python3 scripts/verify-edge-function-cors.py
