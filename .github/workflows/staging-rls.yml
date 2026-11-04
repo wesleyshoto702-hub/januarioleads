@@ -1,0 +1,28 @@
+name: Testar isolamento em homologação (duas contas)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  staging-rls:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: staging
+    env:
+      JANUARIO_STAGING_SUPABASE_URL: ${{ secrets.JANUARIO_STAGING_SUPABASE_URL }}
+      JANUARIO_STAGING_SUPABASE_KEY: ${{ secrets.JANUARIO_STAGING_SUPABASE_KEY }}
+      JANUARIO_STAGING_A_EMAIL: ${{ secrets.JANUARIO_STAGING_A_EMAIL }}
+      JANUARIO_STAGING_A_PASSWORD: ${{ secrets.JANUARIO_STAGING_A_PASSWORD }}
+      JANUARIO_STAGING_B_EMAIL: ${{ secrets.JANUARIO_STAGING_B_EMAIL }}
+      JANUARIO_STAGING_B_PASSWORD: ${{ secrets.JANUARIO_STAGING_B_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Auditar formato e bloquear produção
+        run: python3 -m unittest discover -s tests/deployment
+      - name: Testar duas contas no PostgREST de homologação
+        run: python3 scripts/test-staging-rls.py
