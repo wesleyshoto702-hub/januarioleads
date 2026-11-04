@@ -45,7 +45,9 @@ async function keyFromSecret(secret: string): Promise<CryptoKey> {
   // Configured per request from a private hosting secret, not from VITE_*.
   const bytes = fromBase64Url(secret);
   if (bytes.byteLength !== 32) throw new Error("BFF_SESSION_KEY must be 32 random bytes");
-  return crypto.subtle.importKey("raw", bytes, "AES-GCM", false, ["encrypt", "decrypt"]);
+  const raw = new Uint8Array(bytes.byteLength);
+  raw.set(bytes);
+  return crypto.subtle.importKey("raw", raw.buffer, "AES-GCM", false, ["encrypt", "decrypt"]);
 }
 
 export async function sealSession(session: BffSession, secret: string): Promise<string> {
