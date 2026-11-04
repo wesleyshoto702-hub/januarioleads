@@ -1,3 +1,4 @@
+import { isAllowedBrowserOrigin as isTrustedBrowserOrigin } from "../_shared/allowed-browser-origins.ts";
 import type { OpeningHoursSnapshot } from "../_shared/open-now.ts";
 import {
   findBrazilianState,
@@ -138,30 +139,11 @@ const corsHeaders = {
   "Content-Type": "application/json; charset=utf-8",
 };
 
-function configuredAllowedOrigins() {
-  return new Set(
-    (Deno.env.get("APP_ALLOWED_ORIGINS") ?? "")
-      .split(",")
-      .map((value) => value.trim())
-      .filter(Boolean),
-  );
-}
-
 function isAllowedBrowserOrigin(origin: string) {
-  if (configuredAllowedOrigins().has(origin)) return true;
-
-  try {
-    const url = new URL(origin);
-    const isLocal =
-      url.protocol === "http:" &&
-      (url.hostname === "localhost" || url.hostname === "127.0.0.1");
-    const isLovable =
-      url.protocol === "https:" &&
-      (url.hostname === "lovable.app" || url.hostname.endsWith(".lovable.app"));
-    return isLocal || isLovable;
-  } catch {
-    return false;
-  }
+  return isTrustedBrowserOrigin(
+    origin,
+    Deno.env.get("APP_ALLOWED_ORIGINS") ?? "",
+  );
 }
 
 function withRequestCors(response: Response, request: Request) {
