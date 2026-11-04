@@ -10,6 +10,7 @@ import {
 import { flushPendingLeads, mergePendingLeads, leadMutationVersion } from "./pending-leads";
 import {
   DEFAULT_MESSAGE_TEMPLATES,
+  appendMissingFollowUpTemplates,
   parseSavedMessageTemplates,
   type MessageTemplate,
 } from "../messages/message-templates";
@@ -17,6 +18,7 @@ export const STORAGE = {
   leads: "leadflow:leads",
   messages: "leadflow:messages",
   defaultMessagesRestored: "leadflow:messages:defaults-restored:2026-11-03",
+  followUpDefaultsInitialized: "leadflow:messages:followups-initialized:2026-11-04",
   theme: "leadflow:theme",
 };
 export function useLeadWorkspace() {
@@ -46,22 +48,31 @@ export function useLeadWorkspace() {
 
       setLeads(mergePendingLeads(localLeads));
 
-      if (storedMessages) {
-        const parsed = parseSavedMessageTemplates(JSON.parse(storedMessages));
-        if (parsed) {
-          if (
-            parsed.length === 0 &&
-            isLegacyWorkspaceOwner() &&
-            !accountLocalStorage.getItem(STORAGE.defaultMessagesRestored)
-          ) {
-            // One-time recovery for users who removed every original message.
-            // Custom deleted messages cannot be reconstructed without an existing backup.
-            setMessages(DEFAULT_MESSAGE_TEMPLATES.map((item) => ({ ...item })));
-            accountLocalStorage.setItem(STORAGE.defaultMessagesRestored, "1");
-          } else {
-            setMessages(parsed);
-          }
+      // Follow-up templates are saved alongside initial messages in the same
+      // per-account browser storage. Seed the original three just once, so a
+      // deliberate edit or deletion is never undone when the page reloads.
+      const parsed = storedMessages
+        ? parseSavedMessageTemplates(JSON.parse(storedMessages))
+        : [];
+      if (parsed) {
+        let nextMessages = parsed;
+        if (
+          nextMessages.length === 0 &&
+          isLegacyWorkspaceOwner() &&
+          !accountLocalStorage.getItem(STORAGE.defaultMessagesRestored)
+        ) {
+          nextMessages = DEFAULT_MESSAGE_TEMPLATES.map((item) => ({ ...item }));
+          accountLocalStorage.setItem(STORAGE.defaultMessagesRestored, "1");
         }
+        if (!accountLocalStorage.getItem(STORAGE.followUpDefaultsInitialized)) {
+          nextMessages = appendMissingFollowUpTemplates(nextMessages);
+          // Persist templates before the one-time marker. React dev StrictMode
+          // can run effects twice before state updates are committed, so a
+          // second initialization must read the seeded list, not overwrite it.
+          accountLocalStorage.setItem(STORAGE.messages, JSON.stringify(nextMessages));
+          accountLocalStorage.setItem(STORAGE.followUpDefaultsInitialized, "1");
+        }
+        setMessages(nextMessages);
       }
 
       if (storedTheme === "dark" || storedTheme === "light") {

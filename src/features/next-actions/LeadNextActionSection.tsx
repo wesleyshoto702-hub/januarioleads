@@ -1,4 +1,4 @@
-import { CalendarCheck2, MessageCircle } from "lucide-react";
+import { CalendarCheck2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { PersistedLead } from "../leads/remote-leads";
 import {
@@ -20,12 +20,17 @@ export type NextActionPatch = Pick<
 export function LeadActionSummary({
   lead,
   compact = false,
+  hideFollowUp = false,
 }: {
   lead: PersistedLead;
   compact?: boolean;
+  hideFollowUp?: boolean;
 }) {
   const summary = getLeadActionSummary(lead);
-  const action = summary.action;
+  // The quick follow-up action now lives in the lead's primary actions.
+  const action = hideFollowUp && summary.action?.type === "follow_up"
+    ? null
+    : summary.action;
 
   return (
     <div className={compact ? "lead-action-summary compact" : "lead-action-summary"}>
@@ -58,12 +63,10 @@ export function LeadNextActionSection({
   lead,
   onSave,
   onComplete,
-  onFollowUp,
 }: {
   lead: PersistedLead;
   onSave: (patch: NextActionPatch) => void | Promise<void>;
   onComplete: () => void | Promise<void>;
-  onFollowUp?: () => void;
 }) {
   const summary = getLeadActionSummary(lead);
   const [editing, setEditing] = useState(false);
@@ -191,12 +194,6 @@ export function LeadNextActionSection({
               >
                 <CalendarCheck2 size={14} />
                 Concluir ação
-              </button>
-            )}
-            {lead.status === "waiting" && lead.phone && onFollowUp && (
-              <button type="button" className="message-button" onClick={onFollowUp}>
-                <MessageCircle size={14} />
-                Fazer follow-up
               </button>
             )}
           </div>

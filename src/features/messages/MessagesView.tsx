@@ -4,7 +4,10 @@ import { ArrowLeft, Check, Edit3, Plus, RotateCcw, Star, Trash2 } from "lucide-r
 import { useState, type FormEvent } from "react";
 import {
   DEFAULT_MESSAGE_TEMPLATES,
-  orderMessageTemplates,
+  DEFAULT_FOLLOW_UP_TEMPLATES,
+  messagesForKind,
+  templateKind,
+  type MessageKind,
   type MessageTemplate,
 } from "./message-templates";
 
@@ -44,6 +47,7 @@ export function MessagesView({
   onCommit: (nextMessages: MessageTemplate[]) => void;
   savedNotice: boolean;
 }) {
+  const [kind, setKind] = useState<MessageKind>("initial");
   const [editor, setEditor] = useState<MessageTemplate | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [validation, setValidation] = useState("");
@@ -51,9 +55,20 @@ export function MessagesView({
   const [trash, setTrash] = useState<DeletedMessage[]>(loadTrash);
   const [feedback, setFeedback] = useState("");
 
-  const missingDefaults = (isLegacyWorkspaceOwner() ? DEFAULT_MESSAGE_TEMPLATES : []).filter(
+  const visibleMessages = messagesForKind(messages, kind);
+  const visibleTrash = trash.filter((entry) => templateKind(entry.template) === kind);
+  const originalTemplates = kind === "follow_up"
+    ? DEFAULT_FOLLOW_UP_TEMPLATES
+    : isLegacyWorkspaceOwner() ? DEFAULT_MESSAGE_TEMPLATES : [];
+  const missingDefaults = originalTemplates.filter(
     (template) => !messages.some((message) => message.id === template.id),
   );
+
+  function switchKind(nextKind: MessageKind) {
+    setKind(nextKind);
+    setFeedback("");
+    setValidation("");
+  }
 
   function updateTrash(next: DeletedMessage[]) {
     const limited = next.slice(0, TRASH_LIMIT);
@@ -71,13 +86,17 @@ export function MessagesView({
     setFeedback("");
     setEditor({
       id: crypto.randomUUID(),
-      title: `Mensagem ${messages.length + 1}`,
+      title: kind === "follow_up"
+        ? `Follow-up ${visibleMessages.length + 1}`
+        : `Mensagem ${visibleMessages.length + 1}`,
       text: "",
       favorite: false,
+      kind,
     });
   }
 
   function startEdit(message: MessageTemplate) {
+    setKind(templateKind(message));
     setEditingId(message.id);
     setValidation("");
     setFeedback("");
@@ -93,7 +112,7 @@ export function MessagesView({
       setValidation("Informe o título e o conteúdo da mensagem antes de salvar.");
       return;
     }
-    const updated = { ...editor, title, text };
+    const updated = { ...editor, title, text, kind: templateKind(editor) };
     if (editingId) {
       onCommit(messages.map((message) => message.id === editingId ? updated : message));
     } else {
@@ -144,11 +163,13 @@ export function MessagesView({
             <ArrowLeft size={17} />
             Voltar às mensagens
           </button>
-          <p className="eyebrow">MENSAGENS · {editingId ? "EDITAR" : "NOVA MENSAGEM"}</p>
-          <h1>{editingId ? "Editar mensagem" : "Adicionar mensagem"}</h1>
+          <p className="eyebrow">MENSAGENS · {kind === "follow_up" ? "FOLLOW-UP" : "MENSAGEM INICIAL"} · {editingId ? "EDITAR" : "NOVA"}</p>
+          <h1>{editingId ? (kind === "follow_up" ? "Editar follow-up" : "Editar mensagem") : (kind === "follow_up" ? "Adicionar follow-up" : "Adicionar mensagem")}</h1>
           <p className="subtitle">
-            Escreva a mensagem e salve para que ela apareça na seção Mensagens.
-            Use <code>{"{empresa}"}</code> para incluir o nome do lead automaticamente.
+            {kind === "follow_up"
+              ? "Salve um texto para retomar o contato com empresas que estão aguardando resposta."
+              : "Salve uma mensagem para o primeiro contato com a empresa."}
+            {" "}Use <code>{"{empresa}"}</code> para incluir o nome do lead automaticamente.
           </p>
         </div>
         <form className="message-compose-card" onSubmit={saveDraft}>
@@ -158,7 +179,7 @@ export function MessagesView({
               autoFocus
               required
               maxLength={80}
-              placeholder="Ex.: Primeiro contato — apresentação"
+              placeholder={kind === "follow_up" ? "Ex.: Segundo contato — retorno" : "Ex.: Primeiro contato — apresentação"}
               value={editor.title}
               onChange={(event) => setEditor({ ...editor, title: event.target.value })}
             />
@@ -168,7 +189,7 @@ export function MessagesView({
             <textarea
               required
               rows={11}
-              placeholder="Olá! Tudo bem? Gostaria de apresentar..."
+              placeholder={kind === "follow_up" ? "Olá! Passando para saber se conseguiu ver minha mensagem..." : "Olá! Tudo bem? Gostaria de apresentar..."}
               value={editor.text}
               onChange={(event) => setEditor({ ...editor, text: event.target.value })}
             />
@@ -191,7 +212,7 @@ export function MessagesView({
               Cancelar
             </button>
             <button className="primary-button" type="submit">
-              <Check size={16} /> Salvar mensagem
+              <Check size={16} /> {kind === "follow_up" ? "Salvar follow-up" : "Salvar mensagem"}
             </button>
           </div>
         </form>
@@ -206,15 +227,42 @@ export function MessagesView({
           <p className="eyebrow">ATALHOS DE ABORDAGEM</p>
           <h1>Mensagens</h1>
           <p className="subtitle">
-            Organize mensagens prontas para enviar aos leads. Use <code>{"{empresa}"}</code> para
-            inserir o nome do lead; suas favoritas ficam em primeiro lugar.
+            Gerencie mensagens iniciais e follow-ups separadamente. Use <code>{"{empresa}"}</code>{" "}
+            para inserir o nome do lead; suas favoritas ficam em primeiro lugar em cada categoria.
           </p>
         </div>
         <div className="messages-page-actions">
           <button className="primary-button" onClick={startNew} type="button">
-            <Plus size={17} /> Adicionar mensagem
+            <Plus size={17} /> {kind === "follow_up" ? "Adicionar follow-up" : "Adicionar mensagem"}
           </button>
         </div>
+      </div>
+
+      <div className="message-kind-tabs" role="tablist" aria-label="Tipo de mensagem">
+        <button
+          id="messages-tab-initial"
+          role="tab"
+          type="button"
+          aria-selected={kind === "initial"}
+          aria-controls="messages-list"
+          className={kind === "initial" ? "active" : ""}
+          onClick={() => switchKind("initial")}
+        >
+          Mensagem inicial
+          <span>{messagesForKind(messages, "initial").length}</span>
+        </button>
+        <button
+          id="messages-tab-follow-up"
+          role="tab"
+          type="button"
+          aria-selected={kind === "follow_up"}
+          aria-controls="messages-list"
+          className={kind === "follow_up" ? "active" : ""}
+          onClick={() => switchKind("follow_up")}
+        >
+          Follow-up
+          <span>{messagesForKind(messages, "follow_up").length}</span>
+        </button>
       </div>
 
       {(feedback || savedNotice) && (
@@ -224,15 +272,20 @@ export function MessagesView({
         </div>
       )}
 
-      {messages.length === 0 && (
+      {visibleMessages.length === 0 && (
         <div className="message-empty-state">
-          <strong>Nenhuma mensagem cadastrada</strong>
-          <p>Crie uma nova mensagem ou recupere as mensagens originais do JanuarioLeads.</p>
+          <strong>{kind === "follow_up" ? "Nenhum follow-up cadastrado" : "Nenhuma mensagem inicial cadastrada"}</strong>
+          <p>Crie um novo texto ou recupere os modelos originais desta categoria.</p>
         </div>
       )}
 
-      <div className="messages-grid">
-        {orderMessageTemplates(messages).map((message) => (
+      <div
+        id="messages-list"
+        role="tabpanel"
+        aria-labelledby={kind === "initial" ? "messages-tab-initial" : "messages-tab-follow-up"}
+        className="messages-grid"
+      >
+        {visibleMessages.map((message) => (
           <article className={`message-editor message-summary-card${message.favorite ? " favorite" : ""}`} key={message.id}>
             <div className="editor-heading">
               <div className="message-summary-title">
@@ -271,7 +324,7 @@ export function MessagesView({
         ))}
       </div>
 
-      {(missingDefaults.length > 0 || trash.length > 0) && (
+      {(missingDefaults.length > 0 || visibleTrash.length > 0) && (
         <div className="message-recovery-section">
           <div>
             <h2>Recuperação de mensagens</h2>
@@ -285,10 +338,10 @@ export function MessagesView({
               <RotateCcw size={16} /> Restaurar {missingDefaults.length} mensagem(ns) original(is)
             </button>
           )}
-          {trash.length > 0 && (
+          {visibleTrash.length > 0 && (
             <div className="message-trash-list">
               <strong>Lixeira local</strong>
-              {trash.map((entry) => (
+              {visibleTrash.map((entry) => (
                 <div className="message-trash-row" key={entry.template.id}>
                   <span>{entry.template.title || "Mensagem sem título"}</span>
                   <button className="secondary-button" type="button" onClick={() => restoreDeleted(entry)}>
