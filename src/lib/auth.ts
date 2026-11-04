@@ -104,23 +104,34 @@ function browserBffSession(value: unknown): StoredSession | null {
   return isStoredSession(session) ? session : null;
 }
 
+let bffGeneration = 0;
 let bffValidation: Promise<StoredSession | null> | null = null;
 function getBffSession(): Promise<StoredSession | null> {
   if (typeof window === "undefined") return Promise.resolve(null);
-  return (bffValidation ??= (async () => {
+  if (bffValidation) return bffValidation;
+  const generation = bffGeneration;
+  const pending = (async () => {
     try {
       const response = await fetch("/api/session", { cache: "no-store", credentials: "same-origin" });
       const payload: unknown = await response.json();
+      if (generation !== bffGeneration) return null;
       const session = response.ok ? browserBffSession(payload) : null;
       writeSession(session, false);
       return session;
     } catch {
       return null;
     }
-  })().finally(() => { bffValidation = null; }));
+  })();
+  const tracked = pending.finally(() => {
+    if (bffValidation === tracked) bffValidation = null;
+  });
+  bffValidation = tracked;
+  return tracked;
 }
 
 async function bffSignIn(email: string, password: string) {
+  const generation = ++bffGeneration;
+  bffValidation = null;
   const response = await fetch("/api/session", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -129,6 +140,9 @@ async function bffSignIn(email: string, password: string) {
     body: JSON.stringify({ email, password }),
   });
   const payload: unknown = await response.json();
+  if (generation !== bffGeneration) return {
+    ok: false as const, message: "Tentativa de login cancelada.",
+  };
   const session = response.ok ? browserBffSession(payload) : null;
   if (!session) return {
     ok: false as const,
@@ -141,6 +155,9 @@ async function bffSignIn(email: string, password: string) {
 }
 
 async function bffSignOut() {
+  // A late session refresh must never resurrect the browser login after logout.
+  bffGeneration++;
+  bffValidation = null;
   writeSession(null);
   try {
     await fetch("/api/session", { method: "DELETE", credentials: "same-origin", cache: "no-store" });
