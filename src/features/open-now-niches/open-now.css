@@ -1090,3 +1090,48 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* The page lives beside a fixed SaaS sidebar on notebooks. Keep the single
+   grid track shrinkable instead of inheriting the min-content width of the
+   control panel (which previously overflowed at 768/1024/1280px). */
+.open-now-page {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.open-now-page > *,
+.open-now-control-panel > *,
+.open-now-location > *,
+.open-now-coverage > *,
+.open-now-refresh-actions > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+@media (min-width: 1081px) and (max-width: 1400px) {
+  .open-now-control-panel {
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, .75fr);
+    gap: 12px;
+  }
+
+  .open-now-refresh-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 1080px) {
+  .open-now-control-panel {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .open-now-coverage {
+    border-left: 0;
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+  }
+
+  .open-now-refresh-actions {
+    grid-column: auto;
+    justify-content: flex-start;
+  }
+}
