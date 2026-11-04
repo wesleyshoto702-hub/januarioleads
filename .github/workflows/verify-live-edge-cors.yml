@@ -1,0 +1,23 @@
+name: Verificar CORS publicado nas Edge Functions
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/verify-live-edge-cors.yml"
+      - "scripts/verify-edge-function-cors.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  published-cors:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Confirmar preflight CORS de busca e enriquecimento (sem credenciais)
+        run: python3 scripts/verify-edge-function-cors.py
