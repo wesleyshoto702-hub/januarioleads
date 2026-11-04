@@ -66,9 +66,9 @@ async function supabaseRequest(
     const value = options?.get(name);
     if (value) headers.set(name, value);
   }
-  return fetch(config.base + path, {
-    method, headers, body, redirect: "error", cache: "no-store",
-  });
+  const init: RequestInit = { method, headers, redirect: "error", cache: "no-store" };
+  if (body !== undefined) init.body = body;
+  return fetch(config.base + path, init);
 }
 
 async function authorized(config: Config, session: BffSession) {
@@ -123,9 +123,9 @@ async function authenticatedSession(config: Config, request: Request) {
 function validLogin(body: unknown): body is { email: string; password: string } {
   if (!body || typeof body !== "object") return false;
   const obj = body as Record<string, unknown>;
-  return typeof obj.email === "string" && obj.email.length <= 320 &&
-    obj.email.includes("@") && typeof obj.password === "string" &&
-    obj.password.length >= 1 && obj.password.length <= 1024;
+  return typeof obj["email"] === "string" && obj["email"].length <= 320 &&
+    obj["email"].includes("@") && typeof obj["password"] === "string" &&
+    obj["password"].length >= 1 && obj["password"].length <= 1024;
 }
 
 async function handleSession(request: Request, config: Config): Promise<Response> {
