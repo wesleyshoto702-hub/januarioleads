@@ -19,11 +19,14 @@ export function openNowServiceErrorMessage(error: unknown) {
 
 import {
   SUPABASE_URL as PUBLIC_SUPABASE_URL,
+  USE_HTTPONLY_SESSION,
   SUPABASE_PUBLISHABLE_KEY as PUBLIC_SUPABASE_PUBLISHABLE_KEY,
 } from "../../lib/supabase-config";
 
 function endpoint() {
-  const url = import.meta.env["VITE_SUPABASE_URL"]?.trim() || PUBLIC_SUPABASE_URL;
+  const url = (USE_HTTPONLY_SESSION
+    ? PUBLIC_SUPABASE_URL
+    : import.meta.env["VITE_SUPABASE_URL"]?.trim() || PUBLIC_SUPABASE_URL);
   return `${url.replace(/\/$/, "")}/functions/v1/open-now-niches`;
 }
 

@@ -1,0 +1,45 @@
+name: Validar modo HttpOnly em homologação simulada
+
+on:
+  pull_request:
+    paths:
+      - "src/lib/bff-*"
+      - "src/lib/auth.ts"
+      - "src/lib/supabase-config.ts"
+      - "src/server.ts"
+      - "src/features/**"
+      - "tests/browser/httponly.spec.ts"
+      - ".github/workflows/bff-browser-check.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bff-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      VITE_HTTPONLY_SESSION: "true"
+      # Runtime BFF remains disabled; this test mocks same-origin API calls.
+      BFF_HTTPONLY_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Testar core de criptografia e API simulada
+        run: deno test src/lib/bff-*.test.ts
+      - uses: oven-sh/setup-bun@v2
+      - name: Instalar dependências
+        run: bun install --frozen-lockfile
+      - name: Verificar tipos do build HttpOnly
+        run: bun run typecheck
+      - name: Instalar navegador
+        run: bunx playwright install --with-deps chromium
+      - name: Testar navegador no modo HttpOnly com API simulada
+        run: bunx playwright test tests/browser/httponly.spec.ts
+      - name: Compilar frontend com modo HttpOnly
+        run: bun run build
