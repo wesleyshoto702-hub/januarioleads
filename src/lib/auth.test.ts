@@ -115,7 +115,9 @@ Deno.test("malformed or forged stored sessions never authorize a browser", () =>
 
 Deno.test("valid legacy localStorage session remains readable", () =>
   browserTest(async (storage) => {
-    const raw = JSON.parse(storage.get(key)!) as { accessToken: string };
+    const raw = JSON.parse(storage.get(key)!) as { accessToken: string; expiresAt: number };
+    raw.expiresAt = Date.now() + 3_600_000;
+    storage.set(key, JSON.stringify(raw));
     let called = 0;
     globalThis.fetch = ((url: string) => {
       called++;
