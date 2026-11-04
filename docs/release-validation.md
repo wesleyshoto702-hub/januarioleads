@@ -57,9 +57,11 @@ antigo não deve ser reaplicado sobre a baseline (ver database-recovery.md).
    cuidadosamente antes de versionar qualquer SQL recuperado.
    Inventário das 27 versões remotas sem arquivo:
    [docs/migration-history-audit.md](migration-history-audit.md).
-   Quatro scripts simples de índices foram arquivados em
-   `docs/migration-history/recovered/*.sql.txt` apenas para auditoria;
-   os outros 23 não foram copiados ao GitHub por exigirem revisão de segurança.
+   [Revisão dos 23 scripts](migration-history-review-23.md): 11 SQLs
+   adicionais foram recuperados como texto não executável, somados aos
+   4 de índices anteriores (15 arquivados); 12 permanecem no ledger remoto
+   por incluírem operações de usuários, dados ou Cron/Vault. Nenhum desses
+   históricos deve ser reaplicado ou usado para restaurar produção.
    **Não executar `supabase db push`, `db reset` remoto nem reparações em lote**.
    Conferir `supabase migration list --linked`, recuperar apenas conteúdos
    revisados com `supabase migration fetch`, estabelecer um baseline coerente

@@ -37,19 +37,28 @@ de autenticação, APIs e autorização com duas contas.
    relocável. Qualquer recriação em outro schema precisa de procedimento
    suportado, backup/restauração e homologação que preserve Cron e Vault.
    Manter o alerta conhecido é mais seguro do que interromper sincronização.
-3. **Sessões e XSS:** `src/lib/auth.ts` persiste access/refresh tokens
-   em `localStorage`, acessíveis a qualquer script executado na origem.
-   O servidor já envia `X-Content-Type-Options`, `Referrer-Policy`,
-   `Permissions-Policy`, HSTS em HTTPS e CSP parcial (`base-uri`,
-   `object-src`, `frame-ancestors`). A CSP atual **não possui `script-src`**,
-   então não pode ser considerada uma defesa completa contra XSS.
-   Commit `5a55728` implementou `safeExternalHref` e testes; **15 pontos
-   de navegação externa** passaram a exigir URLs HTTP(S) absolutas, sem
-   credenciais e caracteres de controle, para bloquear protocolos maliciosos.
-   O GitHub Actions aprovou o commit. Isso não substitui revisão de conteúdo
-   HTML, dependências, CSP com nonce/hash em SSR e testes de exploração.
-   Não migrar o mecanismo de sessão sem plano de compatibilidade, rotação,
-   logout e testes integrados para não invalidar sessões existentes.
+3. **Sessões e XSS — medidas aplicadas em 03/11/2026:**
+   - Pull Request [#21](https://github.com/wesleyshoto702-hub/januarioleads/pull/21)
+     integrado à `main`: política `script-src` com **nonce aleatório por
+     requisição**, `strict-dynamic`, `script-src-attr 'none'` e `form-action
+     'self'` via TanStack Start, com o mesmo nonce no router SSR e preservação
+     do cabeçalho em `src/server.ts`. Foi testado em navegador simulado, tipos
+     e compilação. O frame-ancestors mantém compatibilidade com o editor Lovable.
+   - Commit `5a55728`: `safeExternalHref` em 15 pontos de navegação externa.
+   - `src/lib/auth.ts` rejeita sessões armazenadas com estrutura inválida e
+     evita cache HTTP nas requisições de autenticação. O formato persistido e
+     os tokens de sessões válidas foram preservados; os testes de refresh,
+     logout e leitura legada passaram no CI.
+   - **Risco residual importante:** access/refresh tokens continuam em
+     `localStorage`; scripts maliciosos que consigam executar código na origem
+     ainda poderiam tentar lê-los. Uma migração real para cookies HttpOnly e
+     proxy autenticado de chamadas REST/Edge Functions **NÃO foi implementada**
+     e exigiria alterações transversais que poderiam quebrar os usuários
+     existentes. A estratégia com rollout e rollback está descrita em
+     [session-security-migration.md](session-security-migration.md).
+   - A CSP restringe scripts, mas não é uma política completa de recursos;
+     ainda são necessários teste real de produção, revisão de dependências,
+     de conteúdo HTML dinâmico e dos cabeçalhos servidos pelo host Lovable.
 4. **GitHub:** a branch `main` não tinha proteção de branch na auditoria.
    Planejar proteção compatível com o sync bidirecional GitHub–Lovable.
 
