@@ -18,10 +18,15 @@ function withSecurityHeaders(response: Response, request: Request) {
     "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
   );
   headers.set("X-Permitted-Cross-Domain-Policies", "none");
-  headers.set(
-    "Content-Security-Policy",
-    "base-uri 'self'; object-src 'none'; frame-ancestors 'self' https://lovable.app https://*.lovable.app https://lovable.dev https://*.lovable.dev",
-  );
+  // TanStack middleware provides a per-request nonce CSP for SSR pages.
+  // Keep it intact; use the legacy restrictive baseline only for fallback
+  // responses that did not pass through that middleware.
+  if (!headers.has("Content-Security-Policy")) {
+    headers.set(
+      "Content-Security-Policy",
+      "base-uri 'self'; object-src 'none'; frame-ancestors 'self' https://lovable.app https://*.lovable.app https://lovable.dev https://*.lovable.dev",
+    );
+  }
 
   if (new URL(request.url).protocol === "https:") {
     headers.set(

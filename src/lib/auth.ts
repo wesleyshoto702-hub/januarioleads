@@ -27,16 +27,36 @@ type PasswordResponse = {
 
 let refreshTimer: number | null = null;
 
+function isStoredSession(value: unknown): value is StoredSession {
+  if (!value || typeof value !== "object") return false;
+  const session = value as Partial<StoredSession>;
+  const user = session.user;
+  return (
+    typeof session.accessToken === "string" &&
+    session.accessToken.length > 0 &&
+    session.accessToken.length <= 16_384 &&
+    typeof session.refreshToken === "string" &&
+    session.refreshToken.length > 0 &&
+    session.refreshToken.length <= 16_384 &&
+    typeof session.expiresAt === "number" &&
+    Number.isFinite(session.expiresAt) &&
+    session.expiresAt > 0 &&
+    user != null &&
+    typeof user === "object" &&
+    typeof user.id === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id) &&
+    (user.email == null ||
+      (typeof user.email === "string" && user.email.length <= 320))
+  );
+}
+
 function readSession(): StoredSession | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as StoredSession;
-    if (!parsed.accessToken || !parsed.refreshToken || !parsed.expiresAt || !parsed.user?.id) {
-      return null;
-    }
-    return parsed;
+    const parsed: unknown = JSON.parse(raw);
+    return isStoredSession(parsed) ? parsed : null;
   } catch {
     return null;
   }
@@ -69,6 +89,7 @@ function scheduleRefresh(session: StoredSession | null) {
 async function request(path: string, init: RequestInit) {
   return fetch(`${SUPABASE_URL}${path}`, {
     ...init,
+    cache: "no-store",
     headers: {
       apikey: SUPABASE_PUBLISHABLE_KEY,
       "Content-Type": "application/json",
@@ -111,14 +132,14 @@ function fromAuthResponse(data: PasswordResponse): StoredSession | null {
   const expiresIn = data.expires_in;
   const id = data.user?.id;
 
-  if (!accessToken || !refreshToken || !expiresIn || !id) return null;
-
-  return {
+  if (!Number.isFinite(expiresIn) || !expiresIn || expiresIn <= 0) return null;
+  const candidate: unknown = {
     accessToken,
     refreshToken,
     expiresAt: Date.now() + expiresIn * 1000,
     user: { id, email: data.user?.email ?? null },
   };
+  return isStoredSession(candidate) ? candidate : null;
 }
 
 export async function signIn(email: string, password: string) {
