@@ -105,9 +105,10 @@ function browserBffSession(value: unknown): StoredSession | null {
 }
 
 let bffGeneration = 0;
+let bffLoggingOut = false;
 let bffValidation: Promise<StoredSession | null> | null = null;
 function getBffSession(): Promise<StoredSession | null> {
-  if (typeof window === "undefined") return Promise.resolve(null);
+  if (typeof window === "undefined" || bffLoggingOut) return Promise.resolve(null);
   if (bffValidation) return bffValidation;
   const generation = bffGeneration;
   const pending = (async () => {
@@ -155,15 +156,22 @@ async function bffSignIn(email: string, password: string) {
 }
 
 async function bffSignOut() {
-  // HttpOnly cookies cannot be cleared by browser JS. Do not tell the user
-  // they are signed out unless the same-origin server confirmed cookie removal.
+  // HttpOnly cookies cannot be cleared by browser JS. Do not claim logout
+  // until the server confirms it. Invalidate both old and concurrent GETs.
+  bffLoggingOut = true;
   bffGeneration++;
   bffValidation = null;
-  const response = await fetch("/api/session", {
-    method: "DELETE", credentials: "same-origin", cache: "no-store",
-  });
-  if (!response.ok) throw new Error("Não foi possível encerrar sua sessão. Tente novamente.");
-  writeSession(null);
+  try {
+    const response = await fetch("/api/session", {
+      method: "DELETE", credentials: "same-origin", cache: "no-store",
+    });
+    if (!response.ok) throw new Error("Não foi possível encerrar sua sessão. Tente novamente.");
+    bffGeneration++;
+    bffValidation = null;
+    writeSession(null);
+  } finally {
+    bffLoggingOut = false;
+  }
 }
 
 async function request(path: string, init: RequestInit) {
