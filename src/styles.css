@@ -6422,6 +6422,164 @@ a{
   }
 }
 
+
+/* Consistent responsive controls shared by CRM, search, messages and dialogs.
+   Never hide content to mask horizontal overflow. */
+.saas-main .lead-panel,
+.saas-main .lead-card,
+.saas-main .business-card,
+.saas-main .results-toolbar,
+.saas-main .segment-picker,
+.saas-main .message-editor,
+.saas-main .message-compose-card,
+.saas-main .message-summary-card,
+.saas-main .search-location-panel,
+.saas-main .selection-bar {
+  min-width: 0;
+}
+
+.saas-main .message-summary-text,
+.saas-main .message-summary-title,
+.saas-main .message-editor .editor-heading,
+.saas-main .lead-company-name-line,
+.saas-main .business-title-row,
+.saas-main .business-name-line,
+.saas-main .card-phone,
+.saas-main .recent-update-item,
+.saas-main .detail-links a {
+  overflow-wrap: anywhere;
+}
+
+.saas-main .message-summary-card .editor-heading > *,
+.saas-main .card-top > *,
+.saas-main .business-card-main > *,
+.saas-main .result-controls > *,
+.saas-main .panel-toolbar > *,
+.saas-main .message-compose-actions > *,
+.saas-main .message-editor-actions > * {
+  min-width: 0;
+}
+
+.saas-main img,
+.saas-main video {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.saas-main .message-kind-tabs button {
+  min-height: 44px;
+}
+
+.saas-main .message-favorite-button,
+.saas-main .message-remove-button {
+  min-width: 42px;
+  min-height: 42px;
+}
+
+.saas-main .message-summary-text {
+  line-height: 1.6;
+}
+
+@media (max-width: 900px) {
+  .saas-main .segment-option,
+  .saas-main .quick-filter-list button,
+  .saas-main .recent-searches button,
+  .saas-main .result-filters button,
+  .saas-main .message-favorite-button,
+  .saas-main .message-remove-button,
+  .saas-main .message-kind-tabs button {
+    min-height: 44px;
+  }
+
+  /* Prevent Safari on iPhone from zooming into small text fields. */
+  .saas-main input:not([type="checkbox"]):not([type="radio"]),
+  .saas-main select,
+  .saas-main textarea,
+  .login-shell input {
+    font-size: 16px;
+  }
+
+  .saas-main .selection-bar,
+  .saas-main .panel-toolbar,
+  .saas-main .results-toolbar {
+    min-width: 0;
+  }
+
+  .saas-main .message-summary-card .editor-heading {
+    gap: 12px;
+  }
+}
+
+@media (max-width: 620px) {
+  .saas-main .message-editor-actions,
+  .saas-main .message-compose-actions,
+  .saas-main .message-summary-footer,
+  .saas-main .card-actions {
+    flex-wrap: wrap;
+  }
+
+  .saas-main .card-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+  }
+
+  .saas-main .card-actions > button {
+    min-width: 0;
+    min-height: 44px;
+  }
+
+  .saas-main .message-compose-card {
+    padding: clamp(14px, 4vw, 22px);
+  }
+
+  .saas-main .message-compose-field textarea {
+    min-height: min(32dvh, 240px);
+  }
+
+  .saas-main .message-kind-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .saas-main .message-kind-tabs button {
+    min-width: 0;
+    padding-inline: 10px;
+    white-space: normal;
+    text-align: center;
+  }
+
+  .saas-main .message-summary-text,
+  .saas-main .card-notes {
+    font-size: 13px;
+  }
+
+  .saas-main .message-editor-actions {
+    gap: 8px;
+  }
+
+  .saas-main .modal-card {
+    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 360px) {
+  .saas-main .message-editor-actions .message-favorite-button,
+  .saas-main .message-editor-actions .message-remove-button {
+    min-width: 44px;
+  }
+
+  .saas-main .card-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .saas-main .message-summary-card .editor-heading {
+    align-items: flex-start;
+  }
+}
+
 /* Hide Lovable badge when it is part of the app DOM. */
 #lovable-badge {
   display: none !important;
