@@ -108,7 +108,7 @@ test("Meus Leads replaces enrichment button with follow-up, opening editable fol
   const dialog = page.getByRole("dialog", { name: "Fazer follow-up" });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole("button", { name: /Follow-up 1/ })).toBeVisible();
-  await expect(dialog.getByText("Oficina Exemplo", { exact: false })).toBeVisible();
+  await expect(dialog.locator(".modal-copy strong").first()).toHaveText("Oficina Exemplo");
   // Sending is a user action: these tests never launch WhatsApp.
 });
 
