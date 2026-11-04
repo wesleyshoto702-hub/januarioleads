@@ -1,5 +1,8 @@
 import { test, expect } from "@playwright/test";
 
+// The default production/legacy CI must not exercise this opt-in staging mode.
+test.skip(process.env["VITE_HTTPONLY_SESSION"] !== "true", "BFF-only browser scenario");
+
 const testUser = {
   id: "11111111-1111-1111-1111-111111111111",
   email: "staging@example.invalid",
