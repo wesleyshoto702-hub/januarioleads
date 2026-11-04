@@ -41,7 +41,8 @@ async function signInWithMockedData(page: Page) {
     if (url.pathname === "/rest/v1/private_access") {
       body = [{ user_id: USER_ID }];
     }
-    if (url.pathname === "/rest/v1/leads") body = [WAITING_LEAD];
+    if (url.pathname === "/rest/v1/leads")
+      body = url.searchParams.get("offset") === "0" ? [WAITING_LEAD] : [];
     return route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -52,7 +53,7 @@ async function signInWithMockedData(page: Page) {
   await page.getByPlaceholder("seu@email.com").fill("test@example.invalid");
   await page.getByPlaceholder("Sua senha").fill("fake-test-password");
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Sair", exact: true })).toBeVisible();
+  await expect(page.locator(".saas-shell")).toBeVisible();
 }
 
 test("follow-up templates can be added, edited, favorited and restored in their own category", async ({ page }) => {

@@ -66,6 +66,10 @@ export function useLeadWorkspace() {
         }
         if (!accountLocalStorage.getItem(STORAGE.followUpDefaultsInitialized)) {
           nextMessages = appendMissingFollowUpTemplates(nextMessages);
+          // Persist templates before the one-time marker. React dev StrictMode
+          // can run effects twice before state updates are committed, so a
+          // second initialization must read the seeded list, not overwrite it.
+          accountLocalStorage.setItem(STORAGE.messages, JSON.stringify(nextMessages));
           accountLocalStorage.setItem(STORAGE.followUpDefaultsInitialized, "1");
         }
         setMessages(nextMessages);
