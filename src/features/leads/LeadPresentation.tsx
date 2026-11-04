@@ -65,7 +65,7 @@ export function LeadRow({
   onMessage,
   onDetails,
   updateCount,
-  onEnrich,
+  onFollowUp,
   onEdit,
   onDelete,
 }: {
@@ -75,7 +75,7 @@ export function LeadRow({
   onMessage: (lead: Lead) => void;
   onDetails: (lead: Lead) => void;
   updateCount: number;
-  onEnrich: (lead: Lead) => void;
+  onFollowUp: (lead: Lead) => void;
   onEdit: (lead: Lead) => void;
   onDelete: (lead: Lead) => void;
 }) {
@@ -102,7 +102,7 @@ export function LeadRow({
       <div className="phone-cell">{lead.phone || "Sem telefone"}</div>
       <div className="lead-status-stack">
         <StatusControl lead={lead} onStatus={onStatus} />
-        <LeadActionSummary lead={lead} compact />
+        <LeadActionSummary lead={lead} compact hideFollowUp />
       </div>
       <div className="date-cell">
         <span>{formatDate(lead.firstContact)}</span>
@@ -125,15 +125,15 @@ export function LeadRow({
             <span>Mandar mensagem</span>
           </button>
         )}
-        {lead.source !== "lavras-search" && (
+        {lead.status === "waiting" && Boolean(lead.phone) && (
           <button
-            className="enrichment-button"
-            onClick={() => onEnrich(lead)}
+            className="enrichment-button follow-up-action-button"
+            onClick={() => onFollowUp(lead)}
             type="button"
-            title={lead.placeId ? "Atualizar informações" : "Buscar informações"}
+            title="Fazer follow-up"
           >
-            <Search size={15} />
-            <span>{lead.placeId ? "Atualizar informações" : "Buscar informações"}</span>
+            <MessageCircle size={15} />
+            <span>Fazer follow-up</span>
           </button>
         )}
         <button className="row-icon" onClick={() => onEdit(lead)} type="button" title="Editar">
@@ -159,7 +159,7 @@ export function LeadCard({
   onMessage,
   onDetails,
   updateCount,
-  onEnrich,
+  onFollowUp,
   onEdit,
   onDelete,
 }: {
@@ -169,7 +169,7 @@ export function LeadCard({
   onMessage: (lead: Lead) => void;
   onDetails: (lead: Lead) => void;
   updateCount: number;
-  onEnrich: (lead: Lead) => void;
+  onFollowUp: (lead: Lead) => void;
   onEdit: (lead: Lead) => void;
   onDelete: (lead: Lead) => void;
 }) {
@@ -197,7 +197,7 @@ export function LeadCard({
       <div className="card-phone">{lead.phone || "Sem telefone disponível"}</div>
       {finance && <LeadFinanceMarker summary={finance} />}
       <StatusControl lead={lead} onStatus={onStatus} />
-      <LeadActionSummary lead={lead} />
+      <LeadActionSummary lead={lead} hideFollowUp />
       <div className="card-meta">
         <span>Primeiro contato: {formatDate(lead.firstContact)}</span>
         {lead.lastContact && <span>Último contato: {formatDate(lead.lastContact)}</span>}
@@ -213,10 +213,15 @@ export function LeadCard({
             Mandar mensagem
           </button>
         )}
-        {lead.source !== "lavras-search" && (
-          <button className="enrichment-button" onClick={() => onEnrich(lead)} type="button">
-            <Search size={15} />
-            {lead.placeId ? "Atualizar informações" : "Buscar informações"}
+        {lead.status === "waiting" && Boolean(lead.phone) && (
+          <button
+            className="enrichment-button follow-up-action-button"
+            onClick={() => onFollowUp(lead)}
+            type="button"
+            title="Fazer follow-up"
+          >
+            <MessageCircle size={15} />
+            Fazer follow-up
           </button>
         )}
         <button className="row-icon" onClick={() => onEdit(lead)} type="button" aria-label="Editar">

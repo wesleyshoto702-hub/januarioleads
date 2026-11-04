@@ -71,7 +71,7 @@ import {
 import { OpenNowNichesView } from "../features/open-now-niches/OpenNowNichesView";
 import {
   DEFAULT_MESSAGE_TEMPLATES,
-  orderMessageTemplates,
+  messagesForKind,
   parseSavedMessageTemplates,
   type MessageTemplate,
 } from "../features/messages/message-templates";
@@ -148,17 +148,6 @@ const SEGMENTS = [
   "Imobiliária",
   "Outro",
 ];
-
-const FOLLOW_UP_MESSAGES: MessageTemplate[] = [
-  "Olá! Tudo bem? Passando para dar continuidade à mensagem que enviei sobre a possibilidade de criar um site profissional para a {empresa}. Conseguiu dar uma olhada?",
-  "Oi! Estou retomando o contato sobre a ideia de um site para a {empresa}, caso tenha interesse.",
-  "Olá! Só passando mais uma vez para saber se existe interesse em conversar sobre um site para a {empresa}. Se agora não for o momento, sem problema — fico à disposição caso queira falar sobre isso mais pra frente.",
-].map((text, index) => ({
-  id: `follow-up-${index + 1}`,
-  title: `Follow-up ${index + 1}`,
-  text,
-  favorite: false,
-}));
 
 const EMPTY_FORM: LeadForm = {
   company: "",
@@ -268,12 +257,13 @@ function LeadFlowApp() {
   const [savedNotice, setSavedNotice] = useState(false);
   const [followUpNotice, setFollowUpNotice] = useState("");
   const availableMessages = useMemo(
-    () => orderMessageTemplates(messages).filter((template) => template.text.trim()),
+    () => messages.filter((template) => template.text.trim()),
     [messages],
   );
-  const pickerMessages = messageLead?.followUp
-    ? [...availableMessages.filter((template) => template.favorite), ...FOLLOW_UP_MESSAGES]
-    : availableMessages;
+  const pickerMessages = messagesForKind(
+    availableMessages,
+    messageLead?.followUp ? "follow_up" : "initial",
+  );
   const activePickerMessage =
     pickerMessages.find((template) => template.id === selectedMessage) ?? pickerMessages[0] ?? null;
 
@@ -1840,7 +1830,7 @@ function LeadFlowApp() {
                     }}
                     onDetails={openLeadDetails}
                     updateCount={unseenUpdatesByLead.get(lead.id) ?? 0}
-                    onEnrich={setEnrichmentLead}
+                    onFollowUp={startFollowUp}
                     onEdit={openEditLead}
                     onDelete={setDeleteLead}
                   />
@@ -1864,7 +1854,7 @@ function LeadFlowApp() {
                     }}
                     onDetails={openLeadDetails}
                     updateCount={unseenUpdatesByLead.get(lead.id) ?? 0}
-                    onEnrich={setEnrichmentLead}
+                    onFollowUp={startFollowUp}
                     onEdit={openEditLead}
                     onDelete={setDeleteLead}
                   />
@@ -2188,7 +2178,6 @@ function LeadFlowApp() {
               followUpLead={lead}
               onNextActionSave={(patch) => saveNextAction(lead.id, patch)}
               onNextActionComplete={() => completeNextAction(lead.id)}
-              onFollowUp={() => startFollowUp(lead)}
               onFinanceUpdate={(leadId, patch) =>
                 updateLeadLocally(leadId, (current) => ({
                   ...current,

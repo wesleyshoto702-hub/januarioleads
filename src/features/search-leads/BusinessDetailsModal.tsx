@@ -104,7 +104,6 @@ export function BusinessDetailsModal({
   followUpLead,
   onNextActionSave,
   onNextActionComplete,
-  onFollowUp,
   onAdd,
 }: {
   business: BusinessSearchResult;
@@ -129,7 +128,6 @@ export function BusinessDetailsModal({
   followUpLead?: PersistedLead | null;
   onNextActionSave?: (patch: NextActionPatch) => void | Promise<void>;
   onNextActionComplete?: () => void | Promise<void>;
-  onFollowUp?: () => void;
   onAdd?: (
     business: BusinessSearchResult,
   ) => Promise<BusinessAddResult> | BusinessAddResult | void;
@@ -450,7 +448,6 @@ export function BusinessDetailsModal({
               lead={followUpLead}
               onSave={onNextActionSave}
               onComplete={onNextActionComplete}
-              {...(onFollowUp ? { onFollowUp } : {})}
             />
           )}
 
