@@ -205,3 +205,97 @@ test("two competing recent searches keep only results from the newest request", 
   await expect(page.getByRole("heading", { name: "Barbearia", exact: true })).toBeVisible();
   await expect(page.getByText("Empresa Antiga", { exact: true })).toHaveCount(0);
 });
+
+
+test("search results can be filtered and reset locally without new Places requests", async ({ page }) => {
+  await loginWithMocks(page, { leads: [] });
+  await page.evaluate((uid) => {
+    localStorage.setItem(
+      `januarioleads:workspace:v2:${uid}:leadflow:recent-searches`,
+      JSON.stringify([{ segment: "Restaurante", city: "Lavras", state: "MG" }]),
+    );
+  }, USER_ID);
+
+  let placesRequests = 0;
+  await page.route("**/functions/v1/search-places", (route) => {
+    placesRequests += 1;
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        results: [
+          business("local-1", "Restaurante Aurora"),
+          business("local-2", "Restaurante Estação"),
+        ],
+        nextPageToken: null,
+      }),
+    });
+  });
+
+  await page.getByRole("button", { name: "Buscar Leads", exact: true }).first().click();
+  await page.locator(".recent-searches").getByRole("button", { name: /Restaurante/ }).click();
+  await expect(page.getByText("Restaurante Aurora", { exact: true })).toBeVisible();
+  await expect(page.getByText("Restaurante Estação", { exact: true })).toBeVisible();
+
+  const localSearch = page.getByRole("searchbox", { name: "Pesquisar nesta lista" });
+  await localSearch.fill("aurora");
+  await expect(page.getByText("Restaurante Aurora", { exact: true })).toBeVisible();
+  await expect(page.getByText("Restaurante Estação", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Exibindo 1 de 2 empresas")).toBeVisible();
+
+  await localSearch.fill("não existe");
+  await expect(page.getByText("Nenhuma empresa corresponde aos filtros")).toBeVisible();
+  await page.getByRole("button", { name: "Mostrar todas as empresas" }).click();
+  await expect(page.getByText("Restaurante Estação", { exact: true })).toBeVisible();
+  await expect(localSearch).toHaveValue("");
+  expect(placesRequests, "Client-side filters must not trigger additional Places requests").toBe(1);
+});
+
+
+test("CRM shows the filtered count and restores all leads with one action", async ({ page }) => {
+  let leadWrites = 0;
+  await loginWithMocks(page, { onLeadWrite: () => { leadWrites += 1; return true; } });
+  await page.getByRole("button", { name: "Meus Leads", exact: true }).first().click();
+  const lead = page.locator(".desktop-table .table-row").filter({ hasText: "Oficina Exemplo" });
+  await expect(lead).toBeVisible();
+
+  await page.getByRole("textbox", { name: "Buscar empresa, nicho, cidade ou UF" }).fill("empresa inexistente");
+  await expect(page.getByText("Exibindo 0 de 1 leads")).toBeVisible();
+  await expect(page.locator(".desktop-table").getByText("Nenhum lead corresponde aos filtros")).toBeVisible();
+
+  await page.getByRole("button", { name: "Limpar todos os filtros" }).click();
+  await expect(lead).toBeVisible();
+  await expect(page.getByText("Exibindo 1 de 1 leads")).toBeVisible();
+  expect(leadWrites, "Filtering must not change existing leads").toBe(0);
+});
+
+test("empty CRM directs the user to find companies without creating mock leads", async ({ page }) => {
+  await loginWithMocks(page, { leads: [] });
+  await page.getByRole("button", { name: "Meus Leads", exact: true }).first().click();
+  await expect(page.locator(".desktop-table").getByText("Seu primeiro lead começa aqui")).toBeVisible();
+  await page.locator(".desktop-table").getByRole("button", { name: "Buscar empresas" }).click();
+  await expect(page.getByRole("heading", { name: /Encontre empresas em/ })).toBeVisible();
+});
+
+
+test("dashboard gives first-time users a direct route to lead discovery", async ({ page }) => {
+  await loginWithMocks(page, { leads: [] });
+  await expect(page.getByText("Comece pela busca de empresas")).toBeVisible();
+  await page.getByRole("button", { name: "Buscar empresas" }).click();
+  await expect(page.getByRole("heading", { name: /Encontre empresas em/ })).toBeVisible();
+});
+
+test("dashboard routes pending outreach to a clean CRM filter", async ({ page }) => {
+  await loginWithMocks(page, {
+    leads: [{ ...WAITING_LEAD, status: "send_message" }],
+  });
+
+  await expect(page.getByText("1 lead precisa do primeiro contato")).toBeVisible();
+  await page.getByRole("button", { name: "Ver leads para contato" }).click();
+  await expect(page.getByRole("heading", { name: "Meus Leads" })).toBeVisible();
+  const sendMessageFilter = page.locator(".filter-row").first()
+    .getByRole("button", { name: /Enviar mensagem/ });
+  await expect(sendMessageFilter).toHaveClass(/active/);
+  await expect(page.getByText("Exibindo 1 de 1 leads")).toBeVisible();
+});

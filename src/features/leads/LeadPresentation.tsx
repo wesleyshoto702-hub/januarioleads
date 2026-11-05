@@ -327,21 +327,45 @@ export function Modal({
   );
 }
 
-export function EmptyState({ onNew, hasLeads }: { onNew: () => void; hasLeads: boolean }) {
+export function EmptyState({
+  onNew,
+  onBrowse,
+  onClearFilters,
+  hasLeads,
+}: {
+  onNew: () => void;
+  onBrowse?: () => void;
+  onClearFilters?: () => void;
+  hasLeads: boolean;
+}) {
   return (
     <div className="empty-state">
       <div className="empty-icon">{hasLeads ? <Search size={20} /> : <Plus size={20} />}</div>
-      <strong>{hasLeads ? "Nenhum lead encontrado" : "Seu primeiro lead começa aqui"}</strong>
+      <strong>{hasLeads ? "Nenhum lead corresponde aos filtros" : "Seu primeiro lead começa aqui"}</strong>
       <p>
         {hasLeads
-          ? "Tente mudar a busca ou os filtros."
-          : "Cadastre uma empresa e ela entra como Enviar mensagem."}
+          ? "Ajuste os filtros para encontrar outros contatos da sua carteira."
+          : "Busque empresas para prospectar ou cadastre um lead manualmente."}
       </p>
-      {!hasLeads && (
-        <button className="secondary-button" type="button" onClick={onNew}>
-          Adicionar lead
-        </button>
-      )}
+      <div className="empty-state-actions">
+        {hasLeads && onClearFilters && (
+          <button className="secondary-button" type="button" onClick={onClearFilters}>
+            Limpar filtros
+          </button>
+        )}
+        {!hasLeads && (
+          <>
+            {onBrowse && (
+              <button className="primary-button" type="button" onClick={onBrowse}>
+                Buscar empresas
+              </button>
+            )}
+            <button className="secondary-button" type="button" onClick={onNew}>
+              Adicionar lead
+            </button>
+          </>
+        )}
+      </div>
     </div>
   );
 }
