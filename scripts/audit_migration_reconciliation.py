@@ -103,6 +103,16 @@ def compare_history(snapshot: dict, manifest: dict, local: dict[str, str], archi
     require(sum(t["policies"] for t in tables) == 38, "Unexpected public policy count")
     require(sum(t["indexes"] for t in tables) == 47, "Unexpected public index count")
     require(cat.get("functions") == 4 and cat.get("triggers") == 2, "Unexpected function/trigger count")
+    columns = cat.get("columns")
+    require(isinstance(columns, list) and len(columns) == 17, "Missing public column-layout fingerprints")
+    require({x.get("table_name") for x in columns} == {t["tablename"] for t in tables},
+            "Public table/column fingerprint inventory differs")
+    for item in columns:
+        require(type(item.get("columns")) is int and item["columns"] > 0,
+                "Invalid table column count")
+        value = item.get("column_fingerprint")
+        require(isinstance(value, str) and DIGEST.fullmatch(value) is not None,
+                "Invalid column-layout fingerprint")
 
     return {
         "remote": len(remote),
