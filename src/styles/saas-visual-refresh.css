@@ -680,6 +680,42 @@
   }
 }
 
+
+/* Legacy sync failures stay auditable but no longer flood recent-activity feeds. */
+.sync-error-summary {
+  display: grid;
+  gap: 5px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--text) 3%, var(--surface));
+  color: var(--muted);
+}
+
+.sync-error-summary strong {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.sync-error-summary span {
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.recent-updates-panel > .sync-error-summary {
+  margin: 13px 15px;
+}
+
+.dashboard-feed > .sync-error-summary {
+  margin-bottom: 7px;
+}
+
+@media (max-width: 620px) {
+  .sync-error-summary { padding: 12px; }
+  .recent-updates-panel > .sync-error-summary { margin-inline: 12px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .saas-metric-card,
   .saas-main .message-summary-card,
