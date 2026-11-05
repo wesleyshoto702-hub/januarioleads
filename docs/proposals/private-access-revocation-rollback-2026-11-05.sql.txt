@@ -7,6 +7,8 @@
 -- No GRANTs, table rows, functions, owners, or auth records are modified.
 -- Like the forward candidate, all changes are transactional.
 BEGIN;
+SET LOCAL lock_timeout = '5s';
+SET LOCAL statement_timeout = '30s';
 
 DROP POLICY IF EXISTS "Users can read own lead payments"
   ON public.lead_payments;
