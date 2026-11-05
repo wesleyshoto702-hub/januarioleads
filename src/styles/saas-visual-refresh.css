@@ -762,6 +762,50 @@
   .result-query-count { flex: 1 1 auto; }
 }
 
+
+/* CRM: keep the current list size visible and filtering reversible. */
+.lead-result-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.lead-result-summary button {
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.lead-result-summary button:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.empty-state-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+@media (max-width: 620px) {
+  .lead-result-summary { padding-inline: 12px; }
+  .empty-state-actions { flex-direction: column; }
+  .empty-state-actions > button { width: 100%; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .saas-metric-card,
   .saas-main .message-summary-card,
