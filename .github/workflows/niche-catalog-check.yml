@@ -50,9 +50,10 @@ jobs:
 
   supabase-local-auth-staging:
     name: Homologar Auth real e RLS em Supabase local descartável
-    # Temporary, branch-scoped validation. Never connects to the only
-    # Supabase Cloud project; no production credentials or paid API calls.
-    if: github.event_name == 'pull_request' && github.head_ref == 'audit/reconcile-supabase-history-readonly-20261105'
+    # Run automatically only during the audit PR or explicitly via
+    # workflow_dispatch afterward. Never links to Supabase Cloud.
+    # No hosted credentials, Google Places or OpenAI calls are used.
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.head_ref == 'audit/reconcile-supabase-history-readonly-20261105')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
