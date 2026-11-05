@@ -1,0 +1,116 @@
+-- PROPOSTA DE CORREÇÃO PARA REVISÃO — NÃO EXECUTAR EM PRODUÇÃO
+--
+-- Objetivo: manter a exigência de pertencer ao usuário E possuir acesso
+-- ativo no allowlist private_access para três tabelas em PostgREST.
+--
+-- Evidência obtida por consultas read-only em 2026-11-05:
+--  * lead_payments SELECT: apenas auth.uid() = user_id
+--  * open_now_niche_cache SELECT: apenas auth.uid() = user_id
+--  * places_search_cache SELECT/INSERT/UPDATE: apenas auth.uid() = user_id
+--
+-- Um token JWT válido de conta revogada ainda poderia ler os próprios
+-- registros dessas tabelas sem passar pelo frontend de autenticação.
+-- Este é um possível bypass de REVOCAÇÃO, não um acesso cruzado a outros
+-- usuários. Não foi realizado teste de exploração contra dados reais.
+--
+-- Esta proposta existe em docs/proposals como .sql.txt para que Supabase
+-- CLI não a trate como migration ativa. Criar migration versionada via
+-- CLI, testar em PostgreSQL descartável e homologação antes de considerar
+-- aplicação em produção. Preservar backups e histórico de migrations.
+
+begin;
+
+drop policy if exists "Users can read own lead payments"
+  on public.lead_payments;
+
+create policy "Users can read own lead payments"
+  on public.lead_payments
+  for select to authenticated
+  using (
+    user_id = (select auth.uid())
+    and exists (
+      select 1 from public.private_access pa
+      where pa.user_id = (select auth.uid())
+    )
+  );
+
+drop policy if exists "Users can read own open now cache"
+  on public.open_now_niche_cache;
+
+create policy "Users can read own open now cache"
+  on public.open_now_niche_cache
+  for select to authenticated
+  using (
+    user_id = (select auth.uid())
+    and exists (
+      select 1 from public.private_access pa
+      where pa.user_id = (select auth.uid())
+    )
+  );
+
+drop policy if exists "Users can read own places search cache"
+  on public.places_search_cache;
+
+create policy "Users can read own places search cache"
+  on public.places_search_cache
+  for select to authenticated
+  using (
+    user_id = (select auth.uid())
+    and exists (
+      select 1 from public.private_access pa
+      where pa.user_id = (select auth.uid())
+    )
+  );
+
+drop policy if exists "Users can insert own places search cache"
+  on public.places_search_cache;
+
+create policy "Users can insert own places search cache"
+  on public.places_search_cache
+  for insert to authenticated
+  with check (
+    user_id = (select auth.uid())
+    and exists (
+      select 1 from public.private_access pa
+      where pa.user_id = (select auth.uid())
+    )
+  );
+
+drop policy if exists "Users can update own places search cache"
+  on public.places_search_cache;
+
+create policy "Users can update own places search cache"
+  on public.places_search_cache
+  for update to authenticated
+  using (
+    user_id = (select auth.uid())
+    and exists (
+      select 1 from public.private_access pa
+      where pa.user_id = (select auth.uid())
+    )
+  )
+  with check (
+    user_id = (select auth.uid())
+    and exists (
+      select 1 from public.private_access pa
+      where pa.user_id = (select auth.uid())
+    )
+  );
+
+commit;
+
+-- Testes de homologação obrigatórios (NÃO EXECUTADOS nesta etapa):
+--
+-- 1. Conta A com private_access: consegue SELECT/INSERT/UPDATE suas linhas
+--    nas tabelas correspondentes, conforme GRANT existente.
+-- 2. Conta B com private_access: NÃO consegue ler/escrever linhas de A.
+-- 3. Remover somente a autorização de A no AMBIENTE DESCARTÁVEL:
+--    token válido de A não lê lead_payments, places_search_cache,
+--    open_now_niche_cache nem insere/edita places_search_cache.
+-- 4. Conta A reautorizada: dados originais permanecem intactos e acessíveis.
+-- 5. service_role segue capaz de executar a manutenção autorizada.
+-- 6. Validar que nenhum novo policy permissive amplo anula a restrição.
+--
+-- Rollback planejado, caso seja autorizado:
+-- restaurar APENAS as cinco políticas originais registradas em pg_policies,
+-- sem apagar linhas/tabelas, preservando grants e ownership; validar antes.

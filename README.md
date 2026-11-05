@@ -196,19 +196,57 @@ A função `search-places` e os limites separados do Supabase para consulta a si
 
 ### Implantação no Supabase
 
-A função pode ser implantada por meio do workflow manual [Publicar search-places no Supabase](.github/workflows/deploy-search-places.yml), já configurado para o projeto de referência `czkazbianiflhldenhcj` identificado no código. Esse workflow **não é executado automaticamente** e publica apenas `search-places`.
+O workflow [Validar banco e publicar funções sob demanda](.github/workflows/deploy-search-places.yml)
+é configurado para o projeto Supabase do Januário Leads. **Pushes na branch `main` que
+afetem os caminhos monitorados executam apenas validações**; publicação efetiva de
+Edge Functions ocorre somente por `workflow_dispatch` (iniciada manualmente no
+GitHub Actions) ou por tag `deploy/supabase-*`.
 
-1. Na conta do [Supabase](https://supabase.com/dashboard/account/tokens), crie um **Personal Access Token** autorizado a administrar o projeto.
-2. Em [OpenAI API Keys](https://platform.openai.com/api-keys), crie uma **API key de plataforma** com faturamento/cotas apropriados. Uma assinatura do ChatGPT não substitui essa chave.
-3. No GitHub, abra **Settings → Secrets and variables → Actions → New repository secret** e cadastre `SUPABASE_ACCESS_TOKEN` com o token do Supabase e `OPENAI_API_KEY` com a chave da OpenAI.
-4. Vá até **Actions → Publicar search-places no Supabase → Run workflow**, escolha `main` e execute. O workflow valida que os dois segredos existem, cadastra `OPENAI_API_KEY` nos segredos privados de Edge Functions, publica apenas `search-places` e lista as funções do projeto para conferência.
-5. Com a função publicada e a versão web atualizada, teste **Ver empresa → Buscar Instagram na web** com empresas de cidades e nichos diferentes.
+Quando a publicação é explicitamente iniciada, o workflow executa testes e
+verificações de migrações, autorização e segurança antes de publicar as três
+funções versionadas neste fluxo:
 
-**Segurança:** não cole tokens nas mensagens do chat nem faça commit de chaves no repositório. O workflow recebe os valores apenas pelos segredos protegidos do GitHub e os transmite à configuração privada do Supabase. Não imprime os valores deliberadamente.
+- `search-places`
+- `deep-enrich-business`
+- `open-now-niches`
 
-O modelo da busca pode ser substituído no ambiente do Supabase por `OPENAI_INSTAGRAM_MODEL`; por padrão, usa `gpt-6.1-terra`. A busca web gera cobranças de API e pode falhar por falta de crédito, permissão ou cota. O fluxo manual também exige que a implantação do frontend Lovable/publicado já tenha sido realizada.
+O workflow também consulta as versões das funções publicadas e verifica CORS.
+Ele **não publica `sync-leads`**, não executa indiscriminadamente migrations
+históricas e **não cadastra automaticamente as chaves do Google ou da OpenAI**
+como secrets do Supabase.
 
-O código permanece sem acesso a perfis privados, sem login no Instagram e sem coleta por APIs não autorizadas. Recomenda-se testar com empresas de cidades distintas e comparar os resultados com os perfis públicos realmente oficiais.
+Para publicar com autorização específica:
+
+1. Confirme que o código, as migrations e os testes do ambiente alvo foram
+   revisados. Verifique a divergência histórica entre migrations locais e remotas
+   em [`docs/database-recovery.md`](docs/database-recovery.md).
+2. Configure **`SUPABASE_ACCESS_TOKEN`** exclusivamente nos *GitHub Actions
+   secrets*, com as permissões mínimas necessárias para as funções autorizadas.
+   Não envie o token pelo chat e não grave sua cópia no repositório.
+3. Quando necessário, configure `GOOGLE_PLACES_API_KEY` e `OPENAI_API_KEY`
+   **diretamente nos secrets privados de Edge Functions do Supabase**,
+   segundo as funções e cotas escolhidas. Não use variáveis públicas
+   `VITE_*` para credenciais. Não é necessário criar chaves ou custos novos
+   somente para rodar o workflow de validação.
+4. Depois de obter autorização para a publicação, execute o workflow por
+   `workflow_dispatch` na branch revisada, ou use o processo controlado de tag.
+   Confira os testes, as verificações de banco e a lista de funções publicadas.
+5. Somente depois, valide em ambiente de homologação os fluxos necessários,
+   incluindo **Ver empresa → Buscar Instagram na web** se a integração com a
+   OpenAI estiver habilitada. Evite testes de API paga contra produção.
+
+**Atenção:** uma assinatura ChatGPT não é uma chave de API da OpenAI. As
+consultas Google Places e OpenAI podem gerar custos, mesmo que a hospedagem
+esteja no plano gratuito. Nenhuma funcionalidade paga deve ser ativada sem
+um orçamento e limites de consumo aprovados.
+
+O modelo de pesquisa complementar de Instagram é configurável pelo secret
+`OPENAI_INSTAGRAM_MODEL`. Consulte o modelo e a disponibilidade efetiva
+na API antes de modificar seu valor. A implantação de Edge Functions não
+publica automaticamente o frontend (Vercel/Lovable).
+
+O fluxo de Instagram utiliza fontes públicas, não exige login na rede social
+e apresenta perfis ambíguos como candidatos para conferência.
 
 ## Buscar informações
 

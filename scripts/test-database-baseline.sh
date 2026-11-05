@@ -27,3 +27,10 @@ fi
 for sql in supabase/tests/platform-fixture.sql supabase/baseline/20261103-public.sql supabase/tests/baseline.sql supabase/migrations/20261103220000_allow_presence_site_rate_limit.sql supabase/migrations/20261103220000_allow_presence_site_rate_limit.sql supabase/tests/rate-limits.sql; do
   docker_local exec -i "$container" psql -X -v ON_ERROR_STOP=1 -U postgres < "$sql"
 done
+
+# Proposed allowlist-revocation rules are deliberately stored outside
+# supabase/migrations. They are evaluated ONLY against this disposable
+# PostgreSQL container, never against production or a linked project.
+for sql in docs/proposals/private-access-revocation-policies-2026-11-05.sql.txt supabase/tests/private-access-revocation-proposal.sql; do
+  docker_local exec -i "$container" psql -X -v ON_ERROR_STOP=1 -U postgres < "$sql"
+done
