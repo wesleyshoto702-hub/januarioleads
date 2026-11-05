@@ -185,3 +185,23 @@ test("phone: forms and navigation meet minimum comfortable touch sizes", async (
   }
   await assertNoPageOverflow(page, "message category tabs at 390px");
 });
+
+
+test("SaaS visual refresh is visible: dashboard hero, KPI icons and styled active navigation", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await loginWithMockedSupabase(page);
+  const header = page.locator(".dashboard-view > .saas-page-header");
+  await expect(header).toBeVisible();
+  await expect(header.getByText("CENTRAL DE OPERAÇÕES")).toBeVisible();
+  await expect(page.locator(".dashboard-metrics .saas-metric-icon")).toHaveCount(5);
+  const style = await header.evaluate((node) => ({
+    image: getComputedStyle(node).backgroundImage,
+    radius: getComputedStyle(node).borderRadius,
+  }));
+  expect(style.image).toContain("gradient");
+  expect(parseFloat(style.radius)).toBeGreaterThanOrEqual(15);
+  const active = page.locator(".saas-sidebar .saas-nav-item.active");
+  await expect(active).toBeVisible();
+  const background = await active.evaluate((node) => getComputedStyle(node).backgroundImage);
+  expect(background).toContain("gradient");
+});

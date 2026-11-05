@@ -19,7 +19,7 @@ export function MetricCard({
     <article className={`saas-metric-card ${tone}`} title={title}>
       <div className="saas-metric-label">
         <span>{label}</span>
-        {icon}
+        {icon && <span className="saas-metric-icon" aria-hidden="true">{icon}</span>}
       </div>
       <strong>{value}</strong>
       {detail && <small>{detail}</small>}

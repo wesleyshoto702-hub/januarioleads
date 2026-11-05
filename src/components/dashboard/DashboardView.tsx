@@ -1,9 +1,14 @@
 import {
   ArrowRight,
+  BadgeCheck,
+  Ban,
   CalendarClock,
   CircleDollarSign,
+  Clock3,
   RefreshCw,
+  Send,
   Target,
+  UsersRound,
 } from "lucide-react";
 import type { LeadUpdateRecord, PersistedLead } from "../../features/leads/remote-leads";
 import type { OpportunityRecord } from "../../features/opportunities/types";
@@ -136,9 +141,9 @@ export function DashboardView({
   return (
     <section className="dashboard-view saas-page">
       <PageHeader
-        eyebrow="VISÃO GERAL"
+        eyebrow="CENTRAL DE OPERAÇÕES"
         title="Dashboard"
-        description="Acompanhe sua prospecção, recebimentos e mudanças recentes."
+        description="Sua operação comercial em um só lugar: leads, próximos passos e resultados."
         actions={
           <div className={remoteReady ? "saas-sync-pill active" : "saas-sync-pill"}>
             <RefreshCw size={13} />
@@ -151,11 +156,11 @@ export function DashboardView({
       {remoteError && <p className="saas-inline-notice">{remoteError}</p>}
 
       <div className="dashboard-metrics">
-        <MetricCard label="Total de leads" value={counts.all} tone="primary" />
-        <MetricCard label="Enviar mensagem" value={counts.send_message} />
-        <MetricCard label="Aguardando" value={counts.waiting} tone="waiting" />
-        <MetricCard label="Aceitos" value={counts.accepted} tone="accepted" />
-        <MetricCard label="Recusados" value={counts.rejected} tone="rejected" />
+        <MetricCard label="Total de leads" value={counts.all} tone="primary" icon={<UsersRound size={17} />} />
+        <MetricCard label="Enviar mensagem" value={counts.send_message} icon={<Send size={17} />} />
+        <MetricCard label="Aguardando" value={counts.waiting} tone="waiting" icon={<Clock3 size={17} />} />
+        <MetricCard label="Aceitos" value={counts.accepted} tone="accepted" icon={<BadgeCheck size={17} />} />
+        <MetricCard label="Recusados" value={counts.rejected} tone="rejected" icon={<Ban size={17} />} />
       </div>
 
       <section className="dashboard-panel dashboard-today">
