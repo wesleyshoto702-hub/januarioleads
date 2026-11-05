@@ -187,6 +187,54 @@ leitura e atualizar a revisão de evidência separadamente; o
 com token de administração, mas nunca se deve colocar tal token
 em arquivos do projeto.
 
+### 4.1. Homologação com Auth e PostgREST reais em Supabase local
+
+**Resultado observado em 05/11/2026:** [CI #42117704596](https://github.com/wesleyshoto702-hub/januarioleads/actions/runs/42117704596)
+aprovou os três jobs, incluindo **Supabase Auth (GoTrue) e PostgREST
+reais**, com dados exclusivamente fictícios. A instância foi criada
+temporariamente em um executor do GitHub Actions, com serviços locais
+vinculados ao loopback; não foi criado nenhum projeto Supabase Cloud.
+
+O teste automatizado é `scripts/validate_supabase_auth_staging.py`.
+Ele restaura o baseline original e aplica a correção `presence_site`,
+usa a CLI estável **v2.122.1** no stack local, cria três usuários
+fictícios pelo endpoint `/auth/v1/signup` e usa JWTs emitidos pelo
+GoTrue em requisições reais a `/rest/v1/`. O SQL de correção de RLS
+é obtido por checkout **fixado no commit
+`3b5705c0c5055b8ac3ef5b3a5f4833ae812a2c03` da PR #36**,
+sem integrar a PR ou modificar produção.
+
+Resultados comprovados pela CI:
+
+1. Contas A e B autorizadas leem apenas seus próprios leads,
+   pagamentos e caches; C nunca autorizada não lê nem grava.
+2. Com as políticas anteriores, **A revogada ainda lia os próprios
+   pagamentos e caches** usando o mesmo JWT real; o defeito foi
+   reproduzido em PostgREST, não apenas por `SET ROLE` simulado.
+3. Aplicado o SQL candidato somente nesse banco temporário, o mesmo
+   JWT de A passou a receber resultados vazios ou negação ao tentar
+   ler/gravar os registros protegidos. A conta B não perdeu acesso.
+4. O token administrativo local manteve acesso legítimo; um JWT
+   inválido foi recusado pelo gateway.
+5. A reautorização de A restaurou visibilidade aos mesmos registros
+   sem renovar a sessão nem excluir dados.
+6. O job executou limpeza dos serviços temporários, sem alterações
+   em `czkazbianiflhldenhcj` ou consumo de Google Places/OpenAI.
+
+**Repetição:** a homologação pode ser iniciada pelo job
+`supabase-local-auth-staging` do GitHub Actions. O workflow de
+teste usa `supabase/setup-cli@v3.2.0` com CLI **2.122.1 fixada**;
+a CLI v3 mudou o comportamento de comandos que acessam ambientes
+remotos. Para testar uma versão posterior da proposta, revisar
+explicitamente o SHA de checkout antes de rodar a CI.
+
+**Limites que continuam:** a homologação real foi local e efêmera;
+não provou paridade com as configurações de um projeto **hospedado**
+em Cloud Supabase, nem cobriu completamente Storage, Vault, Cron,
+Edge Functions, provedores externos, integração com a Vercel ou
+restauração de dados de clientes. Ela também não resolveu a
+divergência operacional dos 27 históricos remotos.
+
 ## 5. Gate para a PR #36 e próximas mudanças de segurança
 
 A PR #36 contém proposta de reforço de revogação RLS ainda em
@@ -194,11 +242,14 @@ rascunho, fora das migrations ativas, com testes em PostgreSQL
 descartável.
 
 **Não promovê-la automaticamente** enquanto ainda houver 27
-migrations remotas não reproduzíveis em um histórico local seguro
-e enquanto não for possível testar sessão real com GoTrue/PostgREST.
-A criação de migration real deve ocorrer usando `supabase migration
-new` com timestamp da própria CLI, depois da revisão da
-estratégia de baseline e de uma janela de mudança aprovada.
+migrations remotas não reproduzíveis em um histórico local seguro.
+A autenticação e a revogação foram testadas em uma instância real
+**local**, mas isso não substitui revisão do histórico executável,
+análise de compatibilidade do projeto hospedado e um plano de
+implantação autorizado. A criação de migration real deve ocorrer
+usando `supabase migration new` com timestamp da própria CLI,
+depois da revisão da estratégia de baseline e de uma janela de
+mudança aprovada.
 
 O eventual acionamento de produção requer autorização específica,
 cópia de segurança e plano de reversão. Este documento **não concede**
@@ -208,14 +259,15 @@ tal autorização.
 
 **Realizado:** consulta somente leitura do ledger, dos nomes e
 hashes dos 27 remotos, catálogo do schema `public`, estado do cron;
-registro do snapshot sem SQL; CI offline e testes de baseline
-descartável; decisão técnica e plano de recuperação.
+registro do snapshot sem SQL; CI offline, testes de baseline
+descartável, **homologação real e temporária de GoTrue/PostgREST
+com três contas fictícias**; decisão técnica e plano de recuperação.
 
 **Não realizado:** alteração de tabelas ou de dados de usuários;
 `db push`, `db reset`, `migration repair`, `migration fetch`,
 escrita no ledger, secrets, Vault, Cron, deploy de funções,
-acesso a dados de clientes, testes com contas reais e criação
-de infraestrutura paga.
+acesso a dados de clientes, testes com contas de clientes de
+produção e criação de infraestrutura hospedada adicional.
 
 ## Referências
 
