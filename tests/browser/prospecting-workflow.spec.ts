@@ -240,25 +240,26 @@ test("CRM ignores historical synchronization errors when loading relevant lead c
 });
 
 
-test("Abertos Agora in the menu opens the same lead search with the correct mode", async ({ page }) => {
+test("Abertos Agora remains only as an option inside Buscar Leads", async ({ page }) => {
   await loginWithMocks(page);
-  await page.locator(".saas-sidebar .saas-nav-item").filter({ hasText: "Abertos Agora" }).click();
+  const workspaceNav = page.locator(".saas-sidebar .saas-nav");
+  await expect(workspaceNav.getByRole("button", { name: "Abertos Agora" })).toHaveCount(0);
 
+  await workspaceNav.getByRole("button", { name: "Buscar Leads" }).click();
   await expect(page.locator(".search-leads-page")).toBeVisible();
-  await expect(page.locator(".open-now-page")).toHaveCount(0);
+  await expect(page.locator(".search-mode-option").filter({ hasText: "Todas as empresas" }))
+    .toHaveAttribute("aria-pressed", "true");
+  await page.locator(".search-mode-option").filter({ hasText: "Abertos Agora" }).click();
   await expect(page.locator(".search-mode-option").filter({ hasText: "Abertos Agora" }))
     .toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator(".saas-sidebar .saas-nav-item").filter({ hasText: "Abertos Agora" }))
+  await expect(workspaceNav.getByRole("button", { name: "Buscar Leads" }))
     .toHaveAttribute("aria-current", "page");
-
   await page.locator(".search-mode-option").filter({ hasText: "Todas as empresas" }).click();
   await expect(page.locator(".search-mode-option").filter({ hasText: "Todas as empresas" }))
     .toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator(".saas-sidebar .saas-nav-item").filter({ hasText: "Buscar Leads" }))
-    .toHaveAttribute("aria-current", "page");
 });
 
-test("open-now mode filters already loaded companies and never performs a second Places request", async ({ page }) => {
+test("open-now filter preserves the same loaded companies and does not repeat the Google search", async ({ page }) => {
   await loginWithMocks(page, { leads: [] });
   await page.evaluate((uid) => {
     localStorage.setItem(
@@ -285,10 +286,15 @@ test("open-now mode filters already loaded companies and never performs a second
     });
   });
 
-  await page.locator(".saas-sidebar .saas-nav-item").filter({ hasText: "Abertos Agora" }).click();
+  await page.locator(".saas-sidebar .saas-nav-item").filter({ hasText: "Buscar Leads" }).click();
   await page.locator(".recent-searches").getByRole("button", { name: /Restaurante/ }).click();
   await expect(page.getByRole("heading", { name: "Restaurante", exact: true })).toBeVisible();
   await expect(page.getByText("Empresa Aberta", { exact: true })).toBeVisible();
+  await expect(page.getByText("Empresa Fechada", { exact: true })).toBeVisible();
+  await expect(page.getByText("Horário Desconhecido", { exact: true })).toBeVisible();
+  expect(searchRequests).toBe(1);
+
+  await page.locator(".search-mode-option").filter({ hasText: "Abertos Agora" }).click();
   await expect(page.getByText("Empresa Fechada", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Horário Desconhecido", { exact: true })).toHaveCount(0);
   await expect(page.locator(".search-mode-count")).toContainText("1 empresa marcada como aberta");
@@ -299,8 +305,10 @@ test("open-now mode filters already loaded companies and never performs a second
   await expect(page.getByText("Horário Desconhecido", { exact: true })).toBeVisible();
   expect(searchRequests).toBe(1);
 
-  await page.locator(".saas-sidebar .saas-nav-item").filter({ hasText: "Abertos Agora" }).click();
+  await page.locator(".search-mode-option").filter({ hasText: "Abertos Agora" }).click();
   await expect(page.getByText("Empresa Fechada", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Empresa Aberta", { exact: true })).toBeVisible();
+  await expect(page.locator(".saas-sidebar .saas-nav-item").filter({ hasText: "Buscar Leads" }))
+    .toHaveAttribute("aria-current", "page");
   expect(searchRequests).toBe(1);
 });
