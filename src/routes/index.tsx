@@ -96,7 +96,6 @@ import type { BusinessSearchResult } from "../features/search-leads/types";
 import { getValidSession, signOut, subscribeAuthChange } from "../lib/auth";
 import { accountLocalStorage, isLegacyWorkspaceOwner } from "../lib/account-storage";
 import { openWhatsAppLink } from "../lib/whatsapp";
-import { summarizeRecentLeadUpdates } from "../lib/lead-update-display";
 import { BRAZIL_STATES, normalizeBrazilianStateCode } from "../lib/brazil-locations";
 import { normalizeLocationText } from "../lib/location";
 
@@ -570,11 +569,6 @@ function LeadFlowApp() {
     }
     return counts;
   }, [leadUpdates]);
-
-  const recentLeadUpdates = useMemo(
-    () => summarizeRecentLeadUpdates(leadUpdates, 6),
-    [leadUpdates],
-  );
 
   function recordActivity(
     leadId: string,
@@ -1582,7 +1576,6 @@ function LeadFlowApp() {
           financialOverview={financialOverview}
           financeLoaded={financeLoaded}
           financeError={financeError}
-          leadUpdates={leadUpdates}
           leads={leads}
           remoteReady={remoteReady}
           remoteError={remoteError}
@@ -1654,64 +1647,6 @@ function LeadFlowApp() {
               {financeError}
             </p>
           )}
-
-          <section className="recent-updates-panel" aria-label="Atualizações recentes">
-            <div className="recent-updates-heading">
-              <div>
-                <span>ATUALIZAÇÕES RECENTES</span>
-                <strong>Sincronização automática</strong>
-              </div>
-              <div className="auto-sync-status">
-                <span className={remoteReady ? "sync-dot active" : "sync-dot"} />
-                <span>{remoteReady ? "Programada" : "Conectando"}</span>
-                <small>A cada 8 horas (lotes)</small>
-              </div>
-            </div>
-
-            {!remoteError && recentLeadUpdates.syncErrorCount > 0 && (
-              <div className="sync-error-summary" role="status">
-                <strong>Falhas antigas de sincronização agrupadas</strong>
-                <span>
-                  {recentLeadUpdates.syncErrorCount} avisos semelhantes no histórico recente.
-                  Seus leads e os dados salvos continuam preservados.
-                </span>
-              </div>
-            )}
-
-            {remoteError ? (
-              <p className="sync-inline-error">{remoteError}</p>
-            ) : recentLeadUpdates.usefulUpdates.length > 0 ? (
-              <div className="recent-updates-list">
-                {recentLeadUpdates.usefulUpdates.map((update) => {
-                  const lead = leads.find((item) => item.id === update.leadId);
-                  return (
-                    <button
-                      key={update.id}
-                      type="button"
-                      className={
-                        update.importance === "high"
-                          ? "recent-update-item important"
-                          : "recent-update-item"
-                      }
-                      onClick={() => {
-                        if (lead) openLeadDetails(lead);
-                      }}
-                    >
-                      <span>
-                        <strong>{update.message}</strong>
-                        <small>
-                          {lead?.company ?? "Lead"} · {formatDateTime(update.createdAt)}
-                        </small>
-                      </span>
-                      {!update.isSeen && <b>Novo</b>}
-                    </button>
-                  );
-                })}
-              </div>
-            ) : recentLeadUpdates.syncErrorCount === 0 ? (
-              <p className="recent-updates-empty">Nenhuma mudança automática detectada ainda.</p>
-            ) : null}
-          </section>
 
           <div className="lead-panel">
             <div className="panel-toolbar">
