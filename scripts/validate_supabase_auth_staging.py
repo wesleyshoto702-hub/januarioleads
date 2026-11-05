@@ -130,8 +130,11 @@ def expect_rows(request, resource: str, token: str, expected: int,
 def require_insert(request, resource: str, token: str, payload: dict) -> dict:
     status, data = request("POST", f"/rest/v1/{resource}?select=*", body=payload,
                            token=token)
-    require(status in (200, 201) and isinstance(data, list) and len(data) == 1,
-            f"{resource}: authorized insert failed ({status})")
+    if status not in (200, 201) or not isinstance(data, list) or len(data) != 1:
+        code = data.get("code", "unknown") if isinstance(data, dict) else "unknown"
+        # Print only the PostgREST/PostgreSQL error code; never response bodies,
+        # credentials or row payloads to CI logs.
+        raise IntegrationFailure(f"{resource}: authorized insert failed ({status}; code={code})")
     return data[0]
 
 
@@ -202,6 +205,9 @@ def validate(stack: Path, candidate: Path) -> None:
     psql(container, (REPO / "supabase/baseline/20261103-public.sql").read_text())
     psql(container, (REPO / "supabase/migrations/"
                      "20261103220000_allow_presence_site_rate_limit.sql").read_text())
+    # PostgREST started before tables existed; refresh its schema cache after
+    # restoring the database and privilege metadata.
+    psql(container, "NOTIFY pgrst, 'reload schema'; SELECT pg_sleep(1);")
     print("PASS: public schema baseline + approved presence_site delta loaded locally.")
 
     psql(container, "INSERT INTO public.private_access(user_id) VALUES "
