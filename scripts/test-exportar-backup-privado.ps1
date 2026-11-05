@@ -17,11 +17,11 @@ function global:supabase {
   }
   # Asserts target flags for both supported major versions. Never call real Supabase.
   if ($global:CliVersao.StartsWith("3.") -and
-      ($args -notcontains "--remote" -or $args -contains "--linked")) {
+      ($args -notcontains "--remote=czkazbianiflhldenhcj" -or $args -contains "--linked")) {
     throw "UNSAFE: CLI v3 requires explicit --remote"
   }
   if ($global:CliVersao.StartsWith("2.") -and
-      ($args -notcontains "--linked" -or $args -contains "--remote")) {
+      ($args -notcontains "--linked" -or $args -contains "--remote=czkazbianiflhldenhcj")) {
     throw "UNSAFE: CLI v2 requires explicit --linked"
   }
   if ($args -contains "--data-only" -and
