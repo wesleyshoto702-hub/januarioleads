@@ -28,6 +28,11 @@ for sql in supabase/tests/platform-fixture.sql supabase/baseline/20261103-public
   docker_local exec -i "$container" psql -X -v ON_ERROR_STOP=1 -U postgres < "$sql"
 done
 
+# Compare only the disposable restored schema catalog to sanitized read-only
+# production metadata; no real customer data or remote database connection.
+docker_local exec -i "$container" psql -X -v ON_ERROR_STOP=1 -U postgres \
+  < supabase/tests/public-schema-inventory-contract.sql
+
 # Proposed allowlist-revocation rules are deliberately stored outside
 # supabase/migrations. They are evaluated ONLY against this disposable
 # PostgreSQL container, never against production or a linked project.
