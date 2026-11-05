@@ -424,6 +424,93 @@
       }
     ],
     "functions": 4,
-    "triggers": 2
+    "triggers": 2,
+    "columns": [
+      {
+        "table_name": "api_request_rate_limit",
+        "columns": 5,
+        "column_fingerprint": "117e712f62ccdffbfa1789ba24ce5376"
+      },
+      {
+        "table_name": "business_enrichment_facts",
+        "columns": 18,
+        "column_fingerprint": "3d591c6eaaef69e003a59df00bd5ee75"
+      },
+      {
+        "table_name": "business_enrichment_runs",
+        "columns": 28,
+        "column_fingerprint": "4a14b3f3474b3236ce4d02d3e865bf3c"
+      },
+      {
+        "table_name": "business_enrichment_sources",
+        "columns": 25,
+        "column_fingerprint": "c84093660a62f681e3029cb86bd09109"
+      },
+      {
+        "table_name": "lead_activities",
+        "columns": 8,
+        "column_fingerprint": "080ba203ac0474f7d813dd75eaaa76fd"
+      },
+      {
+        "table_name": "lead_payments",
+        "columns": 9,
+        "column_fingerprint": "2048b09e73f6f58a77cc3492f57c697e"
+      },
+      {
+        "table_name": "lead_updates",
+        "columns": 13,
+        "column_fingerprint": "de4b64d51bb859027da7f773372cd007"
+      },
+      {
+        "table_name": "leads",
+        "columns": 58,
+        "column_fingerprint": "04dccbd7227b68664960da535bd023ae"
+      },
+      {
+        "table_name": "open_now_niche_cache",
+        "columns": 17,
+        "column_fingerprint": "a461eab07e94f47e257edaea46fdeb3e"
+      },
+      {
+        "table_name": "open_now_refresh_guard",
+        "columns": 5,
+        "column_fingerprint": "e6eb5860c73b9ef57b633c3051be616b"
+      },
+      {
+        "table_name": "places_search_cache",
+        "columns": 10,
+        "column_fingerprint": "ea5b57b7f061d14424262949d13d6d1d"
+      },
+      {
+        "table_name": "private_access",
+        "columns": 2,
+        "column_fingerprint": "e3375ed6e665196d1938d564783ba312"
+      },
+      {
+        "table_name": "prompt_visual_reference_assets",
+        "columns": 12,
+        "column_fingerprint": "dc9b02d23ddc19d1a0b384cec25ffa09"
+      },
+      {
+        "table_name": "prompt_visual_reference_sets",
+        "columns": 10,
+        "column_fingerprint": "504a869145ee6ac7afe17e45bf42c742"
+      },
+      {
+        "table_name": "prompt_visual_references",
+        "columns": 24,
+        "column_fingerprint": "6ff6a7d4a12fa2998154b3b2bdffadb9"
+      },
+      {
+        "table_name": "site_previews",
+        "columns": 10,
+        "column_fingerprint": "5fdc053d03b0d3d498069afe1999adf5"
+      },
+      {
+        "table_name": "sync_internal_config",
+        "columns": 3,
+        "column_fingerprint": "6adb3de3822da8f7c91e1a734c837e2a"
+      }
+    ]
   }
 }
