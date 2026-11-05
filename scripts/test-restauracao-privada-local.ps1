@@ -8,7 +8,9 @@ $SenhaAnterior = [Environment]::GetEnvironmentVariable("PGPASSWORD", "Process")
 
 function global:docker {
   $global:LASTEXITCODE = 0
-  if ($global:PortaInsegura) {
+  if ($global:PortasMock) {
+    Write-Output $global:PortasMock
+  } elseif ($global:PortaInsegura) {
     Write-Output "postgres:17|0.0.0.0:54322->5432/tcp"
   } else {
     Write-Output "supabase/postgres:17.6.1.084|127.0.0.1:54322->5432/tcp"
@@ -84,6 +86,21 @@ try {
   ExigirBloqueio { & $Roteiro @Argumentos } "porta publicada fora do loopback"
   $global:PortaInsegura = $false
 
+  foreach ($Portas in @(
+    "supabase/postgres:17|127.0.0.1:54322->5432/tcp, 0.0.0.0:54323->5432/tcp",
+    "supabase/postgres:17|127.0.0.1:54322->5432/tcp, [::]:54323->5432/tcp",
+    "untrusted/supabase/postgres:17|127.0.0.1:54322->5432/tcp"
+  )) {
+    $global:PortasMock = $Portas
+    ExigirBloqueio { & $Roteiro @Argumentos } "publicacao adicional ou imagem nao reconhecida"
+  }
+  $global:PortasMock = @(
+    "supabase/postgres:17|127.0.0.1:54322->5432/tcp",
+    "supabase/postgres:17|0.0.0.0:54322->5432/tcp"
+  )
+  ExigirBloqueio { & $Roteiro @Argumentos } "containers ambiguos"
+  $global:PortasMock = $null
+
   $global:BloquearPreflight = $true
   ExigirBloqueio { & $Roteiro @Argumentos } "stack nao vazia"
   $global:BloquearPreflight = $false
@@ -120,7 +137,7 @@ try {
   Remove-Item -LiteralPath $Raiz -Recurse -Force -ErrorAction SilentlyContinue
   Remove-Item function:\psql -ErrorAction SilentlyContinue
   Remove-Item function:\docker -ErrorAction SilentlyContinue
-  foreach ($Chave in @("PortaInsegura","BloquearPreflight","FalharRestore","BloquearPostcheck")) {
+  foreach ($Chave in @("PortasMock","PortaInsegura","BloquearPreflight","FalharRestore","BloquearPostcheck")) {
     Remove-Variable -Name $Chave -Scope Global -ErrorAction SilentlyContinue
   }
 }

@@ -56,9 +56,9 @@ if (-not (Get-Command psql -ErrorAction SilentlyContinue) -or
 $Containers = @(& docker ps --filter "publish=54322" --format "{{.Image}}|{{.Ports}}" 2>$null)
 if ($LASTEXITCODE -ne 0) { throw "BLOQUEADO: nao foi possivel conferir os containers." }
 $Validos = @($Containers | Where-Object {
-  $_ -match 'supabase/postgres' -and $_ -match '127\.0\.0\.1:54322->5432/tcp'
+  $_ -match '^(?:public\.ecr\.aws/)?supabase/postgres:[^|]+\|127\.0\.0\.1:54322->5432/tcp$'
 })
-if ($Validos.Count -ne 1) {
+if ($Containers.Count -ne 1 -or $Validos.Count -ne 1) {
   throw "BLOQUEADO: exige Supabase PostgreSQL em 127.0.0.1:54322 (somente loopback)."
 }
 
