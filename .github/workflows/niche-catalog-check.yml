@@ -40,5 +40,9 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+      - name: Auditar metadados de migrations e integridade da baseline, sem rede
+        run: |
+          python3 scripts/audit_migration_reconciliation.py
+          python3 -m unittest discover -s scripts -p "test_migration_reconciliation.py" -v
       - name: Restaurar banco descartável e testar RLS
         run: bash scripts/test-database-baseline.sh
