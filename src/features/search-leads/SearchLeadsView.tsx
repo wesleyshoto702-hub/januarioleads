@@ -849,6 +849,10 @@ export function SearchLeadsView({
     pageToken?: string,
     append = false,
   ) {
+    // A fresh niche search starts with all results. The "Abertos Agora"
+    // filter is offered only after the user sees the fetched companies.
+    // Loading another page retains the selected filter.
+    if (!append) onModeChange("all");
     // A user-initiated search takes precedence over a pending cache refresh.
     hasActiveSearchRef.current = true;
     const requestId = ++searchRequestIdRef.current;
@@ -1071,14 +1075,10 @@ export function SearchLeadsView({
               Encontre empresas em {(selectedCity ?? cityInput.trim()) || searchLocation.city}
             </h1>
             <p className="subtitle">
-              {mode === "open"
-                ? "Encontre empresas marcadas como abertas na última consulta, escolhendo cidade e nicho."
-                : "Pesquise empresas em qualquer município do Brasil: selecione a UF, a cidade e o nicho."}
+              Pesquise empresas em qualquer município do Brasil: selecione a UF, a cidade e o nicho.
             </p>
           </div>
         </div>
-
-        <SearchModeSwitcher mode={mode} onModeChange={onModeChange} />
 
         <div className="search-location-panel">
           <label className="search-location-field">
@@ -1232,7 +1232,7 @@ export function SearchLeadsView({
             }
             onClick={startSearch}
           >
-            {loading ? "Buscando empresas..." : mode === "open" ? "Buscar empresas abertas" : "Buscar leads"}
+            {loading ? "Buscando empresas..." : "Buscar leads"}
             {!loading && <ArrowRight size={17} />}
           </button>
         </div>
@@ -1260,6 +1260,7 @@ export function SearchLeadsView({
         </div>
       </div>
 
+      {/* Choose the open-now filter only after the niche search has returned. */}
       <SearchModeSwitcher mode={mode} onModeChange={onModeChange} />
       {mode === "open" && (
         <p className="search-mode-count" role="status">

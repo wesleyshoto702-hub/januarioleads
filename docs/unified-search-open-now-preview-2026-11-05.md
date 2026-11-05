@@ -5,10 +5,13 @@ Implementação inicial da navegação unificada, 05/11/2026.
 ## Como funciona
 
 - A barra lateral do Workspace mostra somente **Buscar Leads**.
-- Dentro de `SearchLeadsView`, o usuário alterna entre os modos
+- Na tela inicial de Buscar Leads, o usuário escolhe **UF, cidade e um
+  nicho** e realiza a busca. **Abertos Agora não aparece nessa etapa**.
+- Somente após carregar os resultados, o usuário pode alternar entre os modos
   **Todas as empresas** e **Abertos Agora**; o item **Buscar Leads**
   permanece ativo no menu nos dois modos.
-- Nos dois modos a pesquisa é por **UF, cidade e um segmento**.
+- Cada pesquisa nova começa mostrando **Todas as empresas**; carregar páginas
+  adicionais respeita o filtro selecionado.
 - A busca de empresas utiliza a função `search-places` **já existente**;
   nenhuma solicitação extra é feita somente para alternar o modo.
 - **Todas as empresas** mostra os registros da pesquisa, inclusive
@@ -37,7 +40,8 @@ Implementação inicial da navegação unificada, 05/11/2026.
 
 ## Verificação
 
-- Testes que confirmam um único item Buscar Leads no menu e alternância dos dois modos internamente.
+- Testes que confirmam que Abertos Agora fica oculto durante a escolha do nicho,
+  aparece somente após uma busca e continua dentro de Buscar Leads.
 - Teste de resultados abertos, fechados e sem informação, garantindo
   que a mudança de modo **não gera uma segunda requisição à API**.
 - Testes já existentes de pesquisa, CRM, tipos, build e responsividade.
