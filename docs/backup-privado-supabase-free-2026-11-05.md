@@ -53,7 +53,8 @@ Isso mantém os custos de hospedagem do Supabase no plano Free.
    ```
 
    O auxiliar identifica a versão da Supabase CLI: na **v2** usa
-   `--linked` e na **v3** usa `--remote` em cada exportação. A v3
+   `--linked` e na **v3** usa `--remote=czkazbianiflhldenhcj`
+   em cada exportação, fixando o projeto de destino. A v3
    tornou comandos de banco locais por padrão em novembro de 2026;
    executar `db dump` sem indicar explicitamente o alvo pode gerar
    uma cópia do banco **errado**. Versões principais fora de 2 e 3
@@ -68,7 +69,7 @@ Isso mantém os custos de hospedagem do Supabase no plano Free.
    essa condição deve ser conferida pelo proprietário.
 5. A CLI executa três operações de **exportação, sem escrita no
    banco remoto** (o script troca `ALVO` por `--linked` na v2 ou
-   `--remote` na v3):
+   `--remote=czkazbianiflhldenhcj` na v3):
 
    - `supabase db dump ALVO --role-only --file ...`
    - `supabase db dump ALVO --file ...`
