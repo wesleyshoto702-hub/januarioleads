@@ -78,7 +78,7 @@ BEGIN
         ordinal_position::text || '|' || column_name || '|' ||
         data_type || '|' || udt_name || '|' || is_nullable || '|' ||
         is_identity || '|' || is_generated,
-        E'\\n' ORDER BY ordinal_position
+        chr(10) ORDER BY ordinal_position
       )) AS fingerprint
     FROM information_schema.columns WHERE table_schema='public'
     GROUP BY table_name
