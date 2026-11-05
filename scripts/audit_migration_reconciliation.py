@@ -129,6 +129,22 @@ def list_versioned_files(directory: Path, pattern: re.Pattern) -> dict[str, str]
     return found
 
 
+def check_baseline_integrity(baseline_manifest: dict, baseline_sql: bytes) -> None:
+    """Validate the immutable public-only baseline before tests or future changes."""
+    require(baseline_manifest.get("schema") == "public", "Baseline must be public schema only")
+    require(baseline_manifest.get("tables") == 17 and
+            baseline_manifest.get("policies") == 38 and
+            baseline_manifest.get("functions") == 4, "Baseline manifest inventory drift")
+    require(baseline_manifest.get("historical_migration_boundary") == "20261103181928",
+            "Unexpected baseline migration boundary")
+    reference_hash = baseline_manifest.get("sha256")
+    require(isinstance(reference_hash, str) and re.fullmatch(r"[a-f0-9]{64}", reference_hash) is not None,
+            "Invalid baseline hash")
+    actual_hash = hashlib.sha256(baseline_sql).hexdigest()
+    require(actual_hash == reference_hash,
+            "Baseline SHA-256 mismatch: do not modify the original schema snapshot")
+
+
 def audit_repository(root: Path = ROOT) -> dict:
     ledger = read_json(root / LEDGER)
     manifest = read_json(root / MANIFEST)
@@ -142,18 +158,7 @@ def audit_repository(root: Path = ROOT) -> dict:
     counts = compare_history(ledger, manifest, local, archives)
 
     baseline_manifest = read_json(root / SCHEMA_MANIFEST)
-    require(baseline_manifest.get("schema") == "public", "Baseline must be public schema only")
-    require(baseline_manifest.get("tables") == 17 and
-            baseline_manifest.get("policies") == 38 and
-            baseline_manifest.get("functions") == 4, "Baseline manifest inventory drift")
-    require(baseline_manifest.get("historical_migration_boundary") == "20261103181928",
-            "Unexpected baseline migration boundary")
-    reference_hash = baseline_manifest.get("sha256")
-    require(isinstance(reference_hash, str) and re.fullmatch(r"[a-f0-9]{64}", reference_hash) is not None,
-            "Invalid baseline hash")
-    actual_hash = hashlib.sha256((root / SCHEMA_SQL).read_bytes()).hexdigest()
-    require(actual_hash == reference_hash,
-            "Baseline SHA-256 mismatch: do not modify the original schema snapshot")
+    check_baseline_integrity(baseline_manifest, (root / SCHEMA_SQL).read_bytes())
     counts["baseline_sha256_verified"] = True
     return counts
 
