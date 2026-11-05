@@ -13,6 +13,7 @@ import {
 import type { LeadUpdateRecord, PersistedLead } from "../../features/leads/remote-leads";
 import type { OpportunityRecord } from "../../features/opportunities/types";
 import { formatCurrency } from "../../features/lead-finance/finance";
+import { summarizeRecentLeadUpdates } from "../../lib/lead-update-display";
 import {
   crmToday,
   getLeadActionSummary,
@@ -85,6 +86,7 @@ export function DashboardView({
   const conversion =
     workedContacts > 0 ? Math.round((counts.accepted / workedContacts) * 100) : null;
   const leadById = new Map(leads.map((lead) => [lead.id, lead]));
+  const recentUpdates = summarizeRecentLeadUpdates(leadUpdates, 7);
   const topOpportunities = [...opportunities]
     .filter((item) => !item.stale)
     .sort((a, b) => b.score - a.score)
@@ -274,7 +276,16 @@ export function DashboardView({
             </p>
           ) : (
             <div className="dashboard-feed">
-              {leadUpdates.slice(0, 7).map((update) => {
+              {recentUpdates.syncErrorCount > 0 && (
+                <div className="sync-error-summary" role="status">
+                  <strong>Falhas anteriores na atualização de dados públicos</strong>
+                  <span>
+                    {recentUpdates.syncErrorCount} avisos semelhantes foram agrupados.
+                    Os registros dos seus leads continuam salvos.
+                  </span>
+                </div>
+              )}
+              {recentUpdates.usefulUpdates.map((update) => {
                 const lead = leadById.get(update.leadId);
                 return (
                   <button

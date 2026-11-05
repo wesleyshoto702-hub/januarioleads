@@ -96,6 +96,7 @@ import type { BusinessSearchResult } from "../features/search-leads/types";
 import { getValidSession, signOut, subscribeAuthChange } from "../lib/auth";
 import { accountLocalStorage, isLegacyWorkspaceOwner } from "../lib/account-storage";
 import { openWhatsAppLink } from "../lib/whatsapp";
+import { summarizeRecentLeadUpdates } from "../lib/lead-update-display";
 import { BRAZIL_STATES, normalizeBrazilianStateCode } from "../lib/brazil-locations";
 import { normalizeLocationText } from "../lib/location";
 
@@ -564,13 +565,16 @@ function LeadFlowApp() {
   const unseenUpdatesByLead = useMemo(() => {
     const counts = new Map<string, number>();
     for (const update of leadUpdates) {
-      if (update.isSeen) continue;
+      if (update.isSeen || update.changeType === "sync_error") continue;
       counts.set(update.leadId, (counts.get(update.leadId) ?? 0) + 1);
     }
     return counts;
   }, [leadUpdates]);
 
-  const recentLeadUpdates = useMemo(() => leadUpdates.slice(0, 6), [leadUpdates]);
+  const recentLeadUpdates = useMemo(
+    () => summarizeRecentLeadUpdates(leadUpdates, 6),
+    [leadUpdates],
+  );
 
   function recordActivity(
     leadId: string,
@@ -1659,16 +1663,26 @@ function LeadFlowApp() {
               </div>
               <div className="auto-sync-status">
                 <span className={remoteReady ? "sync-dot active" : "sync-dot"} />
-                <span>{remoteReady ? "Ativada" : "Conectando"}</span>
-                <small>A cada 8 horas</small>
+                <span>{remoteReady ? "Programada" : "Conectando"}</span>
+                <small>A cada 8 horas (lotes)</small>
               </div>
             </div>
 
+            {!remoteError && recentLeadUpdates.syncErrorCount > 0 && (
+              <div className="sync-error-summary" role="status">
+                <strong>Falhas antigas de sincronização agrupadas</strong>
+                <span>
+                  {recentLeadUpdates.syncErrorCount} avisos semelhantes no histórico recente.
+                  Seus leads e os dados salvos continuam preservados.
+                </span>
+              </div>
+            )}
+
             {remoteError ? (
               <p className="sync-inline-error">{remoteError}</p>
-            ) : recentLeadUpdates.length > 0 ? (
+            ) : recentLeadUpdates.usefulUpdates.length > 0 ? (
               <div className="recent-updates-list">
-                {recentLeadUpdates.map((update) => {
+                {recentLeadUpdates.usefulUpdates.map((update) => {
                   const lead = leads.find((item) => item.id === update.leadId);
                   return (
                     <button
@@ -1694,9 +1708,9 @@ function LeadFlowApp() {
                   );
                 })}
               </div>
-            ) : (
+            ) : recentLeadUpdates.syncErrorCount === 0 ? (
               <p className="recent-updates-empty">Nenhuma mudança automática detectada ainda.</p>
-            )}
+            ) : null}
           </section>
 
           <div className="lead-panel">
