@@ -724,3 +724,136 @@
     transition: none;
   }
 }
+
+
+/* A single low-cost prospecting surface for standard and open-now results. */
+.saas-main .search-mode-panel {
+  display: grid;
+  gap: 12px;
+  margin: 0 0 18px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--saas-card-bg, var(--surface));
+  box-shadow: var(--saas-elevated-shadow);
+}
+
+.saas-main .search-mode-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 5px 16px;
+}
+
+.saas-main .search-mode-heading > span {
+  color: var(--faint);
+  font-size: 10px;
+  font-weight: 780;
+  letter-spacing: .09em;
+}
+
+.saas-main .search-mode-heading > p {
+  margin: 0;
+  color: var(--faint);
+  font-size: 12px;
+}
+
+.saas-main .search-mode-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.saas-main .search-mode-option {
+  display: flex;
+  align-items: center;
+  text-align: left;
+  gap: 12px;
+  min-width: 0;
+  min-height: 82px;
+  padding: 13px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+
+.saas-main .search-mode-option > svg:first-child {
+  flex: 0 0 auto;
+  color: var(--faint);
+}
+
+.saas-main .search-mode-option > span {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.saas-main .search-mode-option strong {
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.saas-main .search-mode-option small {
+  color: var(--faint);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.saas-main .search-mode-option.selected {
+  border-color: color-mix(in srgb, var(--primary) 72%, var(--border));
+  background: color-mix(in srgb, var(--primary) 9%, var(--surface));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 14%, transparent);
+}
+
+.saas-main .search-mode-option.selected > svg:first-child,
+.saas-main .search-mode-check {
+  color: var(--primary);
+}
+
+.saas-main .search-mode-check {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.saas-main .search-mode-option:hover {
+  border-color: color-mix(in srgb, var(--primary) 54%, var(--border));
+}
+
+.saas-main .search-mode-option:focus-visible {
+  outline: 3px solid var(--primary-soft);
+  outline-offset: 2px;
+}
+
+.saas-main .search-mode-note {
+  margin: 0;
+  color: var(--faint);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.saas-main .search-mode-count {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: -5px 0 16px;
+  padding: 11px 13px;
+  background: color-mix(in srgb, var(--primary) 7%, var(--surface));
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.saas-main .search-mode-count svg { flex: 0 0 auto; color: var(--primary); }
+.saas-main .search-mode-count strong { font-weight: 760; }
+
+@media (max-width: 620px) {
+  .saas-main .search-mode-panel { padding: 12px; }
+  .saas-main .search-mode-options { grid-template-columns: minmax(0, 1fr); }
+  .saas-main .search-mode-option { min-height: 68px; }
+  .saas-main .search-mode-option strong { font-size: 14px; }
+}
