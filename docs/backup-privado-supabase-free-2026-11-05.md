@@ -91,7 +91,7 @@ Isso mantém os custos de hospedagem do Supabase no plano Free.
    pasta criada pelo exportador:
 
    ```powershell
-   .\\scripts\\verificar-integridade-backup-privado.ps1 -PastaBackup "E:\\Backups-Criptografados\\Januario-Leads-Privado-..."
+   .\scripts\verificar-integridade-backup-privado.ps1 -PastaBackup "E:\Backups-Criptografados\Januario-Leads-Privado-..."
    ```
 
    A verificação devolve `PASS` apenas se os três SQLs corresponderem
