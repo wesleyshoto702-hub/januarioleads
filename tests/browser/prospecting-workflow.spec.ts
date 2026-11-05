@@ -238,3 +238,69 @@ test("CRM ignores historical synchronization errors when loading relevant lead c
     new URL(url).searchParams.get("change_type") === "neq.sync_error",
   )).toBe(true);
 });
+
+
+test("Abertos Agora in the menu opens the same lead search with the correct mode", async ({ page }) => {
+  await loginWithMocks(page);
+  await page.locator(".saas-sidebar .saas-nav-item").filter({ hasText: "Abertos Agora" }).click();
+
+  await expect(page.locator(".search-leads-page")).toBeVisible();
+  await expect(page.locator(".open-now-page")).toHaveCount(0);
+  await expect(page.locator(".search-mode-option").filter({ hasText: "Abertos Agora" }))
+    .toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".saas-sidebar .saas-nav-item").filter({ hasText: "Abertos Agora" }))
+    .toHaveAttribute("aria-current", "page");
+
+  await page.locator(".search-mode-option").filter({ hasText: "Todas as empresas" }).click();
+  await expect(page.locator(".search-mode-option").filter({ hasText: "Todas as empresas" }))
+    .toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".saas-sidebar .saas-nav-item").filter({ hasText: "Buscar Leads" }))
+    .toHaveAttribute("aria-current", "page");
+});
+
+test("open-now mode filters already loaded companies and never performs a second Places request", async ({ page }) => {
+  await loginWithMocks(page, { leads: [] });
+  await page.evaluate((uid) => {
+    localStorage.setItem(
+      `januarioleads:workspace:v2:${uid}:leadflow:recent-searches`,
+      JSON.stringify([{ segment: "Restaurante", city: "Lavras", state: "MG" }]),
+    );
+  }, USER_ID);
+
+  let searchRequests = 0;
+  await page.route("**/functions/v1/search-places", async (route) => {
+    searchRequests += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        results: [
+          { ...business("place-open", "Empresa Aberta"), isOpenNow: true },
+          { ...business("place-closed", "Empresa Fechada"), isOpenNow: false },
+          { ...business("place-unknown", "Horário Desconhecido"), isOpenNow: null },
+        ],
+        nextPageToken: null,
+      }),
+    });
+  });
+
+  await page.locator(".saas-sidebar .saas-nav-item").filter({ hasText: "Abertos Agora" }).click();
+  await page.locator(".recent-searches").getByRole("button", { name: /Restaurante/ }).click();
+  await expect(page.getByRole("heading", { name: "Restaurante", exact: true })).toBeVisible();
+  await expect(page.getByText("Empresa Aberta", { exact: true })).toBeVisible();
+  await expect(page.getByText("Empresa Fechada", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Horário Desconhecido", { exact: true })).toHaveCount(0);
+  await expect(page.locator(".search-mode-count")).toContainText("1 empresa marcada como aberta");
+  expect(searchRequests).toBe(1);
+
+  await page.locator(".search-mode-option").filter({ hasText: "Todas as empresas" }).click();
+  await expect(page.getByText("Empresa Fechada", { exact: true })).toBeVisible();
+  await expect(page.getByText("Horário Desconhecido", { exact: true })).toBeVisible();
+  expect(searchRequests).toBe(1);
+
+  await page.locator(".saas-sidebar .saas-nav-item").filter({ hasText: "Abertos Agora" }).click();
+  await expect(page.getByText("Empresa Fechada", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Empresa Aberta", { exact: true })).toBeVisible();
+  expect(searchRequests).toBe(1);
+});

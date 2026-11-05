@@ -68,7 +68,6 @@ import {
   calculateLeadChance,
   hasEnoughDataForLeadChance,
 } from "../features/lead-chance/lead-chance";
-import { OpenNowNichesView } from "../features/open-now-niches/OpenNowNichesView";
 import {
   DEFAULT_MESSAGE_TEMPLATES,
   messagesForKind,
@@ -86,7 +85,7 @@ import {
   BusinessDetailsModal,
   type BusinessAddResult,
 } from "../features/search-leads/BusinessDetailsModal";
-import { SearchLeadsView } from "../features/search-leads/SearchLeadsView";
+import { SearchLeadsView, type SearchMode } from "../features/search-leads/SearchLeadsView";
 import {
   loadBrazilianMunicipalities,
   resolveMunicipality,
@@ -238,6 +237,7 @@ function LeadFlowApp() {
     financeError,
   } = useLeadWorkspace();
   const [view, setView] = useState<AppView>("dashboard");
+  const [searchMode, setSearchMode] = useState<SearchMode>("all");
   const [leadModal, setLeadModal] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [form, setForm] = useState<LeadForm>(EMPTY_FORM);
@@ -1498,13 +1498,6 @@ function LeadFlowApp() {
     return newLead;
   }
 
-  function addFoundLead(business: BusinessSearchResult, selectedSegment: string) {
-    const duplicate = findBusinessDuplicate(business, leads);
-    if (duplicate) return;
-
-    addLeadLocally(buildFoundLead(business, selectedSegment));
-  }
-
   async function addFoundLeadConfirmed(
     business: BusinessSearchResult,
     selectedSegment: string,
@@ -1555,11 +1548,18 @@ function LeadFlowApp() {
     return { ok: true, leadId: newLead.id };
   }
 
+  function navigateTo(nextView: AppView) {
+    // Both sidebar entries use the same search interface and Places request.
+    if (nextView === "search") setSearchMode("all");
+    if (nextView === "open-now") setSearchMode("open");
+    setView(nextView);
+  }
+
   return (
     <AppShell
       activeView={view}
       theme={theme}
-      onNavigate={setView}
+      onNavigate={navigateTo}
       onToggleTheme={() => setTheme((current) => (current === "light" ? "dark" : "light"))}
       onLogout={async () => {
         try {
@@ -1583,7 +1583,7 @@ function LeadFlowApp() {
           opportunitiesLoading={dashboardOpportunitiesLoading}
           opportunitiesError={dashboardOpportunitiesError}
           onOpenLead={openLeadDetails}
-          onNavigate={setView}
+          onNavigate={navigateTo}
           onShowTodayActions={() => {
             setActionFilter("today");
             setView("leads");
@@ -1830,20 +1830,15 @@ function LeadFlowApp() {
             </div>
           </div>
         </section>
-      ) : view === "search" ? (
+      ) : view === "search" || view === "open-now" ? (
         <SearchLeadsView
           existingLeads={leads}
-          onAddLead={addFoundLeadConfirmed}
-          onPresenceDiscovered={applyPresenceToLead}
-          onMessage={(target) => {
-            setSelectedMessage(null);
-            setMessageLead(target);
+          mode={searchMode}
+          onModeChange={(mode) => {
+            setSearchMode(mode);
+            setView(mode === "open" ? "open-now" : "search");
           }}
-        />
-      ) : view === "open-now" ? (
-        <OpenNowNichesView
-          existingLeads={leads}
-          onAddLead={addFoundLead}
+          onAddLead={addFoundLeadConfirmed}
           onPresenceDiscovered={applyPresenceToLead}
           onMessage={(target) => {
             setSelectedMessage(null);
@@ -1859,7 +1854,7 @@ function LeadFlowApp() {
             setSelectedMessage(null);
             setMessageLead(target);
           }}
-          onGoSearch={() => setView("search")}
+          onGoSearch={() => navigateTo("search")}
         />
       ) : view === "finance" ? (
         <FinanceView

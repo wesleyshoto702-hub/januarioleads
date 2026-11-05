@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
+  Clock3,
   ExternalLink,
   MapPin,
   MessageCircle,
@@ -57,6 +58,8 @@ import {
   persistPlacesSearchSample,
 } from "../opportunities/places-search-cache";
 import { isValidWhatsAppPhone, openWhatsAppLink } from "../../lib/whatsapp";
+
+export type SearchMode = "all" | "open";
 
 export type SearchMessageTarget = {
   id?: string;
@@ -470,6 +473,8 @@ export function SearchLeadsView({
   onAddLead,
   onMessage,
   onPresenceDiscovered,
+  mode,
+  onModeChange,
 }: {
   existingLeads: ExistingLeadIdentity[];
   onAddLead: (
@@ -478,6 +483,8 @@ export function SearchLeadsView({
   ) => Promise<BusinessAddResult>;
   onMessage: (target: SearchMessageTarget) => void;
   onPresenceDiscovered?: (leadId: string, presence: BusinessPresence) => void;
+  mode: SearchMode;
+  onModeChange: (mode: SearchMode) => void;
 }) {
   const initialSearchSession = useMemo(() => loadSearchLeadsSession(), []);
   const initialSearchLocation = useMemo(
@@ -769,8 +776,11 @@ export function SearchLeadsView({
     [results, existingLeads, resultsSegment, resultsLocation],
   );
 
+  // The mode only filters data already returned by Buscar Leads.
+  // Switching modes never calls the Google API or spends an extra request.
   const visibleResults = useMemo(() => {
     const filtered = resultWithExisting.filter((item) =>
+      (mode !== "open" || item.business.isOpenNow === true) &&
       matchesResultFilters(item, resultFilters, leadStatusFilter),
     );
 
@@ -782,7 +792,7 @@ export function SearchLeadsView({
       if (sort === "za") return b.business.name.localeCompare(a.business.name, "pt-BR");
       return (b.business.rating ?? -1) - (a.business.rating ?? -1);
     });
-  }, [resultWithExisting, resultFilters, sort, leadStatusFilter]);
+  }, [resultWithExisting, resultFilters, sort, leadStatusFilter, mode]);
 
   const quickFilterCounts = useMemo(
     () =>
@@ -790,6 +800,7 @@ export function SearchLeadsView({
         SMART_FILTERS.map((preset) => [
           preset.id,
           resultWithExisting.filter((item) =>
+            (mode !== "open" || item.business.isOpenNow === true) &&
             matchesResultFilters(
               item,
               preset.resultFilters,
@@ -798,7 +809,7 @@ export function SearchLeadsView({
           ).length,
         ]),
       ) as Record<SmartFilterId, number>,
-    [resultWithExisting],
+    [resultWithExisting, mode],
   );
 
   const activeSmartFilter =
@@ -814,6 +825,8 @@ export function SearchLeadsView({
 
   const alreadyAddedCount = resultWithExisting.filter((item) => item.alreadyAdded).length;
   const newCount = resultWithExisting.length - alreadyAddedCount;
+  const openCount = resultWithExisting.filter((item) => item.business.isOpenNow === true).length;
+  const unknownHoursCount = resultWithExisting.filter((item) => item.business.isOpenNow === null).length;
 
   function clearResultFilters() {
     setResultFilters(DEFAULT_RESULT_FILTERS);
@@ -1058,10 +1071,14 @@ export function SearchLeadsView({
               Encontre empresas em {(selectedCity ?? cityInput.trim()) || searchLocation.city}
             </h1>
             <p className="subtitle">
-              Pesquise empresas em qualquer município do Brasil: selecione a UF, a cidade e o nicho.
+              {mode === "open"
+                ? "Encontre empresas marcadas como abertas na última consulta, escolhendo cidade e nicho."
+                : "Pesquise empresas em qualquer município do Brasil: selecione a UF, a cidade e o nicho."}
             </p>
           </div>
         </div>
+
+        <SearchModeSwitcher mode={mode} onModeChange={onModeChange} />
 
         <div className="search-location-panel">
           <label className="search-location-field">
@@ -1215,7 +1232,7 @@ export function SearchLeadsView({
             }
             onClick={startSearch}
           >
-            {loading ? "Buscando empresas..." : "Buscar leads"}
+            {loading ? "Buscando empresas..." : mode === "open" ? "Buscar empresas abertas" : "Buscar leads"}
             {!loading && <ArrowRight size={17} />}
           </button>
         </div>
@@ -1242,6 +1259,20 @@ export function SearchLeadsView({
           </p>
         </div>
       </div>
+
+      <SearchModeSwitcher mode={mode} onModeChange={onModeChange} />
+      {mode === "open" && (
+        <p className="search-mode-count" role="status">
+          <Clock3 size={15} aria-hidden="true" />
+          <span>
+            <strong>{openCount} {openCount === 1 ? "empresa marcada como aberta" : "empresas marcadas como abertas"}</strong>
+            {" "}entre {results.length} {results.length === 1 ? "resultado carregado" : "resultados carregados"}.
+            {unknownHoursCount > 0 && (
+              <> {unknownHoursCount} {unknownHoursCount === 1 ? "empresa está" : "empresas estão"} sem horário confirmado.</>
+            )}
+          </span>
+        </p>
+      )}
 
       {searchNotice && (
         <div className="search-cache-notice" role="status">
@@ -1353,8 +1384,12 @@ export function SearchLeadsView({
       {!loading && visibleResults.length === 0 && !error ? (
         <div className="search-state">
           <Search size={20} />
-          <strong>Nenhuma empresa encontrada</strong>
-          <p>Tente outro segmento ou altere os filtros atuais.</p>
+          <strong>{mode === "open" ? "Nenhuma empresa marcada como aberta nesta pesquisa" : "Nenhuma empresa encontrada"}</strong>
+          <p>
+            {mode === "open"
+              ? "O resultado considera somente empresas sinalizadas como abertas na última busca. Alterne para Todas as empresas sem realizar outra consulta."
+              : "Tente outro segmento ou altere os filtros atuais."}
+          </p>
         </div>
       ) : (
         <div className="business-results">
@@ -1428,6 +1463,56 @@ export function SearchLeadsView({
         />
         );
       })()}
+    </section>
+  );
+}
+
+function SearchModeSwitcher({
+  mode,
+  onModeChange,
+}: {
+  mode: SearchMode;
+  onModeChange: (mode: SearchMode) => void;
+}) {
+  return (
+    <section className="search-mode-panel" aria-label="Escolha o modo da busca">
+      <div className="search-mode-heading">
+        <span>COMO VOCÊ QUER PROSPECTAR?</span>
+        <p>A mesma pesquisa, duas formas de visualizar os resultados.</p>
+      </div>
+      <div className="search-mode-options" role="group" aria-label="Modo de prospecção">
+        <button
+          type="button"
+          className={mode === "all" ? "search-mode-option selected" : "search-mode-option"}
+          aria-pressed={mode === "all"}
+          onClick={() => onModeChange("all")}
+        >
+          <Search size={19} aria-hidden="true" />
+          <span>
+            <strong>Todas as empresas</strong>
+            <small>Veja todos os resultados e o status de funcionamento.</small>
+          </span>
+          {mode === "all" && <Check size={16} className="search-mode-check" aria-hidden="true" />}
+        </button>
+        <button
+          type="button"
+          className={mode === "open" ? "search-mode-option selected" : "search-mode-option"}
+          aria-pressed={mode === "open"}
+          onClick={() => onModeChange("open")}
+        >
+          <Clock3 size={19} aria-hidden="true" />
+          <span>
+            <strong>Abertos Agora</strong>
+            <small>Mostre apenas empresas identificadas como abertas.</small>
+          </span>
+          {mode === "open" && <Check size={16} className="search-mode-check" aria-hidden="true" />}
+        </button>
+      </div>
+      <p className="search-mode-note">
+        {mode === "open"
+          ? "Filtro aplicado aos resultados já carregados. A indicação de aberto vem da última pesquisa e pode mudar; alternar o modo não realiza outra consulta."
+          : "O status de aberto ou fechado aparece nos resultados disponíveis. Mudar o modo não cria uma nova pesquisa."}
+      </p>
     </section>
   );
 }
