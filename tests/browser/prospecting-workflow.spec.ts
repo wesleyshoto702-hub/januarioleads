@@ -251,3 +251,29 @@ test("search results can be filtered and reset locally without new Places reques
   await expect(localSearch).toHaveValue("");
   expect(placesRequests, "Client-side filters must not trigger additional Places requests").toBe(1);
 });
+
+
+test("CRM shows the filtered count and restores all leads with one action", async ({ page }) => {
+  let leadWrites = 0;
+  await loginWithMocks(page, { onLeadWrite: () => { leadWrites += 1; return true; } });
+  await page.getByRole("button", { name: "Meus Leads", exact: true }).first().click();
+  const lead = page.locator(".desktop-table .table-row").filter({ hasText: "Oficina Exemplo" });
+  await expect(lead).toBeVisible();
+
+  await page.getByRole("textbox", { name: "Buscar empresa, nicho, cidade ou UF" }).fill("empresa inexistente");
+  await expect(page.getByText("Exibindo 0 de 1 leads")).toBeVisible();
+  await expect(page.locator(".desktop-table").getByText("Nenhum lead corresponde aos filtros")).toBeVisible();
+
+  await page.getByRole("button", { name: "Limpar todos os filtros" }).click();
+  await expect(lead).toBeVisible();
+  await expect(page.getByText("Exibindo 1 de 1 leads")).toBeVisible();
+  expect(leadWrites, "Filtering must not change existing leads").toBe(0);
+});
+
+test("empty CRM directs the user to find companies without creating mock leads", async ({ page }) => {
+  await loginWithMocks(page, { leads: [] });
+  await page.getByRole("button", { name: "Meus Leads", exact: true }).first().click();
+  await expect(page.locator(".desktop-table").getByText("Seu primeiro lead começa aqui")).toBeVisible();
+  await page.locator(".desktop-table").getByRole("button", { name: "Buscar empresas" }).click();
+  await expect(page.getByRole("heading", { name: /Encontre empresas em/ })).toBeVisible();
+});
