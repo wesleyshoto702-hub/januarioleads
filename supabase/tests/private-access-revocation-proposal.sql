@@ -61,9 +61,7 @@ DO $$ BEGIN
   END IF;
 END $$;
 UPDATE public.places_search_cache SET page_count=2 WHERE location_key='fake-a|mg';
-DO $$ DECLARE affected INTEGER; BEGIN
-  GET DIAGNOSTICS affected = ROW_COUNT;
-  -- The DO above starts a separate statement; check persisted result instead.
+DO $ BEGIN
   IF (SELECT page_count FROM public.places_search_cache WHERE location_key='fake-a|mg') <> 2 THEN
     RAISE EXCEPTION 'Account A cannot update own cached search';
   END IF;
