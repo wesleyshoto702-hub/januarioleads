@@ -42,3 +42,25 @@ jobs:
       - uses: actions/checkout@v4
       - name: Restaurar banco descartável e testar RLS
         run: bash scripts/test-database-baseline.sh
+
+  myhub-sanitized-export:
+    name: Exportar codigo saneado para auditoria externa
+    if: github.event_name == 'pull_request' && github.head_ref == 'chore/temporary-myhub-sanitized-export-20261105'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Preparar arquivos sem segredos nem dados de clientes
+        run: python3 scripts/export-ai-review-snapshot.py
+      - name: Anexar arquivos temporarios para download
+        uses: actions/upload-artifact@v4
+        with:
+          name: myhub-januario-leads-export-sanitizado
+          path: myhub-audit-export/*
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 5
