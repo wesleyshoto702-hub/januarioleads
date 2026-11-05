@@ -92,6 +92,18 @@ class MigrationReconciliationTests(unittest.TestCase):
         with self.assertRaisesRegex(AuditFailure, "RLS disabled"):
             self.check(ledger=ledger)
 
+    def test_missing_column_fingerprint_is_rejected(self):
+        ledger = copy.deepcopy(self.ledger)
+        ledger["public_catalog"]["columns"].pop()
+        with self.assertRaisesRegex(AuditFailure, "column-layout"):
+            self.check(ledger=ledger)
+
+    def test_invalid_column_fingerprint_is_rejected(self):
+        ledger = copy.deepcopy(self.ledger)
+        ledger["public_catalog"]["columns"][0]["column_fingerprint"] = "modified"
+        with self.assertRaisesRegex(AuditFailure, "column-layout fingerprint"):
+            self.check(ledger=ledger)
+
     def test_baseline_hash_tampering_is_rejected(self):
         original = read_json(ROOT / "supabase/baseline/manifest.json")
         baseline = (ROOT / "supabase/baseline/20261103-public.sql").read_bytes()
