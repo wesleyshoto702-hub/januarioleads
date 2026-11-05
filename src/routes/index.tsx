@@ -136,6 +136,13 @@ type MessageLead = {
   followUp?: boolean;
 };
 
+type WhatsAppHandoff = {
+  leadId: string;
+  company: string;
+  templateTitle: string;
+  followUp: boolean;
+};
+
 const SEGMENTS = [
   "Açaiteria",
   "Hamburgueria",
@@ -250,6 +257,7 @@ function LeadFlowApp() {
   const [selectedMessage, setSelectedMessage] = useState<string | null>(null);
   const [messageActionPending, setMessageActionPending] = useState(false);
   const [messageActionError, setMessageActionError] = useState("");
+  const [pendingWhatsAppHandoff, setPendingWhatsAppHandoff] = useState<WhatsAppHandoff | null>(null);
   const [deleteLead, setDeleteLead] = useState<Lead | null>(null);
   const [enrichmentLead, setEnrichmentLead] = useState<Lead | null>(null);
   const [leadDetailsId, setLeadDetailsId] = useState<string | null>(null);
@@ -275,7 +283,8 @@ function LeadFlowApp() {
   useEffect(() => {
     setMessageActionPending(false);
     setMessageActionError("");
-  }, [messageLead?.id, messageLead?.company]);
+    setPendingWhatsAppHandoff(null);
+  }, [messageLead?.id, messageLead?.company, messageLead?.followUp]);
 
   useEffect(() => {
     if (view !== "dashboard" || !remoteReady || dashboardOpportunitiesLoaded) {
@@ -985,46 +994,50 @@ function LeadFlowApp() {
     setDeleteLead(null);
   }
 
-  async function openWhatsApp() {
-    if (!messageLead || messageActionPending) return;
+  function openWhatsApp() {
+    if (!messageLead || messageActionPending || pendingWhatsAppHandoff) return;
 
     const phone = normalizeBrazilianPhone(messageLead.phone);
     if (phone.length !== 12 && phone.length !== 13) {
       setMessageActionError("Este lead não possui um telefone válido para abrir o WhatsApp.");
       return;
     }
-
     if (!activePickerMessage) {
       setMessageActionError("Crie uma mensagem com texto antes de abrir o WhatsApp.");
       return;
     }
 
     const personalized = activePickerMessage.text.replaceAll("{empresa}", messageLead.company);
-
-    setMessageActionPending(true);
     setMessageActionError("");
-
-    // Keep the external-app navigation synchronous with the user's click.
-    // Persistence happens only after the WhatsApp handoff has been triggered.
-    const whatsappOpened = openWhatsAppLink({
-      phone,
-      message: personalized,
-    });
-    if (!whatsappOpened) {
-      setMessageActionPending(false);
-      setMessageActionError(
-        "O navegador bloqueou a abertura do WhatsApp. O status não foi alterado.",
-      );
+    // External navigation must happen synchronously in the user click.
+    // It does NOT prove a message was actually sent.
+    const opened = openWhatsAppLink({ phone, message: personalized });
+    if (!opened) {
+      setMessageActionError("O navegador bloqueou a abertura do WhatsApp. Nenhuma alteração foi registrada.");
       return;
     }
 
     if (!messageLead.id) {
-      setMessageActionPending(false);
+      // A prospect that has not been saved does not have a CRM record to update.
       setMessageLead(null);
       return;
     }
 
-    const currentLead = leads.find((lead) => lead.id === messageLead.id);
+    setPendingWhatsAppHandoff({
+      leadId: messageLead.id,
+      company: messageLead.company,
+      templateTitle: activePickerMessage.title,
+      followUp: Boolean(messageLead.followUp),
+    });
+  }
+
+  async function confirmWhatsAppSent() {
+    if (!pendingWhatsAppHandoff || !messageLead || messageActionPending) return;
+    // Only an explicit user confirmation may update dates, statuses,
+    // scheduled next actions and the CRM history.
+    setMessageActionPending(true);
+    setMessageActionError("");
+    const currentLead = leads.find((lead) => lead.id === pendingWhatsAppHandoff.leadId);
     if (!currentLead) {
       setMessageActionPending(false);
       setMessageActionError(
@@ -1035,7 +1048,7 @@ function LeadFlowApp() {
 
     const today = crmToday();
     const shouldAdvanceToWaiting = currentLead.status === "send_message";
-    const isFollowUp = Boolean(messageLead.followUp) && currentLead.status === "waiting";
+    const isFollowUp = pendingWhatsAppHandoff.followUp && currentLead.status === "waiting";
     const completedInitialContact =
       shouldAdvanceToWaiting && currentLead.nextActionType === "initial_contact";
     const completedScheduledFollowUp = isFollowUp && currentLead.nextActionType === "follow_up";
@@ -1099,23 +1112,25 @@ function LeadFlowApp() {
 
     recordActivity(nextLead.id, {
       type: "whatsapp_opened",
-      title: "WhatsApp aberto",
+      title: "Envio pelo WhatsApp confirmado",
+      description: "O usuário confirmou manualmente o envio da mensagem.",
       metadata: {
-        messageTemplate: activePickerMessage.title,
+        messageTemplate: pendingWhatsAppHandoff.templateTitle,
+        confirmation: "user",
       },
     });
 
     if (isFollowUp) {
       recordActivity(nextLead.id, {
         type: "follow_up",
-        title: "Follow-up realizado",
-        description: "WhatsApp aberto pelo fluxo de follow-up.",
+        title: "Follow-up confirmado",
+        description: "O usuário confirmou que enviou o follow-up pelo WhatsApp.",
         metadata: {
-          messageTemplate: activePickerMessage.title,
+          messageTemplate: pendingWhatsAppHandoff.templateTitle,
           contactDate: today,
         },
       });
-      setFollowUpNotice(`Follow-up registrado para ${nextLead.company}.`);
+      setFollowUpNotice(`Follow-up confirmado para ${nextLead.company}.`);
       window.setTimeout(() => setFollowUpNotice(""), 3200);
     }
 
@@ -1126,7 +1141,7 @@ function LeadFlowApp() {
         description: "Enviar mensagem concluído.",
         metadata: {
           action: "initial_contact",
-          completedBy: "whatsapp_opened",
+          completedBy: "user_confirmed_whatsapp_send",
         },
       });
     }
@@ -1151,7 +1166,7 @@ function LeadFlowApp() {
         metadata: {
           previousStatus: "Enviar mensagem",
           newStatus: "Aguardando",
-          reason: "whatsapp_opened",
+          reason: "user_confirmed_whatsapp_send",
         },
       });
     }
@@ -1171,6 +1186,7 @@ function LeadFlowApp() {
 
     setMessageActionPending(false);
     setMessageActionError("");
+    setPendingWhatsAppHandoff(null);
     setMessageLead(null);
   }
 
@@ -2084,6 +2100,7 @@ function LeadFlowApp() {
         <Modal
           onClose={() => {
             if (messageActionPending) return;
+            setPendingWhatsAppHandoff(null);
             setMessageLead(null);
           }}
           title={messageLead.followUp ? "Fazer follow-up" : "Mandar mensagem"}
@@ -2096,7 +2113,7 @@ function LeadFlowApp() {
               <strong>{messageLead.company}</strong>. A conversa será aberta com o texto preenchido,
               mas nada será enviado automaticamente.
             </p>
-            <div className="message-options">
+            {!pendingWhatsAppHandoff && <div className="message-options">
               {pickerMessages.length === 0 && (
                 <p className="modal-copy">
                   Nenhuma mensagem disponível. Crie uma na seção Mensagens.
@@ -2119,7 +2136,15 @@ function LeadFlowApp() {
                   <p>{template.text.replaceAll("{empresa}", messageLead.company)}</p>
                 </button>
               ))}
-            </div>
+            </div>}
+            {pendingWhatsAppHandoff && (
+              <div className="message-send-confirmation" role="status">
+                <strong>WhatsApp aberto para {pendingWhatsAppHandoff.company}</strong>
+                <p>O JanuarioLeads não consegue verificar se você enviou a mensagem.
+                  Confirme somente depois de enviá-la no WhatsApp. Se não enviou,
+                  escolha "Não enviei" para manter o lead e a próxima ação inalterados.</p>
+              </div>
+            )}
             {messageActionError && (
               <p className="message-action-error" role="status">
                 {messageActionError}
@@ -2129,20 +2154,35 @@ function LeadFlowApp() {
               <button
                 type="button"
                 className="secondary-button"
-                onClick={() => setMessageLead(null)}
+                onClick={() => {
+                  setPendingWhatsAppHandoff(null);
+                  setMessageLead(null);
+                }}
                 disabled={messageActionPending}
               >
-                Cancelar
+                {pendingWhatsAppHandoff ? "Não enviei" : "Cancelar"}
               </button>
-              <button
-                type="button"
-                className="whatsapp-button"
-                onClick={() => void openWhatsApp()}
-                disabled={messageActionPending || !activePickerMessage}
-              >
-                <MessageCircle size={17} />
-                {messageActionPending ? "Atualizando..." : "Abrir no WhatsApp"}
-              </button>
+              {pendingWhatsAppHandoff ? (
+                <button
+                  type="button"
+                  className="whatsapp-button"
+                  onClick={() => void confirmWhatsAppSent()}
+                  disabled={messageActionPending}
+                >
+                  <Check size={17} />
+                  {messageActionPending ? "Registrando..." : "Confirmar envio"}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="whatsapp-button"
+                  onClick={openWhatsApp}
+                  disabled={messageActionPending || !activePickerMessage}
+                >
+                  <MessageCircle size={17} />
+                  Abrir no WhatsApp
+                </button>
+              )}
             </div>
           </div>
         </Modal>

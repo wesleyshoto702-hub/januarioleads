@@ -527,6 +527,8 @@ export function SearchLeadsView({
   const [details, setDetails] = useState<BusinessSearchResult | null>(null);
   const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([]);
   const hasActiveSearchRef = useRef(Boolean(initialSearchSession));
+  // A slower search must never replace results from a newer user request.
+  const searchRequestIdRef = useRef(0);
 
   useEffect(() => {
     // Do not replace the remote last search with an empty default session.
@@ -836,8 +838,13 @@ export function SearchLeadsView({
   ) {
     // A user-initiated search takes precedence over a pending cache refresh.
     hasActiveSearchRef.current = true;
-    if (append) setLoadingMore(true);
-    else setLoading(true);
+    const requestId = ++searchRequestIdRef.current;
+    if (append) {
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+      setLoadingMore(false);
+    }
     setError(null);
     if (!append) setSearchNotice("");
 
@@ -848,6 +855,9 @@ export function SearchLeadsView({
       ...(pageToken ? { pageToken } : {}),
     });
 
+    // Out-of-order network responses must not overwrite the latest search.
+    if (requestId !== searchRequestIdRef.current) return;
+
     if (!response.ok) {
       if (!append && response.code === "QUOTA") {
         const cached = await fetchCachedPlacesSearchSample(
@@ -855,6 +865,7 @@ export function SearchLeadsView({
           segment,
         ).catch(() => null);
 
+        if (requestId !== searchRequestIdRef.current) return;
         if (cached?.results.length) {
           const checkedAt = new Intl.DateTimeFormat("pt-BR", {
             dateStyle: "short",
@@ -1356,9 +1367,9 @@ export function SearchLeadsView({
               onDetails={setDetails}
               onWhatsApp={openWhatsApp}
               onMessage={onMessage}
-              onAdd={(item) => {
-                void onAddLead(withSearchLocation(item, resultsLocation), resultsSegment);
-              }}
+              onAdd={(item) =>
+                onAddLead(withSearchLocation(item, resultsLocation), resultsSegment)
+              }
             />
           ))}
         </div>
@@ -1445,7 +1456,7 @@ function BusinessCard({
   onDetails: (business: BusinessSearchResult) => void;
   onWhatsApp: (business: BusinessSearchResult) => void;
   onMessage: (target: SearchMessageTarget) => void;
-  onAdd: (business: BusinessSearchResult) => void;
+  onAdd: (business: BusinessSearchResult) => Promise<BusinessAddResult>;
 }) {
   const commercialPhone = existingLead?.phone || business.phone || "";
   const normalizedCommercialPhone = normalizeBrazilianPhone(commercialPhone);
@@ -1455,6 +1466,22 @@ function BusinessCard({
   const showPreparedMessageAction =
     canSendPreparedMessage &&
     (!existingLead || existingLead.status === "send_message");
+  const [addingLead, setAddingLead] = useState(false);
+  const [addError, setAddError] = useState("");
+
+  async function addBusiness() {
+    if (addingLead || existingLead) return;
+    setAddingLead(true);
+    setAddError("");
+    try {
+      const result = await onAdd(business);
+      if (!result.ok) setAddError(result.message);
+    } catch {
+      setAddError("Não foi possível adicionar a empresa. Tente novamente.");
+    } finally {
+      setAddingLead(false);
+    }
+  }
 
   return (
     <article className="business-card">
@@ -1576,11 +1603,13 @@ function BusinessCard({
           <button
             type="button"
             className="primary-button compact-button"
-            onClick={() => onAdd(business)}
+            onClick={() => void addBusiness()}
+            disabled={addingLead}
           >
-            Adicionar aos meus leads
+            {addingLead ? "Salvando..." : "Adicionar aos meus leads"}
           </button>
         )}
+        {addError && <p className="business-card-save-error" role="alert">{addError}</p>}
       </div>
     </article>
   );
