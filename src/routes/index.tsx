@@ -536,6 +536,26 @@ function LeadFlowApp() {
     financeByLead,
   ]);
 
+  const hasActiveLeadFilters =
+    search.trim().length > 0 ||
+    statusFilter !== "all" ||
+    actionFilter !== "all" ||
+    financialFilter !== "all" ||
+    segmentFilter !== "all" ||
+    stateFilter !== "all" ||
+    cityFilter !== "all";
+
+  function resetLeadFilters() {
+    setSearch("");
+    setStatusFilter("all");
+    setActionFilter("all");
+    setFinancialFilter("all");
+    setSegmentFilter("all");
+    setStateFilter("all");
+    setCityFilter("all");
+    setSort("recent");
+  }
+
   const actionCounts = useMemo(() => {
     let today = 0;
     let followUp = 0;
@@ -1588,6 +1608,7 @@ function LeadFlowApp() {
           onOpenLead={openLeadDetails}
           onNavigate={setView}
           onShowTodayActions={() => {
+            resetLeadFilters();
             setActionFilter("today");
             setView("leads");
           }}
@@ -1825,6 +1846,17 @@ function LeadFlowApp() {
               ))}
             </div>
 
+            <div className="lead-result-summary">
+              <span role="status" aria-live="polite">
+                Exibindo {visibleLeads.length} de {leads.length} leads
+              </span>
+              {hasActiveLeadFilters && (
+                <button type="button" onClick={resetLeadFilters}>
+                  Limpar todos os filtros
+                </button>
+              )}
+            </div>
+
             <div className="desktop-table">
               <div className="table-head">
                 <span>Empresa · Nicho · Localização</span>
@@ -1852,7 +1884,7 @@ function LeadFlowApp() {
                   />
                 ))
               ) : (
-                <EmptyState onNew={openNewLead} hasLeads={leads.length > 0} />
+                <EmptyState onNew={openNewLead} onBrowse={() => setView("search")} onClearFilters={hasActiveLeadFilters ? resetLeadFilters : undefined} hasLeads={leads.length > 0} />
               )}
             </div>
 
@@ -1876,7 +1908,7 @@ function LeadFlowApp() {
                   />
                 ))
               ) : (
-                <EmptyState onNew={openNewLead} hasLeads={leads.length > 0} />
+                <EmptyState onNew={openNewLead} onBrowse={() => setView("search")} onClearFilters={hasActiveLeadFilters ? resetLeadFilters : undefined} hasLeads={leads.length > 0} />
               )}
             </div>
           </div>
