@@ -1,4 +1,12 @@
 import { normalizeBrazilianStateCode } from "../_shared/brazil-locations.ts";
+import {
+  GooglePlacesQuotaError,
+  isQuotaResponse,
+  shouldAttemptSyncLead,
+  MAX_PLACES_LOOKUPS_PER_RUN,
+  MIN_DETAILS_REQUEST_GAP_MS,
+  MAX_SYNC_WALL_TIME_MS,
+} from "../_shared/sync-policy.ts";
 
 type LeadRow = {
   id: string;
@@ -29,6 +37,9 @@ type LeadRow = {
   instagram_checked_at: string | null;
   instagram_source: string | null;
   instagram_needs_review: boolean;
+  last_synced_at: string | null;
+  last_sync_error: string | null;
+  last_sync_error_at: string | null;
 };
 
 type GoogleText = { text?: string };
@@ -372,13 +383,16 @@ function parsePlace(place: GooglePlace): CurrentPlace {
 }
 
 async function fetchPlaceDetails(apiKey: string, placeId: string) {
-  const delays = [0, 700, 1800];
+  // Never retry 429 immediately: this is a quota signal for the whole batch.
+  // Only retry transport errors or upstream 5xx a small number of times.
+  const delays = [0, 900, 2400];
 
   for (let attempt = 0; attempt < delays.length; attempt += 1) {
     if (delays[attempt] > 0) await sleep(delays[attempt]);
 
+    let response: Response;
     try {
-      const response = await fetch(
+      response = await fetch(
         `https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}?languageCode=pt-BR&regionCode=BR`,
         {
           method: "GET",
@@ -386,34 +400,32 @@ async function fetchPlaceDetails(apiKey: string, placeId: string) {
             "X-Goog-Api-Key": apiKey,
             "X-Goog-FieldMask": FIELD_MASK,
           },
+          signal: AbortSignal.timeout(10_000),
         },
       );
-
-      let payload: GooglePlace;
-      try {
-        payload = (await response.json()) as GooglePlace;
-      } catch {
-        payload = {};
-      }
-
-      if (response.ok) return parsePlace(payload);
-
-      if (
-        response.status !== 429 &&
-        response.status < 500
-      ) {
-        throw new Error(
-          `Google Places returned ${response.status}: ${payload.error?.status ?? "request_failed"}`,
-        );
-      }
-
-      if (attempt === delays.length - 1) {
-        throw new Error(
-          `Google Places returned ${response.status}: ${payload.error?.status ?? "temporary_failure"}`,
-        );
-      }
     } catch (error) {
       if (attempt === delays.length - 1) throw error;
+      continue;
+    }
+
+    let payload: GooglePlace;
+    try {
+      payload = (await response.json()) as GooglePlace;
+    } catch {
+      payload = {};
+    }
+
+    if (response.ok) return parsePlace(payload);
+
+    if (isQuotaResponse(response.status, payload.error?.status)) {
+      throw new GooglePlacesQuotaError();
+    }
+
+    const failure = new Error(
+      `Google Places returned ${response.status}: ${payload.error?.status ?? "request_failed"}`,
+    );
+    if (response.status < 500 || attempt === delays.length - 1) {
+      throw failure;
     }
   }
 
@@ -723,6 +735,11 @@ async function syncOne(apiKey: string, lead: LeadRow) {
       updates: updates.length,
     };
   } catch (error) {
+    // Quota failures are global, not a change or error in this lead.
+    // Do not overwrite last-sync metadata or create a per-lead activity.
+    if (error instanceof GooglePlacesQuotaError) {
+      return { status: "quota" as const, updates: 0 };
+    }
     await recordLeadFailure(lead, error);
     return { status: "failed" as const, updates: 0 };
   }
@@ -761,6 +778,9 @@ async function fetchEligibleLeads(afterId?: string) {
       "instagram_checked_at",
       "instagram_source",
       "instagram_needs_review",
+      "last_synced_at",
+      "last_sync_error",
+      "last_sync_error_at",
     ].join(","),
   );
   params.set("place_id", "not.is.null");
@@ -775,30 +795,6 @@ async function fetchEligibleLeads(afterId?: string) {
   }
 
   return (await response.json()) as LeadRow[];
-}
-
-async function runPool<T>(
-  items: T[],
-  concurrency: number,
-  worker: (item: T) => Promise<void>,
-) {
-  let cursor = 0;
-
-  async function runner() {
-    while (cursor < items.length) {
-      const index = cursor;
-      cursor += 1;
-      await worker(items[index]);
-      await sleep(120);
-    }
-  }
-
-  await Promise.all(
-    Array.from(
-      { length: Math.min(concurrency, items.length) },
-      () => runner(),
-    ),
-  );
 }
 
 Deno.serve(async (request) => {
@@ -823,26 +819,62 @@ Deno.serve(async (request) => {
     updated: 0,
     unchanged: 0,
     failed: 0,
+    skippedFresh: 0,
     updatesCreated: 0,
+    limitReached: false,
+    quotaReached: false,
   };
+  const startedAt = Date.now();
 
   try {
     let afterId: string | undefined;
 
+    // Use a bounded, sequential batch to avoid saturating Google Places
+    // and consuming the entire quota in one scheduled execution.
     for (;;) {
       const leads = await fetchEligibleLeads(afterId);
       if (leads.length === 0) break;
 
-      await runPool(leads, 3, async (lead) => {
+      for (const lead of leads) {
+        if (!shouldAttemptSyncLead(lead)) {
+          summary.skippedFresh += 1;
+          continue;
+        }
+
+        if (
+          summary.processed >= MAX_PLACES_LOOKUPS_PER_RUN ||
+          Date.now() - startedAt >= MAX_SYNC_WALL_TIME_MS
+        ) {
+          summary.limitReached = true;
+          break;
+        }
+
         const result = await syncOne(googleApiKey, lead);
         summary.processed += 1;
-        summary.updatesCreated += result.updates;
 
+        if (result.status === "quota") {
+          summary.quotaReached = true;
+          // One operational warning per invocation, never one notification per lead.
+          console.warn(
+            `[sync-leads] google_places_quota_exhausted attempted=${summary.processed} updated=${summary.updated} failed=${summary.failed}`,
+          );
+          return json({
+            ok: false,
+            code: "GOOGLE_PLACES_QUOTA",
+            message: "Google Places atingiu o limite de consultas. O próximo agendamento tentará novamente.",
+            ...summary,
+          });
+        }
+
+        summary.updatesCreated += result.updates;
         if (result.status === "updated") summary.updated += 1;
         else if (result.status === "unchanged") summary.unchanged += 1;
         else if (result.status === "failed") summary.failed += 1;
-      });
 
+        await sleep(MIN_DETAILS_REQUEST_GAP_MS);
+      }
+
+      if (summary.limitReached) break;
       afterId = leads[leads.length - 1]?.id;
       if (leads.length < 50 || !afterId) break;
     }
