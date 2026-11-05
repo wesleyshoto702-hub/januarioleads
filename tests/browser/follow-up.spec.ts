@@ -123,3 +123,73 @@ test("mobile lead card provides a follow-up action in the old enrichment positio
   await expect(card.getByRole("button", { name: "Fazer follow-up" })).toBeVisible();
   await expect(card.getByRole("button", { name: "Atualizar informações" })).toHaveCount(0);
 });
+
+
+test("opening WhatsApp never updates the CRM until the user confirms actual sending", async ({ page }) => {
+  await page.addInitScript(() => {
+    // The test must not open WhatsApp or contact any external domain.
+    Object.defineProperty(window, "open", {
+      configurable: true,
+      value: () => ({ opener: null }),
+    });
+  });
+  await signInWithMockedData(page);
+  const saved: Array<Record<string, unknown>> = [];
+  await page.route("**/*.supabase.co/rest/v1/leads**", async (route) => {
+    if (route.request().method() !== "POST") return route.fallback();
+    saved.push(JSON.parse(route.request().postData() ?? "{}") as Record<string, unknown>);
+    await route.fulfill({ status: 201, contentType: "application/json", body: "[]" });
+  });
+
+  await page.getByRole("button", { name: "Meus Leads", exact: true }).first().click();
+  const lead = page.locator(".desktop-table .table-row").filter({ hasText: "Oficina Exemplo" });
+  await expect(lead.getByRole("button", { name: "Fazer follow-up" })).toBeVisible();
+  await lead.getByRole("button", { name: "Fazer follow-up" }).click();
+
+  const dialog = page.getByRole("dialog", { name: "Fazer follow-up" });
+  await expect(dialog.getByRole("button", { name: /Follow-up 1/ })).toBeVisible();
+  await dialog.getByRole("button", { name: "Abrir no WhatsApp" }).click();
+  await expect(dialog.getByText("WhatsApp aberto para Oficina Exemplo")).toBeVisible();
+  expect(saved).toHaveLength(0);
+
+  await dialog.getByRole("button", { name: "Não enviei" }).click();
+  await expect(dialog).toHaveCount(0);
+  expect(saved).toHaveLength(0);
+  await expect(lead.getByRole("button", { name: "Fazer follow-up" })).toBeVisible();
+
+  await lead.getByRole("button", { name: "Fazer follow-up" }).click();
+  const again = page.getByRole("dialog", { name: "Fazer follow-up" });
+  await again.getByRole("button", { name: "Abrir no WhatsApp" }).click();
+  await again.getByRole("button", { name: "Confirmar envio" }).click();
+  await expect(again).toHaveCount(0);
+  expect(saved).toHaveLength(1);
+  expect(saved[0]?.["id"]).toBe(WAITING_LEAD.id);
+  expect(saved[0]?.["status"]).toBe("waiting");
+  expect(saved[0]?.["last_contact"]).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+});
+
+test("failed CRM persistence after WhatsApp handoff keeps the confirmation open", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "open", {
+      configurable: true,
+      value: () => ({ opener: null }),
+    });
+  });
+  await signInWithMockedData(page);
+  let savesAttempted = 0;
+  await page.route("**/*.supabase.co/rest/v1/leads**", async (route) => {
+    if (route.request().method() !== "POST") return route.fallback();
+    savesAttempted++;
+    await route.fulfill({ status: 503, contentType: "application/json", body: '{"message":"unavailable"}' });
+  });
+
+  await page.getByRole("button", { name: "Meus Leads", exact: true }).first().click();
+  await page.locator(".desktop-table .table-row").filter({ hasText: "Oficina Exemplo" })
+    .getByRole("button", { name: "Fazer follow-up" }).click();
+  const dialog = page.getByRole("dialog", { name: "Fazer follow-up" });
+  await dialog.getByRole("button", { name: "Abrir no WhatsApp" }).click();
+  await dialog.getByRole("button", { name: "Confirmar envio" }).click();
+  await expect(dialog.getByText(/não foi possível registrar o contato/i)).toBeVisible();
+  expect(savesAttempted).toBeGreaterThan(0);
+  await expect(dialog.getByRole("button", { name: "Confirmar envio" })).toBeEnabled();
+});
