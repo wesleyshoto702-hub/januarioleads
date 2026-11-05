@@ -48,6 +48,21 @@ jobs:
         run: bash scripts/test-database-baseline.sh
 
 
+  private-backup-helper:
+    name: Validar auxiliar de backup PRIVADO com CLI simulada
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verificar script local sem Supabase, banco ou credenciais
+        shell: pwsh
+        run: |
+          ./scripts/test-exportar-backup-privado.ps1
+
   supabase-local-auth-staging:
     name: Homologar Auth real e RLS em Supabase local descartável
     # Run automatically only during the audit PR or explicitly via
