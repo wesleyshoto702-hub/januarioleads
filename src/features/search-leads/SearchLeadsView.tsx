@@ -524,6 +524,8 @@ export function SearchLeadsView({
   const [sort, setSort] = useState<ResultSort>(initialSearchSession?.sort ?? "rating");
   const [leadStatusFilter, setLeadStatusFilter] =
     useState<LeadStatusFilter>(initialSearchSession?.leadStatusFilter ?? "all");
+  // Local-only filtering: it never triggers another Places request.
+  const [resultQuery, setResultQuery] = useState("");
   const [details, setDetails] = useState<BusinessSearchResult | null>(null);
   const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([]);
   const hasActiveSearchRef = useRef(Boolean(initialSearchSession));
@@ -770,9 +772,27 @@ export function SearchLeadsView({
   );
 
   const visibleResults = useMemo(() => {
-    const filtered = resultWithExisting.filter((item) =>
-      matchesResultFilters(item, resultFilters, leadStatusFilter),
-    );
+    const normalizedQuery = normalizeSearchText(resultQuery.trim());
+    const phoneQuery = resultQuery.replace(/\D/g, "");
+    const filtered = resultWithExisting.filter((item) => {
+      if (!matchesResultFilters(item, resultFilters, leadStatusFilter)) return false;
+      if (!normalizedQuery) return true;
+      const business = item.business;
+      const searchableFields = [
+        business.name,
+        business.address,
+        business.neighborhood,
+        business.city,
+        business.instagramUsername,
+      ];
+      return (
+        searchableFields.some((value) =>
+          value && normalizeSearchText(value).includes(normalizedQuery),
+        ) ||
+        (phoneQuery.length > 0 &&
+          Boolean(business.phone?.replace(/\D/g, "").includes(phoneQuery)))
+      );
+    });
 
     return [...filtered].sort((a, b) => {
       if (sort === "chance-desc") return b.chance.score - a.chance.score;
@@ -782,7 +802,7 @@ export function SearchLeadsView({
       if (sort === "za") return b.business.name.localeCompare(a.business.name, "pt-BR");
       return (b.business.rating ?? -1) - (a.business.rating ?? -1);
     });
-  }, [resultWithExisting, resultFilters, sort, leadStatusFilter]);
+  }, [resultWithExisting, resultFilters, sort, leadStatusFilter, resultQuery]);
 
   const quickFilterCounts = useMemo(
     () =>
@@ -818,6 +838,11 @@ export function SearchLeadsView({
   function clearResultFilters() {
     setResultFilters(DEFAULT_RESULT_FILTERS);
     setLeadStatusFilter("all");
+  }
+
+  function clearAllResultFilters() {
+    clearResultFilters();
+    setResultQuery("");
   }
 
   function applySmartFilter(preset: SmartFilterPreset) {
@@ -960,6 +985,7 @@ export function SearchLeadsView({
 
   function startSearch() {
     if (!selectedSegment || !selectedCity || !selectedState) return;
+    setResultQuery("");
     const location: SearchLocation = {
       city: selectedCity,
       state: selectedState.code,
@@ -970,6 +996,7 @@ export function SearchLeadsView({
   }
 
   function repeatSearch(search: RecentSearch) {
+    setResultQuery("");
     setSelectedSegment(search.segment);
     setCityInput(search.city);
     setSearchLocation({
@@ -1250,6 +1277,31 @@ export function SearchLeadsView({
         </div>
       )}
 
+      <div className="result-query-bar">
+        <label htmlFor="search-result-query">Pesquisar nesta lista</label>
+        <div className="result-query-row">
+          <div className="result-query-input">
+            <Search size={17} aria-hidden="true" />
+            <input
+              id="search-result-query"
+              type="search"
+              value={resultQuery}
+              onChange={(event) => setResultQuery(event.target.value)}
+              placeholder="Nome, bairro, endereço ou telefone"
+              autoComplete="off"
+            />
+          </div>
+          <span className="result-query-count" role="status" aria-live="polite">
+            Exibindo {visibleResults.length} de {resultWithExisting.length} empresas
+          </span>
+          {(resultQuery.trim() || hasActiveFilters) && (
+            <button type="button" className="result-query-clear" onClick={clearAllResultFilters}>
+              Limpar busca e filtros
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="results-toolbar">
         <div className="quick-filters">
           <div className="quick-filters-heading">
@@ -1353,8 +1405,17 @@ export function SearchLeadsView({
       {!loading && visibleResults.length === 0 && !error ? (
         <div className="search-state">
           <Search size={20} />
-          <strong>Nenhuma empresa encontrada</strong>
-          <p>Tente outro segmento ou altere os filtros atuais.</p>
+          <strong>{resultQuery.trim() || hasActiveFilters ? "Nenhuma empresa corresponde aos filtros" : "Nenhuma empresa encontrada"}</strong>
+          <p>
+            {resultQuery.trim() || hasActiveFilters
+              ? "Remova algum filtro ou ajuste a pesquisa nesta lista."
+              : "Tente outro segmento ou altere a busca."}
+          </p>
+          {(resultQuery.trim() || hasActiveFilters) && (
+            <button type="button" className="secondary-button" onClick={clearAllResultFilters}>
+              Mostrar todas as empresas
+            </button>
+          )}
         </div>
       ) : (
         <div className="business-results">
