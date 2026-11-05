@@ -205,3 +205,49 @@ test("two competing recent searches keep only results from the newest request", 
   await expect(page.getByRole("heading", { name: "Barbearia", exact: true })).toBeVisible();
   await expect(page.getByText("Empresa Antiga", { exact: true })).toHaveCount(0);
 });
+
+
+test("search results can be filtered and reset locally without new Places requests", async ({ page }) => {
+  await loginWithMocks(page, { leads: [] });
+  await page.evaluate((uid) => {
+    localStorage.setItem(
+      `januarioleads:workspace:v2:${uid}:leadflow:recent-searches`,
+      JSON.stringify([{ segment: "Restaurante", city: "Lavras", state: "MG" }]),
+    );
+  }, USER_ID);
+
+  let placesRequests = 0;
+  await page.route("**/functions/v1/search-places", (route) => {
+    placesRequests += 1;
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        results: [
+          business("local-1", "Restaurante Aurora"),
+          business("local-2", "Restaurante Estação"),
+        ],
+        nextPageToken: null,
+      }),
+    });
+  });
+
+  await page.getByRole("button", { name: "Buscar Leads", exact: true }).first().click();
+  await page.locator(".recent-searches").getByRole("button", { name: /Restaurante/ }).click();
+  await expect(page.getByText("Restaurante Aurora", { exact: true })).toBeVisible();
+  await expect(page.getByText("Restaurante Estação", { exact: true })).toBeVisible();
+
+  const localSearch = page.getByRole("searchbox", { name: "Pesquisar nesta lista" });
+  await localSearch.fill("aurora");
+  await expect(page.getByText("Restaurante Aurora", { exact: true })).toBeVisible();
+  await expect(page.getByText("Restaurante Estação", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Exibindo 1 de 2 empresas")).toBeVisible();
+
+  await localSearch.fill("não existe");
+  await expect(page.getByText("Nenhuma empresa corresponde aos filtros")).toBeVisible();
+  await page.getByRole("button", { name: "Mostrar todas as empresas" }).click();
+  await expect(page.getByText("Restaurante Estação", { exact: true })).toBeVisible();
+  await expect(localSearch).toHaveValue("");
+  expect(placesRequests, "Client-side filters must not trigger additional Places requests").toBe(1);
+});
