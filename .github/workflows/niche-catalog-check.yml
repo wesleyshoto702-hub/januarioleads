@@ -66,9 +66,12 @@ jobs:
           ref: 3b5705c0c5055b8ac3ef5b3a5f4833ae812a2c03
           path: security-proposal
           persist-credentials: false
-      - uses: supabase/setup-cli@v1
+      # Stable v2 is pinned because CLI v3 changes remote/local defaults.
+      # setup-cli@v3 installs exact versions via npm, avoiding GitHub
+      # unauthenticated "latest release" rate limiting on public runners.
+      - uses: supabase/setup-cli@v3.2.0
         with:
-          version: latest
+          version: 2.122.1
       - name: Criar Supabase descartável, apenas em loopback
         shell: bash
         run: |
