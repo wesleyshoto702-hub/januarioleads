@@ -17,6 +17,7 @@ from audit_migration_reconciliation import (
     MIGRATIONS,
     RECOVERED,
     audit_repository,
+    check_baseline_integrity,
     compare_history,
     list_versioned_files,
     read_json,
@@ -93,11 +94,14 @@ class MigrationReconciliationTests(unittest.TestCase):
 
     def test_baseline_hash_tampering_is_rejected(self):
         original = read_json(ROOT / "supabase/baseline/manifest.json")
-        self.assertRegex(original["sha256"], r"^[a-f0-9]{64}$")
-        # Avoid any file mutations: test the metadata rule in memory.
+        baseline = (ROOT / "supabase/baseline/20261103-public.sql").read_bytes()
+        check_baseline_integrity(original, baseline)
         changed = copy.deepcopy(original)
         changed["sha256"] = "0" * 64
-        self.assertNotEqual(changed["sha256"], original["sha256"])
+        with self.assertRaisesRegex(AuditFailure, "Baseline SHA-256 mismatch"):
+            check_baseline_integrity(changed, baseline)
+        with self.assertRaisesRegex(AuditFailure, "Baseline SHA-256 mismatch"):
+            check_baseline_integrity(original, baseline + b"\\n--tampered")
 
 
 if __name__ == "__main__":
