@@ -230,7 +230,8 @@ function toRemote(lead: PersistedLead, userId: string) {
     longitude: lead.longitude,
     enriched_at: lead.enrichedAt,
     source: lead.source,
-    auto_sync_enabled: lead.autoSyncEnabled ?? true,
+    // No scheduled Places sync is included in the free MVP.
+    auto_sync_enabled: lead.autoSyncEnabled ?? false,
     verified_content: lead.verifiedContent ?? {},
     verified_images: lead.verifiedImages ?? [],
     confirmed_channels: lead.confirmedChannels ?? {},
@@ -360,6 +361,9 @@ export async function fetchLeadUpdates(limit = 60) {
     "select",
     "id,lead_id,place_id,change_type,field_name,old_value,new_value,message,importance,source,is_seen,created_at",
   );
+  // Legacy cron errors remain in the database for audit, but are not
+  // actionable commercial updates and should not flood the CRM interface.
+  params.set("change_type", "neq.sync_error");
   params.set("order", "created_at.desc");
   params.set("limit", String(limit));
 
