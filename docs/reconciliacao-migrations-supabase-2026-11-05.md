@@ -64,7 +64,10 @@ configuração de Cron ou backfills cuja reexecução pode mudar dados.
 O SQL de teste `supabase/tests/public-schema-inventory-contract.sql`
 compara **todas as 17 tabelas por nome**, estado de RLS, quantidade de
 políticas e índices por tabela, além das quantidades globais de funções
-e triggers. É executado após restaurar o baseline **apenas em PostgreSQL
+e triggers. Também compara **hashes dos 257 campos distribuídos entre
+as 17 tabelas** (ordem, nomes, tipos, nulabilidade, identidade e geração)
+obtidos exclusivamente dos catálogos SQL, sem dados de clientes.
+É executado após restaurar o baseline **apenas em PostgreSQL
 descartável**. Se detectar divergência, a CI falha fechada.
 
 `scripts/audit_migration_reconciliation.py` faz auditoria **offline**:
@@ -74,10 +77,11 @@ histórico local versus inventário remoto congelado, 27 hashes,
 Uma mutação futura inesperada da baseline deve interromper a CI.
 
 **Esses testes não equivalem a um diff integral** do SQL ou do estado
-do banco. Em particular, não provam igualdade de colunas, defaults,
-constraints, definições das políticas, corpos de funções ou configuração
-do PostgreSQL. Para afirmar paridade integral será necessário um diff
-completo e supervisão em um ambiente de homologação.
+do banco. Embora validem assinaturas de nomes, tipos e algumas
+propriedades de colunas, não provam igualdade de `DEFAULT`, constraints,
+definições das políticas, índices completos, corpos de funções ou
+configuração do PostgreSQL. Para afirmar paridade integral será
+necessário um diff completo e supervisão em homologação.
 
 ### Limites da recuperação
 
