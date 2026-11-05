@@ -1,5 +1,4 @@
 import {
-  Clock3,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -19,7 +18,6 @@ export type AppView =
   | "leads"
   | "search"
   | "opportunities"
-  | "open-now"
   | "messages"
   | "finance";
 
@@ -32,7 +30,6 @@ const NAV_ITEMS: Array<{
   { view: "leads", label: "Meus Leads", icon: Users },
   { view: "search", label: "Buscar Leads", icon: Search },
   { view: "opportunities", label: "Oportunidades", icon: Target },
-  { view: "open-now", label: "Abertos Agora", icon: Clock3 },
   { view: "messages", label: "Mensagens", icon: MessageCircle },
   { view: "finance", label: "Financeiro", icon: WalletCards },
 ];
@@ -42,7 +39,6 @@ const VIEW_TITLES: Record<AppView, string> = {
   leads: "Meus Leads",
   search: "Buscar Leads",
   opportunities: "Oportunidades",
-  "open-now": "Abertos Agora",
   messages: "Mensagens",
   finance: "Financeiro",
 };
