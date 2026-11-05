@@ -30,7 +30,15 @@
 6. Supabase: **51 versões** no ledger remoto, **24 migrations** na pasta local e **27 remotas sem arquivo ativo local**, em consonância com a documentação existente. Evitar `db push`/`db reset` remotos, reparo artificial do ledger e reaplicação indiscriminada.
 7. Há **8 Edge Functions** com status ACTIVE. Quatro são stubs confirmados no código implantado que retornam HTTP 410 `FEATURE_REMOVED`: `generate-site-prompt`, `generate-preview`, `analyze-visual-references`, `capture-visual-reference`. Não reativar sem decisão de produto.
 8. `sync-leads-daily`: expressão `0 */8 * * *`, **active=false**. `sync-leads` permanece implantada com `verify_jwt=false`, mas sua implementação exige autorização de cron alternativa em `authorizeCron`. Não assumir vulnerabilidade apenas pelo flag nem reativar a função.
-9. O README descrevia incorretamente que o workflow de deploy só publicava `search-places`, nunca executava validações em push e configurava `OPENAI_API_KEY` via CI. O YAML atual observa pushes seletivos para testes e publica **três** funções somente por execução manual ou tag: `search-places`, `deep-enrich-business`, `open-now-niches`; **não** injeta o secret da OpenAI.
+9. Consulta de políticas e GRANTs do banco de produção, **somente metadados**:
+   `lead_payments` SELECT; `open_now_niche_cache` SELECT; e
+   `places_search_cache` SELECT/INSERT/UPDATE conferem proprietário
+   (`auth.uid()=user_id`), mas **não** verificam o registro correspondente
+   em `private_access`. Esses GRANTs existem para `authenticated`.
+   Portanto, há uma lacuna verificável entre revogação do acesso ao app e
+   políticas de API para dados próprios, enquanto o JWT continuar válido.
+   Não foi executado acesso de usuário real nem constatado vazamento entre contas.
+10. O README descrevia incorretamente que o workflow de deploy só publicava `search-places`, nunca executava validações em push e configurava `OPENAI_API_KEY` via CI. O YAML atual observa pushes seletivos para testes e publica **três** funções somente por execução manual ou tag: `search-places`, `deep-enrich-business`, `open-now-niches`; **não** injeta o secret da OpenAI.
 
 ## 3. Achados e backlog priorizado
 
@@ -46,6 +54,7 @@
 | JL-008 | Capacidade legada exposta/consumo potencial | Média | Edge Function `open-now-niches` continua ACTIVE mesmo fora da navegação; endpoint exige auth e limites por usuário | Decidir se manter por compatibilidade ou descontinuar com plano de rollback; **não** desligar sem autorização | **Decisão pendente** |
 | JL-009 | Risco potencial de telemetria | Média | `src/lib/error-capture.ts` expande `error.stack` e causas antes de registrar no log | Auditar redaction e contratos de logging; verificar se stacks contêm URLs/tokens em cenários reais, adicionar testes antes de alterar pipeline | **Somente investigação** |
 | JL-010 | Cobertura parcial de isolamento entre contas | Média | `PrivateWorkspace` monta `LeadFlowApp key={userId}`; `account-storage` separa caches; existem testes simulados e SQL | Executar testes de duas contas com backend real de homologação, incluindo troca de usuário durante requisições pendentes | **Pendente de homologação** |
+| JL-011 | Defeito de política confirmado; impacto potencial de revogação | **Alta de autorização** | `pg_policies` e `information_schema.role_table_grants` em produção: `lead_payments`, `open_now_niche_cache`, `places_search_cache` verificam dono, mas não `private_access` | Restringir as políticas às contas com allowlist ativa; validar em conta revogada no banco descartável e homologação; **não executar sobre produção sem revisão** | **Proposta SQL não executável preparada** |
 
 **Documentação externa consultada para JL-003/JL-004:**
 
@@ -59,8 +68,9 @@ A cobrança depende dos campos/SKUs solicitados e da utilização agregada por p
 - `tests/browser/responsive.spec.ts`: remover `Abertos Agora` da lista do menu; introduzir teste de ausência no drawer móvel e existência de `Buscar Leads`, sem executar API externa.
 - `README.md`: descrever o workflow real e manejo privado dos secrets do Supabase, sem exigir uma nova chave paga nem alterar funções.
 - `docs/auditoria-inicial-2026-11-05.md`: este relatório de evidências e backlog.
+- `docs/proposals/private-access-revocation-policies-2026-11-05.sql.txt`: proposta SQL isolada de execução para revisar revogação.
 
-Nenhuma interface, login, RLS, Edge Function, cron, banco, cliente ou assinatura foi alterada neste ciclo.
+Nenhuma interface, login, política RLS de produção, Edge Function, cron, banco, cliente ou assinatura foi alterada neste ciclo. A proposta RLS existe somente como documento .sql.txt.
 
 ## 5. Baseline de testes e verificações
 
@@ -79,10 +89,11 @@ Nenhuma interface, login, RLS, Edge Function, cron, banco, cliente ou assinatura
 ## 7. Próximos incrementos recomendados
 
 1. **Recuperar CI verde** e garantir teste de regressão do fluxo real Buscar Leads → nicho → resultados → Abertos Agora.
-2. **Auditar custos e licenças de todos os endpoints pagos** e definir orçamento máximo global antes de habilitar assinaturas.
-3. **Validar isolamento entre contas em homologação real** e política de `private_access`; não confundir autenticação com direito de acesso.
-4. **Especificar autenticação/comercialização**: inscrição, planos, créditos, limites, cobrança e revogação antes de escolher provedor ou construir tabelas.
-5. Auditar telemetria, acessibilidade, concorrência e desempenho; reconciliar migrations com segurança em ambiente descartável.
-6. Definir destino das Edge Functions legadas e do endpoint `open-now-niches` sem apagar dependências históricas.
+2. **Corrigir a lacuna de revogação em RLS**, após testes descartáveis e aprovação de migração explícita, preservando acesso dos usuários autorizados.
+3. **Auditar custos e licenças de todos os endpoints pagos** e definir orçamento máximo global antes de habilitar assinaturas.
+4. **Validar isolamento entre contas em homologação real** e política de `private_access`; não confundir autenticação com direito de acesso.
+5. **Especificar autenticação/comercialização**: inscrição, planos, créditos, limites, cobrança e revogação antes de escolher provedor ou construir tabelas.
+6. Auditar telemetria, acessibilidade, concorrência e desempenho; reconciliar migrations com segurança em ambiente descartável.
+7. Definir destino das Edge Functions legadas e do endpoint `open-now-niches` sem apagar dependências históricas.
 
 Este relatório será atualizado em outro incremento quando houver resultados adicionais. Não pressupõe autorização para publicação ou gastos.
