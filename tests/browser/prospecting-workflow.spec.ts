@@ -277,3 +277,25 @@ test("empty CRM directs the user to find companies without creating mock leads",
   await page.locator(".desktop-table").getByRole("button", { name: "Buscar empresas" }).click();
   await expect(page.getByRole("heading", { name: /Encontre empresas em/ })).toBeVisible();
 });
+
+
+test("dashboard gives first-time users a direct route to lead discovery", async ({ page }) => {
+  await loginWithMocks(page, { leads: [] });
+  await expect(page.getByText("Comece pela busca de empresas")).toBeVisible();
+  await page.getByRole("button", { name: "Buscar empresas" }).click();
+  await expect(page.getByRole("heading", { name: /Encontre empresas em/ })).toBeVisible();
+});
+
+test("dashboard routes pending outreach to a clean CRM filter", async ({ page }) => {
+  await loginWithMocks(page, {
+    leads: [{ ...WAITING_LEAD, status: "send_message" }],
+  });
+
+  await expect(page.getByText("1 lead precisa do primeiro contato")).toBeVisible();
+  await page.getByRole("button", { name: "Ver leads para contato" }).click();
+  await expect(page.getByRole("heading", { name: "Meus Leads" })).toBeVisible();
+  const sendMessageFilter = page.locator(".filter-row").first()
+    .getByRole("button", { name: /Enviar mensagem/ });
+  await expect(sendMessageFilter).toHaveClass(/active/);
+  await expect(page.getByText("Exibindo 1 de 1 leads")).toBeVisible();
+});
