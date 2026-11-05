@@ -65,6 +65,7 @@ export function DashboardView({
   onOpenLead,
   onNavigate,
   onShowTodayActions,
+  onShowPendingMessages,
 }: {
   counts: Counts;
   financialOverview: FinancialOverview;
@@ -80,6 +81,7 @@ export function DashboardView({
   onOpenLead: (lead: PersistedLead) => void;
   onNavigate: (view: AppView) => void;
   onShowTodayActions: () => void;
+  onShowPendingMessages: () => void;
 }) {
   const workedContacts = counts.waiting + counts.accepted + counts.rejected;
   const conversion =
@@ -138,6 +140,34 @@ export function DashboardView({
     )
     .slice(0, 8);
 
+  const suggestedAction = leads.length === 0
+    ? {
+        title: "Comece pela busca de empresas",
+        description: "Encontre negócios na sua região e salve os primeiros leads na carteira.",
+        label: "Buscar empresas",
+        onClick: () => onNavigate("search"),
+      }
+    : todayActions.length > 0
+      ? {
+          title: "Priorize seus próximos contatos",
+          description: "Há ações agendadas, atrasadas ou follow-ups recomendados que merecem atenção.",
+          label: "Ver ações prioritárias",
+          onClick: onShowTodayActions,
+        }
+      : counts.send_message > 0
+        ? {
+            title: `${counts.send_message} ${counts.send_message === 1 ? "lead precisa" : "leads precisam"} do primeiro contato`,
+            description: "Abra sua carteira para preparar a primeira abordagem dessas empresas.",
+            label: "Ver leads para contato",
+            onClick: onShowPendingMessages,
+          }
+        : {
+            title: "Sua carteira está em dia",
+            description: "Não há ações prioritárias pendentes. Continue ampliando sua prospecção.",
+            label: "Encontrar novas empresas",
+            onClick: () => onNavigate("search"),
+          };
+
   return (
     <section className="dashboard-view saas-page">
       <PageHeader
@@ -162,6 +192,18 @@ export function DashboardView({
         <MetricCard label="Aceitos" value={counts.accepted} tone="accepted" icon={<BadgeCheck size={17} />} />
         <MetricCard label="Recusados" value={counts.rejected} tone="rejected" icon={<Ban size={17} />} />
       </div>
+
+      <section className="dashboard-next-step" aria-label="Próximo passo recomendado">
+        <div className="dashboard-next-step-copy">
+          <span>PRÓXIMO PASSO</span>
+          <strong>{suggestedAction.title}</strong>
+          <p>{suggestedAction.description}</p>
+        </div>
+        <button type="button" className="primary-button" onClick={suggestedAction.onClick}>
+          {suggestedAction.label}
+          <ArrowRight size={16} aria-hidden="true" />
+        </button>
+      </section>
 
       <section className="dashboard-panel dashboard-today">
         <div className="dashboard-panel-heading">
