@@ -205,3 +205,36 @@ test("two competing recent searches keep only results from the newest request", 
   await expect(page.getByRole("heading", { name: "Barbearia", exact: true })).toBeVisible();
   await expect(page.getByText("Empresa Antiga", { exact: true })).toHaveCount(0);
 });
+
+
+test("Dashboard shows the CRM connection and recent leads, never an eight-hour Places promise", async ({ page }) => {
+  await loginWithMocks(page);
+  await expect(page.getByText("CRM conectado")).toBeVisible();
+  await expect(page.locator(".dashboard-updates")).toContainText("Leads cadastrados recentemente");
+  await expect(page.locator(".dashboard-updates")).toContainText("Oficina Exemplo");
+  await expect(page.getByText("Sincronização ativa")).toHaveCount(0);
+  await expect(page.getByText("A cada 8 horas")).toHaveCount(0);
+});
+
+test("Meus Leads keeps its commercial controls but removes the obsolete automatic sync panel", async ({ page }) => {
+  await loginWithMocks(page);
+  await page.getByRole("button", { name: "Meus Leads", exact: true }).first().click();
+  await expect(page.getByRole("heading", { name: "Meus Leads" })).toBeVisible();
+  await expect(page.locator(".recent-updates-panel")).toHaveCount(0);
+  await expect(page.locator(".desktop-table .table-row").filter({ hasText: "Oficina Exemplo" })).toBeVisible();
+});
+
+test("CRM ignores historical synchronization errors when loading relevant lead changes", async ({ page }) => {
+  const updateRequests: string[] = [];
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname.endsWith("/rest/v1/lead_updates")) {
+      updateRequests.push(request.url());
+    }
+  });
+
+  await loginWithMocks(page);
+  await expect.poll(() => updateRequests.length).toBeGreaterThan(0);
+  expect(updateRequests.every((url) =>
+    new URL(url).searchParams.get("change_type") === "neq.sync_error",
+  )).toBe(true);
+});
