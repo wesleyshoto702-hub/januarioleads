@@ -5,15 +5,13 @@ import {
   CalendarClock,
   CircleDollarSign,
   Clock3,
-  RefreshCw,
   Send,
   Target,
   UsersRound,
 } from "lucide-react";
-import type { LeadUpdateRecord, PersistedLead } from "../../features/leads/remote-leads";
+import type { PersistedLead } from "../../features/leads/remote-leads";
 import type { OpportunityRecord } from "../../features/opportunities/types";
 import { formatCurrency } from "../../features/lead-finance/finance";
-import { summarizeRecentLeadUpdates } from "../../lib/lead-update-display";
 import {
   crmToday,
   getLeadActionSummary,
@@ -56,7 +54,6 @@ export function DashboardView({
   financialOverview,
   financeLoaded,
   financeError,
-  leadUpdates,
   leads,
   remoteReady,
   remoteError,
@@ -71,7 +68,6 @@ export function DashboardView({
   financialOverview: FinancialOverview;
   financeLoaded: boolean;
   financeError: string;
-  leadUpdates: LeadUpdateRecord[];
   leads: PersistedLead[];
   remoteReady: boolean;
   remoteError: string;
@@ -85,8 +81,9 @@ export function DashboardView({
   const workedContacts = counts.waiting + counts.accepted + counts.rejected;
   const conversion =
     workedContacts > 0 ? Math.round((counts.accepted / workedContacts) * 100) : null;
-  const leadById = new Map(leads.map((lead) => [lead.id, lead]));
-  const recentUpdates = summarizeRecentLeadUpdates(leadUpdates, 7);
+  const recentLeads = [...leads]
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(0, 7);
   const topOpportunities = [...opportunities]
     .filter((item) => !item.stale)
     .sort((a, b) => b.score - a.score)
@@ -148,9 +145,9 @@ export function DashboardView({
         description="Sua operação comercial em um só lugar: leads, próximos passos e resultados."
         actions={
           <div className={remoteReady ? "saas-sync-pill active" : "saas-sync-pill"}>
-            <RefreshCw size={13} />
-            <span>{remoteReady ? "Sincronização ativa" : "Conectando"}</span>
-            <small>A cada 8 horas</small>
+            <BadgeCheck size={13} aria-hidden="true" />
+            <span>{remoteReady ? "CRM conectado" : "Conectando CRM"}</span>
+            <small>Dados da carteira</small>
           </div>
         }
       />
@@ -265,46 +262,32 @@ export function DashboardView({
         <section className="dashboard-panel dashboard-updates">
           <div className="dashboard-panel-heading">
             <div>
-              <span>ATUALIZAÇÕES RECENTES</span>
-              <strong>O que mudou nos seus leads</strong>
+              <span>CARTEIRA COMERCIAL</span>
+              <strong>Leads cadastrados recentemente</strong>
             </div>
           </div>
 
-          {leadUpdates.length === 0 ? (
+          {recentLeads.length === 0 ? (
             <p className="dashboard-panel-empty">
-              Nenhuma mudança automática detectada ainda.
+              Nenhum lead cadastrado ainda. Use Buscar Leads para começar sua carteira.
             </p>
           ) : (
             <div className="dashboard-feed">
-              {recentUpdates.syncErrorCount > 0 && (
-                <div className="sync-error-summary" role="status">
-                  <strong>Falhas anteriores na atualização de dados públicos</strong>
+              {recentLeads.map((lead) => (
+                <button
+                  type="button"
+                  key={lead.id}
+                  onClick={() => onOpenLead(lead)}
+                >
+                  <span className="dashboard-feed-dot" />
                   <span>
-                    {recentUpdates.syncErrorCount} avisos semelhantes foram agrupados.
-                    Os registros dos seus leads continuam salvos.
+                    <strong>{lead.company}</strong>
+                    <small>
+                      {lead.segment} · {formatRelativeDate(lead.createdAt)}
+                    </small>
                   </span>
-                </div>
-              )}
-              {recentUpdates.usefulUpdates.map((update) => {
-                const lead = leadById.get(update.leadId);
-                return (
-                  <button
-                    type="button"
-                    key={update.id}
-                    onClick={() => lead && onOpenLead(lead)}
-                    disabled={!lead}
-                  >
-                    <span className={update.importance === "high" ? "dashboard-feed-dot high" : "dashboard-feed-dot"} />
-                    <span>
-                      <strong>{update.message}</strong>
-                      <small>
-                        {lead?.company ?? "Lead"} · {formatRelativeDate(update.createdAt)}
-                      </small>
-                    </span>
-                    {!update.isSeen && <b>Novo</b>}
-                  </button>
-                );
-              })}
+                </button>
+              ))}
             </div>
           )}
         </section>

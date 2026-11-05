@@ -110,7 +110,7 @@ export function useLeadWorkspace() {
         if (!active) return;
         setRemoteReady(false);
         setRemoteError(
-          "Sincronização automática indisponível agora. Seus dados locais continuam preservados.",
+          "Não foi possível conectar ao armazenamento online agora. Seus dados locais continuam preservados.",
         );
       }
     }
