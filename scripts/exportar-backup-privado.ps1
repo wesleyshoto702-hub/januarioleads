@@ -74,7 +74,8 @@ $VersaoPrincipal = [int]$Matches[1]
 if ($VersaoPrincipal -eq 2) {
   $AlvoRemoto = "--linked"
 } elseif ($VersaoPrincipal -eq 3) {
-  $AlvoRemoto = "--remote"
+  # Explicitar o ref evita que SUPABASE_PROJECT_ID ou remotes locais mudem o alvo.
+  $AlvoRemoto = "--remote=$ProjetoEsperado"
 } else {
   throw "BLOQUEADO: serie da Supabase CLI nao auditada; revise o script antes de exportar."
 }
@@ -89,7 +90,7 @@ try {
 
   Push-Location -LiteralPath $Projeto
   try {
-    # --linked (v2) / --remote (v3): alvo hospedado explicito, sem URL/senha na linha de comando.
+    # --linked (v2) / --remote=<ref> (v3): alvo hospedado explicito, sem URL/senha na linha de comando.
     # Tokens/senhas de acesso sao tratados pelo ambiente LOCAL do Supabase CLI.
     $Perfis = @(
       @{ Arquivo = "roles.sql"; Argumentos = @("--role-only") },
@@ -99,7 +100,7 @@ try {
 
     foreach ($Perfil in $Perfis) {
       $Arquivo = Join-Path $Pasta $Perfil.Arquivo
-      $Argumentos = @("db", "dump", $AlvoRemoto, "--file", $Arquivo) + $Perfil.Argumentos
+      $Argumentos = @("db", "dump", "--file", $Arquivo) + $Perfil.Argumentos + @($AlvoRemoto)
       # Nunca exibir stdout/stderr de uma ferramenta que conhece credenciais.
       & supabase @Argumentos 1>$null 2>$null
       if ($LASTEXITCODE -ne 0) {
