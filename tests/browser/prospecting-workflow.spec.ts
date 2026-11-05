@@ -240,21 +240,54 @@ test("CRM ignores historical synchronization errors when loading relevant lead c
 });
 
 
-test("Abertos Agora remains only as an option inside Buscar Leads", async ({ page }) => {
+test("Abertos Agora appears only after searching for companies in a niche", async ({ page }) => {
   await loginWithMocks(page);
+
+  await page.evaluate((uid) => {
+    localStorage.setItem(
+      `januarioleads:workspace:v2:${uid}:leadflow:recent-searches`,
+      JSON.stringify([{ segment: "Restaurante", city: "Lavras", state: "MG" }]),
+    );
+  }, USER_ID);
+
+  await page.route("**/functions/v1/search-places", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        results: [{ ...business("place-test", "Restaurante Exemplo"), isOpenNow: true }],
+        nextPageToken: null,
+      }),
+    });
+  });
+
   const workspaceNav = page.locator(".saas-sidebar .saas-nav");
   await expect(workspaceNav.getByRole("button", { name: "Abertos Agora" })).toHaveCount(0);
 
   await workspaceNav.getByRole("button", { name: "Buscar Leads" }).click();
   await expect(page.locator(".search-leads-page")).toBeVisible();
+  await expect(page.locator(".search-mode-panel")).toHaveCount(0);
+  await expect(page.locator(".selection-bar")).toContainText("Buscar leads");
+
+  await page.locator(".recent-searches").getByRole("button", { name: /Restaurante/ }).click();
+  await expect(page.getByRole("heading", { name: "Restaurante", exact: true })).toBeVisible();
+  await expect(page.locator(".search-mode-panel")).toBeVisible();
   await expect(page.locator(".search-mode-option").filter({ hasText: "Todas as empresas" }))
     .toHaveAttribute("aria-pressed", "true");
+
   await page.locator(".search-mode-option").filter({ hasText: "Abertos Agora" }).click();
   await expect(page.locator(".search-mode-option").filter({ hasText: "Abertos Agora" }))
     .toHaveAttribute("aria-pressed", "true");
   await expect(workspaceNav.getByRole("button", { name: "Buscar Leads" }))
     .toHaveAttribute("aria-current", "page");
-  await page.locator(".search-mode-option").filter({ hasText: "Todas as empresas" }).click();
+
+  await page.getByRole("button", { name: "Alterar busca" }).click();
+  await expect(page.locator(".search-mode-panel")).toHaveCount(0);
+  await expect(page.locator(".selection-bar")).toContainText("Buscar leads");
+
+  // A new niche search should start in the 'Todas as empresas' mode.
+  await page.locator(".recent-searches").getByRole("button", { name: /Restaurante/ }).click();
   await expect(page.locator(".search-mode-option").filter({ hasText: "Todas as empresas" }))
     .toHaveAttribute("aria-pressed", "true");
 });
