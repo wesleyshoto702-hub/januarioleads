@@ -212,11 +212,14 @@ def validate(stack: Path, candidate: Path) -> None:
 
     psql(container, "INSERT INTO public.private_access(user_id) VALUES "
          f"({quote_uuid(a)}),({quote_uuid(b)});")
+    # The production-compatible baseline requires client-generated lead IDs.
     la = require_insert(request, "leads", ta, {
+        "id": str(uuid.uuid4()),
         "user_id": a, "company": "Staging restaurant A", "segment": "Teste",
         "first_contact": "2026-11-05",
     })["id"]
     lb = require_insert(request, "leads", tb, {
+        "id": str(uuid.uuid4()),
         "user_id": b, "company": "Staging restaurant B", "segment": "Teste",
         "first_contact": "2026-11-05",
     })["id"]
