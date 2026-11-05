@@ -28,9 +28,18 @@ for sql in supabase/tests/platform-fixture.sql supabase/baseline/20261103-public
   docker_local exec -i "$container" psql -X -v ON_ERROR_STOP=1 -U postgres < "$sql"
 done
 
-# Proposed allowlist-revocation rules are deliberately stored outside
-# supabase/migrations. They are evaluated ONLY against this disposable
-# PostgreSQL container, never against production or a linked project.
-for sql in docs/proposals/private-access-revocation-policies-2026-11-05.sql.txt supabase/tests/private-access-revocation-proposal.sql; do
+# Test the actual revocation gap FIRST in the historical baseline. Then
+# harden it, test two fictional tenants, restore original policies (emergency
+# rollback), demonstrate the gap returns, and reapply the candidate to prove
+# a repeatable forward repair. All database operations are inside the
+# throwaway postgres:17 container created above. NEVER run on production.
+for sql in \
+  supabase/tests/private-access-revocation-before.sql \
+  docs/proposals/private-access-revocation-policies-2026-11-05.sql.txt \
+  supabase/tests/private-access-revocation-proposal.sql \
+  docs/proposals/private-access-revocation-rollback-2026-11-05.sql.txt \
+  supabase/tests/private-access-revocation-before.sql \
+  docs/proposals/private-access-revocation-policies-2026-11-05.sql.txt \
+  supabase/tests/private-access-revocation-proposal.sql; do
   docker_local exec -i "$container" psql -X -v ON_ERROR_STOP=1 -U postgres < "$sql"
 done

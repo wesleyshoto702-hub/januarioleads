@@ -20,6 +20,58 @@
 
 begin;
 
+-- Fail quickly instead of waiting indefinitely for metadata locks. Keep the
+-- patch atomic: either every policy is replaced, or none is.
+set local lock_timeout = '5s';
+set local statement_timeout = '30s';
+
+-- Fail closed if the schema or the six expected existing policies drifted.
+-- A permissive extra policy could be OR-ed with these policies and reopen
+-- access to the data, so an unexpected policy must halt deployment.
+do $preflight$
+declare
+  v_known integer;
+  v_total integer;
+begin
+  if (
+    select count(*)
+    from pg_tables
+    where schemaname = 'public'
+      and tablename in (
+        'private_access', 'lead_payments',
+        'places_search_cache', 'open_now_niche_cache'
+      )
+      and rowsecurity
+  ) <> 4 then
+    raise exception 'RLS preflight: required tables missing or RLS disabled';
+  end if;
+
+  select count(*), count(*) filter (
+    where (tablename = 'lead_payments' and (
+      (policyname = 'Users can read own lead payments' and cmd = 'SELECT') or
+      (policyname = 'Users can add own lead payments' and cmd = 'INSERT')
+    )) or
+    (tablename = 'open_now_niche_cache' and
+      policyname = 'Users can read own open now cache' and cmd = 'SELECT') or
+    (tablename = 'places_search_cache' and (
+      (policyname = 'Users can read own places search cache' and cmd = 'SELECT') or
+      (policyname = 'Users can insert own places search cache' and cmd = 'INSERT') or
+      (policyname = 'Users can update own places search cache' and cmd = 'UPDATE')
+    ))
+  )
+  into v_total, v_known
+  from pg_policies
+  where schemaname = 'public'
+    and tablename in (
+      'lead_payments','places_search_cache','open_now_niche_cache'
+    );
+  if v_total <> 6 or v_known <> 6 then
+    raise exception 'RLS preflight: unexpected tenant-cache policies (% total, % recognized)',
+      v_total, v_known;
+  end if;
+end
+$preflight$;
+
 drop policy if exists "Users can read own lead payments"
   on public.lead_payments;
 
