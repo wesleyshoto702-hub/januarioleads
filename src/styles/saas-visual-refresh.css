@@ -680,6 +680,88 @@
   }
 }
 
+
+/* Search results: fast, local refinement without more paid Places requests. */
+.result-query-bar {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 14px;
+  padding: 15px 17px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: var(--saas-card-bg);
+}
+
+.result-query-bar > label {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.result-query-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.result-query-input {
+  display: flex;
+  flex: 1 1 250px;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 0 13px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.result-query-input:focus-within {
+  border-color: var(--primary);
+  outline: 2px solid color-mix(in srgb, var(--primary) 15%, transparent);
+}
+
+.result-query-input input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.result-query-count {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.result-query-clear {
+  min-height: 42px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.result-query-clear:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+@media (max-width: 620px) {
+  .result-query-bar { padding: 13px; }
+  .result-query-input { flex-basis: 100%; }
+  .result-query-count { flex: 1 1 auto; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .saas-metric-card,
   .saas-main .message-summary-card,
