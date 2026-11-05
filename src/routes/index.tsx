@@ -1889,7 +1889,7 @@ function LeadFlowApp() {
                   />
                 ))
               ) : (
-                <EmptyState onNew={openNewLead} onBrowse={() => setView("search")} onClearFilters={hasActiveLeadFilters ? resetLeadFilters : undefined} hasLeads={leads.length > 0} />
+                <EmptyState onNew={openNewLead} onBrowse={() => setView("search")} {...(hasActiveLeadFilters ? { onClearFilters: resetLeadFilters } : {})} hasLeads={leads.length > 0} />
               )}
             </div>
 
@@ -1913,7 +1913,7 @@ function LeadFlowApp() {
                   />
                 ))
               ) : (
-                <EmptyState onNew={openNewLead} onBrowse={() => setView("search")} onClearFilters={hasActiveLeadFilters ? resetLeadFilters : undefined} hasLeads={leads.length > 0} />
+                <EmptyState onNew={openNewLead} onBrowse={() => setView("search")} {...(hasActiveLeadFilters ? { onClearFilters: resetLeadFilters } : {})} hasLeads={leads.length > 0} />
               )}
             </div>
           </div>
