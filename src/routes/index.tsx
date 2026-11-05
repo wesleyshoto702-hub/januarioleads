@@ -1612,6 +1612,11 @@ function LeadFlowApp() {
             setActionFilter("today");
             setView("leads");
           }}
+          onShowPendingMessages={() => {
+            resetLeadFilters();
+            setStatusFilter("send_message");
+            setView("leads");
+          }}
         />
       ) : view === "leads" ? (
         <section className="page-wrap">
