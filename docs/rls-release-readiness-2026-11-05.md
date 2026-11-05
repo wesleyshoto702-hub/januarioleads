@@ -35,14 +35,21 @@ não implica backup disponível, não autoriza implantação e
 
 **Status do gate BACKUP: BLOQUEADO / NÃO VERIFICADO.**
 
-O conector utilizado expõe informações do projeto e permite consultas SQL,
-mas **não comprovou se há backups disponíveis, o plano contratado ou a
-restauração de um backup completo. Nenhuma exportação de dados de produção
-foi realizada nesta etapa.**
+O conector utilizado expõe informações do projeto e permite
+consultas SQL, mas **não oferece prova de backup completo restaurável
+nem exportação segura de dados de produção**. Confirmei pelo metadado
+da organização `gciqfobwezhadpfqqxbb` que o plano atual é
+**Free (`tier_free`)**. Esse plano não inclui backups automáticos
+diários. **Nenhuma exportação de dados de produção foi realizada
+nesta etapa.**
 
-- Supabase faz backups automáticos diários em Pro/Team/Enterprise.
-  O plano **Free não inclui esses backups automáticos**. Não presumir
-  qual é o plano deste projeto.
+- O procedimento privado para Windows está em
+  [`docs/backup-privado-supabase-free-2026-11-05.md`](backup-privado-supabase-free-2026-11-05.md),
+  com auxiliar local `scripts/exportar-backup-privado.ps1`.
+  Deve ser executado **somente pelo proprietário, no seu computador,
+  em volume criptografado**, nunca no GitHub Actions ou no chat.
+- Supabase faz backups automáticos diários em Pro/Team/Enterprise;
+  no plano Free atual o proprietário precisa de backup manual.
 - Antes de qualquer DDL em produção, acessar o Dashboard →
   **Database → Backups**, registrar (em local privado) o ponto de
   recuperação disponível, sua data e o procedimento de restauração.
