@@ -6580,6 +6580,53 @@ a{
   }
 }
 
+
+/* Operational reliability: clearly distinguish pending handoffs and save errors. */
+.message-send-confirmation {
+  display: grid;
+  gap: 8px;
+  padding: 16px 18px;
+  border: 1px solid color-mix(in srgb, var(--waiting) 42%, var(--border));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--waiting) 9%, var(--surface));
+}
+
+.message-send-confirmation strong {
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.message-send-confirmation p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.65;
+  margin: 0;
+}
+
+.business-card-save-error {
+  grid-column: 1 / -1;
+  width: 100%;
+  margin: 4px 0 0;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--rejected) 35%, var(--border));
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--rejected) 8%, var(--surface));
+  color: var(--rejected);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+@media (max-width: 620px) {
+  .message-send-confirmation {
+    padding: 13px 14px;
+  }
+
+  .message-send-confirmation p {
+    font-size: 13px;
+  }
+}
+
 /* Hide Lovable badge when it is part of the app DOM. */
 #lovable-badge {
   display: none !important;
