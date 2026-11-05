@@ -61,6 +61,24 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
   throw "BLOQUEADO: Docker Desktop deve estar instalado e iniciado para o dump oficial."
 }
 
+# CLI v3 (2026-11) usa --remote; v2 usa --linked. Nunca fazer dump sem alvo explicito.
+$SaidaVersao = @(& supabase --version 2>$null)
+if ($LASTEXITCODE -ne 0 -or $SaidaVersao.Count -eq 0) {
+  throw "BLOQUEADO: nao foi possivel identificar a versao da Supabase CLI."
+}
+$TextoVersao = ($SaidaVersao -join " ").Trim()
+if ($TextoVersao -notmatch '(?i)\b(?:supabase\s+)?v?([0-9]+)\.[0-9]+\.[0-9]+') {
+  throw "BLOQUEADO: formato de versao desconhecido da Supabase CLI."
+}
+$VersaoPrincipal = [int]$Matches[1]
+if ($VersaoPrincipal -eq 2) {
+  $AlvoRemoto = "--linked"
+} elseif ($VersaoPrincipal -eq 3) {
+  $AlvoRemoto = "--remote"
+} else {
+  throw "BLOQUEADO: serie da Supabase CLI nao auditada; revise o script antes de exportar."
+}
+
 $Nome = "Januario-Leads-Privado-" + (Get-Date -Format "yyyyMMdd-HHmmss") +
         "-" + [guid]::NewGuid().ToString("N").Substring(0, 8)
 $Pasta = Join-Path $DestinoReal $Nome
@@ -71,17 +89,17 @@ try {
 
   Push-Location -LiteralPath $Projeto
   try {
-    # --linked evita colocar URL de conexao ou senha na linha de comando.
+    # --linked (v2) / --remote (v3): alvo hospedado explicito, sem URL/senha na linha de comando.
     # Tokens/senhas de acesso sao tratados pelo ambiente LOCAL do Supabase CLI.
     $Perfis = @(
       @{ Arquivo = "roles.sql"; Argumentos = @("--role-only") },
       @{ Arquivo = "schema.sql"; Argumentos = @() },
-      @{ Arquivo = "data.sql"; Argumentos = @("--data-only", "--use-copy") }
+      @{ Arquivo = "data.sql"; Argumentos = @("--data-only", "--use-copy", "-x", "storage.buckets_vectors", "-x", "storage.vector_indexes") }
     )
 
     foreach ($Perfil in $Perfis) {
       $Arquivo = Join-Path $Pasta $Perfil.Arquivo
-      $Argumentos = @("db", "dump", "--linked", "--file", $Arquivo) + $Perfil.Argumentos
+      $Argumentos = @("db", "dump", $AlvoRemoto, "--file", $Arquivo) + $Perfil.Argumentos
       # Nunca exibir stdout/stderr de uma ferramenta que conhece credenciais.
       & supabase @Argumentos 1>$null 2>$null
       if ($LASTEXITCODE -ne 0) {
@@ -111,6 +129,7 @@ try {
     projeto = $ProjetoEsperado
     criado_em = (Get-Date).ToUniversalTime().ToString("o")
     situacao = "EXPORTADO_NAO_RESTAURADO"
+    serie_cli = "$VersaoPrincipal.x"
     lembrete = "Dados sensiveis; nao compartilhar, subir no GitHub nem anexar a chats."
     arquivos = @($Inventario)
   }
