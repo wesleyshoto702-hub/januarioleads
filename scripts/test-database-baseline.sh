@@ -33,9 +33,40 @@ done
 docker_local exec -i "$container" psql -X -v ON_ERROR_STOP=1 -U postgres \
   < supabase/tests/public-schema-inventory-contract.sql
 
-# Proposed allowlist-revocation rules are deliberately stored outside
-# supabase/migrations. They are evaluated ONLY against this disposable
-# PostgreSQL container, never against production or a linked project.
+# These read-only release gates must match the production metadata
+# fingerprint recorded on 2026-11-05, even in this disposable fixture.
+# They never connect to the hosted Supabase project.
+check_rls_gate() {
+  local file="$1"
+  local observed
+  observed="$(docker_local exec -i "$container" psql -X -A -t -v ON_ERROR_STOP=1 -U postgres < "$file")"
+  if [[ "$observed" != "PASS" ]]; then
+    echo "BLOCKED: RLS release gate failed: $file (observed: $observed)" >&2
+    exit 1
+  fi
+  echo "PASS: $file"
+}
+check_rls_gate docs/proposals/rls-release-policy-preflight-20261105.sql
+
+# Verify the guard actually detects an unexpected permissive policy.
+# All changes happen inside a transaction on the disposable database.
+drift_result="$(
+  {
+    printf 'BEGIN;\n'
+    printf "CREATE POLICY audit_unexpected_policy ON public.places_search_cache FOR SELECT TO authenticated USING (true);\n"
+    cat docs/proposals/rls-release-policy-preflight-20261105.sql
+    printf '\nROLLBACK;\n'
+  } | docker_local exec -i "$container" psql -X -A -t -v ON_ERROR_STOP=1 -U postgres
+)"
+if ! grep -qx 'BLOCKED' <<< "$drift_result"; then
+  echo "BLOCKED: SQL guard did not detect permissive policy drift" >&2
+  exit 1
+fi
+check_rls_gate docs/proposals/rls-release-policy-preflight-20261105.sql
+
+# The proposed patch remains outside active migrations and runs only in
+# the disposable CI container. No write access to production is configured.
 for sql in docs/proposals/private-access-revocation-policies-2026-11-05.sql.txt supabase/tests/private-access-revocation-proposal.sql; do
   docker_local exec -i "$container" psql -X -v ON_ERROR_STOP=1 -U postgres < "$sql"
 done
+check_rls_gate docs/proposals/rls-release-postcheck-20261105.sql
