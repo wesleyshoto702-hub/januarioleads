@@ -24,7 +24,6 @@ const NAVIGATION = [
   "Meus Leads",
   "Buscar Leads",
   "Oportunidades",
-  "Abertos Agora",
   "Mensagens",
   "Financeiro",
 ] as const;
@@ -135,6 +134,21 @@ for (const width of [320, 375, 390, 430, 768, 1024, 1280, 1440, 1920]) {
     }
   });
 }
+
+test("Abertos Agora appears only inside Buscar Leads, never as a Workspace navigation item", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await loginWithMockedSupabase(page);
+
+  await page.getByRole("button", { name: "Abrir menu" }).click();
+  const drawer = page.getByRole("dialog", { name: "Menu principal" });
+  await expect(drawer.getByRole("button", { name: "Abertos Agora", exact: true })).toHaveCount(0);
+  await expect(drawer.getByRole("button", { name: "Buscar Leads", exact: true })).toBeVisible();
+
+  await drawer.getByRole("button", { name: "Buscar Leads", exact: true }).click();
+  await expect(page.locator(".search-leads-page")).toBeVisible();
+  await expect(page.locator(".search-mode-panel")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Buscar leads", exact: true })).toBeVisible();
+});
 
 test("small portrait: editable lead dialog remains within the viewport", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 640 });
