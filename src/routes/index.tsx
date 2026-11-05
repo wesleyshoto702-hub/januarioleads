@@ -1549,9 +1549,9 @@ function LeadFlowApp() {
   }
 
   function navigateTo(nextView: AppView) {
-    // Both sidebar entries use the same search interface and Places request.
+    // Abertos Agora is an internal mode of Buscar Leads, not a separate page.
+    // Selecting Buscar Leads from the Workspace always opens the default mode.
     if (nextView === "search") setSearchMode("all");
-    if (nextView === "open-now") setSearchMode("open");
     setView(nextView);
   }
 
@@ -1830,14 +1830,11 @@ function LeadFlowApp() {
             </div>
           </div>
         </section>
-      ) : view === "search" || view === "open-now" ? (
+      ) : view === "search" ? (
         <SearchLeadsView
           existingLeads={leads}
           mode={searchMode}
-          onModeChange={(mode) => {
-            setSearchMode(mode);
-            setView(mode === "open" ? "open-now" : "search");
-          }}
+          onModeChange={setSearchMode}
           onAddLead={addFoundLeadConfirmed}
           onPresenceDiscovered={applyPresenceToLead}
           onMessage={(target) => {
