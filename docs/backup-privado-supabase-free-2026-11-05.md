@@ -2,7 +2,7 @@
 
 **Projeto de produção:** `czkazbianiflhldenhcj`  
 **Data da análise:** 05/11/2026  
-**Status:** procedimento preparado. **Não há backup restaurável comprovado.**
+**Status:** exportação e verificação de integridade preparadas. **Não há backup restaurável comprovado.**
 
 ## O que foi confirmado
 
@@ -52,6 +52,14 @@ Isso mantém os custos de hospedagem do Supabase no plano Free.
    .\scripts\exportar-backup-privado.ps1 -Destino "E:\Backups-Criptografados" -ConfirmoVolumeCriptografado
    ```
 
+   O auxiliar identifica a versão da Supabase CLI: na **v2** usa
+   `--linked` e na **v3** usa `--remote=czkazbianiflhldenhcj`
+   em cada exportação, fixando o projeto de destino. A v3
+   tornou comandos de banco locais por padrão em novembro de 2026;
+   executar `db dump` sem indicar explicitamente o alvo pode gerar
+   uma cópia do banco **errado**. Versões principais fora de 2 e 3
+   são recusadas até revisão. Consulte a [migração oficial da CLI v3](https://supabase.com/docs/guides/local-development/cli/migrating-to-v3).
+
    O arquivo `scripts/exportar-backup-privado.ps1` recusa a execução
    se o projeto vinculado não corresponder a
    `czkazbianiflhldenhcj`, se o destino estiver dentro do
@@ -60,11 +68,15 @@ Isso mantém os custos de hospedagem do Supabase no plano Free.
    Ele **não verifica automaticamente se o volume está criptografado**:
    essa condição deve ser conferida pelo proprietário.
 5. A CLI executa três operações de **exportação, sem escrita no
-   banco remoto**:
+   banco remoto** (o script troca `ALVO` por `--linked` na v2 ou
+   `--remote=czkazbianiflhldenhcj` na v3):
 
-   - `supabase db dump --linked --role-only --file ...`
-   - `supabase db dump --linked --file ...`
-   - `supabase db dump --linked --data-only --use-copy --file ...`
+   - `supabase db dump ALVO --role-only --file ...`
+   - `supabase db dump ALVO --file ...`
+   - `supabase db dump ALVO --data-only --use-copy --file ... -x storage.buckets_vectors -x storage.vector_indexes`
+
+   As exclusões vetoriais seguem o roteiro oficial de backup/restore:
+   são tabelas internas de Storage, não objetos binários de clientes.
 
    Os arquivos locais `roles.sql`, `schema.sql` e `data.sql`
    podem conter **informações pessoais, segredos de aplicação ou
@@ -73,6 +85,20 @@ Isso mantém os custos de hospedagem do Supabase no plano Free.
 6. O auxiliar salva `manifesto-privado.json` junto aos SQLs,
    informando tamanhos e SHA-256. Se ocorrer falha, remove a pasta
    parcial recém-criada. Esse manifesto **não valida a restauração**.
+
+   Antes de restaurar, confira **localmente** os tamanhos e hashes
+   sem enviar o conteúdo a ninguém, substituindo o caminho pela
+   pasta criada pelo exportador:
+
+   ```powershell
+   .\scripts\verificar-integridade-backup-privado.ps1 -PastaBackup "E:\Backups-Criptografados\Januario-Leads-Privado-..."
+   ```
+
+   A verificação devolve `PASS` apenas se os três SQLs corresponderem
+   aos SHA-256 e tamanhos declarados. Isso detecta corrupção acidental,
+   mas **não garante autenticidade do manifesto**, nem é uma prova de
+   restauração bem-sucedida.
+
    Faça pelo menos uma **segunda cópia criptografada** em outra
    mídia/local seguro, sem armazenar a senha junto do backup.
 
@@ -127,7 +153,7 @@ histórico operacional ainda é um bloqueio separado.
 | --- | --- |
 | Supabase Free confirmado | **Sim** |
 | Backups automáticos diários nesse plano | **Não incluídos** |
-| Auxiliar local de exportação preparado | **Sim** |
+| Auxiliar local de exportação e verificador de integridade preparados | **Sim** |
 | Exportação real dos dados de produção | **Não executada** |
 | SHA-256 de backup privado real | **Não disponível** |
 | Restore de backup privado real comprovado | **Pendente** |
