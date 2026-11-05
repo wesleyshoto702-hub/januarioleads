@@ -1112,9 +1112,11 @@ function LeadFlowApp() {
 
     recordActivity(nextLead.id, {
       type: "whatsapp_opened",
-      title: "Contato pelo WhatsApp confirmado",
+      title: "Envio pelo WhatsApp confirmado",
+      description: "O usuário confirmou manualmente o envio da mensagem.",
       metadata: {
         messageTemplate: pendingWhatsAppHandoff.templateTitle,
+        confirmation: "user",
       },
     });
 
@@ -1139,7 +1141,7 @@ function LeadFlowApp() {
         description: "Enviar mensagem concluído.",
         metadata: {
           action: "initial_contact",
-          completedBy: "whatsapp_opened",
+          completedBy: "user_confirmed_whatsapp_send",
         },
       });
     }
@@ -1164,7 +1166,7 @@ function LeadFlowApp() {
         metadata: {
           previousStatus: "Enviar mensagem",
           newStatus: "Aguardando",
-          reason: "whatsapp_opened",
+          reason: "user_confirmed_whatsapp_send",
         },
       });
     }
