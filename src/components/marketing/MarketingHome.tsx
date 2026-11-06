@@ -23,7 +23,7 @@ import {
   Users,
   WalletCards,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const scenarios = [
   {
@@ -214,10 +214,12 @@ function ProductMock() {
 
 function SearchDemo() {
   const [selected, setSelected] = useState<(typeof scenarios)[number]["id"]>("restaurantes");
+  const [interactive, setInteractive] = useState(false);
+  useEffect(() => { setInteractive(true); }, []);
   const scenario = scenarios.find((item) => item.id === selected) ?? scenarios[0];
 
   return (
-    <div className="jl-demo-window">
+    <div className="jl-demo-window" data-interactive={interactive ? "true" : "false"}>
       <div className="jl-demo-toolbar">
         <span><span className="jl-demo-signal" /> Buscar Leads</span>
         <span>Exemplo interativo · sem consultas reais</span>
@@ -231,6 +233,7 @@ function SearchDemo() {
                 <button
                   key={item.id}
                   type="button"
+                  disabled={!interactive}
                   aria-pressed={selected === item.id}
                   onClick={() => setSelected(item.id)}
                   className={selected === item.id ? "jl-scenario active" : "jl-scenario"}
