@@ -4,8 +4,10 @@ Plataforma de prospecção comercial: busca de empresas por nicho e cidade, CRM,
 
 ## Evolução para SaaS
 
-- **Apresentação pública:** `/produto` — informações reais sobre o produto e link para login; sem chamadas de dados de clientes.
-- **Área privada existente:** `/` e `/login`, para contas já autorizadas.
+- **Página inicial pública:** `/` — apresentação SaaS responsiva, demonstração interativa local de nichos e funcionalidades do Januário Leads.
+- **Compatibilidade:** `/produto` continua exibindo a apresentação do produto.
+- **Área de trabalho privada:** `/app`; `/login` valida a conta e encaminha o usuário autorizado ao CRM.
+- **Demonstração:** usa apenas empresas fictícias; não consulta Google Places ou dados de clientes.
 - **Cadastro e assinaturas:** ainda não disponíveis comercialmente; veja [roadmap SaaS](docs/roadmap-saas-2026-11-06.md).
 - **Acesso:** atualmente concedido por convite, sem preços ou planos públicos definidos.
 
