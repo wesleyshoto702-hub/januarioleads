@@ -1,6 +1,13 @@
 # JanuarioLeads
 
-oi
+Plataforma de prospecção comercial: busca de empresas por nicho e cidade, CRM, mensagens, oportunidades e acompanhamento financeiro dos leads.
+
+## Evolução para SaaS
+
+- **Apresentação pública:** `/produto` — informações reais sobre o produto e link para login; sem chamadas de dados de clientes.
+- **Área privada existente:** `/` e `/login`, para contas já autorizadas.
+- **Cadastro e assinaturas:** ainda não disponíveis comercialmente; veja [roadmap SaaS](docs/roadmap-saas-2026-11-06.md).
+- **Acesso:** atualmente concedido por convite, sem preços ou planos públicos definidos.
 
 This project was built with [Lovable](https://lovable.dev).
 
