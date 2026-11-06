@@ -16,7 +16,8 @@ test("homepage abre tour de quatro etapas sem chamadas ao Supabase", async ({ pa
   await interceptExternal(page, () => supabaseCalls++);
   await page.goto("/");
 
-  await page.getByRole("link", { name: /Explorar o Januário Leads/i }).click();
+  await page.getByRole("navigation", { name: "Navegação principal" })
+    .getByRole("link", { name: "Como funciona" }).click();
   await expect(page).toHaveURL(/#tour$/);
   const tour = page.locator(".jl-tour-stage");
   await expect(tour).toBeVisible();
