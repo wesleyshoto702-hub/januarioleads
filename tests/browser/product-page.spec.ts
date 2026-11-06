@@ -22,7 +22,11 @@ test("home publica vende o produto sem consultar Supabase ou prometer planos", a
   await expect(page.getByRole("button", { name: /cadastrar|assinar|pagar/i })).toHaveCount(0);
   expect(supabaseRequests).toBe(0);
 
-  await page.getByRole("button", { name: "Clínicas", exact: true }).click();
+  await expect(page.locator(".jl-demo-window")).toHaveAttribute("data-interactive", "true");
+  const clinicas = page.getByRole("button", { name: "Clínicas", exact: true });
+  await expect(clinicas).toBeEnabled();
+  await clinicas.click();
+  await expect(clinicas).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByText("Clínica Exemplo A")).toBeVisible();
   await expect(page.getByText("Restaurante Exemplo A")).toHaveCount(0);
   await expect(page.getByText("Belo Horizonte · MG").first()).toBeVisible();
