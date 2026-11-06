@@ -12,7 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import appShellCss from "../styles/app-shell.css?url";
 import saasVisualRefreshCss from "../styles/saas-visual-refresh.css?url";
-import productPageCss from "../styles/product-page.css?url";
+import marketingHomeCss from "../styles/marketing-home.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
 function NotFoundComponent() {
@@ -83,7 +83,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "JanuarioLeads — Plataforma de Prospecção" },
       {
         name: "description",
-        content: "Plataforma privada para organizar leads, prospecção, oportunidades e financeiro.",
+        content: "Encontre empresas por nicho e cidade, organize leads e acompanhe oportunidades no Januário Leads.",
       },
       { name: "author", content: "JanuarioLeads" },
       { property: "og:title", content: "JanuarioLeads — Plataforma de Prospecção" },
@@ -109,7 +109,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       {
         rel: "stylesheet",
-        href: productPageCss,
+        href: marketingHomeCss,
       },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
