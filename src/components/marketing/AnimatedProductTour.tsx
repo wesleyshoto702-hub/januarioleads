@@ -17,7 +17,7 @@ import {
   Sparkles,
   Users,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 /** Original, client-side simulated product tour. No Google Maps, Supabase or real users. */
 const scenes = [
@@ -195,10 +195,8 @@ export function AnimatedProductTour() {
   const [current, setCurrent] = useState(0);
   const [hydrated, setHydrated] = useState(false);
   const [playing, setPlaying] = useState(true);
-  const [inViewport, setInViewport] = useState(false);
   const [pageVisible, setPageVisible] = useState(true);
   const [reducedMotion, setReducedMotion] = useState(false);
-  const container = useRef<HTMLDivElement>(null);
 
   useEffect(() => { setHydrated(true); }, []);
 
@@ -214,26 +212,13 @@ export function AnimatedProductTour() {
   }, []);
 
   useEffect(() => {
-    if (!container.current || typeof IntersectionObserver === "undefined") {
-      setInViewport(true);
-      return;
-    }
-    const observer = new IntersectionObserver(
-      ([entry]) => setInViewport(Boolean(entry?.isIntersecting)),
-      { threshold: 0.1 },
-    );
-    observer.observe(container.current);
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
     const onVisibilityChange = () => setPageVisible(document.visibilityState === "visible");
     onVisibilityChange();
     document.addEventListener("visibilitychange", onVisibilityChange);
     return () => document.removeEventListener("visibilitychange", onVisibilityChange);
   }, []);
 
-  const isRunning = playing && inViewport && pageVisible && !reducedMotion;
+  const isRunning = playing && pageVisible && !reducedMotion;
   useEffect(() => {
     if (!isRunning) return;
     const timer = window.setInterval(() => setCurrent((step) => (step + 1) % scenes.length), 4900);
@@ -293,7 +278,7 @@ export function AnimatedProductTour() {
         </div>
         {reducedMotion && <p className="jl-tour-reduced-note">Movimento reduzido ativado: navegue manualmente pelas etapas.</p>}
       </div>
-      <div className="jl-tour-stage" ref={container} data-interactive={hydrated} data-stage={current} data-playing={isRunning} data-reduced={reducedMotion} data-in-viewport={inViewport} data-tab-visible={pageVisible} data-wants-play={playing}>
+      <div className="jl-tour-stage" data-interactive={hydrated} data-stage={current} data-playing={isRunning} data-reduced={reducedMotion}>
         <div className="jl-tour-player-topbar">
           <span className="jl-tour-player-dots" aria-hidden="true"><i /><i /><i /></span>
           <span>Januário Leads <span className="jl-tour-window-divider">/</span> Tour do produto</span>
