@@ -16,7 +16,8 @@ test("home publica vende o produto sem consultar Supabase ou prometer planos", a
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1, name: /Boas oportunidades começam com contatos certos/ })).toBeVisible();
   await expect(page.getByRole("heading", { name: /Ferramentas para prospectar/ })).toBeVisible();
-  await expect(page.getByText("Exemplo ilustrativo")).toBeVisible();
+  await expect(page.getByText(/Prévia animada · nenhum dado real/i)).toBeVisible();
+  await expect(page.locator(".jl-hero-search .jl-demo-window")).toBeVisible();
   await expect(page.getByText(/Acesso atual por convite/i)).toBeVisible();
   await expect(page.getByRole("link", { name: /Já tenho acesso/i }).first()).toBeVisible();
   await expect(page.getByRole("button", { name: /cadastrar|assinar|pagar/i })).toHaveCount(0);
@@ -51,7 +52,7 @@ test("rota antiga /produto segue funcionando como pagina informativa", async ({ 
   await blockExternal(page);
   await page.goto("/produto");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  await expect(page.locator(".product-preview")).toBeVisible();
+  await expect(page.locator(".jl-hero-search .jl-demo-window")).toBeVisible();
   await expect(page.getByRole("link", { name: /Explorar o Januário Leads/i })).toBeVisible();
 });
 
@@ -61,7 +62,7 @@ for (const width of [360, 390, 768, 1280]) {
     await blockExternal(page);
     await page.goto("/");
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    await expect(page.locator(".product-preview")).toBeVisible();
+    await expect(page.locator(".jl-hero-search .jl-demo-window")).toBeVisible();
     const hasOverflow = await page.evaluate(() =>
       document.documentElement.scrollWidth > window.innerWidth + 1,
     );
