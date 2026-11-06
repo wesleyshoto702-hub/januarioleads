@@ -151,11 +151,11 @@ export function FeatureExplorer() {
 
   return (
     <div className="jl-modules" aria-label="Explore os módulos do Januário Leads">
-      <div className="jl-module-menu" role="tablist" aria-label="Módulos da plataforma">
+      <div className="jl-module-menu" role="group" aria-label="Módulos da plataforma">
         {productModules.map(({ id, icon: Icon, name, label }) => (
           <button
-            key={id} type="button" role="tab" id={"jl-module-tab-" + id}
-            aria-controls="jl-module-panel" aria-selected={selected === id}
+            key={id} type="button" id={"jl-module-tab-" + id}
+            aria-controls="jl-module-panel" aria-pressed={selected === id}
             disabled={!hydrated}
             className={"jl-module-tab" + (selected === id ? " active" : "")}
             onClick={() => setSelected(id)}
@@ -166,7 +166,7 @@ export function FeatureExplorer() {
           </button>
         ))}
       </div>
-      <div className="jl-module-detail" role="tabpanel" id="jl-module-panel" aria-labelledby={"jl-module-tab-" + selected}>
+      <div className="jl-module-detail" role="region" aria-live="polite" id="jl-module-panel" aria-labelledby={"jl-module-tab-" + selected}>
         <div key={selected} className="jl-module-detail-inner">
           <span className="jl-module-eyebrow"><ActiveIcon size={18} aria-hidden="true" /> MÓDULO {productModules.findIndex((x) => x.id === selected) + 1} DE {productModules.length}</span>
           <h3>{active.headline}</h3>
@@ -228,10 +228,10 @@ export function AudienceSwitcher() {
           <span className="jl-eyebrow">FEITO PARA NEGÓCIOS B2B</span>
           <h2 id="audience-title">Cada negócio prospecta de <span>um jeito.</span></h2>
           <p>Escolha um perfil e veja como o Januário Leads se encaixa na rotina.</p>
-          <div className="jl-audience-options" role="tablist" aria-label="Perfis de profissionais">
+          <div className="jl-audience-options" role="group" aria-label="Perfis de profissionais">
             {profiles.map(({ id, title, icon: ProfileIcon }) => (
-              <button key={id} type="button" role="tab" id={"jl-audience-tab-" + id}
-                aria-controls="jl-audience-panel" aria-selected={selected === id}
+              <button key={id} type="button" id={"jl-audience-tab-" + id}
+                aria-controls="jl-audience-panel" aria-pressed={selected === id}
                 disabled={!hydrated}
                 className={"jl-audience-option" + (selected === id ? " active" : "")}
                 onClick={() => setSelected(id)}>
@@ -242,7 +242,7 @@ export function AudienceSwitcher() {
             ))}
           </div>
         </div>
-        <div className="jl-audience-detail" id="jl-audience-panel" role="tabpanel" aria-labelledby={"jl-audience-tab-" + selected}>
+        <div className="jl-audience-detail" id="jl-audience-panel" role="region" aria-live="polite" aria-labelledby={"jl-audience-tab-" + selected}>
           <div key={selected} className="jl-audience-detail-inner">
             <span className="jl-audience-category"><Icon size={17} aria-hidden="true" /> {active.eyebrow}</span>
             <h3>{active.headline}</h3>
