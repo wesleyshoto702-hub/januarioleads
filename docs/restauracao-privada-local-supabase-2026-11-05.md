@@ -14,6 +14,12 @@ Antes da restauração, executa o verificador de hashes e tamanhos. Em seguida a
 
 ## Preparação no Windows
 
+**Atualização:** a configuração de bridge abaixo não restringiu as portas no
+Docker Desktop testado. Para iniciar com endereços explícitos, use o
+[iniciador privado Windows](inicializacao-privada-windows.md) e confira todas
+as portas antes de qualquer restauração. O verificador continua recusando
+portas públicas; não remova essa proteção.
+
 1. Garanta criptografia do disco Windows E do armazenamento Docker Desktop/WSL2. Uma pasta em E: criptografado não garante que os volumes Docker também estejam criptografados. Use computador confiável, sem sincronização automática para nuvem.
 2. Instale Docker Desktop, Supabase CLI e psql 17. Confira versões e a ajuda da CLI.
 3. Prepare um laboratório **separado e descartável**, nunca vinculado ao projeto de produção. Substitua E: pelo seu volume criptografado:
