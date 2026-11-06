@@ -1,6 +1,6 @@
 import {
   ArrowRight, BarChart3, Building2, CalendarCheck2, Check, CheckCircle2,
-  Clock3, Compass, FileText, FolderKanban, Globe2, Layers3, MessageCircle,
+  Clock3, Compass, FolderKanban, Globe2, Layers3, MessageCircle,
   Search, ShieldCheck, Target, Users, WalletCards,
 } from "lucide-react";
 import { useEffect, useState } from "react";
