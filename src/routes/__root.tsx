@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import appShellCss from "../styles/app-shell.css?url";
 import saasVisualRefreshCss from "../styles/saas-visual-refresh.css?url";
+import productPageCss from "../styles/product-page.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
 function NotFoundComponent() {
@@ -105,6 +106,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         rel: "stylesheet",
         href: saasVisualRefreshCss,
+      },
+      {
+        rel: "stylesheet",
+        href: productPageCss,
       },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
