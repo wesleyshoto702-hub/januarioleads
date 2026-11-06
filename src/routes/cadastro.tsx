@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, CheckCircle2, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, UserRoundPlus } from "lucide-react";
+import { CheckCircle2, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, UserRoundPlus } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { BETA_SIGNUP_CONFIG, requestBetaSignup } from "../lib/beta-registration";
 import { AuthShell } from "../components/auth/AuthShell";
@@ -64,7 +64,7 @@ function RegistrationPage() {
           <span className="jl-auth-feedback-icon"><CheckCircle2 size={26} aria-hidden="true" /></span>
           <h2>Verifique seu e-mail.</h2>
           <p role="status">Se o endereço puder ser cadastrado, você receberá as instruções de confirmação. A entrada no CRM dependerá de uma ativação de acesso separada.</p>
-          <Link className="jl-auth-top-action" to="/login">Ir para o login <ArrowRight size={17} aria-hidden="true" /></Link>
+          <Link className="jl-auth-top-action" to="/login">Ir para o login</Link>
         </div>
       ) : (
         <>
@@ -73,7 +73,7 @@ function RegistrationPage() {
           <p className="jl-auth-form-intro">
             {signupConfig
               ? "Cadastre seu e-mail no ambiente de homologação. A liberação de acesso ao CRM acontece separadamente."
-              : "Estamos preparando a abertura do cadastro. Enquanto isso, o acesso ao sistema continua por convite."}
+              : "O cadastro de novos usuários ainda não está disponível neste ambiente. Quem já possui conta pode entrar normalmente."}
           </p>
           {!signupConfig ? (
             <div className="jl-auth-feedback">
@@ -82,7 +82,7 @@ function RegistrationPage() {
                 <span><strong>Cadastro público em preparação.</strong> A criação de contas ainda não está aberta nesta versão. Acessos existentes continuam funcionando normalmente.</span>
               </div>
               <p>A experiência de cadastro já está estruturada. A abertura depende da confirmação de e-mail e da liberação de acesso na plataforma.</p>
-              <Link className="jl-auth-bottom-link" to="/login">Já tenho uma conta <ArrowRight size={16} aria-hidden="true" /></Link>
+              <Link className="jl-auth-bottom-link" to="/login">Já tenho uma conta</Link>
             </div>
           ) : (
             <form className="jl-auth-fields" onSubmit={(event) => void submit(event)}>
@@ -118,7 +118,6 @@ function RegistrationPage() {
               {error && <p className="jl-auth-error" role="alert">{error}</p>}
               <button className="jl-auth-form-submit" type="submit" disabled={submitting}>
                 {submitting ? "Criando conta..." : "Criar conta de homologação"}
-                {!submitting && <ArrowRight size={17} aria-hidden="true" />}
               </button>
               <p className="jl-auth-form-footnote"><Mail size={13} aria-hidden="true" /> A confirmação de e-mail depende das configurações do serviço de homologação.</p>
             </form>
