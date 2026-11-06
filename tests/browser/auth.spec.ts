@@ -7,8 +7,8 @@ test.beforeEach(async ({ page }) => {
     return url.hostname === "127.0.0.1" ? route.continue() : route.abort();
   });
 });
-test("anonymous visitor is redirected to login", async ({ page }) => {
-  await page.goto("/");
+test("private /app redirects anonymous visitors to login", async ({ page }) => {
+  await page.goto("/app");
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.getByRole("button", { name: "Entrar", exact: true })).toBeEnabled();
 });
@@ -49,6 +49,7 @@ test("authorized login loads dashboard, leads and logout with mocked backend", a
   await page.getByRole("button", { name: "Novo lead", exact: true }).click();
   await expect(page.getByRole("dialog", { name: "Novo lead", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Fechar", exact: true }).click();
+  await expect(page).toHaveURL(/\/app$/);
   await page.getByRole("button", { name: "Sair", exact: true }).click();
   await expect(page).toHaveURL(/\/login$/);
   expect(await page.evaluate(() => localStorage.getItem("januarioleads:auth-session"))).toBeNull();
