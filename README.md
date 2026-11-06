@@ -4,7 +4,7 @@ Plataforma de prospecção comercial: busca de empresas por nicho e cidade, CRM,
 
 ## Evolução para SaaS
 
-- **Página inicial pública:** `/` — hero com animação Buscar Leads sem CTAs repetidos, tour original, seções editoriais e explorador interativo dos seis módulos. [Mudanças da reformulação](docs/reformulacao-home-auth-2026-11-06.md).
+- **Página inicial pública:** `/` — hero minimalista com Buscar Leads animado, trilha Explore → Organize → Acompanhe em vermelho, aurora em movimento atrás do conteúdo, FAQ e seis módulos interativos, sem faixas e CTAs repetidos. [Detalhes da revisão](docs/home-minimal-aurora-2026-11-06.md).
 - **Compatibilidade:** `/produto` continua exibindo a apresentação do produto.
 - **Área de trabalho privada:** `/app`; `/login` valida a conta e encaminha o usuário autorizado ao CRM.
 - **Demonstrações do produto:** a animação **Buscar Leads** fica agora no **hero** à direita do título, em `/#demonstracao`, com digitação, pesquisa, resultados e seleção para o CRM (controles de pausa, reinício e nicho). O tour "Como funciona o Januário Leads? Veja na prática" continua logo depois em `/#tour`, com quatro etapas e navegação manual. A seção duplicada de busca foi removida para deixar a homepage mais compacta. Tudo com empresas fictícias, sem chamadas ao Supabase ou Google Places. [Adaptação da réplica HTML](docs/hero-buscar-leads-animado-2026-11-06.md).
