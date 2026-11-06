@@ -53,7 +53,7 @@ test("rota antiga /produto segue funcionando como pagina informativa", async ({ 
   await page.goto("/produto");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await expect(page.locator(".jl-hero-search .jl-demo-window")).toBeVisible();
-  await expect(page.getByRole("link", { name: /Criar conta/i })).toBeVisible();
+  await expect(page.locator(".jl-header-actions").getByRole("link", { name: "Criar conta" })).toBeVisible();
 });
 
 for (const width of [360, 390, 768, 1280]) {
