@@ -276,7 +276,7 @@ export function MarketingHome() {
               <a href="#como-funciona" onClick={() => setMobileOpen(false)}>Como funciona</a>
               <a href="#recursos" onClick={() => setMobileOpen(false)}>Funcionalidades</a>
               <a href="#duvidas" onClick={() => setMobileOpen(false)}>Perguntas</a>
-              <Link to="/cadastro" onClick={() => setMobileOpen(false)}>Acesso beta</Link>
+              <Link to="/cadastro" onClick={() => setMobileOpen(false)}>Criar conta</Link>
             </div>
           </nav>
         )}
