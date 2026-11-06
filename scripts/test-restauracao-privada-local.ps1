@@ -8,12 +8,36 @@ $SenhaAnterior = [Environment]::GetEnvironmentVariable("PGPASSWORD", "Process")
 
 function global:docker {
   $global:LASTEXITCODE = 0
-  if ($global:PortasMock) {
-    Write-Output $global:PortasMock
-  } elseif ($global:PortaInsegura) {
-    Write-Output "postgres:17|0.0.0.0:54322->5432/tcp"
+  if ($args[0] -eq "ps") {
+    if ($global:PortasMock) {
+      foreach ($Item in @($global:PortasMock)) { Write-Output ("0123456789ab|" + $Item) }
+    } elseif ($global:PortaInsegura) {
+      Write-Output "0123456789ab|postgres:17|0.0.0.0:54322->5432/tcp"
+    } else {
+      Write-Output "0123456789ab|supabase/postgres:17.6.1.084|127.0.0.1:54322->5432/tcp"
+    }
+  } elseif ($args[0] -eq "inspect") {
+    if ($args -contains "{{json .Config.Labels}}") {
+      if ($global:ProjetoIncorreto) {
+        Write-Output '{"com.supabase.cli.project":"OutroProjeto"}'
+      } else {
+        Write-Output '{"com.supabase.cli.project":"Lab"}'
+      }
+    } elseif ($args -contains "{{json .NetworkSettings.Networks}}") {
+      if ($global:RedeExtra) {
+        Write-Output '{"januario-restore-local":{},"bridge":{}}'
+      } elseif ($global:RedeErrada) {
+        Write-Output '{"januario-restore-loopback":{}}'
+      } else {
+        Write-Output '{"januario-restore-local":{}}'
+      }
+    } else {
+      throw "UNSAFE: docker inspect inesperado"
+    }
+  } elseif ($args[0] -eq "network" -and $args[1] -eq "inspect") {
+    Write-Output $(if ($global:RedeNaoInterna) { "false" } else { "true" })
   } else {
-    Write-Output "supabase/postgres:17.6.1.084|127.0.0.1:54322->5432/tcp"
+    throw "UNSAFE: docker comando inesperado"
   }
 }
 function global:psql {
@@ -50,7 +74,7 @@ function ExigirBloqueio([scriptblock]$Acao, [string]$Caso) {
 try {
   New-Item -ItemType Directory -Path (Join-Path $Lab "supabase") -Force | Out-Null
   New-Item -ItemType Directory -Path $Backup -Force | Out-Null
-  Set-Content -LiteralPath (Join-Path $Lab "supabase/config.toml") -Value "[project]"
+  Set-Content -LiteralPath (Join-Path $Lab "supabase/config.toml") -Value 'project_id = "Lab"'
   $Itens = foreach ($Nome in @("roles.sql","schema.sql","data.sql")) {
     $Arq = Join-Path $Backup $Nome
     Set-Content -LiteralPath $Arq -Value ("MOCK-" + $Nome)
@@ -101,6 +125,22 @@ try {
   ExigirBloqueio { & $Roteiro @Argumentos } "containers ambiguos"
   $global:PortasMock = $null
 
+  $global:RedeNaoInterna = $true
+  ExigirBloqueio { & $Roteiro @Argumentos } "rede com saida para internet"
+  $global:RedeNaoInterna = $false
+
+  $global:RedeExtra = $true
+  ExigirBloqueio { & $Roteiro @Argumentos } "container conectado em duas redes"
+  $global:RedeExtra = $false
+
+  $global:RedeErrada = $true
+  ExigirBloqueio { & $Roteiro @Argumentos } "rede de preparacao vazia nao e segura para restaurar"
+  $global:RedeErrada = $false
+
+  $global:ProjetoIncorreto = $true
+  ExigirBloqueio { & $Roteiro @Argumentos } "container nao pertence ao laboratorio"
+  $global:ProjetoIncorreto = $false
+
   $global:BloquearPreflight = $true
   ExigirBloqueio { & $Roteiro @Argumentos } "stack nao vazia"
   $global:BloquearPreflight = $false
@@ -137,7 +177,7 @@ try {
   Remove-Item -LiteralPath $Raiz -Recurse -Force -ErrorAction SilentlyContinue
   Remove-Item function:\psql -ErrorAction SilentlyContinue
   Remove-Item function:\docker -ErrorAction SilentlyContinue
-  foreach ($Chave in @("PortasMock","PortaInsegura","BloquearPreflight","FalharRestore","BloquearPostcheck")) {
+  foreach ($Chave in @("PortasMock","PortaInsegura","BloquearPreflight","FalharRestore","BloquearPostcheck","RedeNaoInterna","RedeExtra","RedeErrada","ProjetoIncorreto")) {
     Remove-Variable -Name $Chave -Scope Global -ErrorAction SilentlyContinue
   }
 }
