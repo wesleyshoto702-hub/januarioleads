@@ -293,7 +293,7 @@ export function AnimatedProductTour() {
         </div>
         {reducedMotion && <p className="jl-tour-reduced-note">Movimento reduzido ativado: navegue manualmente pelas etapas.</p>}
       </div>
-      <div className="jl-tour-stage" ref={container} data-interactive={hydrated} data-stage={current} data-playing={isRunning} data-reduced={reducedMotion}>
+      <div className="jl-tour-stage" ref={container} data-interactive={hydrated} data-stage={current} data-playing={isRunning} data-reduced={reducedMotion} data-in-viewport={inViewport} data-tab-visible={pageVisible} data-wants-play={playing}>
         <div className="jl-tour-player-topbar">
           <span className="jl-tour-player-dots" aria-hidden="true"><i /><i /><i /></span>
           <span>Januário Leads <span className="jl-tour-window-divider">/</span> Tour do produto</span>
