@@ -14,6 +14,7 @@ import appShellCss from "../styles/app-shell.css?url";
 import saasVisualRefreshCss from "../styles/saas-visual-refresh.css?url";
 import marketingHomeCss from "../styles/marketing-home.css?url";
 import auroraBackdropCss from "../styles/aurora-backdrop.css?url";
+import homeMinimalWorkflowCss from "../styles/home-minimal-workflow.css?url";
 import marketingEditorialCss from "../styles/marketing-editorial.css?url";
 import authIdentityCss from "../styles/auth-identity.css?url";
 import animatedTourCss from "../styles/animated-product-tour.css?url";
@@ -145,6 +146,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         rel: "stylesheet",
         href: auroraBackdropCss,
+      },
+      {
+        rel: "stylesheet",
+        href: homeMinimalWorkflowCss,
       },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
