@@ -220,7 +220,7 @@ export function AnimatedProductTour() {
     }
     const observer = new IntersectionObserver(
       ([entry]) => setInViewport(Boolean(entry?.isIntersecting)),
-      { threshold: 0.25 },
+      { threshold: 0.1 },
     );
     observer.observe(container.current);
     return () => observer.disconnect();
@@ -248,7 +248,7 @@ export function AnimatedProductTour() {
   const currentScene = scenes[current] ?? scenes[0];
   const Icon = currentScene.icon;
   return (
-    <div className="jl-tour-grid" ref={container}>
+    <div className="jl-tour-grid">
       <div className="jl-tour-side">
         <p className="jl-tour-side-overline">SEU FLUXO, EM MOVIMENTO</p>
         <h3>Não é só uma lista. <span>É um processo.</span></h3>
@@ -293,7 +293,7 @@ export function AnimatedProductTour() {
         </div>
         {reducedMotion && <p className="jl-tour-reduced-note">Movimento reduzido ativado: navegue manualmente pelas etapas.</p>}
       </div>
-      <div className="jl-tour-stage" data-interactive={hydrated} data-stage={current} data-playing={isRunning} data-reduced={reducedMotion}>
+      <div className="jl-tour-stage" ref={container} data-interactive={hydrated} data-stage={current} data-playing={isRunning} data-reduced={reducedMotion}>
         <div className="jl-tour-player-topbar">
           <span className="jl-tour-player-dots" aria-hidden="true"><i /><i /><i /></span>
           <span>Januário Leads <span className="jl-tour-window-divider">/</span> Tour do produto</span>
