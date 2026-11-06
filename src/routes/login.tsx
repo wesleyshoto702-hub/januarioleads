@@ -1,5 +1,5 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Eye, EyeOff, Loader2, LockKeyhole, Moon, Sun } from "lucide-react";
+import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
+import { ArrowRight, Eye, EyeOff, Loader2, LockKeyhole, Moon, Sun } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import { getValidSession, signIn } from "../lib/auth";
 
@@ -112,6 +112,9 @@ function LoginPage() {
           <p className="eyebrow">ÁREA RESTRITA</p>
           <h1>Entre para acessar seus leads.</h1>
           <p>Use a conta privada cadastrada no Supabase Auth.</p>
+          <Link to="/produto" className="login-discover">
+            Conhecer o JanuarioLeads <ArrowRight size={15} aria-hidden="true" />
+          </Link>
         </div>
 
         <form className="login-form" onSubmit={handleSubmit}>
