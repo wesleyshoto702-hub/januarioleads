@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AnimatedProductTour } from "./AnimatedProductTour";
-import { AmbientParticles } from "./AmbientParticles";
+import { AuroraBackdrop } from "./AuroraBackdrop";
 import { MessageExampleDemo } from "./MessageExampleDemo";
 import { AudienceSwitcher, ChallengeStory, FeatureExplorer, WorkflowRibbon } from "./MarketingModules";
 
@@ -242,7 +242,7 @@ export function MarketingHome() {
   useEffect(() => { setMobileReady(true); }, []);
   return (
     <div className="jl-site">
-      <AmbientParticles />
+      <AuroraBackdrop />
       <a className="jl-skip" href="#conteudo">Pular para o conteúdo</a>
       <header className="jl-header">
         <div className="jl-container jl-header-inner">
