@@ -8,7 +8,6 @@ import {
   CalendarCheck,
   Check,
   CheckCircle2,
-  CircleHelp,
   Clock3,
   Compass,
   Globe2,
@@ -479,7 +478,7 @@ export function MarketingHome() {
               <p>O Januário Leads já possui uma área de trabalho funcional. Estamos preparando o cadastro comercial, os planos e a abertura de assinaturas.</p>
               <div className="jl-access-actions">
                 <Link to="/login" className="jl-button jl-button-primary">Já tenho acesso <ArrowRight size={17} aria-hidden="true"/></Link>
-                <a className="jl-button jl-button-outline" href="#duvidas">Tirar dúvidas <CircleHelp size={16} aria-hidden="true"/></a>
+                <Link to="/cadastro" className="jl-button jl-button-outline">Como funciona o beta <Sparkles size={16} aria-hidden="true"/></Link>
               </div>
               <span className="jl-access-note"><ShieldCheck size={16} aria-hidden="true" /> Acesso por convite no momento. Não há checkout ou assinatura automática disponível.</span>
             </div>
