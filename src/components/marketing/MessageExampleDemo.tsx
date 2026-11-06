@@ -1,7 +1,7 @@
 import { Check, ClipboardCopy, Mail, MessageCircle, Send } from "lucide-react";
 import { useEffect, useState } from "react";
 
-/** Illustrative message templates; no AI generation, network calls or automatic sending. */
+/** Editable message templates; no AI generation, network calls or automatic sending. */
 const examples = [
   {
     key: "whatsapp",
@@ -65,13 +65,13 @@ export function MessageExampleDemo() {
           <span><Check size={16} aria-hidden="true" /> Abertura de conversa no WhatsApp sob seu controle</span>
         </div>
       </div>
-      <div className="jl-message-card" aria-label="Demonstração de modelos de mensagens">
+      <div className="jl-message-card" aria-label="Modelos de mensagens para personalizar">
         <div className="jl-message-card-top">
           <div>
             <span>MODELO DE ABORDAGEM</span>
-            <strong>Mensagem para adaptar</strong>
+            <strong>Selecione uma abordagem</strong>
           </div>
-          <small>Exemplo fictício</small>
+          <small>Mensagens personalizáveis</small>
         </div>
         <div className="jl-message-tabs" role="tablist" aria-label="Canais da mensagem">
           {examples.map(({ key, label, icon: Icon }) => (
@@ -99,13 +99,13 @@ export function MessageExampleDemo() {
         >
           <span>{active.title}</span>
           <p>{active.text}</p>
-          <small>Texto demonstrativo. Confira os dados antes de usar.</small>
+          <small>Personalize a abordagem antes de conversar com cada empresa.</small>
         </div>
         <div className="jl-message-card-actions">
           <span>Sem envio automático</span>
           <button type="button" disabled={!hydrated} onClick={() => void copyMessage()}>
             {copied ? <Check size={16} aria-hidden="true" /> : <ClipboardCopy size={16} aria-hidden="true" />}
-            {copied ? "Copiado" : "Copiar exemplo"}
+            {copied ? "Copiado" : "Copiar mensagem"}
           </button>
         </div>
       </div>
