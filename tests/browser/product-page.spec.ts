@@ -1,52 +1,66 @@
 import { expect, test } from "@playwright/test";
 
-test("apresentacao publica explica o produto sem solicitar login ou dados", async ({ page }) => {
-  let supabaseRequests = 0;
-  await page.route("**/*", async (route) => {
+function blockExternal(page: import("@playwright/test").Page, onSupabase?: () => void) {
+  return page.route("**/*", (route) => {
     const url = new URL(route.request().url());
-    if (url.hostname.endsWith(".supabase.co")) {
-      supabaseRequests++;
-      return route.abort();
-    }
-    if (url.hostname === "127.0.0.1" || url.hostname === "localhost") {
-      return route.continue();
-    }
-    return route.abort();
-  });
-
-  await page.goto("/produto");
-
-  await expect(
-    page.getByRole("heading", { level: 1, name: /Encontre empresas/ }),
-  ).toBeVisible();
-  await expect(page.getByRole("heading", { name: /Ferramentas para prospectar/ })).toBeVisible();
-  await expect(page.getByText("Exemplo ilustrativo")).toBeVisible();
-  await expect(page.getByText(/acesso ainda é concedido por convite/i)).toBeVisible();
-  await expect(page.getByRole("button", { name: /cadastrar|assinar|pagar/i })).toHaveCount(0);
-  expect(supabaseRequests).toBe(0);
-
-  await page.getByRole("link", { name: /Já tenho acesso/i }).click();
-  await expect(page).toHaveURL(/\/login$/);
-  await expect(page.getByPlaceholder("seu@email.com")).toBeVisible();
-  await page.getByRole("link", { name: /Conhecer o JanuarioLeads/i }).click();
-  await expect(page).toHaveURL(/\/produto$/);
-});
-
-test("apresentacao publica e acessivel em celular sem rolagem horizontal", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.route("**/*", (route) => {
-    const url = new URL(route.request().url());
-    return url.hostname === "127.0.0.1" || url.hostname === "localhost"
+    if (url.hostname.endsWith(".supabase.co")) onSupabase?.();
+    return ["127.0.0.1", "localhost"].includes(url.hostname)
       ? route.continue()
       : route.abort();
   });
+}
 
+test("home publica vende o produto sem consultar Supabase ou prometer planos", async ({ page }) => {
+  let supabaseRequests = 0;
+  await blockExternal(page, () => { supabaseRequests++; });
+  await page.goto("/");
+  await expect(page.getByRole("heading", { level: 1, name: /Boas oportunidades começam com contatos certos/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Ferramentas para prospectar/ })).toBeVisible();
+  await expect(page.getByText("Exemplo ilustrativo")).toBeVisible();
+  await expect(page.getByText(/Acesso atual por convite/i)).toBeVisible();
+  await expect(page.getByRole("link", { name: /Já tenho acesso/i }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: /cadastrar|assinar|pagar/i })).toHaveCount(0);
+  expect(supabaseRequests).toBe(0);
+
+  await page.getByRole("button", { name: "Clínicas", exact: true }).click();
+  await expect(page.getByText("Clínica Exemplo A")).toBeVisible();
+  await expect(page.getByText("Restaurante Exemplo A")).toHaveCount(0);
+  await expect(page.getByText("Belo Horizonte · MG").first()).toBeVisible();
+  expect(supabaseRequests).toBe(0);
+
+  await page.getByRole("link", { name: /Já tenho acesso/i }).first().click();
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByPlaceholder("seu@email.com")).toBeVisible();
+  await page.getByRole("link", { name: /Conhecer o JanuarioLeads/i }).click();
+  await expect(page).toHaveURL(/\/$/);
+});
+
+test("FAQ deixa claro que assinaturas nao estao abertas", async ({ page }) => {
+  await blockExternal(page);
+  await page.goto("/");
+  const faq = page.locator(".jl-faq-item").filter({ hasText: "Já posso contratar uma assinatura?" });
+  await faq.locator("summary").click();
+  await expect(faq.getByText(/Ainda não.*planos e a cobrança/)).toBeVisible();
+});
+
+test("rota antiga /produto segue funcionando como pagina informativa", async ({ page }) => {
+  await blockExternal(page);
   await page.goto("/produto");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  await expect(page.getByRole("link", { name: /Já tenho acesso/i })).toBeVisible();
   await expect(page.locator(".product-preview")).toBeVisible();
-  const hasHorizontalOverflow = await page.evaluate(
-    () => document.documentElement.scrollWidth > window.innerWidth + 1,
-  );
-  expect(hasHorizontalOverflow).toBe(false);
+  await expect(page.getByRole("link", { name: /Explorar o Januário Leads/i })).toBeVisible();
 });
+
+for (const width of [360, 390, 768, 1280]) {
+  test("home responsiva sem overflow horizontal em " + width + "px", async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await blockExternal(page);
+    await page.goto("/");
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.locator(".product-preview")).toBeVisible();
+    const hasOverflow = await page.evaluate(() =>
+      document.documentElement.scrollWidth > window.innerWidth + 1,
+    );
+    expect(hasOverflow).toBe(false);
+  });
+}
