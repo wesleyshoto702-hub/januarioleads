@@ -1,5 +1,5 @@
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
-import { ArrowRight, Eye, EyeOff, Loader2, LockKeyhole, LogIn } from "lucide-react";
+import { Eye, EyeOff, Loader2, LockKeyhole, LogIn } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 import { getValidSession, signIn } from "../lib/auth";
 import { AuthShell } from "../components/auth/AuthShell";
@@ -99,12 +99,11 @@ function LoginPage() {
         <button className="jl-auth-form-submit" type="submit" disabled={loading}>
           {loading ? <Loader2 className="jl-auth-spinner" size={18} aria-hidden="true" /> : <LockKeyhole size={18} aria-hidden="true" />}
           {loading ? "Entrando..." : "Entrar"}
-          {!loading && <ArrowRight size={17} aria-hidden="true" />}
         </button>
       </form>
       <div className="jl-auth-form-divider">NOVO POR AQUI?</div>
       <Link className="jl-auth-bottom-link" to="/cadastro">
-        Criar minha conta <ArrowRight size={16} aria-hidden="true" />
+        Criar minha conta
       </Link>
     </AuthShell>
   );
