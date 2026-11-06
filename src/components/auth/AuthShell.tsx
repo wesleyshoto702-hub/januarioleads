@@ -30,8 +30,8 @@ export function AuthShell({ page, children }: Props) {
         <div className="jl-auth-header-actions">
           <Link to="/" className="jl-auth-back">Conhecer a plataforma</Link>
           {page === "login"
-            ? <Link to="/cadastro" className="jl-auth-top-action">Criar conta <ArrowRight size={15} aria-hidden="true" /></Link>
-            : <Link to="/login" className="jl-auth-top-action">Entrar <ArrowRight size={15} aria-hidden="true" /></Link>}
+            ? <Link to="/cadastro" className="jl-auth-top-action">Criar conta</Link>
+            : <Link to="/login" className="jl-auth-top-action">Entrar</Link>}
         </div>
       </header>
       <div className="jl-auth-main">
