@@ -1,11 +1,13 @@
 // Captures the original Error out-of-band so server.ts can recover the stack
 // when h3 has already swallowed the throw into a generic 500 Response.
 
+import { redactLogText, sanitizeLogValue } from "./log-redaction.ts";
+
 let lastCapturedError: { error: unknown; at: number } | undefined;
 const TTL_MS = 5_000;
 
 function record(error: unknown) {
-  lastCapturedError = { error, at: Date.now() };
+  lastCapturedError = { error: sanitizeLogValue(error), at: Date.now() };
 }
 
 // h3's HTTPError serializes to {"status":500,"unhandled":true,"message":"HTTPError"} —
@@ -28,7 +30,7 @@ export function describeError(error: unknown): string {
     parts.push(`${label}${current.stack ?? `${current.name}: ${current.message}`}${status}`);
     current = current.cause;
   }
-  return parts.join("\n").slice(0, DESCRIPTION_LENGTH_LIMIT);
+  return redactLogText(parts.join("\n")).slice(0, DESCRIPTION_LENGTH_LIMIT);
 }
 
 function describeStatus(error: Error): string {
@@ -39,9 +41,9 @@ function describeStatus(error: Error): string {
 
 function safeStringify(value: unknown): string {
   try {
-    return JSON.stringify(value) ?? String(value);
+    return JSON.stringify(sanitizeLogValue(value)) ?? "[UNAVAILABLE DIAGNOSTIC]";
   } catch {
-    return String(value);
+    return "[UNAVAILABLE DIAGNOSTIC]";
   }
 }
 
@@ -55,7 +57,7 @@ function isErrorLike(value: unknown): value is Error {
 const originalConsoleError = console.error.bind(console);
 console.error = (...args: unknown[]) => {
   const expanded = args.map((arg) => {
-    if (!isErrorLike(arg)) return arg;
+    if (!isErrorLike(arg)) return sanitizeLogValue(arg);
     record(arg);
     return describeError(arg);
   });
