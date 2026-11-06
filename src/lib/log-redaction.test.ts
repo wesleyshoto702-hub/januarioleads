@@ -1,6 +1,13 @@
-import { deepStrictEqual, equal, ok } from "node:assert/strict";
 import { redactLogText, sanitizeLogValue } from "./log-redaction.ts";
 import { describeError } from "./error-capture.ts";
+
+function ok(condition: unknown, message = "Assertion failed"): asserts condition {
+  if (!condition) throw new Error(message);
+}
+
+function equal(actual: unknown, expected: unknown): void {
+  if (!Object.is(actual, expected)) throw new Error("Unexpected value");
+}
 
 Deno.test("diagnostics redact credentials throughout error causes and preserve useful context", () => {
   const error = new Error("Request failed with status 503", { cause: {
@@ -44,5 +51,9 @@ Deno.test("structured log arguments do not invoke getters or toJSON and handle c
   ok(!output.includes("PRIVATE"));
   ok(output.includes("CIRCULAR"));
   equal(invoked, false);
-  deepStrictEqual(sanitizeLogValue(["Bearer PRIVATE", 403]), ["[REDACTED]", 403]);
+  const sanitizedArray = sanitizeLogValue(["Bearer PRIVATE", 403]);
+  ok(Array.isArray(sanitizedArray));
+  equal(sanitizedArray.length, 2);
+  equal(sanitizedArray[0], "[REDACTED]");
+  equal(sanitizedArray[1], 403);
 });
