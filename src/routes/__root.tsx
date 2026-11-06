@@ -13,6 +13,8 @@ import appCss from "../styles.css?url";
 import appShellCss from "../styles/app-shell.css?url";
 import saasVisualRefreshCss from "../styles/saas-visual-refresh.css?url";
 import marketingHomeCss from "../styles/marketing-home.css?url";
+import marketingEditorialCss from "../styles/marketing-editorial.css?url";
+import authIdentityCss from "../styles/auth-identity.css?url";
 import animatedTourCss from "../styles/animated-product-tour.css?url";
 import heroSearchCss from "../styles/hero-search.css?url";
 import messageExampleCss from "../styles/message-example.css?url";
@@ -130,6 +132,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         rel: "stylesheet",
         href: betaRegistrationCss,
+      },
+      {
+        rel: "stylesheet",
+        href: marketingEditorialCss,
+      },
+      {
+        rel: "stylesheet",
+        href: authIdentityCss,
       },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },

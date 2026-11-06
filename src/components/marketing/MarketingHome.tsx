@@ -3,16 +3,11 @@ import {
   ArrowDown,
   ArrowRight,
   ArrowUpRight,
-  BarChart3,
   Building2,
-  CalendarCheck,
   Check,
   CheckCircle2,
   CirclePlay,
   Clock3,
-  Compass,
-  Globe2,
-  LayoutDashboard,
   MapPin,
   MessageCircle,
   Menu,
@@ -20,19 +15,18 @@ import {
   ShieldCheck,
   Sparkles,
   Target,
-  Users,
-  WalletCards,
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AnimatedProductTour } from "./AnimatedProductTour";
 import { MessageExampleDemo } from "./MessageExampleDemo";
+import { AudienceSwitcher, ChallengeStory, FeatureExplorer, WorkflowRibbon } from "./MarketingModules";
 
 const scenarios = [
   {
     id: "restaurantes",
     label: "Restaurantes",
-    location: "Lavras · MG",
+    location: "Curitiba · PR",
     results: [
       { name: "Restaurante Exemplo A", niche: "Alimentação", detail: "Contato a qualificar" },
       { name: "Bistrô Exemplo B", niche: "Alimentação", detail: "Pronto para salvar" },
@@ -60,61 +54,6 @@ const scenarios = [
     ],
   },
 ] as const;
-
-const difficulties = [
-  {
-    icon: Search,
-    title: "Horas espalhadas em pesquisas",
-    description: "Achar empresas, conferir dados e organizar a lista manualmente toma tempo da prospecção.",
-  },
-  {
-    icon: LayersIcon,
-    title: "Contatos sem contexto",
-    description: "Números, anotações e histórico em lugares diferentes dificultam uma abordagem relevante.",
-  },
-  {
-    icon: Clock3,
-    title: "Retornos esquecidos",
-    description: "Sem uma próxima ação definida, oportunidades podem ficar paradas na carteira.",
-  },
-];
-
-function LayersIcon(props: { size?: number; "aria-hidden"?: boolean | "true" | "false" }) {
-  return <LayoutDashboard {...props} />;
-}
-
-const features = [
-  {
-    icon: Search,
-    title: "Busca por região e nicho",
-    description: "Pesquise empresas em municípios brasileiros e trabalhe com segmentos relevantes para seu serviço.",
-  },
-  {
-    icon: Building2,
-    title: "Detalhes da empresa",
-    description: "Consulte os dados encontrados e complemente o contexto de cada negócio conforme a disponibilidade.",
-  },
-  {
-    icon: Users,
-    title: "CRM de prospecção",
-    description: "Salve seus leads e acompanhe em que etapa está cada contato, com histórico organizado.",
-  },
-  {
-    icon: CalendarCheck,
-    title: "Próxima ação visível",
-    description: "Agende retornos e identifique os contatos que merecem atenção na sua rotina.",
-  },
-  {
-    icon: MessageCircle,
-    title: "Mensagens para adaptar",
-    description: "Prepare abordagens e abra uma conversa no WhatsApp. O envio continua sendo manual.",
-  },
-  {
-    icon: WalletCards,
-    title: "Visão das negociações",
-    description: "Acompanhe oportunidades e registros financeiros relacionados aos seus negócios.",
-  },
-];
 
 const faq = [
   {
@@ -274,7 +213,7 @@ function SearchDemo() {
         <div className="jl-demo-results" key={selected + "-" + cycle + "-results"}>
           <div className="jl-demo-results-title">
             <span><Search size={16} aria-hidden="true" /> Empresas para explorar</span>
-            <small>Dados fictícios</small>
+            <small>Dados de demonstração</small>
           </div>
           {scenario.results.map((result, index) => (
             <div className={"jl-demo-result jl-demo-result-" + (index + 1)} key={result.name}>
@@ -283,12 +222,12 @@ function SearchDemo() {
                 <strong>{result.name}</strong>
                 <small>{result.niche} · {scenario.location}</small>
               </span>
-              <span className="jl-demo-result-status">{phase === 3 && index === 0 ? "No CRM · exemplo" : index === 0 ? "Descobrir" : index === 1 ? "Selecionar" : "Organizar"}</span>
+              <span className="jl-demo-result-status">{phase === 3 && index === 0 ? "No CRM · prévia" : index === 0 ? "Descobrir" : index === 1 ? "Selecionar" : "Organizar"}</span>
             </div>
           ))}
           <div className="jl-demo-bottom">
             <span><ShieldCheck size={15} aria-hidden="true" /> Simulação local sem custos de API</span>
-            <Link to="/login">Acessar o sistema <ArrowRight size={15} aria-hidden="true" /></Link>
+            
           </div>
         </div>
       </div>
@@ -315,7 +254,7 @@ export function MarketingHome() {
           </nav>
           <div className="jl-header-actions">
             <Link className="jl-nav-login" to="/login">Entrar</Link>
-            <a className="jl-button jl-button-small" href="#acesso">Conhecer o acesso <ArrowUpRight size={15} aria-hidden="true" /></a>
+            <Link className="jl-button jl-button-small" to="/cadastro">Criar conta <ArrowUpRight size={15} aria-hidden="true" /></Link>
             <button
               type="button"
               className="jl-mobile-menu-toggle"
@@ -337,7 +276,7 @@ export function MarketingHome() {
               <a href="#como-funciona" onClick={() => setMobileOpen(false)}>Como funciona</a>
               <a href="#recursos" onClick={() => setMobileOpen(false)}>Funcionalidades</a>
               <a href="#duvidas" onClick={() => setMobileOpen(false)}>Perguntas</a>
-              <Link to="/cadastro" onClick={() => setMobileOpen(false)}>Acesso beta</Link>
+              <Link to="/cadastro" onClick={() => setMobileOpen(false)}>Criar conta</Link>
             </div>
           </nav>
         )}
@@ -346,7 +285,7 @@ export function MarketingHome() {
         <div className="jl-container jl-marketing-briefing-inner">
           <span><CheckCircle2 size={14} aria-hidden="true" /> Pesquisa de empresas por cidade e segmento</span>
           <span><CheckCircle2 size={14} aria-hidden="true" /> CRM e acompanhamento de contatos</span>
-          <Link to="/cadastro">Acesso beta por convite <ArrowRight size={14} aria-hidden="true" /></Link>
+          <Link to="/cadastro">Criar conta <ArrowRight size={14} aria-hidden="true" /></Link>
         </div>
       </div>
 
@@ -361,10 +300,6 @@ export function MarketingHome() {
                 Busque empresas por cidade e segmento, escolha oportunidades e organize
                 os próximos contatos no CRM — tudo em um fluxo comercial mais claro.
               </p>
-              <div className="jl-hero-ctas">
-                <a className="jl-button jl-button-primary" href="#tour">Explorar o Januário Leads <CirclePlay size={17} aria-hidden="true" /></a>
-                <Link className="jl-button jl-button-outline" to="/login">Já tenho acesso <ArrowUpRight size={16} aria-hidden="true" /></Link>
-              </div>
               <div className="jl-hero-highlights">
                 <span><Check size={15} aria-hidden="true" /> Busca por cidade e nicho</span>
                 <span><Check size={15} aria-hidden="true" /> CRM e próximos contatos</span>
@@ -404,54 +339,8 @@ export function MarketingHome() {
           </div>
         </section>
 
-        <section className="jl-section jl-challenge" aria-labelledby="challenge-title">
-          <div className="jl-container">
-            <div className="jl-section-heading jl-centered">
-              <span className="jl-eyebrow">O DESAFIO DE PROSPECTAR</span>
-              <h2 id="challenge-title">Seu tempo vale mais do que <span>uma planilha desatualizada.</span></h2>
-              <p>O Januário Leads foi pensado para reunir as etapas que costumam ficar desconectadas.</p>
-            </div>
-            <div className="jl-problems">
-              {difficulties.map(({ icon: Icon, title, description }) => (
-                <article key={title} className="jl-problem-card">
-                  <span className="jl-square-icon"><Icon size={20} aria-hidden="true" /></span>
-                  <h3>{title}</h3>
-                  <p>{description}</p>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="jl-section jl-workflow" id="como-funciona" aria-labelledby="workflow-title">
-          <div className="jl-container">
-            <div className="jl-section-heading jl-centered">
-              <span className="jl-eyebrow">O MÉTODO DO JANUÁRIO LEADS</span>
-              <h2 id="workflow-title">Uma rotina comercial que <span>faz sentido.</span></h2>
-              <p>Três momentos para começar a prospectar com mais método, usando as ferramentas já presentes na plataforma.</p>
-            </div>
-            <div className="jl-flow-grid">
-              <article className="jl-flow-card">
-                <span className="jl-flow-number">01 <Compass size={20} aria-hidden="true" /></span>
-                <h3>Descubra</h3>
-                <p>Escolha o nicho e a cidade. Explore empresas e identifique quais vale a pena abordar.</p>
-                <div className="jl-flow-mini"><Search size={16} aria-hidden="true" /> Empresas em uma região <ArrowRight size={15} aria-hidden="true" /></div>
-              </article>
-              <article className="jl-flow-card">
-                <span className="jl-flow-number">02 <Users size={20} aria-hidden="true" /></span>
-                <h3>Organize</h3>
-                <p>Salve os contatos na sua carteira e mantenha situação, observações e histórico reunidos.</p>
-                <div className="jl-flow-mini"><Building2 size={16} aria-hidden="true" /> Sua carteira de leads <ArrowRight size={15} aria-hidden="true" /></div>
-              </article>
-              <article className="jl-flow-card">
-                <span className="jl-flow-number">03 <Target size={20} aria-hidden="true" /></span>
-                <h3>Avance</h3>
-                <p>Prepare sua abordagem, defina um retorno e acompanhe as oportunidades comerciais.</p>
-                <div className="jl-flow-mini"><CalendarCheck size={16} aria-hidden="true" /> Próxima ação em foco <Check size={15} aria-hidden="true" /></div>
-              </article>
-            </div>
-          </div>
-        </section>
+        <ChallengeStory />
+        <WorkflowRibbon />
 
         <section className="jl-section jl-feature-section" id="recursos" aria-labelledby="features-title">
           <div className="jl-container">
@@ -479,36 +368,15 @@ export function MarketingHome() {
             <MessageExampleDemo />
 
             <div className="jl-section-heading jl-centered jl-feature-subheading">
-              <span className="jl-eyebrow">O QUE A PLATAFORMA OFERECE</span>
-              <h2 id="features-title">Ferramentas para prospectar <span>em um só espaço.</span></h2>
+              <span className="jl-eyebrow">CONHEÇA A PLATAFORMA POR DENTRO</span>
+              <h2 id="features-title">Cada módulo com um <span>papel no seu processo.</span></h2>
+              <p>Explore as ferramentas por área: da primeira busca até o acompanhamento comercial.</p>
             </div>
-            <div className="jl-feature-grid">
-              {features.map(({ icon: Icon, title, description }) => (
-                <article key={title} className="jl-feature-card">
-                  <span className="jl-feature-icon"><Icon size={20} aria-hidden="true" /></span>
-                  <h3>{title}</h3>
-                  <p>{description}</p>
-                  <span className="jl-feature-arrow" aria-hidden="true"><ArrowUpRight size={17}/></span>
-                </article>
-              ))}
-            </div>
+            <FeatureExplorer />
           </div>
         </section>
 
-        <section className="jl-section jl-audience" id="para-quem" aria-labelledby="audience-title">
-          <div className="jl-container">
-            <div className="jl-section-heading jl-centered">
-              <span className="jl-eyebrow">FEITO PARA QUEM VENDE SERVIÇOS</span>
-              <h2 id="audience-title">Oportunidades para quem <span>precisa prospectar.</span></h2>
-              <p>Para profissionais e equipes que encontram seus próximos clientes pesquisando outros negócios.</p>
-            </div>
-            <div className="jl-audience-grid">
-              <article><span><Globe2 size={21}/></span><h3>Agências e freelancers</h3><p>Descubra empresas para apresentar sites, marketing, conteúdo e soluções digitais.</p></article>
-              <article><span><Target size={21}/></span><h3>Vendas B2B</h3><p>Organize uma carteira de prospects e acompanhe abordagens e oportunidades.</p></article>
-              <article><span><BarChart3 size={21}/></span><h3>Prestadores de serviços</h3><p>Trabalhe novos segmentos e regiões com um processo comercial mais claro.</p></article>
-            </div>
-          </div>
-        </section>
+        <AudienceSwitcher />
 
         <section className="jl-section jl-comparison" aria-labelledby="compare-title">
           <div className="jl-container">
@@ -549,7 +417,7 @@ export function MarketingHome() {
               <p>O Januário Leads já possui uma área de trabalho funcional. Estamos preparando o cadastro comercial, os planos e a abertura de assinaturas.</p>
               <div className="jl-access-actions">
                 <Link to="/login" className="jl-button jl-button-primary">Já tenho acesso <ArrowRight size={17} aria-hidden="true"/></Link>
-                <Link to="/cadastro" className="jl-button jl-button-outline">Como funciona o beta <Sparkles size={16} aria-hidden="true"/></Link>
+                <Link to="/cadastro" className="jl-button jl-button-outline">Criar conta <Sparkles size={16} aria-hidden="true"/></Link>
               </div>
               <span className="jl-access-note"><ShieldCheck size={16} aria-hidden="true" /> Acesso por convite no momento. Não há checkout ou assinatura automática disponível.</span>
             </div>

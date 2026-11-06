@@ -1,17 +1,15 @@
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
-import { ArrowRight, Eye, EyeOff, Loader2, LockKeyhole, Moon, Sun } from "lucide-react";
-import { FormEvent, useEffect, useState } from "react";
+import { ArrowRight, Eye, EyeOff, Loader2, LockKeyhole, LogIn } from "lucide-react";
+import { type FormEvent, useEffect, useState } from "react";
 import { getValidSession, signIn } from "../lib/auth";
+import { AuthShell } from "../components/auth/AuthShell";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
-      { title: "JanuarioLeads — Entrar" },
-      { name: "description", content: "Entre na sua conta privada do JanuarioLeads." },
-      { property: "og:title", content: "JanuarioLeads — Entrar" },
-      { property: "og:description", content: "Entre na sua conta privada do JanuarioLeads." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
+      { title: "Entrar | Januário Leads" },
+      { name: "description", content: "Entre na sua conta Januário Leads e acompanhe suas oportunidades de prospecção." },
+      { name: "robots", content: "noindex,follow" },
     ],
   }),
   component: LoginPage,
@@ -25,14 +23,8 @@ function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [theme, setTheme] = useState<"light" | "dark">("dark");
 
   useEffect(() => {
-    const stored = localStorage.getItem("januarioleads:login-theme");
-    const current = stored === "light" ? "light" : "dark";
-    setTheme(current);
-    document.documentElement.classList.toggle("dark", current === "dark");
-
     void getValidSession()
       .then((session) => {
         if (session) {
@@ -47,21 +39,11 @@ function LoginPage() {
       });
   }, [navigate]);
 
-  function toggleTheme() {
-    setTheme((current) => {
-      const next = current === "light" ? "dark" : "light";
-      localStorage.setItem("januarioleads:login-theme", next);
-      document.documentElement.classList.toggle("dark", next === "dark");
-      return next;
-    });
-  }
-
-  async function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (loading) return;
     setLoading(true);
     setError("");
-
     try {
       const result = await signIn(email.trim(), password);
       if (!result.ok) {
@@ -79,86 +61,51 @@ function LoginPage() {
   if (checking) {
     return (
       <main className="auth-loading" aria-live="polite">
-        <Loader2 size={20} className="auth-spinner" />
+        <Loader2 size={20} className="auth-spinner" aria-hidden="true" />
         <span>Verificando acesso...</span>
       </main>
     );
   }
 
   return (
-    <main className="login-shell">
-      <button
-        className="icon-button login-theme"
-        onClick={toggleTheme}
-        type="button"
-        aria-label={theme === "light" ? "Ativar tema escuro" : "Ativar tema claro"}
-      >
-        {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
-      </button>
-
-      <section className="login-panel">
-        <div className="login-brand">
-          <span className="brand-mark">J</span>
-          <div>
-            <strong>
-              <span>Januario</span>
-              <span className="brand-accent">Leads</span>
-            </strong>
-            <span>Acesso privado</span>
-          </div>
-        </div>
-
-        <div className="login-copy">
-          <p className="eyebrow">ÁREA RESTRITA</p>
-          <h1>Entre para acessar seus leads.</h1>
-          <p>Use a conta privada cadastrada no Supabase Auth.</p>
-          <Link to="/" className="login-discover">
-            Conhecer o JanuarioLeads <ArrowRight size={15} aria-hidden="true" />
-          </Link>
-        </div>
-
-        <form className="login-form" onSubmit={handleSubmit}>
-          <label>
-            <span>E-mail</span>
+    <AuthShell page="login">
+      <span className="jl-auth-form-eyebrow"><LogIn size={15} aria-hidden="true" /> BEM-VINDO DE VOLTA</span>
+      <h2>Acesse seu espaço de trabalho.</h2>
+      <p className="jl-auth-form-intro">Entre com suas credenciais para continuar acompanhando seus leads, contatos e oportunidades.</p>
+      <form className="jl-auth-fields" onSubmit={(event) => void handleSubmit(event)}>
+        <label className="jl-auth-field">
+          <span>E-mail</span>
+          <input
+            type="email" autoComplete="email" maxLength={320} required
+            value={email} onChange={(event) => setEmail(event.target.value)}
+            placeholder="seu@email.com"
+          />
+        </label>
+        <label className="jl-auth-field">
+          <span>Senha</span>
+          <div className="jl-auth-input-password">
             <input
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="seu@email.com"
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password" required
+              value={password} onChange={(event) => setPassword(event.target.value)}
+              placeholder="Sua senha"
             />
-          </label>
-
-          <label>
-            <span>Senha</span>
-            <div className="password-field">
-              <input
-                type={showPassword ? "text" : "password"}
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="Sua senha"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((current) => !current)}
-                aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
-              >
-                {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
-              </button>
-            </div>
-          </label>
-
-          {error && <div className="login-error">{error}</div>}
-
-          <button className="primary-button login-submit" type="submit" disabled={loading}>
-            {loading ? <Loader2 size={17} className="auth-spinner" /> : <LockKeyhole size={17} />}
-            {loading ? "Entrando..." : "Entrar"}
-          </button>
-        </form>
-      </section>
-    </main>
+            <button type="button" onClick={() => setShowPassword((old) => !old)} aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}>
+              {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+            </button>
+          </div>
+        </label>
+        {error && <p className="jl-auth-error" role="alert">{error}</p>}
+        <button className="jl-auth-form-submit" type="submit" disabled={loading}>
+          {loading ? <Loader2 className="jl-auth-spinner" size={18} aria-hidden="true" /> : <LockKeyhole size={18} aria-hidden="true" />}
+          {loading ? "Entrando..." : "Entrar"}
+          {!loading && <ArrowRight size={17} aria-hidden="true" />}
+        </button>
+      </form>
+      <div className="jl-auth-form-divider">NOVO POR AQUI?</div>
+      <Link className="jl-auth-bottom-link" to="/cadastro">
+        Criar minha conta <ArrowRight size={16} aria-hidden="true" />
+      </Link>
+    </AuthShell>
   );
 }

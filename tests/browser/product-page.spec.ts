@@ -15,7 +15,7 @@ test("home publica vende o produto sem consultar Supabase ou prometer planos", a
   await blockExternal(page, () => { supabaseRequests++; });
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1, name: /Boas oportunidades começam com contatos certos/ })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /Ferramentas para prospectar/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Cada módulo com um papel no seu processo/ })).toBeVisible();
   await expect(page.getByText(/Prévia animada · nenhum dado real/i)).toBeVisible();
   await expect(page.locator(".jl-hero-search .jl-demo-window")).toBeVisible();
   await expect(page.getByText(/Acesso atual por convite/i)).toBeVisible();
@@ -36,7 +36,7 @@ test("home publica vende o produto sem consultar Supabase ou prometer planos", a
   await page.getByRole("link", { name: /Já tenho acesso/i }).first().click();
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.getByPlaceholder("seu@email.com")).toBeVisible();
-  await page.getByRole("link", { name: /Conhecer o JanuarioLeads/i }).click();
+  await page.getByRole("link", { name: /Conhecer a plataforma/i }).click();
   await expect(page).toHaveURL(/\/$/);
 });
 
@@ -53,7 +53,7 @@ test("rota antiga /produto segue funcionando como pagina informativa", async ({ 
   await page.goto("/produto");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await expect(page.locator(".jl-hero-search .jl-demo-window")).toBeVisible();
-  await expect(page.getByRole("link", { name: /Explorar o Januário Leads/i })).toBeVisible();
+  await expect(page.locator(".jl-header-actions").getByRole("link", { name: "Criar conta" })).toBeVisible();
 });
 
 for (const width of [360, 390, 768, 1280]) {

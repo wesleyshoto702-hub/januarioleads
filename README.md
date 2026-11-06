@@ -4,11 +4,11 @@ Plataforma de prospecção comercial: busca de empresas por nicho e cidade, CRM,
 
 ## Evolução para SaaS
 
-- **Página inicial pública:** `/` — apresentação SaaS responsiva, demonstração interativa local de nichos e funcionalidades do Januário Leads.
+- **Página inicial pública:** `/` — hero com animação Buscar Leads sem CTAs repetidos, tour original, seções editoriais e explorador interativo dos seis módulos. [Mudanças da reformulação](docs/reformulacao-home-auth-2026-11-06.md).
 - **Compatibilidade:** `/produto` continua exibindo a apresentação do produto.
 - **Área de trabalho privada:** `/app`; `/login` valida a conta e encaminha o usuário autorizado ao CRM.
 - **Demonstrações do produto:** a animação **Buscar Leads** fica agora no **hero** à direita do título, em `/#demonstracao`, com digitação, pesquisa, resultados e seleção para o CRM (controles de pausa, reinício e nicho). O tour "Como funciona o Januário Leads? Veja na prática" continua logo depois em `/#tour`, com quatro etapas e navegação manual. A seção duplicada de busca foi removida para deixar a homepage mais compacta. Tudo com empresas fictícias, sem chamadas ao Supabase ou Google Places. [Adaptação da réplica HTML](docs/hero-buscar-leads-animado-2026-11-06.md).
-- **Cadastro beta (homologação):** `/cadastro` informa o status; formulário desativado por padrão e só habilitável com projeto Supabase de staging separado. [Guia](docs/cadastro-beta-staging-2026-11-06.md).
+- **Login e criação de conta:** `/login` e `/cadastro` agora compartilham identidade exclusiva do Januário Leads. O formulário de cadastro segue desativado por padrão na produção e só funciona no staging separado; criar identidade **não** ativa acesso ao CRM. [Guia](docs/cadastro-beta-staging-2026-11-06.md).
 - **Assinaturas:** ainda não disponíveis comercialmente; veja [roadmap SaaS](docs/roadmap-saas-2026-11-06.md).
 - **Acesso:** atualmente concedido por convite, sem preços ou planos públicos definidos.
 

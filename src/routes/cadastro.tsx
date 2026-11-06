@@ -1,23 +1,21 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, ArrowRight, CheckCircle2, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, CheckCircle2, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, UserRoundPlus } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { BETA_SIGNUP_CONFIG, requestBetaSignup } from "../lib/beta-registration";
+import { AuthShell } from "../components/auth/AuthShell";
 
 export const Route = createFileRoute("/cadastro")({
   head: () => ({
     meta: [
-      { title: "Januário Leads — Acesso ao beta" },
-      {
-        name: "description",
-        content: "Conheça como funcionará o cadastro e a ativação no beta do Januário Leads.",
-      },
+      { title: "Criar conta | Januário Leads" },
+      { name: "description", content: "Conheça a criação de conta do Januário Leads e como funciona a liberação de acesso à plataforma." },
       { name: "robots", content: "noindex,follow" },
     ],
   }),
-  component: BetaRegistrationPage,
+  component: RegistrationPage,
 });
 
-function BetaRegistrationPage() {
+function RegistrationPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [repeatPassword, setRepeatPassword] = useState("");
@@ -37,11 +35,11 @@ function BetaRegistrationPage() {
       return;
     }
     if (password.length < 12 || password.length > 128) {
-      setError("Sua senha deve ter entre 12 e 128 caracteres.");
+      setError("Use uma senha entre 12 e 128 caracteres.");
       return;
     }
     if (!acceptedTesting) {
-      setError("Confirme que você está participando do teste beta.");
+      setError("Confirme sua participação no ambiente de homologação.");
       return;
     }
     setSubmitting(true);
@@ -60,127 +58,75 @@ function BetaRegistrationPage() {
   }
 
   return (
-    <main className="jl-beta-page">
-      <header className="jl-beta-header">
-        <Link to="/" className="jl-beta-brand" aria-label="Voltar para a página inicial">
-          <span>J</span>
-          Januário<strong>Leads</strong>
-        </Link>
-        <Link to="/login" className="jl-beta-header-link">Já tenho conta <ArrowRight size={16} aria-hidden="true" /></Link>
-      </header>
-      <div className="jl-beta-layout">
-        <div className="jl-beta-intro">
-          <span className="jl-beta-eyebrow"><Sparkles size={15} aria-hidden="true" /> PRÓXIMA ETAPA DO PRODUTO</span>
-          <h1>Um jeito mais simples de começar a <em>prospectar.</em></h1>
-          <p>
-            Estamos preparando a abertura do Januário Leads para novos usuários.
-            A experiência de cadastro, ativação e primeiro acesso está sendo construída por etapas.
-          </p>
-          <div className="jl-beta-points">
-            <span><CheckCircle2 size={18} aria-hidden="true" /> Crie sua identidade no ambiente de teste</span>
-            <span><Mail size={18} aria-hidden="true" /> Confirme seu e-mail</span>
-            <span><ShieldCheck size={18} aria-hidden="true" /> Aguarde a ativação antes de usar o CRM</span>
-          </div>
-          <Link to="/" className="jl-beta-back"><ArrowLeft size={16} aria-hidden="true" /> Voltar ao início</Link>
+    <AuthShell page="cadastro">
+      {completed ? (
+        <div className="jl-auth-feedback">
+          <span className="jl-auth-feedback-icon"><CheckCircle2 size={26} aria-hidden="true" /></span>
+          <h2>Verifique seu e-mail.</h2>
+          <p role="status">Se o endereço puder ser cadastrado, você receberá as instruções de confirmação. A entrada no CRM dependerá de uma ativação de acesso separada.</p>
+          <Link className="jl-auth-top-action" to="/login">Ir para o login <ArrowRight size={17} aria-hidden="true" /></Link>
         </div>
-        <section className="jl-beta-card" aria-labelledby="beta-card-title">
+      ) : (
+        <>
+          <span className="jl-auth-form-eyebrow"><UserRoundPlus size={16} aria-hidden="true" /> CRIAÇÃO DE CONTA</span>
+          <h2>Comece sua jornada com o Januário Leads.</h2>
+          <p className="jl-auth-form-intro">
+            {signupConfig
+              ? "Cadastre seu e-mail no ambiente de homologação. A liberação de acesso ao CRM acontece separadamente."
+              : "Estamos preparando a abertura do cadastro. Enquanto isso, o acesso ao sistema continua por convite."}
+          </p>
           {!signupConfig ? (
-            <>
-              <span className="jl-beta-status">CADASTRO COMERCIAL EM PREPARAÇÃO</span>
-              <h2 id="beta-card-title">O beta ainda está fechado.</h2>
-              <p>
-                Por enquanto, não estamos recebendo cadastros pela plataforma.
-                O acesso continua sendo concedido por convite, e nenhum pagamento está disponível.
-              </p>
-              <div className="jl-beta-message">
-                <LockKeyhole size={18} aria-hidden="true" />
-                <span>Essa tela não cria contas nem envia dados ao Supabase de produção.</span>
+            <div className="jl-auth-feedback">
+              <div className="jl-auth-state">
+                <LockKeyhole size={22} aria-hidden="true" />
+                <span><strong>Cadastro público em preparação.</strong> A criação de contas ainda não está aberta nesta versão. Acessos existentes continuam funcionando normalmente.</span>
               </div>
-              <Link className="jl-beta-submit-link" to="/login">
-                Entrar com uma conta existente <ArrowRight size={17} aria-hidden="true" />
-              </Link>
-            </>
-          ) : completed ? (
-            <>
-              <span className="jl-beta-success-icon"><CheckCircle2 size={26} aria-hidden="true" /></span>
-              <h2 id="beta-card-title">Cadastro encaminhado.</h2>
-              <p role="status">
-                Se o e-mail informado puder ser cadastrado, você receberá as
-                instruções de confirmação. Após confirmar, a liberação do CRM
-                ainda depende de ativação pela equipe.
-              </p>
-              <Link className="jl-beta-submit-link" to="/login">
-                Ir para o login <ArrowRight size={17} aria-hidden="true" />
-              </Link>
-            </>
+              <p>A experiência de cadastro já está estruturada. A abertura depende da confirmação de e-mail e da liberação de acesso na plataforma.</p>
+              <Link className="jl-auth-bottom-link" to="/login">Já tenho uma conta <ArrowRight size={16} aria-hidden="true" /></Link>
+            </div>
           ) : (
-            <>
-              <span className="jl-beta-status">CADASTRO BETA · AMBIENTE DE TESTE</span>
-              <h2 id="beta-card-title">Crie sua conta de teste.</h2>
-              <p>Esta etapa registra somente uma identidade. O acesso ao CRM depende de aprovação separada.</p>
-              <form className="jl-beta-form" onSubmit={(event) => void submit(event)}>
-                <label htmlFor="beta-email">E-mail</label>
-                <input
-                  id="beta-email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  maxLength={320}
-                  placeholder="voce@exemplo.com"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                />
-                <label htmlFor="beta-password">Senha (mínimo de 12 caracteres)</label>
-                <div className="jl-beta-password-row">
-                  <input
-                    id="beta-password"
-                    type={visiblePassword ? "text" : "password"}
-                    autoComplete="new-password"
-                    required
-                    minLength={12}
-                    maxLength={128}
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                  />
-                  <button
-                    type="button"
-                    aria-label={visiblePassword ? "Ocultar senha" : "Mostrar senha"}
-                    onClick={() => setVisiblePassword((previous) => !previous)}
-                  >
+            <form className="jl-auth-fields" onSubmit={(event) => void submit(event)}>
+              <label className="jl-auth-field">
+                <span>E-mail</span>
+                <input type="email" autoComplete="email" required maxLength={320}
+                  placeholder="voce@empresa.com" value={email}
+                  onChange={(event) => setEmail(event.target.value)} />
+              </label>
+              <label className="jl-auth-field">
+                <span>Senha · mínimo de 12 caracteres</span>
+                <div className="jl-auth-input-password">
+                  <input type={visiblePassword ? "text" : "password"} autoComplete="new-password"
+                    required minLength={12} maxLength={128} value={password}
+                    onChange={(event) => setPassword(event.target.value)} />
+                  <button type="button" aria-label={visiblePassword ? "Ocultar senha" : "Mostrar senha"}
+                    onClick={() => setVisiblePassword((previous) => !previous)}>
                     {visiblePassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
                   </button>
                 </div>
-                <label htmlFor="beta-confirm-password">Confirmar senha</label>
-                <input
-                  id="beta-confirm-password"
-                  type={visiblePassword ? "text" : "password"}
-                  autoComplete="new-password"
-                  required
-                  minLength={12}
-                  maxLength={128}
-                  value={repeatPassword}
-                  onChange={(event) => setRepeatPassword(event.target.value)}
-                />
-                <label className="jl-beta-check">
-                  <input
-                    type="checkbox"
-                    checked={acceptedTesting}
-                    onChange={(event) => setAcceptedTesting(event.target.checked)}
-                    required
-                  />
-                  <span>Estou participando do teste beta e entendo que o cadastro não libera o CRM automaticamente.</span>
-                </label>
-                {error && <p className="jl-beta-error" role="alert">{error}</p>}
-                <button className="jl-beta-submit" disabled={submitting} type="submit">
-                  {submitting ? "Criando conta..." : "Cadastrar no ambiente de teste"}
-                  {!submitting && <ArrowRight size={17} aria-hidden="true" />}
-                </button>
-                <small>Não utilize dados reais de clientes neste ambiente de teste.</small>
-              </form>
-            </>
+              </label>
+              <label className="jl-auth-field">
+                <span>Confirme sua senha</span>
+                <input type={visiblePassword ? "text" : "password"} autoComplete="new-password"
+                  required minLength={12} maxLength={128} value={repeatPassword}
+                  onChange={(event) => setRepeatPassword(event.target.value)} />
+              </label>
+              <label className="jl-auth-check">
+                <input type="checkbox" checked={acceptedTesting} required
+                  onChange={(event) => setAcceptedTesting(event.target.checked)} />
+                <span>Estou participando da homologação e compreendo que criar uma conta não libera o CRM automaticamente.</span>
+              </label>
+              {error && <p className="jl-auth-error" role="alert">{error}</p>}
+              <button className="jl-auth-form-submit" type="submit" disabled={submitting}>
+                {submitting ? "Criando conta..." : "Criar conta de homologação"}
+                {!submitting && <ArrowRight size={17} aria-hidden="true" />}
+              </button>
+              <p className="jl-auth-form-footnote"><Mail size={13} aria-hidden="true" /> A confirmação de e-mail depende das configurações do serviço de homologação.</p>
+            </form>
           )}
-        </section>
-      </div>
-    </main>
+        </>
+      )}
+      <div className="jl-auth-form-divider">SEGURANÇA E ACESSO</div>
+      <span className="jl-auth-story-note"><ShieldCheck size={17} aria-hidden="true" /> O acesso aos dados de cada conta é controlado separadamente da criação de identidade.</span>
+    </AuthShell>
   );
 }

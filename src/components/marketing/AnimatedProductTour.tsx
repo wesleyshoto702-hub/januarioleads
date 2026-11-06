@@ -52,9 +52,9 @@ const scenes = [
 ] as const;
 
 const EXAMPLE_COMPANIES = [
-  { initial: "E", name: "Estúdio Exemplo", category: "Academia · Lavras, MG", accent: "rose" },
-  { initial: "P", name: "Pulse Fitness Exemplo", category: "Academia · Lavras, MG", accent: "violet" },
-  { initial: "M", name: "Movimento Exemplo", category: "Academia · Lavras, MG", accent: "orange" },
+  { initial: "E", name: "Estúdio Exemplo", category: "Academia · Curitiba, PR", accent: "rose" },
+  { initial: "P", name: "Pulse Fitness Exemplo", category: "Academia · Curitiba, PR", accent: "violet" },
+  { initial: "M", name: "Movimento Exemplo", category: "Academia · Curitiba, PR", accent: "orange" },
 ] as const;
 
 function ExampleLeadRows({ selection = false }: { selection?: boolean }) {
@@ -97,7 +97,7 @@ function SearchScene() {
         </div>
         <div className="jl-tour-search-input">
           <small>Localização</small>
-          <span><MapPin size={14} aria-hidden="true" /> Lavras · MG</span>
+          <span><MapPin size={14} aria-hidden="true" /> Curitiba · PR</span>
         </div>
         <div className="jl-tour-faux-search">
           <Search size={15} aria-hidden="true" /> Pesquisar
@@ -147,7 +147,7 @@ function CrmScene() {
       <div className="jl-tour-crm-columns">
         <div className="jl-tour-crm-column">
           <div className="jl-tour-column-title"><span>Novo</span><small>1</small></div>
-          <div className="jl-tour-crm-lead"><span className="jl-tour-crm-tag">Para abordar</span><strong>Estúdio Exemplo</strong><small>Academia · Lavras</small></div>
+          <div className="jl-tour-crm-lead"><span className="jl-tour-crm-tag">Para abordar</span><strong>Estúdio Exemplo</strong><small>Academia · Curitiba</small></div>
         </div>
         <div className="jl-tour-crm-column">
           <div className="jl-tour-column-title"><span>Contato iniciado</span><small>1</small></div>
@@ -173,7 +173,7 @@ function FollowupScene() {
       <div className="jl-tour-followup">
         <div className="jl-tour-followup-head">
           <span className="jl-tour-avatar rose">E</span>
-          <div><strong>Estúdio Exemplo</strong><small>Contato comercial · Lavras, MG</small></div>
+          <div><strong>Estúdio Exemplo</strong><small>Contato comercial · Curitiba, PR</small></div>
           <span className="jl-tour-contact-badge">Novo</span>
         </div>
         <div className="jl-tour-followup-event">
@@ -322,7 +322,7 @@ export function AnimatedProductTour() {
         </div>
         <div className="jl-tour-truth">
           <CheckCircle2 size={14} aria-hidden="true" />
-          Demonstração fictícia, sem buscas, contas ou mensagens reais.
+          Demonstração interativa com dados simulados — sem consultas ou envios reais.
         </div>
       </div>
     </div>
