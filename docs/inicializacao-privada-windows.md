@@ -85,6 +85,12 @@ usuários Auth e tabelas de aplicação; não imprime registros. Se qualquer
 verificação falhar, tenta parar a stack. O comando usa volumes locais
 existentes: só deve ser executado antes de carregar dados de clientes.
 
+O restaurador SQL agora **recusa** esse modo de preparação: ele exige
+exclusivamente a rede Docker **interna** `januario-restore-local`, sem
+outras redes associadas ao container PostgreSQL, além de validar o vínculo
+do container ao ID local do laboratório. Não restaure dados de clientes na
+rede `januario-restore-loopback`, pois ela permite conexões de saída.
+
 O sucesso retorna **PREPARADO**, não PASS de restauração. Essa rede permite
 saída para a internet: restringir portas de entrada não bloqueia conexões
 de saída. Não usar esse resultado para autorizar restore privado ou DDL de
