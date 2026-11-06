@@ -11,7 +11,11 @@ test("Buscar Leads demonstra todas as etapas automaticamente sem API real", asyn
 
   await page.goto("/#demonstracao");
   const demo = page.locator(".jl-demo-window");
-  await expect(page.getByRole("heading", { name: /Buscar Leads: veja a pesquisa/i })).toBeVisible();
+  await expect(page.locator(".jl-hero-search")).toBeVisible();
+  await expect(demo).toBeVisible();
+  await expect(page.locator(".jl-hero-search .jl-demo-window")).toHaveCount(1);
+  await expect(page.locator(".jl-demo-section")).toHaveCount(0);
+  await expect(page.getByRole("heading", { level: 1, name: /Boas oportunidades começam/i })).toBeVisible();
   await expect(demo).toHaveAttribute("data-interactive", "true");
   await expect(demo).toHaveAttribute("data-playing", "true");
   await expect(demo.locator(".jl-search-animation-panel")).toBeVisible();
