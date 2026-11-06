@@ -10,7 +10,6 @@ import {
   Menu,
   Plus,
   Search,
-  ShieldCheck,
   Target,
   X,
 } from "lucide-react";
@@ -218,10 +217,6 @@ function SearchDemo() {
               <span className="jl-demo-result-status">{phase === 3 && index === 0 ? "No CRM · prévia" : index === 0 ? "Descobrir" : index === 1 ? "Selecionar" : "Organizar"}</span>
             </div>
           ))}
-          <div className="jl-demo-bottom">
-            <span><ShieldCheck size={15} aria-hidden="true" /> Simulação local sem custos de API</span>
-            
-          </div>
         </div>
       </div>
     </div>
@@ -277,7 +272,6 @@ export function MarketingHome() {
       </header>
       <main id="conteudo">
         <section className="jl-hero">
-          <div className="jl-hero-shine" aria-hidden="true" />
           <div className="jl-container jl-hero-grid">
             <div className="jl-hero-copy">
               <span className="jl-kicker"><span className="jl-kicker-dot" /> PROSPECÇÃO B2B COM ORGANIZAÇÃO</span>
@@ -304,10 +298,6 @@ export function MarketingHome() {
                 <span className="jl-hero-search-live"><span /> ANIMADO</span>
               </div>
               <SearchDemo />
-              <div className="jl-hero-search-caption">
-                <span><CheckCircle2 size={14} aria-hidden="true" /> Busca por nicho e cidade</span>
-                <span><CheckCircle2 size={14} aria-hidden="true" /> Escolha e organização no CRM</span>
-              </div>
             </div>
           </div>
         </section>
