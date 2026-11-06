@@ -109,6 +109,8 @@ uma URL PostgreSQL com senha para os argumentos de comando.
 
 ## Conferência de restauração, sem arriscar produção
 
+**Novo auxiliar local:** [passo a passo da restauração privada](restauracao-privada-local-supabase-2026-11-05.md) e `scripts/testar-restauracao-privada-local.ps1`. Ele exige um laboratório Supabase independente, vazio, PostgreSQL 17 e porta Docker publicada apenas no loopback. **Preparar o auxiliar não é restaurar o backup real.**
+
 **Critério obrigatório:** um dump que nunca foi restaurado é apenas
 uma exportação, não um backup recuperável comprovado.
 

@@ -62,6 +62,7 @@ jobs:
         shell: pwsh
         run: |
           ./scripts/test-exportar-backup-privado.ps1
+          ./scripts/test-restauracao-privada-local.ps1
 
   supabase-local-auth-staging:
     name: Homologar Auth real e RLS em Supabase local descartável
