@@ -1,0 +1,140 @@
+/* Genuine behind-content aurora: fixed translucent gradient curtains.
+ * No foreground dots, pointer interception, JS, images or external libraries.
+ * The public page content lives in a HIGHER stacking layer than the aurora. */
+.jl-site > .jl-aurora,
+.jl-auth-shell > .jl-aurora {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+  contain: layout style paint;
+  background:
+    radial-gradient(ellipse at 52% 44%,rgba(22,25,45,.35),transparent 78%),
+    #080a0f;
+}
+.jl-site > .jl-header { position: relative; z-index: 5; }
+.jl-site > main,
+.jl-site > .jl-footer { position: relative; z-index: 1; }
+.jl-site > .jl-skip { z-index: 50; }
+
+/* Sections must have partly transparent surfaces so that a background truly
+ * BEHIND the page can still be seen, rather than layering effects over text. */
+.jl-site .jl-hero {
+  background:
+    linear-gradient(rgba(255,255,255,.013) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.013) 1px,transparent 1px),
+    radial-gradient(ellipse 60% 60% at 90% 20%,rgba(226,51,98,.055),transparent 100%),
+    rgba(8,10,16,.30);
+  background-size: 86px 86px,86px 86px,auto,auto;
+}
+.jl-site .jl-tour-section { background: rgba(9,12,20,.48); }
+.jl-site .jl-editorial-challenge { background: rgba(9,12,18,.68); }
+.jl-site .jl-editorial-workflow { background: linear-gradient(180deg,rgba(18,19,32,.64),rgba(17,14,27,.68)); }
+.jl-site .jl-feature-section { background: rgba(7,10,19,.64); }
+.jl-site .jl-editorial-audience { background: linear-gradient(150deg,rgba(15,18,32,.67),rgba(10,12,22,.63)); }
+.jl-site .jl-comparison { background: rgba(9,11,19,.57); }
+.jl-site .jl-faq { background: rgba(11,15,25,.63); }
+.jl-site .jl-footer { background: rgba(7,9,15,.76); }
+.jl-site .jl-header { background: rgba(8,10,16,.87); }
+
+/* Animated aurora curtains: soft elliptical lights, with calm wandering
+ * movement inspired by northern lights, adapted to Januário's red identity. */
+.jl-aurora-veil {
+  display: block;
+  position: absolute;
+  width: 100vw;
+  height: 65vh;
+  border-radius: 38% 62% 46% 54% / 40% 60% 46% 54%;
+  filter: blur(48px);
+  opacity: .34;
+  transform-origin: center center;
+  will-change: transform, opacity;
+  animation: jlAuroraDrift 31s ease-in-out infinite alternate;
+}
+.jl-aurora-veil--rose {
+  width: 110vw;
+  height: 69vh;
+  left: -38%;
+  top: -34%;
+  background:
+    linear-gradient(118deg,transparent 5%,rgba(248,42,84,.37) 34%,rgba(255,91,118,.24) 53%,transparent 79%);
+  animation-duration: 28s;
+}
+.jl-aurora-veil--violet {
+  width: 110vw;
+  height: 76vh;
+  right: -43%;
+  top: -8%;
+  opacity: .30;
+  background:
+    linear-gradient(125deg,transparent 6%,rgba(149,76,198,.32) 36%,rgba(209,66,132,.29) 55%,transparent 83%);
+  animation: jlAuroraSway 40s ease-in-out -14s infinite alternate;
+}
+.jl-aurora-veil--plum {
+  width: 106vw;
+  height: 70vh;
+  left: -27%;
+  bottom: -33%;
+  opacity: .27;
+  background: linear-gradient(132deg,transparent 9%,rgba(199,37,92,.36) 43%,rgba(115,62,145,.23) 62%,transparent 88%);
+  animation: jlAuroraSway 37s ease-in-out -22s infinite alternate-reverse;
+}
+.jl-aurora-veil--blue {
+  width: 95vw;
+  height: 67vh;
+  right: -32%;
+  bottom: -31%;
+  opacity: .19;
+  background: linear-gradient(128deg,transparent 10%,rgba(54,113,164,.34) 43%,rgba(120,79,169,.22) 59%,transparent 80%);
+  animation: jlAuroraDrift 44s ease-in-out -19s infinite alternate-reverse;
+}
+.jl-aurora-haze {
+  display:block;
+  position:absolute;
+  inset:0;
+  opacity:.48;
+  background:
+    radial-gradient(ellipse 40% 35% at 24% 72%,rgba(175,42,91,.09),transparent 90%),
+    radial-gradient(ellipse 42% 45% at 79% 35%,rgba(134,77,162,.09),transparent 85%);
+  animation: jlAuroraBreath 24s ease-in-out infinite alternate;
+}
+@keyframes jlAuroraDrift {
+  0% { transform: translate3d(-8%,-2%,0) rotate(-15deg) scale(.88); opacity:.18; }
+  45% { transform: translate3d(4%,8%,0) rotate(4deg) scale(1.12); opacity:.37; }
+  100% { transform: translate3d(16%,-9%,0) rotate(19deg) scale(1.06); opacity:.29; }
+}
+@keyframes jlAuroraSway {
+  0% { transform:translate3d(-12%,-9%,0) rotate(18deg) scale(.92); opacity:.17; }
+  50% { transform:translate3d(5%,6%,0) rotate(-7deg) scale(1.11); opacity:.37; }
+  100% { transform:translate3d(14%,-5%,0) rotate(-23deg) scale(1.19); opacity:.27; }
+}
+@keyframes jlAuroraBreath {
+  from { opacity:.30; transform:scale(1); }
+  to { opacity:.56; transform:scale(1.08); }
+}
+
+/* Public login/register: same aurora placed BEHIND all forms. */
+.jl-auth-shell { background:#080a0f; }
+.jl-auth-shell > .jl-aurora { opacity:.78; }
+.jl-auth-shell > .jl-auth-header,
+.jl-auth-shell > .jl-auth-main,
+.jl-auth-shell > .jl-auth-footer { position:relative; z-index:2; }
+
+@media (max-width:700px) {
+  .jl-aurora-veil { filter:blur(34px); }
+  .jl-aurora-veil--blue { display:none; }
+  .jl-aurora-veil--rose { opacity:.24; }
+  .jl-aurora-veil--violet { opacity:.23; }
+  .jl-aurora-veil--plum { opacity:.21; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .jl-aurora-veil, .jl-aurora-haze {
+    animation:none !important;
+    transform:none !important;
+    will-change:auto;
+  }
+  .jl-aurora-veil { opacity:.18; }
+  .jl-aurora-haze { opacity:.30; }
+}
