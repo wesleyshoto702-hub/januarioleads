@@ -56,9 +56,19 @@ test("tour avança automaticamente, pausa e permite reprodução", async ({ page
   await interceptExternal(page, () => { throw new Error("Supabase called"); });
   await page.goto("/");
   const player = page.locator(".jl-tour-stage");
+  await page.bringToFront();
   await player.evaluate((node) => node.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" }));
   await expect(player).toHaveAttribute("data-interactive", "true");
-  await expect(player).toHaveAttribute("data-playing", "true");
+  const debug = await player.evaluate((node) => ({
+    documentVisibility: document.visibilityState,
+    inViewport: node.getAttribute("data-in-viewport"),
+    tabVisible: node.getAttribute("data-tab-visible"),
+    wantsPlay: node.getAttribute("data-wants-play"),
+    reduced: node.getAttribute("data-reduced"),
+    rect: node.getBoundingClientRect().toJSON(),
+    viewportHeight: window.innerHeight,
+  }));
+  await expect(player, JSON.stringify(debug)).toHaveAttribute("data-playing", "true");
 
   const stage = await player.getAttribute("data-stage");
   await expect.poll(() => player.getAttribute("data-stage"), { timeout: 8500 }).not.toBe(stage);
