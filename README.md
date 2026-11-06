@@ -7,7 +7,7 @@ Plataforma de prospecção comercial: busca de empresas por nicho e cidade, CRM,
 - **Página inicial pública:** `/` — apresentação SaaS responsiva, demonstração interativa local de nichos e funcionalidades do Januário Leads.
 - **Compatibilidade:** `/produto` continua exibindo a apresentação do produto.
 - **Área de trabalho privada:** `/app`; `/login` valida a conta e encaminha o usuário autorizado ao CRM.
-- **Demonstração:** usa apenas empresas fictícias; não consulta Google Places ou dados de clientes.
+- **Demonstrações do produto:** tour animado original em `/#tour` com busca, seleção, CRM e follow-up (reproduzir, pausar, reiniciar, escolher etapas); **Buscar Leads animado** em `/#demonstracao` com digitação, pesquisa, resultados e seleção para o CRM, incluindo troca de nichos e controles; modelos de mensagens com envio manual. Tudo com empresas fictícias, sem chamadas ao Supabase ou Google Places. [Decisões de design e análise da referência](docs/homepage-tour-animado-referencia-html-2026-11-06.md).
 - **Cadastro beta (homologação):** `/cadastro` informa o status; formulário desativado por padrão e só habilitável com projeto Supabase de staging separado. [Guia](docs/cadastro-beta-staging-2026-11-06.md).
 - **Assinaturas:** ainda não disponíveis comercialmente; veja [roadmap SaaS](docs/roadmap-saas-2026-11-06.md).
 - **Acesso:** atualmente concedido por convite, sem preços ou planos públicos definidos.
