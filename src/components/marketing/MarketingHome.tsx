@@ -279,6 +279,8 @@ function SearchDemo() {
 
 export function MarketingHome() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [mobileReady, setMobileReady] = useState(false);
+  useEffect(() => { setMobileReady(true); }, []);
   return (
     <div className="jl-site">
       <a className="jl-skip" href="#conteudo">Pular para o conteúdo</a>
@@ -302,6 +304,7 @@ export function MarketingHome() {
               aria-expanded={mobileOpen}
               aria-controls="jl-mobile-navigation"
               aria-label={mobileOpen ? "Fechar menu" : "Abrir menu"}
+              disabled={!mobileReady}
               onClick={() => setMobileOpen((previous) => !previous)}
             >
               {mobileOpen ? <X size={19} aria-hidden="true" /> : <Menu size={19} aria-hidden="true" />}
