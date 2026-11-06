@@ -19,6 +19,8 @@ Transformar o workspace existente de prospecção em um SaaS multicliente, com a
 
 ## Entrega 2 — Onboarding e cadastro comercial
 
+**Parcial preparado em PR de beta:** `/cadastro`, status fechado por padrão e formulário isolado para Auth de staging, sem liberar contas ou pagamentos. Veja [cadastro beta](cadastro-beta-staging-2026-11-06.md).
+
 - Definir público inicial e modelo de ativação: aprovação manual (beta), teste gratuito ou assinatura direta.
 - Criar `/cadastro`, confirmação de e-mail e recuperação de senha com Supabase Auth, com estados de erro e disponibilidade.
 - Separar identidade de usuário, workspace/organização e direito de acesso. Um cadastro Auth sem direito de uso **não concede** acesso aos leads ou APIs.
