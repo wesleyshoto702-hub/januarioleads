@@ -27,7 +27,7 @@ test("home liga a pagina de beta sem prometer inscricoes abertas", async ({ page
     return ["127.0.0.1", "localhost"].includes(url.hostname) ? route.continue() : route.abort();
   });
   await page.goto("/");
-  await page.getByRole("link", { name: /Criar conta/i }).click();
+  await page.locator(".jl-header-actions").getByRole("link", { name: "Criar conta" }).click();
   await expect(page).toHaveURL(/\/cadastro$/);
   await expect(page.getByRole("heading", { name: /Comece sua jornada com o Januário Leads/ })).toBeVisible();
 });
