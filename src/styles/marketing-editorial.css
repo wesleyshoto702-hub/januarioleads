@@ -114,3 +114,20 @@
  .jl-module-tab,.jl-audience-option { transition:none; }
  .jl-module-tab:hover,.jl-audience-option:hover { transform:none; }
 }
+
+
+/* CodeMakers 05: stagger curto e limitado, preservando conteúdo acessível. */
+.jl-challenge-line { animation:jlEditorialEntrance .45s cubic-bezier(.22,1,.36,1) both; }
+.jl-challenge-line:nth-child(2) { animation-delay:80ms; }
+.jl-challenge-line:nth-child(3) { animation-delay:160ms; }
+/* CodeMakers 04: slide discreto em elementos editoriais, sem mexer em layout. */
+.jl-workflow-track li { animation:jlEditorialEntrance .6s cubic-bezier(.22,1,.36,1) both; }
+.jl-workflow-track li:nth-child(2) { animation-delay:80ms; }
+.jl-workflow-track li:nth-child(3) { animation-delay:160ms; }
+@keyframes jlEditorialEntrance {
+  from { opacity:.65; transform:translateY(12px); }
+  to { opacity:1; transform:translateY(0); }
+}
+@media (prefers-reduced-motion:reduce) {
+ .jl-challenge-line,.jl-workflow-track li { animation:none; }
+}
