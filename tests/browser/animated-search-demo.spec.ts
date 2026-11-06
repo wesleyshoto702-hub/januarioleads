@@ -29,7 +29,7 @@ test("Buscar Leads demonstra todas as etapas automaticamente sem API real", asyn
   await expect(demo).toHaveAttribute("data-phase", "2", { timeout: 8000 });
   await expect(demo.getByText("Resultados organizados")).toBeVisible();
   await expect(demo).toHaveAttribute("data-phase", "3", { timeout: 5000 });
-  await expect(demo.getByText("No CRM · exemplo")).toBeVisible();
+  await expect(demo.getByText("No CRM · prévia")).toBeVisible();
   expect(supabaseCalls).toBe(0);
 });
 
