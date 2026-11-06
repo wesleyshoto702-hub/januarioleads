@@ -36,7 +36,7 @@ test("home publica vende o produto sem consultar Supabase ou prometer planos", a
   await page.getByRole("link", { name: /Já tenho acesso/i }).first().click();
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.getByPlaceholder("seu@email.com")).toBeVisible();
-  await page.getByRole("link", { name: /Conhecer o JanuarioLeads/i }).click();
+  await page.getByRole("link", { name: /Conhecer a plataforma/i }).click();
   await expect(page).toHaveURL(/\/$/);
 });
 
@@ -53,7 +53,7 @@ test("rota antiga /produto segue funcionando como pagina informativa", async ({ 
   await page.goto("/produto");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await expect(page.locator(".jl-hero-search .jl-demo-window")).toBeVisible();
-  await expect(page.getByRole("link", { name: /Explorar o Januário Leads/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Criar conta/i })).toBeVisible();
 });
 
 for (const width of [360, 390, 768, 1280]) {
