@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AnimatedProductTour } from "./AnimatedProductTour";
+import { MessageExampleDemo } from "./MessageExampleDemo";
 
 const scenarios = [
   {
@@ -459,6 +460,8 @@ export function MarketingHome() {
                 <div className="jl-followup-footer"><span className="jl-check-mark"><Check size={15}/></span> Sua carteira continua organizada após a busca.</div>
               </div>
             </div>
+
+            <MessageExampleDemo />
 
             <div className="jl-section-heading jl-centered jl-feature-subheading">
               <span className="jl-eyebrow">O QUE A PLATAFORMA OFERECE</span>
