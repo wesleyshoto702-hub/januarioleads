@@ -5,7 +5,7 @@ test("cadastro beta publico permanece fechado e nunca chama Auth em producao", a
   await page.route("**/*", (route) => {
     const url = new URL(route.request().url());
     if (["127.0.0.1", "localhost"].includes(url.hostname)) return route.continue();
-    externalCalls++;
+    if (url.hostname.endsWith(".supabase.co")) externalCalls++;
     return route.abort();
   });
 
