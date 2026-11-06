@@ -242,7 +242,7 @@ export function AnimatedProductTour() {
     setCurrent(step);
   }
 
-  const currentScene = scenes[current];
+  const currentScene = scenes[current] ?? scenes[0];
   const Icon = currentScene.icon;
   return (
     <div className="jl-tour-grid" ref={container}>
