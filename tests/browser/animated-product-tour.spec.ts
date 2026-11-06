@@ -56,7 +56,8 @@ test("tour avança automaticamente, pausa e permite reprodução", async ({ page
   await interceptExternal(page, () => { throw new Error("Supabase called"); });
   await page.goto("/");
   const player = page.locator(".jl-tour-stage");
-  await player.scrollIntoViewIfNeeded();
+  await player.evaluate((node) => node.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" }));
+  await expect(player).toHaveAttribute("data-interactive", "true");
   await expect(player).toHaveAttribute("data-playing", "true");
 
   const stage = await player.getAttribute("data-stage");
