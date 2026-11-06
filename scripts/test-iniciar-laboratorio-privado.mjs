@@ -5,7 +5,20 @@ import net from 'node:net';
 import { randomUUID } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { restrictPorts, dockerAdapter, verifyPublishedPorts } from './iniciar-laboratorio-privado.mjs';
+import { restrictPorts, dockerAdapter, verifyPublishedPorts, startupMode, startupFailure } from './iniciar-laboratorio-privado.mjs';
+
+test('outbound-capable network requires explicit empty-preparation mode', () => {
+  assert.deepEqual(startupMode(['C:\\Lab']), { lab: 'C:\\Lab', network: 'januario-restore-local', prepareEmpty: false });
+  assert.deepEqual(startupMode(['C:\\Lab', '--preparar-vazio']), { lab: 'C:\\Lab', network: 'januario-restore-loopback', prepareEmpty: true });
+  for (const args of [[], ['C:\\Lab', '--unsafe'], ['C:\\Lab', '--preparar-vazio', 'extra']]) {
+    assert.throws(() => startupMode(args));
+  }
+});
+
+test('failure diagnostics contain only fixed messages, never arbitrary upstream text', () => {
+  for (const stage of ['start', 'ports', 'network', 'empty']) assert.ok(startupFailure(stage).length > 10);
+  assert.ok(!startupFailure('FAKE_PRIVATE_TOKEN').includes('FAKE_PRIVATE_TOKEN'));
+});
 
 test('every published address becomes explicit loopback without changing other configuration', () => {
   const original = { Image: 'fake-postgres', Env: ['FAKE_PASSWORD=fixture'],
