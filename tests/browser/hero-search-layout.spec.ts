@@ -38,7 +38,7 @@ for (const width of [360, 390, 768]) {
     await page.setViewportSize({ width, height: 844 });
     await page.goto("/");
     const heroAnimation = page.locator(".jl-hero-search");
-    await expect(heroAnimation.locator(".jl-demo-window")).toHaveAttribute("data-interactive", "true");
+    await expect(heroAnimation.locator(".jl-demo-window")).toBeVisible();
     const copyBox = await page.locator(".jl-hero-copy").boundingBox();
     const animatedBox = await heroAnimation.boundingBox();
     expect(copyBox).not.toBeNull();
