@@ -38,19 +38,19 @@ const ProdutoRoute = ProdutoRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRoute
-  '/app': typeof AppRoute
-  '/app': typeof AppRoute
   '/login': typeof LoginRoute
   '/produto': typeof ProdutoRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/app': typeof AppRoute
   '/login': typeof LoginRoute
   '/produto': typeof ProdutoRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/app': typeof AppRoute
   '/login': typeof LoginRoute
   '/produto': typeof ProdutoRoute
 }
