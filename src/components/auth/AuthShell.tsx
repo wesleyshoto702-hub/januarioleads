@@ -4,6 +4,7 @@ import {
   Search, ShieldCheck, Sparkles,
 } from "lucide-react";
 import type { ReactNode } from "react";
+import { AmbientParticles } from "../marketing/AmbientParticles";
 
 type Props = {
   page: "login" | "cadastro";
@@ -20,6 +21,7 @@ const flow = [
 export function AuthShell({ page, children }: Props) {
   return (
     <main className="jl-auth-shell">
+      <AmbientParticles />
       <div className="jl-auth-background" aria-hidden="true"><i /><i /><i /></div>
       <header className="jl-auth-header">
         <Link to="/" className="jl-auth-brand" aria-label="Januário Leads — página inicial">
