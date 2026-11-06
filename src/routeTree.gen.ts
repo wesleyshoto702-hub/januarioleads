@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/app'
+import { Route as CadastroRouteImport } from './routes/cadastro'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ProdutoRouteImport } from './routes/produto'
 
@@ -22,6 +23,11 @@ const IndexRoute = IndexRouteImport.update({
 const AppRoute = AppRouteImport.update({
   id: '/app',
   path: '/app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CadastroRoute = CadastroRouteImport.update({
+  id: '/cadastro',
+  path: '/cadastro',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -38,12 +44,14 @@ const ProdutoRoute = ProdutoRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRoute
+  '/cadastro': typeof CadastroRoute
   '/login': typeof LoginRoute
   '/produto': typeof ProdutoRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/app': typeof AppRoute
+  '/cadastro': typeof CadastroRoute
   '/login': typeof LoginRoute
   '/produto': typeof ProdutoRoute
 }
@@ -51,20 +59,22 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/app': typeof AppRoute
+  '/cadastro': typeof CadastroRoute
   '/login': typeof LoginRoute
   '/produto': typeof ProdutoRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/app' | '/login' | '/produto'
+  fullPaths: '/' | '/app' | '/cadastro' | '/login' | '/produto'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/app' | '/login' | '/produto'
-  id: '__root__' | '/' | '/app' | '/login' | '/produto'
+  to: '/' | '/app' | '/cadastro' | '/login' | '/produto'
+  id: '__root__' | '/' | '/app' | '/cadastro' | '/login' | '/produto'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRoute
+  CadastroRoute: typeof CadastroRoute
   LoginRoute: typeof LoginRoute
   ProdutoRoute: typeof ProdutoRoute
 }
@@ -83,6 +93,13 @@ declare module '@tanstack/react-router' {
       path: '/app'
       fullPath: '/app'
       preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cadastro': {
+      id: '/cadastro'
+      path: '/cadastro'
+      fullPath: '/cadastro'
+      preLoaderRoute: typeof CadastroRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -105,6 +122,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRoute,
+  CadastroRoute: CadastroRoute,
   LoginRoute: LoginRoute,
   ProdutoRoute: ProdutoRoute,
 }

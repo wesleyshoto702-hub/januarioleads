@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import appShellCss from "../styles/app-shell.css?url";
 import saasVisualRefreshCss from "../styles/saas-visual-refresh.css?url";
 import marketingHomeCss from "../styles/marketing-home.css?url";
+import betaRegistrationCss from "../styles/beta-registration.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
 function NotFoundComponent() {
@@ -110,6 +111,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         rel: "stylesheet",
         href: marketingHomeCss,
+      },
+      {
+        rel: "stylesheet",
+        href: betaRegistrationCss,
       },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
