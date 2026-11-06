@@ -67,3 +67,30 @@ no Windows do proprietário, que permanece necessária.
 
 Nenhum PASS deste auxiliar comprova backup recuperável, login de clientes,
 restauração SQL, integridade de dados ou autorização para a PR #36.
+
+## Windows: conexão recusada na rede interna
+
+No teste do proprietário, a tentativa na rede interna falhou com
+`ECONNREFUSED 127.0.0.1:54322`. Para testar a inicialização do laboratório
+**ainda vazio**, existe um modo separado:
+
+```powershell
+node .\scripts\iniciar-laboratorio-privado.mjs "$env:USERPROFILE\JanuarioRestoreLab" --preparar-vazio
+```
+
+Esse modo exige a rede bridge não interna `januario-restore-loopback`, mantém
+o adaptador que publica todas as portas em `127.0.0.1` e confere o resultado.
+Também faz uma consulta agregada via `docker exec` para exigir ausência de
+usuários Auth e tabelas de aplicação; não imprime registros. Se qualquer
+verificação falhar, tenta parar a stack. O comando usa volumes locais
+existentes: só deve ser executado antes de carregar dados de clientes.
+
+O sucesso retorna **PREPARADO**, não PASS de restauração. Essa rede permite
+saída para a internet: restringir portas de entrada não bloqueia conexões
+de saída. Não usar esse resultado para autorizar restore privado ou DDL de
+produção. A estratégia de isolamento para a restauração real ainda precisa
+ser validada; não remover os guardas do restaurador para contornar erros.
+
+O erro agora identifica a etapa (CLI, portas, rede ou laboratório vazio)
+sem imprimir o log privado. A confirmação de funcionamento real no Windows
+continua pendente mesmo quando os testes simulados passam.
