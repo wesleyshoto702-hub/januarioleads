@@ -1,5 +1,5 @@
 import { Check, ClipboardCopy, Mail, MessageCircle, Send } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 /** Illustrative message templates; no AI generation, network calls or automatic sending. */
 const examples = [
@@ -30,6 +30,8 @@ const examples = [
 ] as const;
 
 export function MessageExampleDemo() {
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => { setHydrated(true); }, []);
   const [selected, setSelected] = useState<(typeof examples)[number]["key"]>("whatsapp");
   const [copied, setCopied] = useState(false);
   const active = examples.find((entry) => entry.key === selected) ?? examples[0];
@@ -80,6 +82,7 @@ export function MessageExampleDemo() {
               className={selected === key ? "active" : ""}
               role="tab"
               aria-selected={selected === key}
+              disabled={!hydrated}
               aria-controls="jl-message-panel"
               onClick={() => select(key)}
             >
@@ -100,7 +103,7 @@ export function MessageExampleDemo() {
         </div>
         <div className="jl-message-card-actions">
           <span>Sem envio automático</span>
-          <button type="button" onClick={() => void copyMessage()}>
+          <button type="button" disabled={!hydrated} onClick={() => void copyMessage()}>
             {copied ? <Check size={16} aria-hidden="true" /> : <ClipboardCopy size={16} aria-hidden="true" />}
             {copied ? "Copiado" : "Copiar exemplo"}
           </button>
