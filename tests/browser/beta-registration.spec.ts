@@ -10,14 +10,14 @@ test("cadastro beta publico permanece fechado e nunca chama Auth em producao", a
   });
 
   await page.goto("/cadastro");
-  await expect(page.getByRole("heading", { name: "O beta ainda está fechado." })).toBeVisible();
-  await expect(page.getByText(/não estamos recebendo cadastros pela plataforma/i)).toBeVisible();
-  await expect(page.getByText(/não cria contas nem envia dados ao Supabase de produção/i)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Comece sua jornada com o Januário Leads." })).toBeVisible();
+  await expect(page.getByText(/Cadastro público em preparação/i)).toBeVisible();
+  await expect(page.getByText(/A criação de contas ainda não está aberta nesta versão/i)).toBeVisible();
   await expect(page.getByRole("button", { name: /cadastrar no ambiente de teste/i })).toHaveCount(0);
   await expect(page.locator('input[type="password"]')).toHaveCount(0);
   expect(externalCalls).toBe(0);
 
-  await page.getByRole("link", { name: /Entrar com uma conta existente/i }).click();
+  await page.getByRole("link", { name: /Já tenho uma conta/i }).click();
   await expect(page).toHaveURL(/\/login$/);
 });
 
@@ -27,9 +27,9 @@ test("home liga a pagina de beta sem prometer inscricoes abertas", async ({ page
     return ["127.0.0.1", "localhost"].includes(url.hostname) ? route.continue() : route.abort();
   });
   await page.goto("/");
-  await page.getByRole("link", { name: /Como funciona o beta/i }).click();
+  await page.getByRole("link", { name: /Criar conta/i }).click();
   await expect(page).toHaveURL(/\/cadastro$/);
-  await expect(page.getByRole("heading", { name: /O beta ainda está fechado/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Comece sua jornada com o Januário Leads/ })).toBeVisible();
 });
 
 test("cadastro beta nao tem overflow em celular", async ({ page }) => {
