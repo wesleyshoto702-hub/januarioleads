@@ -14,12 +14,12 @@ export type BetaSignupConfig = Readonly<{
 }>;
 
 export function getBetaSignupConfig(env: PublicEnv | undefined): BetaSignupConfig | null {
-  if (env?.VITE_BETA_SIGNUP_ENABLED !== "true" ||
-      env.VITE_HTTPONLY_SESSION === "true") return null;
+  if (env?["VITE_BETA_SIGNUP_ENABLED"] !== "true" ||
+      env["VITE_HTTPONLY_SESSION"] === "true") return null;
 
-  const base = env.VITE_BETA_SUPABASE_URL?.trim() ?? "";
-  const publishableKey = env.VITE_BETA_SUPABASE_PUBLISHABLE_KEY?.trim() ?? "";
-  const expectedRef = env.VITE_BETA_SIGNUP_PROJECT_REF?.trim() ?? "";
+  const base = env["VITE_BETA_SUPABASE_URL"]?.trim() ?? "";
+  const publishableKey = env["VITE_BETA_SUPABASE_PUBLISHABLE_KEY"]?.trim() ?? "";
+  const expectedRef = env["VITE_BETA_SIGNUP_PROJECT_REF"]?.trim() ?? "";
   if (!base || !publishableKey.startsWith("sb_publishable_") ||
       publishableKey.length > 512 || !expectedRef ||
       expectedRef === PRODUCTION_PROJECT_REF) return null;
