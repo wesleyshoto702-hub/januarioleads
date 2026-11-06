@@ -70,6 +70,8 @@ for (const width of [320, 360, 390, 768, 1280]) {
     expect(await page.evaluate(() =>
       document.documentElement.scrollWidth > window.innerWidth + 1,
     )).toBe(false);
+    // Wait for React hydration before clicking TanStack Router links in WebKit.
+    await expect(page.locator(".jl-mobile-menu-toggle")).toBeEnabled();
     if (width >= 380) {
       await page.locator(".jl-header-actions").getByRole("link", { name: "Criar conta" }).click();
       await expect(page).toHaveURL(/\/cadastro$/);
