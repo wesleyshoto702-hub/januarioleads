@@ -3,7 +3,7 @@ import {
   Clock3, Compass, FolderKanban, Globe2, Layers3, MessageCircle,
   Search, ShieldCheck, Target, Users, WalletCards,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /**
  * Editorial marketing modules: real capability descriptions, no fabricated
@@ -44,13 +44,12 @@ export function ChallengeStory() {
             para que cada contato tenha um próximo passo.
           </p>
           <a className="jl-editorial-link" href="#recursos">
-            Conheça os módulos <ArrowRight size={17} aria-hidden="true" />
+            Conheça os módulos
           </a>
         </div>
         <div className="jl-challenge-lines" aria-label="Problemas comuns e como a plataforma ajuda">
-          {difficulties.map(({ title, detail, resolution, icon: Icon }, index) => (
+          {difficulties.map(({ title, detail, resolution, icon: Icon }) => (
             <div className="jl-challenge-line" key={title}>
-              <span className="jl-challenge-number">0{index + 1}</span>
               <div className="jl-challenge-line-copy">
                 <div className="jl-challenge-line-heading">
                   <Icon size={18} aria-hidden="true" />
@@ -74,8 +73,55 @@ const steps = [
 ] as const;
 
 export function WorkflowRibbon() {
+  const ribbonRef = useRef<HTMLElement>(null);
+  const [activeStep, setActiveStep] = useState(-1);
+
+  useEffect(() => {
+    const ribbon = ribbonRef.current;
+    if (!ribbon) return;
+
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (media.matches) {
+      setActiveStep(2);
+      return;
+    }
+
+    let started = false;
+    let timers: number[] = [];
+    let observer: IntersectionObserver | undefined;
+    function playSequence() {
+      if (started) return;
+      started = true;
+      setActiveStep(0);
+      timers = [
+        window.setTimeout(() => setActiveStep(1), 1050),
+        window.setTimeout(() => setActiveStep(2), 2200),
+      ];
+      observer?.disconnect();
+    }
+
+    if (typeof IntersectionObserver === "undefined") {
+      playSequence();
+    } else {
+      observer = new IntersectionObserver((entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) playSequence();
+      }, { threshold: 0.2 });
+      observer.observe(ribbon);
+    }
+
+    return () => {
+      observer?.disconnect();
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
+  }, []);
+
   return (
-    <section className="jl-editorial-workflow" id="como-funciona" aria-labelledby="workflow-title">
+    <section
+      ref={ribbonRef}
+      className="jl-editorial-workflow"
+      id="como-funciona"
+      aria-labelledby="workflow-title"
+    >
       <div className="jl-container">
         <div className="jl-editorial-workflow-head">
           <div>
@@ -84,11 +130,11 @@ export function WorkflowRibbon() {
           </div>
           <p>Três movimentos que mantêm sua prospecção conectada. O tour acima mostra como eles se relacionam na plataforma.</p>
         </div>
-        <ol className="jl-workflow-track">
-          {steps.map(({ title, description, icon: Icon }, i) => (
-            <li key={title}>
+        <ol className="jl-workflow-track" data-stage={activeStep}>
+          {steps.map(({ title, description, icon: Icon }, index) => (
+            <li key={title} className={activeStep >= index ? "jl-workflow-active" : ""}>
               <span className="jl-workflow-node"><Icon size={19} aria-hidden="true" /></span>
-              <div><small>ETAPA 0{i + 1}</small><strong>{title}</strong><p>{description}</p></div>
+              <div><strong>{title}</strong><p>{description}</p></div>
             </li>
           ))}
         </ol>
@@ -162,7 +208,6 @@ export function FeatureExplorer() {
           >
             <span className="jl-module-tab-icon"><Icon size={19} aria-hidden="true" /></span>
             <span><strong>{name}</strong><small>{label}</small></span>
-            <ArrowRight size={15} aria-hidden="true" />
           </button>
         ))}
       </div>
@@ -237,7 +282,6 @@ export function AudienceSwitcher() {
                 onClick={() => setSelected(id)}>
                 <ProfileIcon size={19} aria-hidden="true" />
                 <span>{title}</span>
-                <ArrowRight size={16} aria-hidden="true" />
               </button>
             ))}
           </div>
