@@ -1,6 +1,5 @@
 import { Link } from "@tanstack/react-router";
 import {
-  ArrowDown,
   Building2,
   Check,
   CheckCircle2,
@@ -74,7 +73,6 @@ const faq = [
     question: "Preciso instalar algum programa?",
     answer:
       "Não para utilizar a plataforma. O Januário Leads foi desenvolvido para ser acessado em um navegador compatível.",
-  },
   },
 ];
 
