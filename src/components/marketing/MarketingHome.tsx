@@ -219,14 +219,71 @@ function ProductMock() {
 function SearchDemo() {
   const [selected, setSelected] = useState<(typeof scenarios)[number]["id"]>("restaurantes");
   const [interactive, setInteractive] = useState(false);
+  const [phase, setPhase] = useState(0);
+  const [cycle, setCycle] = useState(0);
+  const [autoplay, setAutoplay] = useState(true);
+  const [reducedMotion, setReducedMotion] = useState(false);
+  const [pageVisible, setPageVisible] = useState(true);
+
   useEffect(() => { setInteractive(true); }, []);
+  useEffect(() => {
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => {
+      setReducedMotion(query.matches);
+      if (query.matches) {
+        setAutoplay(false);
+        setPhase(2);
+      }
+    };
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+  useEffect(() => {
+    const update = () => setPageVisible(document.visibilityState === "visible");
+    update();
+    document.addEventListener("visibilitychange", update);
+    return () => document.removeEventListener("visibilitychange", update);
+  }, []);
+  useEffect(() => {
+    if (!autoplay || !pageVisible || reducedMotion) return;
+    const timer = window.setInterval(() => {
+      setPhase((previous) => {
+        if (previous === 3) {
+          setCycle((value) => value + 1);
+          return 0;
+        }
+        return previous + 1;
+      });
+    }, 2500);
+    return () => window.clearInterval(timer);
+  }, [autoplay, pageVisible, reducedMotion, selected]);
+
   const scenario = scenarios.find((item) => item.id === selected) ?? scenarios[0];
+  const stageText = [
+    "Definindo segmento e região",
+    "Pesquisando empresas de exemplo",
+    "Resultados organizados",
+    "Selecionando um contato para o CRM",
+  ] as const;
+
+  function changeSegment(next: (typeof scenarios)[number]["id"]) {
+    setSelected(next);
+    setPhase(0);
+    setCycle((value) => value + 1);
+  }
+
+  function replay() {
+    setPhase(0);
+    setCycle((value) => value + 1);
+    setAutoplay(!reducedMotion);
+  }
 
   return (
-    <div className="jl-demo-window" data-interactive={interactive ? "true" : "false"}>
+    <div className="jl-demo-window" data-interactive={interactive ? "true" : "false"} data-phase={phase} data-cycle={cycle} data-playing={autoplay && pageVisible && !reducedMotion}>
       <div className="jl-demo-toolbar">
         <span><span className="jl-demo-signal" /> Buscar Leads</span>
-        <span>Exemplo interativo · sem consultas reais</span>
+        <span><CirclePlay size={13} aria-hidden="true" /> Prévia animada · nenhum dado real</span>
       </div>
       <div className="jl-demo-main">
         <div className="jl-demo-filter">
@@ -239,7 +296,7 @@ function SearchDemo() {
                   type="button"
                   disabled={!interactive}
                   aria-pressed={selected === item.id}
-                  onClick={() => setSelected(item.id)}
+                  onClick={() => changeSegment(item.id)}
                   className={selected === item.id ? "jl-scenario active" : "jl-scenario"}
                 >
                   {item.label}
@@ -252,19 +309,50 @@ function SearchDemo() {
             <div><span>Cidade selecionada</span><strong>{scenario.location}</strong></div>
           </div>
         </div>
-        <div className="jl-demo-results">
+        <div className="jl-search-animation-panel">
+          <div className="jl-search-animation-status">
+            <div>
+              <span className="jl-search-animation-label">BUSCA ILUSTRATIVA · ETAPA {phase + 1}/4</span>
+              <strong>{stageText[phase] ?? stageText[0]}</strong>
+            </div>
+            <div className="jl-search-animation-controls">
+              <button
+                type="button"
+                disabled={!interactive || reducedMotion}
+                onClick={() => setAutoplay((old) => !old)}
+                aria-label={autoplay && !reducedMotion ? "Pausar animação da busca" : "Reproduzir animação da busca"}
+              >
+                {autoplay && !reducedMotion ? "Pausar" : "Reproduzir"}
+              </button>
+              <button type="button" disabled={!interactive} onClick={replay} aria-label="Reiniciar animação da busca">Reiniciar</button>
+            </div>
+          </div>
+          <div className="jl-search-animation-query" key={selected + "-" + cycle}>
+            <span><Search size={15} aria-hidden="true" /> Pesquisando por <strong className="jl-search-animation-term">{scenario.label}</strong> em {scenario.location}</span>
+            <span className="jl-search-animation-indicator" aria-hidden="true"><i /><i /><i /></span>
+          </div>
+          <div className="jl-search-animation-track" aria-hidden="true">
+            <span className="jl-search-animation-fill" />
+          </div>
+          <div className="jl-search-animation-steps" aria-label="Etapas da busca ilustrativa">
+            {["Definir", "Pesquisar", "Encontrar", "Organizar"].map((label, index) => (
+              <span key={label} className={index <= phase ? "active" : ""}><CheckCircle2 size={12} aria-hidden="true" />{label}</span>
+            ))}
+          </div>
+        </div>
+        <div className="jl-demo-results" key={selected + "-" + cycle + "-results"}>
           <div className="jl-demo-results-title">
-            <span><Search size={16} aria-hidden="true"/> Empresas para explorar</span>
+            <span><Search size={16} aria-hidden="true" /> Empresas para explorar</span>
             <small>Dados fictícios</small>
           </div>
           {scenario.results.map((result, index) => (
-            <div className="jl-demo-result" key={result.name}>
+            <div className={"jl-demo-result jl-demo-result-" + (index + 1)} key={result.name}>
               <span className="jl-demo-result-icon"><Building2 size={17} aria-hidden="true" /></span>
               <span className="jl-demo-result-copy">
                 <strong>{result.name}</strong>
                 <small>{result.niche} · {scenario.location}</small>
               </span>
-              <span className="jl-demo-result-status">{index === 0 ? "Descobrir" : index === 1 ? "Selecionar" : "Organizar"}</span>
+              <span className="jl-demo-result-status">{phase === 3 && index === 0 ? "No CRM · exemplo" : index === 0 ? "Descobrir" : index === 1 ? "Selecionar" : "Organizar"}</span>
             </div>
           ))}
           <div className="jl-demo-bottom">
@@ -288,9 +376,8 @@ export function MarketingHome() {
         <div className="jl-container jl-header-inner">
           <Brand />
           <nav className="jl-nav" aria-label="Navegação principal">
-            <a href="#tour">Demonstração</a>
-            <a href="#tour">Ver demonstração</a>
-            <a href="#como-funciona">Como funciona</a>
+            <a href="#tour">Como funciona</a>
+            <a href="#demonstracao">Buscar Leads</a>
             <a href="#recursos">Funcionalidades</a>
             <a href="#para-quem">Para quem</a>
             <a href="#duvidas">Perguntas</a>
@@ -362,7 +449,7 @@ export function MarketingHome() {
           <div className="jl-container">
             <div className="jl-section-heading jl-centered">
               <span className="jl-eyebrow"><CirclePlay size={15} aria-hidden="true" /> DEMONSTRAÇÃO ANIMADA DO PRODUTO</span>
-              <h2 id="tour-title">Veja o Januário Leads <span>funcionando, etapa por etapa.</span></h2>
+              <h2 id="tour-title">Como funciona o Januário Leads? <span>Veja na prática.</span></h2>
               <p>Uma prévia animada, feita especialmente para o Januário Leads. Da busca de empresas ao CRM e ao próximo contato, sem gravar dados ou realizar operações reais.</p>
             </div>
             <AnimatedProductTour />
@@ -380,8 +467,8 @@ export function MarketingHome() {
           <div className="jl-container">
             <div className="jl-section-heading jl-centered">
               <span className="jl-eyebrow">TESTE A PESQUISA</span>
-              <h2 id="demo-title">Escolha um segmento e <span>explore o resultado.</span></h2>
-              <p>Interaja com a simulação local: alterne entre nichos e cidades, veja empresas fictícias e entenda como a pesquisa organiza as informações.</p>
+              <h2 id="demo-title">Buscar Leads: veja a pesquisa <span>acontecendo na tela.</span></h2>
+              <p>A demonstração digita o segmento, simula a pesquisa, apresenta resultados e marca um lead para o CRM. Troque o nicho, pause ou reinicie quando quiser — não são feitas consultas reais.</p>
             </div>
             <SearchDemo />
             <div className="jl-demo-steps" aria-label="Etapas do trabalho">
@@ -414,7 +501,7 @@ export function MarketingHome() {
         <section className="jl-section jl-workflow" id="como-funciona" aria-labelledby="workflow-title">
           <div className="jl-container">
             <div className="jl-section-heading jl-centered">
-              <span className="jl-eyebrow">COMO FUNCIONA</span>
+              <span className="jl-eyebrow">O MÉTODO DO JANUÁRIO LEADS</span>
               <h2 id="workflow-title">Uma rotina comercial que <span>faz sentido.</span></h2>
               <p>Três momentos para começar a prospectar com mais método, usando as ferramentas já presentes na plataforma.</p>
             </div>
