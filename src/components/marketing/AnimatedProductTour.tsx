@@ -193,11 +193,14 @@ function FollowupScene() {
 
 export function AnimatedProductTour() {
   const [current, setCurrent] = useState(0);
+  const [hydrated, setHydrated] = useState(false);
   const [playing, setPlaying] = useState(true);
   const [inViewport, setInViewport] = useState(false);
   const [pageVisible, setPageVisible] = useState(true);
   const [reducedMotion, setReducedMotion] = useState(false);
   const container = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { setHydrated(true); }, []);
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -257,6 +260,7 @@ export function AnimatedProductTour() {
               key={short}
               className={"jl-tour-step-button " + (current === index ? "active" : "")}
               aria-pressed={current === index}
+              disabled={!hydrated}
               onClick={() => selectStep(index)}
             >
               <span className="jl-tour-step-number">0{index + 1}</span>
@@ -270,7 +274,7 @@ export function AnimatedProductTour() {
           <button
             type="button"
             className="jl-tour-play-button"
-            disabled={reducedMotion}
+            disabled={reducedMotion || !hydrated}
             onClick={() => setPlaying((was) => !was)}
             aria-label={playing && !reducedMotion ? "Pausar demonstração" : "Reproduzir demonstração"}
           >
@@ -280,6 +284,7 @@ export function AnimatedProductTour() {
           <button
             type="button"
             className="jl-tour-restart-button"
+            disabled={!hydrated}
             onClick={() => { setCurrent(0); setPlaying(false); }}
             aria-label="Reiniciar demonstração"
           >
@@ -288,7 +293,7 @@ export function AnimatedProductTour() {
         </div>
         {reducedMotion && <p className="jl-tour-reduced-note">Movimento reduzido ativado: navegue manualmente pelas etapas.</p>}
       </div>
-      <div className="jl-tour-stage" data-stage={current} data-playing={isRunning} data-reduced={reducedMotion}>
+      <div className="jl-tour-stage" data-interactive={hydrated} data-stage={current} data-playing={isRunning} data-reduced={reducedMotion}>
         <div className="jl-tour-player-topbar">
           <span className="jl-tour-player-dots" aria-hidden="true"><i /><i /><i /></span>
           <span>Januário Leads <span className="jl-tour-window-divider">/</span> Tour do produto</span>
@@ -326,8 +331,8 @@ export function AnimatedProductTour() {
             <p>{currentScene.text}</p>
           </div>
           <div className="jl-tour-arrow-controls">
-            <button type="button" onClick={() => selectStep((current + scenes.length - 1) % scenes.length)} aria-label="Etapa anterior"><ArrowLeft size={17} aria-hidden="true" /></button>
-            <button type="button" onClick={() => selectStep((current + 1) % scenes.length)} aria-label="Próxima etapa"><ArrowRight size={17} aria-hidden="true" /></button>
+            <button type="button" disabled={!hydrated} onClick={() => selectStep((current + scenes.length - 1) % scenes.length)} aria-label="Etapa anterior"><ArrowLeft size={17} aria-hidden="true" /></button>
+            <button type="button" disabled={!hydrated} onClick={() => selectStep((current + 1) % scenes.length)} aria-label="Próxima etapa"><ArrowRight size={17} aria-hidden="true" /></button>
           </div>
         </div>
         <div className="jl-tour-truth">
