@@ -15,7 +15,7 @@ test("home publica vende o produto sem consultar Supabase ou prometer planos", a
   await blockExternal(page, () => { supabaseRequests++; });
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1, name: /Boas oportunidades começam com contatos certos/ })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /Ferramentas para prospectar/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Cada módulo com um papel no seu processo/ })).toBeVisible();
   await expect(page.getByText(/Prévia animada · nenhum dado real/i)).toBeVisible();
   await expect(page.locator(".jl-hero-search .jl-demo-window")).toBeVisible();
   await expect(page.getByText(/Acesso atual por convite/i)).toBeVisible();
