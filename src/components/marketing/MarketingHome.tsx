@@ -248,13 +248,7 @@ function SearchDemo() {
   useEffect(() => {
     if (!autoplay || !pageVisible || reducedMotion) return;
     const timer = window.setInterval(() => {
-      setPhase((previous) => {
-        if (previous === 3) {
-          setCycle((value) => value + 1);
-          return 0;
-        }
-        return previous + 1;
-      });
+      setPhase((previous) => (previous + 1) % 4);
     }, 2500);
     return () => window.clearInterval(timer);
   }, [autoplay, pageVisible, reducedMotion, selected]);
