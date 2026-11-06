@@ -36,7 +36,7 @@ function LoginPage() {
     void getValidSession()
       .then((session) => {
         if (session) {
-          void navigate({ to: "/" });
+          void navigate({ to: "/app" });
           return;
         }
         setChecking(false);
@@ -68,7 +68,7 @@ function LoginPage() {
         setError(result.message);
         return;
       }
-      await navigate({ to: "/" });
+      await navigate({ to: "/app" });
     } catch {
       setError("Não foi possível conectar. Verifique sua conexão e tente novamente.");
     } finally {
@@ -112,7 +112,7 @@ function LoginPage() {
           <p className="eyebrow">ÁREA RESTRITA</p>
           <h1>Entre para acessar seus leads.</h1>
           <p>Use a conta privada cadastrada no Supabase Auth.</p>
-          <Link to="/produto" className="login-discover">
+          <Link to="/" className="login-discover">
             Conhecer o JanuarioLeads <ArrowRight size={15} aria-hidden="true" />
           </Link>
         </div>
