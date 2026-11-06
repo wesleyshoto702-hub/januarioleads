@@ -11,11 +11,11 @@ Portanto, **não usamos o vídeo nem qualquer screenshot ou arquivo do RastroLea
 ## O que inspirou a experiência (não a identidade)
 
 1. **Primeiro impacto:** promessa objetiva do produto e painel representativo. Mantida identidade preta, grafite e vermelha do Januário Leads; agora com movimentos sutis no mock do dashboard.
-2. **Produto em movimento:** seção \`#tour\` com player ilustrativo original de 4 etapas: **Buscar Leads → Selecionar → CRM → Follow-up**. Reprodução automática apenas quando a seção está visível, pausa/reinício, escolha manual e controles de etapa. Nenhuma chamada de Supabase ou Google Maps.
+2. **Produto em movimento:** seção \`#tour\` com player ilustrativo original de 4 etapas: **Buscar Leads → Selecionar → CRM → Follow-up**. Reprodução automática iniciada no carregamento da página, pausa/reinício, escolha manual e controles de etapa. Pausa quando a aba não está visível. Nenhuma chamada de Supabase ou Google Maps.
 3. **Pesquisa interativa:** seção \`#demonstracao\` mantém a troca de segmento/cidade usando dados falsos, de modo que o visitante possa experimentar o conceito sem login.
 4. **Comunicação contextual:** exemplo original de modelo de mensagem com três canais, cópia para área de transferência e indicação de **envio manual**. Não promete geração por IA nem envio automático no site público.
 5. **Organização comercial:** preservados cards de dificuldades, fluxo de trabalho, funcionalidades reais, perfis de profissionais, comparação manual versus CRM, acesso por convite, FAQ e CTA final.
-6. **Usabilidade:** barra informativa realista, menu mobile operável, cabeçalho fixo com estilo isolado; animações respeitam \`prefers-reduced-motion\`, pausam fora da viewport e quando a aba está oculta, e ficam disponíveis com controles manuais.
+6. **Usabilidade:** barra informativa realista, menu mobile operável, cabeçalho fixo com estilo isolado; animações respeitam \`prefers-reduced-motion\`, pausam quando a aba está oculta, e ficam disponíveis com controles manuais.
 
 ## O que não replicamos
 
@@ -38,7 +38,7 @@ Portanto, **não usamos o vídeo nem qualquer screenshot ou arquivo do RastroLea
 
 ## Critérios de qualidade
 
-- Autoanimação inicia somente no navegador e enquanto a área do tour estiver visível; nunca depende de um arquivo do concorrente.
+- Autoanimação inicia no cliente sem depender do IntersectionObserver ou da posição de rolagem; pausa quando a aba não está visível e não depende de arquivo do concorrente.
 - Usuário pode pausar, reiniciar, escolher qualquer etapa e usar \`#tour\` diretamente.
 - Se o navegador configurar movimento reduzido, não há autoanimação, e as etapas continuam acessíveis por botões.
 - Homepage pública e demos não consultam leads, não criam contas, não chamam API pagas e não disparam mensagens.
@@ -47,4 +47,4 @@ Portanto, **não usamos o vídeo nem qualquer screenshot ou arquivo do RastroLea
 
 ## Vídeo real do Januário Leads (etapa futura)
 
-A animação atual é um **tour visual**, não uma gravação do sistema real. Se for necessário mostrar operação comprovada, o próximo avanço editorial é **gravar um MP4 original do Januário Leads** com uma conta de teste e empresas fictícias, revisar para evitar exposição de informações e então hospedar poster + arquivo com \`<video controls playsInline preload="metadata">\`. Nenhum material do concorrente deve ser usado.
+As animações atuais são **demonstrações visuais**, não uma gravação do sistema real. Se for necessário mostrar operação comprovada, o próximo avanço editorial é **gravar um MP4 original do Januário Leads** com uma conta de teste e empresas fictícias, revisar para evitar exposição de informações e então hospedar poster + arquivo com \`<video controls playsInline preload="metadata">\`. Nenhum material do concorrente deve ser usado.
