@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import {
-  ArrowRight, BadgeCheck, CalendarCheck2, Check, Compass, FolderKanban,
+  ArrowRight, BadgeCheck, CalendarCheck2, Compass, FolderKanban,
   Search, ShieldCheck, Sparkles,
 } from "lucide-react";
 import type { ReactNode } from "react";
