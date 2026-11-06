@@ -21,7 +21,7 @@ test("homepage abre tour de quatro etapas sem chamadas ao Supabase", async ({ pa
   const tour = page.locator(".jl-tour-stage");
   await expect(tour).toBeVisible();
   await expect(page.locator(".jl-tour-step-button")).toHaveCount(4);
-  await expect(page.getByRole("heading", { name: /Veja o Januário Leads funcionando, etapa por etapa/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Como funciona o Januário Leads\? Veja na prática/i })).toBeVisible();
   await expect(page.getByText(/Demonstração fictícia, sem buscas, contas ou mensagens reais/i)).toBeVisible();
   expect(supabaseCalls).toBe(0);
 });
