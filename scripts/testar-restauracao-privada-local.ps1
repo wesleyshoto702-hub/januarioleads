@@ -53,13 +53,57 @@ if (-not (Get-Command psql -ErrorAction SilentlyContinue) -or
 
 # Verifica que 54322 foi publicada no loopback por container Supabase,
 # em vez de um tunnel para producao.
-$Containers = @(& docker ps --filter "publish=54322" --format "{{.Image}}|{{.Ports}}" 2>$null)
-if ($LASTEXITCODE -ne 0) { throw "BLOQUEADO: nao foi possivel conferir os containers." }
-$Validos = @($Containers | Where-Object {
-  $_ -match '^(?:public\.ecr\.aws/)?supabase/postgres:[^|]+\|127\.0\.0\.1:54322->5432/tcp$'
-})
-if ($Containers.Count -ne 1 -or $Validos.Count -ne 1) {
-  throw "BLOQUEADO: exige Supabase PostgreSQL em 127.0.0.1:54322 (somente loopback)."
+# Nao basta publicar em loopback: a rede do container tambem deve ser
+# INTERNA, sem caminho de saida para a internet com dados restaurados.
+# A rede alternativa --preparar-vazio e intencionalmente bloqueada aqui.
+$ProjetoConfig = Get-Content -LiteralPath (Join-Path $Lab "supabase/config.toml") -Raw -Encoding UTF8
+$ProjetoMatch = [regex]::Match($ProjetoConfig, '(?m)^\s*project_id\s*=\s*"([A-Za-z0-9_-]+)"')
+if (-not $ProjetoMatch.Success -or $ProjetoMatch.Groups[1].Value -eq $ProjetoEsperado) {
+  throw "BLOQUEADO: identidade do laboratorio nao confiavel."
+}
+$ProjetoLocal = $ProjetoMatch.Groups[1].Value
+$Containers = @(& docker ps --filter "publish=54322" --format "{{.ID}}|{{.Image}}|{{.Ports}}" 2>$null)
+if ($LASTEXITCODE -ne 0 -or $Containers.Count -ne 1) {
+  throw "BLOQUEADO: porta local ausente ou com containers ambiguos."
+}
+$Partes = ([string]$Containers[0]).Split('|')
+if ($Partes.Count -ne 3 -or
+    $Partes[0] -notmatch '^[a-f0-9]{12,64}$' -or
+    $Partes[1] -notmatch '^(?:public\.ecr\.aws/)?supabase/postgres:[^|]+$' -or
+    $Partes[2] -cne '127.0.0.1:54322->5432/tcp') {
+  throw "BLOQUEADO: exige PostgreSQL Supabase com uma unica porta local."
+}
+$ContainerId = $Partes[0]
+$RotulosJson = @(& docker inspect --format "{{json .Config.Labels}}" $ContainerId 2>$null)
+if ($LASTEXITCODE -ne 0 -or $RotulosJson.Count -ne 1) {
+  throw "BLOQUEADO: nao foi possivel validar o projeto do container."
+}
+try {
+  $Rotulos = ($RotulosJson[0] | ConvertFrom-Json)
+  $Rotulo = $Rotulos.PSObject.Properties["com.supabase.cli.project"]
+  if (-not $Rotulo -or $Rotulo.Value -cne $ProjetoLocal) {
+    throw "Projeto local divergente."
+  }
+} catch {
+  throw "BLOQUEADO: container nao pertence ao projeto de laboratorio esperado."
+}
+$RedesJson = @(& docker inspect --format "{{json .NetworkSettings.Networks}}" $ContainerId 2>$null)
+if ($LASTEXITCODE -ne 0 -or $RedesJson.Count -ne 1) {
+  throw "BLOQUEADO: nao foi possivel validar as redes do container."
+}
+try {
+  $Redes = ($RedesJson[0] | ConvertFrom-Json)
+  $NomesRedes = @($Redes.PSObject.Properties.Name)
+  if ($NomesRedes.Count -ne 1 -or $NomesRedes[0] -cne "januario-restore-local") {
+    throw "Rede externa ou inesperada."
+  }
+} catch {
+  throw "BLOQUEADO: laboratorio nao esta isolado em rede interna exclusiva."
+}
+$RedeInterna = @(& docker network inspect "januario-restore-local" --format "{{.Internal}}" 2>$null)
+if ($LASTEXITCODE -ne 0 -or $RedeInterna.Count -ne 1 -or
+    ([string]$RedeInterna[0]).Trim() -cne "true") {
+  throw "BLOQUEADO: rede Docker permite conexoes de saida. Nao restaurar dados."
 }
 
 $SenhaAnterior = [Environment]::GetEnvironmentVariable("PGPASSWORD", "Process")

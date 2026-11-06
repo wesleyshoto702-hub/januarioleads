@@ -6,6 +6,14 @@ Esta operação depende do proprietário no Windows. Nunca suba SQL, hashes priv
 
 ## O que o auxiliar faz
 
+**Requisito adicional de isolamento (06/11):** o restaurador confirma
+também que o container PostgreSQL pertence ao identificador local do
+`supabase/config.toml` e está conectado **somente** à rede
+`januario-restore-local` configurada como `Internal=true`. A rede
+`januario-restore-loopback` do modo `--preparar-vazio` não é apta para
+restaurar backup: permite conexões de saída. Não use dados reais enquanto
+a rede interna não funcionar no Windows.
+
 O script scripts/testar-restauracao-privada-local.ps1 aceita apenas PostgreSQL em 127.0.0.1:54322, publicado na interface de loopback por uma imagem Docker supabase/postgres. Recusa um laboratório vinculado ao Supabase remoto, recusa o checkout do repositório e exige laboratório sem contas Auth nem tabelas do aplicativo.
 
 Antes da restauração, executa o verificador de hashes e tamanhos. Em seguida aplica roles, schema e data usando psql, transação única, ON_ERROR_STOP e session_replication_role=replica, conforme o [guia oficial do Supabase](https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore). O script suprime a saída do SQL para evitar vazamento de dados pessoais e salva apenas o resultado do teste SQL dentro da pasta privada criptografada.
