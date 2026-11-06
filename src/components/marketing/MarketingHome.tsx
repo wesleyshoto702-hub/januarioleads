@@ -16,7 +16,6 @@ import {
   MapPin,
   MessageCircle,
   Menu,
-  MousePointer2,
   Search,
   ShieldCheck,
   Sparkles,
@@ -151,68 +150,6 @@ function Brand() {
       <span className="jl-brand-mark">J</span>
       <span className="jl-brand-name">Januário<span>Leads</span></span>
     </Link>
-  );
-}
-
-function ProductMock() {
-  return (
-    <div className="jl-hero-visual">
-      <div className="jl-visual-glow" aria-hidden="true" />
-      <div className="product-preview jl-app-preview" aria-label="Prévia ilustrativa do painel do Januário Leads">
-        <div className="jl-app-top">
-          <span className="jl-app-dots" aria-hidden="true"><i /><i /><i /></span>
-          <span className="jl-app-window-title">Januário Leads / Visão geral</span>
-          <span className="jl-app-demo-chip">Exemplo ilustrativo</span>
-        </div>
-        <div className="jl-app-layout">
-          <aside className="jl-mock-sidebar" aria-hidden="true">
-            <span className="jl-mock-sidebar-brand">J</span>
-            <span className="jl-mock-sidebar-icon active"><LayoutDashboard size={15} /></span>
-            <span className="jl-mock-sidebar-icon"><Search size={15} /></span>
-            <span className="jl-mock-sidebar-icon"><Users size={15} /></span>
-            <span className="jl-mock-sidebar-icon"><Target size={15} /></span>
-            <span className="jl-mock-sidebar-icon"><MessageCircle size={15} /></span>
-          </aside>
-          <div className="jl-mock-content">
-            <div className="jl-mock-heading">
-              <div><span>ESPAÇO DE TRABALHO</span><strong>Sua prospecção, em ordem.</strong></div>
-              <span className="jl-mock-online"><span /> Visão de exemplo</span>
-            </div>
-            <div className="jl-mock-stat-grid">
-              <div className="jl-mock-stat"><Search size={15}/><span>Descobrir</span><strong>Pesquisar por nicho</strong></div>
-              <div className="jl-mock-stat"><Users size={15}/><span>Organizar</span><strong>Salvar na carteira</strong></div>
-              <div className="jl-mock-stat"><CalendarCheck size={15}/><span>Acompanhar</span><strong>Definir próxima ação</strong></div>
-            </div>
-            <div className="jl-mock-board">
-              <div className="jl-mock-board-title">
-                <span>Minha rotina comercial</span>
-                <span className="jl-mock-board-tag">DEMONSTRAÇÃO</span>
-              </div>
-              <div className="jl-mock-board-row">
-                <span className="jl-mock-avatar">A</span>
-                <span className="jl-mock-row-info"><strong>Empresa Exemplo A</strong><small>Primeira abordagem</small></span>
-                <span className="jl-mock-status awaiting">Preparar contato</span>
-              </div>
-              <div className="jl-mock-board-row">
-                <span className="jl-mock-avatar">B</span>
-                <span className="jl-mock-row-info"><strong>Empresa Exemplo B</strong><small>Contato realizado</small></span>
-                <span className="jl-mock-status">Acompanhar</span>
-              </div>
-              <div className="jl-mock-board-row">
-                <span className="jl-mock-avatar">C</span>
-                <span className="jl-mock-row-info"><strong>Empresa Exemplo C</strong><small>Retorno agendado</small></span>
-                <span className="jl-mock-status">Follow-up</span>
-              </div>
-            </div>
-            <div className="jl-mock-bottom"><span><span className="jl-mock-line" /> Seu processo em um só lugar</span><span>CRM • Pesquisa • Ações</span></div>
-          </div>
-        </div>
-      </div>
-      <div className="jl-floating-note">
-        <span className="jl-floating-icon"><CheckCircle2 size={17}/></span>
-        <div><strong>Mais clareza na rotina</strong><small>Da primeira pesquisa ao retorno</small></div>
-      </div>
-    </div>
   );
 }
 
@@ -396,6 +333,7 @@ export function MarketingHome() {
           <nav className="jl-mobile-menu" id="jl-mobile-navigation" aria-label="Navegação para celular">
             <div className="jl-mobile-menu-inner">
               <a href="#tour" onClick={() => setMobileOpen(false)}>Assistir demonstração</a>
+              <a href="#demonstracao" onClick={() => setMobileOpen(false)}>Buscar Leads</a>
               <a href="#como-funciona" onClick={() => setMobileOpen(false)}>Como funciona</a>
               <a href="#recursos" onClick={() => setMobileOpen(false)}>Funcionalidades</a>
               <a href="#duvidas" onClick={() => setMobileOpen(false)}>Perguntas</a>
@@ -420,8 +358,8 @@ export function MarketingHome() {
               <span className="jl-kicker"><span className="jl-kicker-dot" /> PROSPECÇÃO B2B COM ORGANIZAÇÃO</span>
               <h1>Boas oportunidades começam com <em>contatos certos.</em></h1>
               <p className="jl-hero-description">
-                Descubra empresas por segmento e região. Organize seus leads,
-                prepare abordagens e saiba qual é o próximo passo de cada negociação.
+                Busque empresas por cidade e segmento, escolha oportunidades e organize
+                os próximos contatos no CRM — tudo em um fluxo comercial mais claro.
               </p>
               <div className="jl-hero-ctas">
                 <a className="jl-button jl-button-primary" href="#tour">Explorar o Januário Leads <CirclePlay size={17} aria-hidden="true" /></a>
@@ -434,9 +372,25 @@ export function MarketingHome() {
               </div>
               <p className="jl-hero-disclaimer"><ShieldCheck size={15} aria-hidden="true" /> Plataforma em evolução comercial. Acesso atual por convite.</p>
             </div>
-            <ProductMock />
+            <div className="jl-hero-search" id="demonstracao" aria-label="Buscar Leads — demonstração animada do Januário Leads">
+              <div className="jl-hero-search-glow" aria-hidden="true" />
+              <div className="jl-hero-search-radar" aria-hidden="true"><i /><i /><i /></div>
+              <div className="jl-hero-search-heading">
+                <span className="jl-hero-search-icon"><Search size={16} aria-hidden="true" /></span>
+                <div>
+                  <strong>Januário Leads / Buscar Leads</strong>
+                  <span>Veja uma pesquisa acontecer, sem dados reais</span>
+                </div>
+                <span className="jl-hero-search-live"><span /> ANIMADO</span>
+              </div>
+              <SearchDemo />
+              <div className="jl-hero-search-caption">
+                <span><CheckCircle2 size={14} aria-hidden="true" /> Busca por nicho e cidade</span>
+                <span><CheckCircle2 size={14} aria-hidden="true" /> Escolha e organização no CRM</span>
+              </div>
+            </div>
           </div>
-          <a href="#tour" className="jl-scroll-cue"><ArrowDown size={15} aria-hidden="true" /> Veja o produto em movimento</a>
+          <a href="#tour" className="jl-scroll-cue"><ArrowDown size={15} aria-hidden="true" /> Descubra o processo completo</a>
         </section>
 
         <section className="jl-section jl-tour-section" id="tour" aria-labelledby="tour-title">
@@ -447,29 +401,6 @@ export function MarketingHome() {
               <p>Uma prévia animada, feita especialmente para o Januário Leads. Da busca de empresas ao CRM e ao próximo contato, sem gravar dados ou realizar operações reais.</p>
             </div>
             <AnimatedProductTour />
-            <div className="jl-product-proof-card">
-              <div>
-                <strong>Quer experimentar o fluxo com outro segmento?</strong>
-                <p>Abaixo você pode alterar um exemplo de pesquisa sem fazer chamadas reais ao Google Places ou ao Supabase.</p>
-              </div>
-              <a href="#demonstracao">Abrir pesquisa simulada <ArrowRight size={16} aria-hidden="true" /></a>
-            </div>
-          </div>
-        </section>
-
-        <section className="jl-section jl-demo-section" id="demonstracao" aria-labelledby="demo-title">
-          <div className="jl-container">
-            <div className="jl-section-heading jl-centered">
-              <span className="jl-eyebrow">TESTE A PESQUISA</span>
-              <h2 id="demo-title">Buscar Leads: veja a pesquisa <span>acontecendo na tela.</span></h2>
-              <p>A demonstração digita o segmento, simula a pesquisa, apresenta resultados e marca um lead para o CRM. Troque o nicho, pause ou reinicie quando quiser — não são feitas consultas reais.</p>
-            </div>
-            <SearchDemo />
-            <div className="jl-demo-steps" aria-label="Etapas do trabalho">
-              <span><Search size={17} aria-hidden="true" /> Encontre empresas</span>
-              <span><MousePointer2 size={17} aria-hidden="true" /> Escolha seus leads</span>
-              <span><CalendarCheck size={17} aria-hidden="true" /> Planeje a próxima ação</span>
-            </div>
           </div>
         </section>
 
