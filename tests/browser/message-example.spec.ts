@@ -10,8 +10,6 @@ test("modelos de mensagem trocam canal sem acessar API ou disparar contatos", as
       : route.abort();
   });
   await page.goto("/");
-  const card = page.getByRole("region", { name: "Demonstração de modelos de mensagens" });
-  // The panel itself is labeled; test interaction within its nearest card.
   const demo = page.locator(".jl-message-card");
   await expect(demo).toBeVisible();
   await expect(demo.getByRole("tab", { name: "WhatsApp" })).toHaveAttribute("aria-selected", "true");
