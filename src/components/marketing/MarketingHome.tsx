@@ -8,12 +8,14 @@ import {
   CalendarCheck,
   Check,
   CheckCircle2,
+  CirclePlay,
   Clock3,
   Compass,
   Globe2,
   LayoutDashboard,
   MapPin,
   MessageCircle,
+  Menu,
   MousePointer2,
   Search,
   ShieldCheck,
@@ -21,8 +23,10 @@ import {
   Target,
   Users,
   WalletCards,
+  X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { AnimatedProductTour } from "./AnimatedProductTour";
 
 const scenarios = [
   {
@@ -273,6 +277,7 @@ function SearchDemo() {
 }
 
 export function MarketingHome() {
+  const [mobileOpen, setMobileOpen] = useState(false);
   return (
     <div className="jl-site">
       <a className="jl-skip" href="#conteudo">Pular para o conteúdo</a>
@@ -280,6 +285,8 @@ export function MarketingHome() {
         <div className="jl-container jl-header-inner">
           <Brand />
           <nav className="jl-nav" aria-label="Navegação principal">
+            <a href="#tour">Demonstração</a>
+            <a href="#tour">Ver demonstração</a>
             <a href="#como-funciona">Como funciona</a>
             <a href="#recursos">Funcionalidades</a>
             <a href="#para-quem">Para quem</a>
@@ -288,9 +295,37 @@ export function MarketingHome() {
           <div className="jl-header-actions">
             <Link className="jl-nav-login" to="/login">Entrar</Link>
             <a className="jl-button jl-button-small" href="#acesso">Conhecer o acesso <ArrowUpRight size={15} aria-hidden="true" /></a>
+            <button
+              type="button"
+              className="jl-mobile-menu-toggle"
+              aria-expanded={mobileOpen}
+              aria-controls="jl-mobile-navigation"
+              aria-label={mobileOpen ? "Fechar menu" : "Abrir menu"}
+              onClick={() => setMobileOpen((previous) => !previous)}
+            >
+              {mobileOpen ? <X size={19} aria-hidden="true" /> : <Menu size={19} aria-hidden="true" />}
+            </button>
           </div>
         </div>
+        {mobileOpen && (
+          <nav className="jl-mobile-menu" id="jl-mobile-navigation" aria-label="Navegação para celular">
+            <div className="jl-mobile-menu-inner">
+              <a href="#tour" onClick={() => setMobileOpen(false)}>Assistir demonstração</a>
+              <a href="#como-funciona" onClick={() => setMobileOpen(false)}>Como funciona</a>
+              <a href="#recursos" onClick={() => setMobileOpen(false)}>Funcionalidades</a>
+              <a href="#duvidas" onClick={() => setMobileOpen(false)}>Perguntas</a>
+              <Link to="/cadastro" onClick={() => setMobileOpen(false)}>Acesso beta</Link>
+            </div>
+          </nav>
+        )}
       </header>
+      <div className="jl-marketing-briefing">
+        <div className="jl-container jl-marketing-briefing-inner">
+          <span><CheckCircle2 size={14} aria-hidden="true" /> Pesquisa de empresas por cidade e segmento</span>
+          <span><CheckCircle2 size={14} aria-hidden="true" /> CRM e acompanhamento de contatos</span>
+          <Link to="/cadastro">Acesso beta por convite <ArrowRight size={14} aria-hidden="true" /></Link>
+        </div>
+      </div>
 
       <main id="conteudo">
         <section className="jl-hero">
@@ -304,7 +339,7 @@ export function MarketingHome() {
                 prepare abordagens e saiba qual é o próximo passo de cada negociação.
               </p>
               <div className="jl-hero-ctas">
-                <a className="jl-button jl-button-primary" href="#demonstracao">Explorar o Januário Leads <ArrowRight size={17} aria-hidden="true" /></a>
+                <a className="jl-button jl-button-primary" href="#tour">Explorar o Januário Leads <CirclePlay size={17} aria-hidden="true" /></a>
                 <Link className="jl-button jl-button-outline" to="/login">Já tenho acesso <ArrowUpRight size={16} aria-hidden="true" /></Link>
               </div>
               <div className="jl-hero-highlights">
@@ -316,15 +351,33 @@ export function MarketingHome() {
             </div>
             <ProductMock />
           </div>
-          <a href="#demonstracao" className="jl-scroll-cue"><ArrowDown size={15} aria-hidden="true" /> Explore como funciona</a>
+          <a href="#tour" className="jl-scroll-cue"><ArrowDown size={15} aria-hidden="true" /> Veja o produto em movimento</a>
+        </section>
+
+        <section className="jl-section jl-tour-section" id="tour" aria-labelledby="tour-title">
+          <div className="jl-container">
+            <div className="jl-section-heading jl-centered">
+              <span className="jl-eyebrow"><CirclePlay size={15} aria-hidden="true" /> DEMONSTRAÇÃO ANIMADA DO PRODUTO</span>
+              <h2 id="tour-title">Veja o Januário Leads <span>funcionando, etapa por etapa.</span></h2>
+              <p>Uma prévia animada, feita especialmente para o Januário Leads. Da busca de empresas ao CRM e ao próximo contato, sem gravar dados ou realizar operações reais.</p>
+            </div>
+            <AnimatedProductTour />
+            <div className="jl-product-proof-card">
+              <div>
+                <strong>Quer experimentar o fluxo com outro segmento?</strong>
+                <p>Abaixo você pode alterar um exemplo de pesquisa sem fazer chamadas reais ao Google Places ou ao Supabase.</p>
+              </div>
+              <a href="#demonstracao">Abrir pesquisa simulada <ArrowRight size={16} aria-hidden="true" /></a>
+            </div>
+          </div>
         </section>
 
         <section className="jl-section jl-demo-section" id="demonstracao" aria-labelledby="demo-title">
           <div className="jl-container">
             <div className="jl-section-heading jl-centered">
-              <span className="jl-eyebrow">UM FLUXO MAIS SIMPLES</span>
-              <h2 id="demo-title">Da busca ao próximo contato, <span>sem perder o contexto.</span></h2>
-              <p>Conheça uma prévia do processo. Troque o segmento abaixo para explorar exemplos fictícios — sem acessar sua conta ou consumir API.</p>
+              <span className="jl-eyebrow">TESTE A PESQUISA</span>
+              <h2 id="demo-title">Escolha um segmento e <span>explore o resultado.</span></h2>
+              <p>Interaja com a simulação local: alterne entre nichos e cidades, veja empresas fictícias e entenda como a pesquisa organiza as informações.</p>
             </div>
             <SearchDemo />
             <div className="jl-demo-steps" aria-label="Etapas do trabalho">
