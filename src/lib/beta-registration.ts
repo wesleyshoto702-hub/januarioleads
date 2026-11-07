@@ -4,6 +4,8 @@
  * This NEVER uses the production Supabase project or the main app's credentials.
  * Creating an Auth user does not grant private_access/CRM permissions.
  */
+import { GMAIL_SIGNUP_ERROR, isGmailSignupEmail, normalizeSignupEmail } from "./signup-email";
+
 const PRODUCTION_PROJECT_REF = "czkazbianiflhldenhcj";
 type PublicEnv = Record<string, string | undefined>;
 
@@ -57,10 +59,12 @@ export async function requestBetaSignup(
   redirectOrigin: string,
   requester: typeof fetch = fetch,
 ): Promise<SignupResult> {
-  const normalizedEmail = email.trim().toLowerCase();
-  if (normalizedEmail.length > 320 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail) ||
-      password.length < 12 || password.length > 128) {
-    return { ok: false, message: "Informe um e-mail válido e uma senha entre 12 e 128 caracteres." };
+  const normalizedEmail = normalizeSignupEmail(email);
+  if (!isGmailSignupEmail(normalizedEmail)) {
+    return { ok: false, message: GMAIL_SIGNUP_ERROR };
+  }
+  if (password.length < 12 || password.length > 128) {
+    return { ok: false, message: "A senha deve ter entre 12 e 128 caracteres." };
   }
 
   // Defense in depth: do not allow a caller to substitute production config.
