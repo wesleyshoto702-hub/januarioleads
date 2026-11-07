@@ -6762,3 +6762,28 @@ a{
 .commercial-report-jump{display:inline-flex;align-items:center;gap:6px;text-decoration:none;font-size:12px;font-weight:700;color:var(--primary);border-radius:8px;padding:6px}
 .commercial-report-jump:hover,.commercial-report-jump:focus-visible{text-decoration:underline}
 #commercial-reports-title{scroll-margin-top:100px}
+
+
+/* Evolution 5: aggregated commercial trends and guided portfolio analysis */
+.prospecting-insights{margin:22px 0}.prospecting-insights-heading{flex-wrap:wrap;gap:10px}
+.prospecting-insights-heading button{display:inline-flex;align-items:center;gap:7px}
+.prospecting-insights-note{font-size:11px;color:var(--muted);display:flex;gap:7px;align-items:flex-start;line-height:1.6;margin:12px 0}
+.prospecting-insights-note svg{flex-shrink:0}
+.prospecting-insights-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:15px 0}
+.prospecting-insights-kpis>div{border:1px solid var(--border);background:var(--surface-2);padding:13px;border-radius:9px;display:grid;gap:5px}
+.prospecting-insights-kpis strong{font-size:23px;color:var(--text)}.prospecting-insights-kpis span{font-size:11px;color:var(--muted)}
+.prospecting-insights-tabs{display:flex;gap:7px;flex-wrap:wrap;margin:14px 0}
+.prospecting-insights-tabs button{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:8px 11px;font-size:12px}
+.prospecting-insights-tabs button[aria-pressed="true"]{border-color:var(--primary);color:var(--primary);background:var(--primary-soft)}
+.prospecting-weekly-chart{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:12px;height:185px;padding:15px 8px 8px;background:var(--surface-2);border-radius:10px}
+.prospecting-weekly-column{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
+.prospecting-weekly-column strong{font-size:11px}.prospecting-weekly-column small{font-size:10px;color:var(--muted)}
+.prospecting-weekly-bar-wrap{flex:1;min-height:40px;width:100%;max-width:44px;display:flex;align-items:flex-end;border-radius:5px 5px 0 0;background:color-mix(in srgb,var(--primary) 7%,transparent);overflow:hidden}
+.prospecting-weekly-bar-wrap span{display:block;width:100%;min-height:2px;background:var(--primary);border-radius:5px 5px 0 0}
+.prospecting-segment-table{display:grid;gap:8px}
+.prospecting-segment-table>div{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:14px;align-items:center;border-bottom:1px solid var(--border);padding:10px 0}
+.prospecting-segment-table strong{font-size:12px;overflow-wrap:anywhere}.prospecting-segment-table span,.prospecting-segment-table small{font-size:11px;color:var(--muted)}
+.prospecting-insights-footer{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px}
+.prospecting-insights-footer small{font-size:11px;color:var(--muted)}
+.prospecting-insights-footer button{border:1px solid var(--border);border-radius:8px;padding:8px 11px;background:var(--surface);font-size:12px}
+@media(max-width:650px){.prospecting-insights-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.prospecting-weekly-chart{gap:5px}.prospecting-segment-table>div{grid-template-columns:minmax(0,1fr) auto}.prospecting-segment-table small{grid-column:1/-1}}
