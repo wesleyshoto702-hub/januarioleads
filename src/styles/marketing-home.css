@@ -417,3 +417,140 @@
 @media (prefers-reduced-motion: reduce) {
   .jl-site .jl-button, .jl-site .jl-feature-card { transition: none; }
 }
+
+/* Native smooth anchor navigation stays on the compositor/scrolling engine:
+ * no JS frame loop to compete with the crimson canvas animation. */
+html:has(.jl-site) { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) {
+  html:has(.jl-site) { scroll-behavior: auto; }
+}
+
+/* Account shortcuts: sign-up to the left of sign-in, without crowding nav. */
+.jl-header-actions .jl-header-login { cursor: pointer; font-family: inherit; }
+.jl-header-actions .jl-header-signup {
+  background: rgba(255,255,255,.035);
+  color: #fbe4ed;
+  border-color: rgba(255,128,162,.52);
+}
+.jl-header-actions .jl-header-signup:hover {
+  background: rgba(239,65,109,.16);
+  border-color: #ff7d9e;
+}
+@media (min-width: 851px) and (max-width: 1080px) {
+  .jl-header-inner { gap: 12px; }
+  .jl-nav { gap: 11px; }
+  .jl-header-actions { gap: 9px; }
+  .jl-nav a { font-size: 11px; }
+}
+@media (max-width: 620px) {
+  .jl-header-actions .jl-header-signup { display: none; }
+}
+
+/* Matching button targets in the mobile menu and footer. */
+.jl-mobile-menu .jl-mobile-account-login {
+  display: block;
+  text-align: left;
+  width: 100%;
+  padding: 12px 8px;
+  font: 700 12px Inter, system-ui, sans-serif;
+  color: #fb8298;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  cursor: pointer;
+}
+.jl-mobile-menu .jl-mobile-account-login:hover { background: #242b38; }
+.jl-footer-inner nav .jl-footer-account-login {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #a6b1bf;
+  font: 660 11px Inter, system-ui, sans-serif;
+  cursor: pointer;
+}
+.jl-footer-inner nav .jl-footer-account-login:hover { color: #fff; }
+
+/* Accessible centered native <dialog>: no auth guessing, no extra fetch and
+ * no heavy animated blur while the AuroraBackdrop keeps drawing underneath. */
+.jl-site .jl-account-dialog {
+  position: fixed;
+  inset: 0;
+  width: min(460px, calc(100% - 32px));
+  max-width: calc(100% - 32px);
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 0;
+  overflow: auto;
+  color: #f9f2f7;
+  background: #1c121f;
+  border: 1px solid rgba(255,106,149,.55);
+  border-radius: 22px;
+  box-shadow: 0 26px 90px rgba(0,0,0,.65), 0 0 35px rgba(239,52,103,.12);
+}
+.jl-site .jl-account-dialog::backdrop {
+  background: rgba(5,2,8,.76);
+}
+.jl-account-dialog-card { padding: clamp(24px,4vw,36px); position: relative; }
+.jl-account-dialog-dismiss {
+  display: grid;
+  place-items: center;
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 9px;
+  background: rgba(255,255,255,.04);
+  color: #e9d9e5;
+  cursor: pointer;
+}
+.jl-account-dialog-dismiss:hover { background: rgba(255,255,255,.1); }
+.jl-account-dialog-eyebrow {
+  display: block;
+  padding-right: 40px;
+  margin-bottom: 14px;
+  color: #ff91ab;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .12em;
+}
+.jl-account-dialog-card h2 {
+  margin: 0 0 12px;
+  font: 770 clamp(23px,3vw,29px)/1.2 "Space Grotesk",Inter,sans-serif;
+  letter-spacing: -.045em;
+}
+.jl-account-dialog-card p {
+  margin: 0 0 23px;
+  color: #c8b4c2;
+  line-height: 1.75;
+  font-size: 13px;
+}
+.jl-account-dialog-actions { display: grid; gap: 10px; }
+.jl-account-dialog-actions a {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 48px;
+  padding: 11px 16px;
+  border-radius: 11px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 800;
+}
+.jl-account-dialog-primary {
+  background: linear-gradient(115deg,#f43d70,#cb1d4c);
+  color: #fff;
+}
+.jl-account-dialog-primary:hover { color: #fff; filter: brightness(1.08); }
+.jl-account-dialog-secondary {
+  color: #f7ebf1;
+  border: 1px solid rgba(234,162,189,.37);
+  background: rgba(255,255,255,.045);
+}
+.jl-account-dialog-secondary:hover {
+  color: #fff;
+  border-color: rgba(255,128,163,.65);
+  background: rgba(255,255,255,.09);
+}
