@@ -6697,3 +6697,23 @@ a{
 .daily-routine-actions button:hover,.daily-routine-more:hover{border-color:var(--primary);color:var(--primary)}
 .daily-routine-more{margin-top:14px}
 @media(max-width:700px){.daily-routine-item{align-items:flex-start;flex-direction:column}.daily-routine-actions{padding-left:21px}}
+
+
+/* Evolution 4: manual CSV data ownership and reversible import/export */
+.manual-csv-panel{margin:18px 0;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px}
+.manual-csv-toggle{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:700;background:transparent;border:0;padding:6px;color:var(--text)}
+.manual-csv-content{padding:12px 3px 4px;display:grid;gap:12px}
+.manual-csv-content>p{margin:0;color:var(--muted);font-size:12px;line-height:1.6}
+.manual-csv-buttons{display:flex;flex-wrap:wrap;gap:9px}
+.manual-csv-buttons button,.manual-csv-file{display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:12px;font-weight:650;border:1px solid var(--border);background:var(--surface-2);color:var(--text);border-radius:8px;padding:10px 12px;min-height:40px;cursor:pointer}
+.manual-csv-buttons button:hover,.manual-csv-file:hover{border-color:var(--primary)}
+.manual-csv-buttons button:disabled{opacity:.55;cursor:not-allowed}
+.manual-csv-file{position:relative;overflow:hidden}.manual-csv-file input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}
+.manual-csv-policy{font-size:11px!important;color:var(--muted)}
+.manual-csv-error{color:var(--rejected)!important}
+.manual-csv-notice{color:var(--accepted)!important}
+.manual-csv-preview{border:1px solid var(--border);border-radius:9px;padding:15px;display:grid;gap:10px;background:var(--surface-2)}
+.manual-csv-preview strong{font-size:13px}.manual-csv-preview small{font-size:11px;color:var(--muted)}
+.manual-csv-preview ul{margin:0;padding:0 0 0 18px;color:var(--muted);font-size:12px;display:grid;gap:5px}
+.manual-csv-preview button{justify-self:start}
+@media(max-width:650px){.manual-csv-buttons>*{flex:1 1 100%}.manual-csv-preview button{justify-self:stretch}}
