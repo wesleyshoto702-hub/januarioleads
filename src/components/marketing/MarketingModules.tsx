@@ -105,7 +105,7 @@ export function WorkflowRibbon() {
     } else {
       observer = new IntersectionObserver((entries) => {
         if (entries.some((entry) => entry.isIntersecting)) playSequence();
-      }, { threshold: 0.2 });
+      }, { threshold: 0.01 });
       observer.observe(ribbon);
     }
 
