@@ -56,14 +56,15 @@ test("mensagem editável não exibe rotulagem de conteúdo fictício", async ({ 
   await expect(demo.getByText("Sem envio automático")).toBeVisible();
 });
 
-test("login público apresenta indisponibilidade de cadastro sem oferecer inscrição", async ({ page }) => {
+test("login exibe cadastro e Google, sem iniciar Auth antes do clique", async ({ page }) => {
   let supabaseCalls = 0;
   await isolatePublicPage(page, () => supabaseCalls++);
   await page.goto("/login");
   await expect(page.getByRole("heading", { name: /Um só lugar para descobrir/i })).toBeVisible();
   await expect(page.getByRole("heading", { name: /Acesse seu espaço de trabalho/i })).toBeVisible();
-  await expect(page.getByText(/Acesso para contas já autorizadas/)).toBeVisible();
-  await expect(page.locator(".jl-auth-shell a[href='/cadastro']")).toHaveCount(0);
+  await expect(page.locator(".jl-auth-shell a[href='/cadastro']").first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Continuar com Google" })).toBeVisible();
+  await expect(page.getByText(/A criação de uma identidade não libera o CRM/)).toBeVisible();
   expect(supabaseCalls).toBe(0);
 });
 
