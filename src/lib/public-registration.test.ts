@@ -1,7 +1,7 @@
 import { requestPublicSignup } from "./public-registration.ts";
 
 const origin = "http://127.0.0.1:5173";
-const email = "teste@example.invalid";
+const email = "teste@gmail.com";
 const password = "Senha-segura-exemplo-123";
 
 Deno.test("cadastro normaliza nome e e-mail e usa o endpoint Auth com redirect local", async () => {
@@ -24,7 +24,7 @@ Deno.test("cadastro normaliza nome e e-mail e usa o endpoint Auth com redirect l
       refresh_token: "do-not-use-this-refresh-token",
     });
   }) as typeof fetch;
-  const result = await requestPublicSignup("  Teste    Pessoa ", " TESTE@EXAMPLE.INVALID ", password, origin, fetchMock);
+  const result = await requestPublicSignup("  Teste    Pessoa ", " TESTE@GMAIL.COM ", password, origin, fetchMock);
   if (!result.ok || requests !== 1 || Object.keys(result).length !== 1) {
     throw new Error("Signup must only return generic success and never a session");
   }
@@ -39,6 +39,8 @@ Deno.test("campos inválidos ou origem insegura não fazem requisição Auth", a
   const cases = [
     ["", email, password, origin],
     ["Teste Pessoa", "invalid", password, origin],
+    ["Teste Pessoa", "pessoa@outlook.com", password, origin],
+    ["Teste Pessoa", "pessoa@gmail.com.evil.test", password, origin],
     ["Teste Pessoa", email, "curta", origin],
     ["Teste Pessoa", email, password, "http://example.com"],
     ["Teste Pessoa", email, password, "https://app.test/another-path"],
