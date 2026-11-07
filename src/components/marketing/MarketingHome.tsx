@@ -228,7 +228,35 @@ export function MarketingHome() {
   const [mobileReady, setMobileReady] = useState(false);
   const [accountPromptOpen, setAccountPromptOpen] = useState(false);
   const accountPromptRef = useRef<HTMLDialogElement>(null);
+  const homepageMainRef = useRef<HTMLElement>(null);
   useEffect(() => { setMobileReady(true); }, []);
+
+  useEffect(() => {
+    const main = homepageMainRef.current;
+    // Keep all content visible without JS, IntersectionObserver, or when the
+    // visitor requests reduced motion. No timers or scroll-event handlers.
+    if (!main || typeof IntersectionObserver === "undefined" ||
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const sections = Array.from(main.querySelectorAll<HTMLElement>(":scope > section"));
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        const section = entry.target as HTMLElement;
+        section.dataset.jlReveal = "visible";
+        observer.unobserve(section); // Each section reveals only once.
+      }
+    }, { rootMargin: "0px 0px -8% 0px", threshold: 0 });
+
+    for (const section of sections) {
+      section.dataset.jlReveal = "waiting";
+      observer.observe(section);
+    }
+    return () => {
+      observer.disconnect();
+      for (const section of sections) delete section.dataset.jlReveal;
+    };
+  }, []);
 
   // Native modal handles focus containment, Escape and background interactions.
   // No animation loop or extra network request is needed to show this prompt.
@@ -289,7 +317,7 @@ export function MarketingHome() {
           </nav>
         )}
       </header>
-      <main id="conteudo">
+      <main id="conteudo" ref={homepageMainRef}>
         <section className="jl-hero">
           <div className="jl-container jl-hero-grid">
             <div className="jl-hero-copy">
