@@ -142,11 +142,11 @@ for (const width of [320, 360, 390, 768, 1280]) {
     if (width <= 370) {
       await page.getByRole("button", { name: "Abrir menu" }).click();
       await page.getByRole("navigation", { name: "Navegação para celular" })
-        .getByRole("link", { name: "Criar conta" }).click();
+        .getByRole("link", { name: "Acessar conta" }).click();
     } else {
-      await page.locator(".jl-header-actions").getByRole("link", { name: "Criar conta" }).click();
+      await page.locator(".jl-header-actions").getByRole("link", { name: "Acessar conta" }).click();
     }
-    await expect(page).toHaveURL(/\/cadastro$/);
+    await expect(page).toHaveURL(/\/login$/);
     await expect(page.locator(".jl-auth-shell > .jl-aurora > .jl-aurora-canvas")).toBeAttached();
   });
 }
@@ -271,4 +271,30 @@ test("auroras separadas ocupam também o terço inferior do viewport e continuam
   expect(measurements.lowerLeftDuration).toBe("17s");
   expect(measurements.lowerRightDuration).toBe("15s");
   expect(measurements.footerZ).toBeGreaterThan(measurements.backdropZ);
+});
+
+
+test("homepage apresenta as seis seções reais sem promessa de cadastro público ou automação", async ({ page }) => {
+  await isolate(page, () => {});
+  await page.goto("/");
+  await expect(page.locator(".jl-header-actions").getByRole("link", { name: "Acessar conta" })).toHaveAttribute("href", "/login");
+  await expect(page.locator(".jl-site a[href='/cadastro']")).toHaveCount(0);
+
+  const displayedModules = await page.locator(".jl-module-tab strong").allTextContents();
+  expect(displayedModules).toEqual(["Dashboard", "Meus Leads", "Buscar Leads", "Oportunidades", "Mensagens", "Financeiro"]);
+  await page.locator(".jl-module-tab").filter({ hasText: "Oportunidades" }).click();
+  await expect(page.locator("#jl-module-panel")).toContainText("amostras");
+  await expect(page.locator("#jl-module-panel")).toContainText("não é um funil de negociações");
+  await page.locator(".jl-module-tab").filter({ hasText: "Meus Leads" }).click();
+  await expect(page.locator("#jl-module-panel")).toContainText("não são sincronizadas automaticamente");
+  await expect(page.locator(".jl-spotlight-points")).toContainText("Histórico de atividades e anotações por empresa");
+  await expect(page.locator(".jl-spotlight-points")).toContainText("Datas de retorno e próximas ações no CRM");
+  await expect(page.locator(".jl-spotlight-points")).toContainText("Análise de oportunidades por cidade e nicho");
+});
+
+test("login não oferece cadastro público quando o acesso é restrito", async ({ page }) => {
+  await isolate(page, () => {});
+  await page.goto("/login");
+  await expect(page.getByText("Acesso para contas já autorizadas. Novos cadastros não estão disponíveis neste ambiente.")).toBeVisible();
+  await expect(page.locator(".jl-auth-shell a[href='/cadastro']")).toHaveCount(0);
 });

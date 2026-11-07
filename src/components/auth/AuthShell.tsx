@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { AuroraBackdrop } from "../marketing/AuroraBackdrop";
+import { BETA_SIGNUP_CONFIG } from "../../lib/beta-registration";
 
 type Props = {
   page: "login" | "cadastro";
@@ -13,8 +14,8 @@ type Props = {
 
 const flow = [
   { icon: Search, title: "Descubra", copy: "Empresas por cidade e segmento." },
-  { icon: FolderKanban, title: "Organize", copy: "Leads e histórico em um lugar." },
-  { icon: CalendarCheck2, title: "Acompanhe", copy: "Retornos e oportunidades." },
+  { icon: FolderKanban, title: "Organize", copy: "Leads e histórico de atividades em um lugar." },
+  { icon: CalendarCheck2, title: "Acompanhe", copy: "Datas e próximas ações por lead." },
 ] as const;
 
 /** Public identity shell only: no session, auth state, data fetch or backend call. */
@@ -29,9 +30,11 @@ export function AuthShell({ page, children }: Props) {
         </Link>
         <div className="jl-auth-header-actions">
           <Link to="/" className="jl-auth-back">Conhecer a plataforma</Link>
-          {page === "login"
-            ? <Link to="/cadastro" className="jl-auth-top-action">Criar conta</Link>
-            : <Link to="/login" className="jl-auth-top-action">Entrar</Link>}
+          {page === "cadastro"
+            ? <Link to="/login" className="jl-auth-top-action">Entrar</Link>
+            : BETA_SIGNUP_CONFIG
+              ? <Link to="/cadastro" className="jl-auth-top-action">Cadastro de homologação</Link>
+              : null}
         </div>
       </header>
       <div className="jl-auth-main">
@@ -39,8 +42,8 @@ export function AuthShell({ page, children }: Props) {
           <span className="jl-auth-eyebrow"><Sparkles size={15} aria-hidden="true" /> SUA PROSPECÇÃO, MAIS CLARA</span>
           <h1>Um só lugar para descobrir, organizar e <em>avançar.</em></h1>
           <p className="jl-auth-story-desc">
-            Encontre empresas por região e nicho, acompanhe o histórico de cada
-            contato e mantenha o foco na próxima oportunidade.
+            Encontre empresas por região e nicho, registre atividades de cada
+            contato e mantenha o foco na próxima ação comercial.
           </p>
           <div className="jl-auth-workflow" aria-label="Etapas da plataforma">
             {flow.map(({ icon: Icon, title, copy }, i) => (

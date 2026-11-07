@@ -49,6 +49,7 @@ function drawCurtains(
 
   for (let layer = CURTAINS.length - 1; layer >= 0; layer--) {
     const curtain = CURTAINS[layer];
+    if (!curtain) continue;
 
     // Narrow vertical light rays form an undulating, torn aurora curtain.
     // Every ray has a different height and bend; the shape continuously changes.

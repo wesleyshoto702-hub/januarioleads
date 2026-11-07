@@ -56,7 +56,7 @@ const faq = [
   {
     question: "O que é o Januário Leads?",
     answer:
-      "Uma plataforma de prospecção e CRM. Você pesquisa empresas por região e nicho, escolhe quais salvar e organiza contatos, próximas ações e oportunidades.",
+      "Uma plataforma de prospecção e CRM. Você pesquisa empresas por região e nicho, salva negócios na carteira, registra atividades e datas de retorno e consulta oportunidades com base nas pesquisas realizadas.",
   },
   {
     question: "Posso buscar empresas de outras cidades?",
@@ -242,8 +242,7 @@ export function MarketingHome() {
             <a href="#duvidas">Perguntas</a>
           </nav>
           <div className="jl-header-actions">
-            <Link className="jl-nav-login" to="/login">Entrar</Link>
-            <Link className="jl-button jl-button-small" to="/cadastro">Criar conta</Link>
+            <Link className="jl-button jl-button-small" to="/login">Acessar conta</Link>
             <button
               type="button"
               className="jl-mobile-menu-toggle"
@@ -265,7 +264,7 @@ export function MarketingHome() {
               <a href="#como-funciona" onClick={() => setMobileOpen(false)}>Como funciona</a>
               <a href="#recursos" onClick={() => setMobileOpen(false)}>Funcionalidades</a>
               <a href="#duvidas" onClick={() => setMobileOpen(false)}>Perguntas</a>
-              <Link to="/cadastro" onClick={() => setMobileOpen(false)}>Criar conta</Link>
+              <Link to="/login" onClick={() => setMobileOpen(false)}>Acessar conta</Link>
             </div>
           </nav>
         )}
@@ -275,10 +274,10 @@ export function MarketingHome() {
           <div className="jl-container jl-hero-grid">
             <div className="jl-hero-copy">
               <span className="jl-kicker"><span className="jl-kicker-dot" /> PROSPECÇÃO B2B COM ORGANIZAÇÃO</span>
-              <h1>Boas oportunidades começam com <em>contatos certos.</em></h1>
+              <h1>Boas oportunidades começam com <em>uma busca direcionada.</em></h1>
               <p className="jl-hero-description">
-                Busque empresas por cidade e segmento, escolha oportunidades e organize
-                os próximos contatos no CRM — tudo em um fluxo comercial mais claro.
+                Busque empresas por cidade e segmento, selecione negócios para sua carteira
+                e organize os próximos contatos no CRM — com mais clareza em cada etapa.
               </p>
               <div className="jl-hero-highlights">
                 <span><Check size={15} aria-hidden="true" /> Busca por cidade e nicho</span>
@@ -324,16 +323,16 @@ export function MarketingHome() {
                 <h2>Encontrou um lead. <span>E agora?</span></h2>
                 <p>O diferencial do Januário Leads é ajudar você a transformar uma lista de empresas em um acompanhamento comercial organizado.</p>
                 <div className="jl-spotlight-points">
-                  <span><CheckCircle2 size={17} aria-hidden="true" /> Histórico de contatos em um só lugar</span>
-                  <span><CheckCircle2 size={17} aria-hidden="true" /> Retornos e próximas ações acompanhados</span>
-                  <span><CheckCircle2 size={17} aria-hidden="true" /> Visão de oportunidades e negociações</span>
+                  <span><CheckCircle2 size={17} aria-hidden="true" /> Histórico de atividades e anotações por empresa</span>
+                  <span><CheckCircle2 size={17} aria-hidden="true" /> Datas de retorno e próximas ações no CRM</span>
+                  <span><CheckCircle2 size={17} aria-hidden="true" /> Análise de oportunidades por cidade e nicho</span>
                 </div>
               </div>
               <div className="jl-followup-preview" aria-label="Exemplo ilustrativo de organização comercial">
                 <div className="jl-followup-head"><span>Próximas ações</span><span>EXEMPLO</span></div>
                 <div className="jl-followup-item"><span className="jl-followup-symbol"><MessageCircle size={17} /></span><div><strong>Preparar primeira abordagem</strong><small>Empresa Exemplo A · Contato inicial</small></div><span className="jl-followup-state">A fazer</span></div>
                 <div className="jl-followup-item"><span className="jl-followup-symbol"><Clock3 size={17} /></span><div><strong>Retomar uma conversa</strong><small>Empresa Exemplo B · Follow-up</small></div><span className="jl-followup-state">Pendente</span></div>
-                <div className="jl-followup-item"><span className="jl-followup-symbol"><Target size={17} /></span><div><strong>Revisar oportunidade</strong><small>Empresa Exemplo C · Negociação</small></div><span className="jl-followup-state">Em andamento</span></div>
+                <div className="jl-followup-item"><span className="jl-followup-symbol"><Target size={17} /></span><div><strong>Revisar proposta</strong><small>Empresa Exemplo C · Próxima ação</small></div><span className="jl-followup-state">Em andamento</span></div>
                 <div className="jl-followup-footer"><span className="jl-check-mark"><Check size={15}/></span> Sua carteira continua organizada após a busca.</div>
               </div>
             </div>
@@ -375,7 +374,7 @@ export function MarketingHome() {
                   <li><CheckCircle2 size={16}/> Pesquise empresas por região e nicho</li>
                   <li><CheckCircle2 size={16}/> Salve contatos direto no CRM</li>
                   <li><CheckCircle2 size={16}/> Organize retornos e próximas ações</li>
-                  <li><CheckCircle2 size={16}/> Acompanhe oportunidades no mesmo lugar</li>
+                  <li><CheckCircle2 size={16}/> Consulte oportunidades por cidade e nicho</li>
                 </ul>
               </div>
             </div>

@@ -21,15 +21,15 @@ test("cadastro beta publico permanece fechado e nunca chama Auth em producao", a
   await expect(page).toHaveURL(/\/login$/);
 });
 
-test("home liga a pagina de beta sem prometer inscricoes abertas", async ({ page }) => {
+test("homepage direciona para login sem prometer cadastro público", async ({ page }) => {
   await page.route("**/*", (route) => {
     const url = new URL(route.request().url());
     return ["127.0.0.1", "localhost"].includes(url.hostname) ? route.continue() : route.abort();
   });
   await page.goto("/");
-  await page.locator(".jl-header-actions").getByRole("link", { name: "Criar conta" }).click();
-  await expect(page).toHaveURL(/\/cadastro$/);
-  await expect(page.getByRole("heading", { name: /Comece sua jornada com o Januário Leads/ })).toBeVisible();
+  await page.locator(".jl-header-actions").getByRole("link", { name: "Acessar conta" }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByText(/Novos cadastros não estão disponíveis neste ambiente/)).toBeVisible();
 });
 
 test("cadastro beta nao tem overflow em celular", async ({ page }) => {

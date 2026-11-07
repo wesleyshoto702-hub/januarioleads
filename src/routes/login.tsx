@@ -3,6 +3,7 @@ import { Eye, EyeOff, Loader2, LockKeyhole, LogIn } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 import { getValidSession, signIn } from "../lib/auth";
 import { AuthShell } from "../components/auth/AuthShell";
+import { BETA_SIGNUP_CONFIG } from "../lib/beta-registration";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -101,10 +102,18 @@ function LoginPage() {
           {loading ? "Entrando..." : "Entrar"}
         </button>
       </form>
-      <div className="jl-auth-form-divider">NOVO POR AQUI?</div>
-      <Link className="jl-auth-bottom-link" to="/cadastro">
-        Criar minha conta
-      </Link>
+      {BETA_SIGNUP_CONFIG ? (
+        <>
+          <div className="jl-auth-form-divider">AMBIENTE DE HOMOLOGAÇÃO</div>
+          <Link className="jl-auth-bottom-link" to="/cadastro">
+            Cadastro de homologação
+          </Link>
+        </>
+      ) : (
+        <p className="jl-auth-form-footnote">
+          Acesso para contas já autorizadas. Novos cadastros não estão disponíveis neste ambiente.
+        </p>
+      )}
     </AuthShell>
   );
 }

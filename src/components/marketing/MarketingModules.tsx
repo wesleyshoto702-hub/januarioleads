@@ -1,6 +1,6 @@
 import {
   ArrowRight, BarChart3, Building2, CalendarCheck2, Check, CheckCircle2,
-  Clock3, Compass, FolderKanban, Globe2, Layers3, MessageCircle,
+  Clock3, Compass, FolderKanban, Globe2, Layers3, LayoutDashboard, MessageCircle,
   Search, ShieldCheck, Target, Users, WalletCards,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -26,7 +26,7 @@ const difficulties = [
   {
     title: "Próxima ação indefinida",
     detail: "Retornos perdem prioridade quando não existe uma rotina clara.",
-    resolution: "Lembretes de retorno e oportunidades visíveis",
+    resolution: "Datas de retorno e próximas ações visíveis no CRM",
     icon: Clock3,
   },
 ] as const;
@@ -158,32 +158,32 @@ export function WorkflowRibbon() {
 
 const productModules = [
   {
-    id: "busca", icon: Search, name: "Buscar Leads", label: "Encontre negócios por região",
-    headline: "A pesquisa comercial começa pelo mercado que você escolhe.",
-    description: "Selecione estado, município e segmento. Avalie os resultados disponíveis e escolha quais negócios merecem atenção.",
-    bullets: ["Pesquisa por nicho e cidade", "Detalhes encontrados na fonte", "Seleção consciente de contatos"],
+    id: "dashboard", icon: LayoutDashboard, name: "Dashboard", label: "Sua rotina em um painel",
+    headline: "Visualize o que precisa de atenção na sua carteira.",
+    description: "Consulte indicadores comerciais, ações agendadas ou atrasadas e sugestões de follow-up em um só painel.",
+    bullets: ["Indicadores da carteira", "Próximas ações para hoje", "Retornos que precisam de atenção"],
+    visual: ["Consultar indicadores", "Revisar retornos", "Abrir o lead"],
+  },
+  {
+    id: "carteira", icon: Users, name: "Meus Leads", label: "Organize seus contatos",
+    headline: "Tenha contexto para acompanhar cada empresa.",
+    description: "Salve empresas na carteira e organize dados, status, anotações e histórico de atividades registradas no CRM. Conversas do WhatsApp não são sincronizadas automaticamente.",
+    bullets: ["Leads em lista e cartões", "Anotações e atividades registradas", "Datas de retorno por lead"],
+    visual: ["Adicionar empresa", "Registrar atividade", "Definir próxima ação"],
+  },
+  {
+    id: "busca", icon: Search, name: "Buscar Leads", label: "Pesquise por cidade e nicho",
+    headline: "Pesquise empresas no mercado que você escolhe.",
+    description: "Selecione estado, município e segmento. Revise os resultados disponíveis na fonte consultada e escolha quais negócios adicionar à sua carteira.",
+    bullets: ["Pesquisa por cidade e nicho", "Dados conforme disponibilidade da fonte", "Seleção manual de empresas"],
     visual: ["Defina uma região", "Escolha o segmento", "Revise as empresas"],
   },
   {
-    id: "carteira", icon: Users, name: "Meus Leads", label: "Construa sua carteira",
-    headline: "Transforme empresas encontradas em contatos acompanháveis.",
-    description: "Salve leads e concentre informações, situação comercial, observações e histórico em uma carteira organizada.",
-    bullets: ["Carteira centralizada", "Pesquisa e filtros", "Histórico por empresa"],
-    visual: ["Lead identificado", "Dados organizados", "Histórico disponível"],
-  },
-  {
-    id: "oportunidades", icon: Target, name: "Oportunidades", label: "Acompanhe negociações",
-    headline: "Saiba o que acontece depois do primeiro contato.",
-    description: "Registre o andamento comercial, visualize atividades e mantenha as oportunidades em acompanhamento.",
-    bullets: ["Situação da negociação", "Atividades registradas", "Próximos passos"],
-    visual: ["Novo contato", "Em conversa", "Em acompanhamento"],
-  },
-  {
-    id: "acoes", icon: CalendarCheck2, name: "Próximas ações", label: "Planeje retornos",
-    headline: "Organize a rotina sem depender de lembretes espalhados.",
-    description: "Defina retornos e mantenha visíveis as ações que exigem atenção para dar continuidade a cada contato.",
-    bullets: ["Retornos definidos", "Acompanhamento da rotina", "Contexto em um lugar"],
-    visual: ["Preparar abordagem", "Registrar interação", "Agendar retorno"],
+    id: "oportunidades", icon: Target, name: "Oportunidades", label: "Analise cidades e nichos",
+    headline: "Identifique regiões e segmentos com sinais de oportunidade.",
+    description: "Compare rankings de cidades e nichos a partir de amostras de empresas já pesquisadas. Os resultados dependem de dados disponíveis e de amostras suficientes; não é um funil de negociações.",
+    bullets: ["Análise por cidade e segmento", "Indicadores baseados nas amostras", "Rankings conforme dados disponíveis"],
+    visual: ["Pesquisas realizadas", "Análise de amostras", "Oportunidades identificadas"],
   },
   {
     id: "mensagens", icon: MessageCircle, name: "Mensagens", label: "Prepare abordagens",
@@ -193,16 +193,16 @@ const productModules = [
     visual: ["Selecionar modelo", "Personalizar texto", "Abrir conversa"],
   },
   {
-    id: "financeiro", icon: WalletCards, name: "Financeiro", label: "Registre resultados",
-    headline: "Mantenha os registros financeiros associados aos seus leads.",
-    description: "Acompanhe informações financeiras comerciais relacionadas à sua carteira. Não se trata de cobrança de assinatura do SaaS.",
-    bullets: ["Histórico comercial", "Registros por lead", "Visão de acompanhamento"],
-    visual: ["Contato registrado", "Negociação anotada", "Informação reunida"],
+    id: "financeiro", icon: WalletCards, name: "Financeiro", label: "Registre pagamentos",
+    headline: "Acompanhe valores e pagamentos ligados aos seus leads.",
+    description: "Registre valores de projetos e pagamentos por empresa e consulte o que foi recebido ou ainda falta receber. Não é um sistema de cobrança automática.",
+    bullets: ["Valores registrados por lead", "Pagamentos e saldos", "Resumo financeiro da carteira"],
+    visual: ["Registrar valor", "Anotar pagamento", "Consultar saldo"],
   },
 ] as const;
 
 export function FeatureExplorer() {
-  const [selected, setSelected] = useState<(typeof productModules)[number]["id"]>("busca");
+  const [selected, setSelected] = useState<(typeof productModules)[number]["id"]>("dashboard");
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => setHydrated(true), []);
   const active = productModules.find((mod) => mod.id === selected) ?? productModules[0];
@@ -254,7 +254,7 @@ const profiles = [
     id: "agencias", title: "Agências e freelancers", icon: Globe2,
     eyebrow: "SERVIÇOS DIGITAIS",
     headline: "Prospecção com foco nos negócios que podem precisar de você.",
-    text: "Encontre empresas por região, avalie sua presença digital e mantenha o acompanhamento de propostas e retornos.",
+    text: "Encontre empresas por região, consulte informações disponíveis sobre sua presença digital e registre propostas e datas de retorno.",
     use: ["Websites e presença digital", "Marketing, design e conteúdo", "Consultoria e serviços recorrentes"],
   },
   {
@@ -262,7 +262,7 @@ const profiles = [
     eyebrow: "ROTINA COMERCIAL",
     headline: "Uma carteira que acompanha seu processo de venda.",
     text: "Pesquise potenciais clientes, acompanhe o andamento do contato e consulte o histórico antes de retomar conversas.",
-    use: ["Prospecção ativa", "Gestão de oportunidades", "Follow-up comercial"],
+    use: ["Prospecção ativa", "Análise de regiões e nichos", "Follow-up comercial"],
   },
   {
     id: "consultoria", title: "Consultores e prestadores", icon: Building2,
