@@ -64,7 +64,7 @@ test("criação real de identidade usa somente Supabase Auth, nunca libera CRM a
   await page.getByPlaceholder("Crie uma senha forte").fill("Senha-segura-teste-123");
   await page.getByPlaceholder("Repita sua senha").fill("Senha-segura-teste-123");
   await page.getByRole("button", { name: "Criar conta" }).click();
-  await expect(page.getByRole("heading", { name: "Confira seu e-mail" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Cadastro solicitado" })).toBeVisible();
   expect(called).toEqual(["/auth/v1/signup"]);
   expect(await page.evaluate(() => localStorage.getItem("januarioleads:auth-session"))).toBeNull();
   await expect(page.getByRole("link",{name:/Ir para acessar conta/})).toHaveAttribute("href","/login");
