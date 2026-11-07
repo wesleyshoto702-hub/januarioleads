@@ -63,9 +63,9 @@ function drawCurtains(
       const shift = Math.sin(u * 24.3 + time * .13 + curtain.phase) * width * .009;
       const gradient = context.createLinearGradient(x, startY, x, endY);
       gradient.addColorStop(0, "rgba(160, 5, 22, 0)");
-      gradient.addColorStop(.14, "rgba(196, 11, 30, .18)");
-      gradient.addColorStop(.38, "rgba(248, 32, 48, .73)");
-      gradient.addColorStop(.61, "rgba(223, 15, 38, .37)");
+      gradient.addColorStop(.14, "rgba(196, 11, 30, .23)");
+      gradient.addColorStop(.38, "rgba(248, 32, 48, .85)");
+      gradient.addColorStop(.61, "rgba(223, 15, 38, .47)");
       gradient.addColorStop(1, "rgba(112, 0, 18, 0)");
 
       context.beginPath();
@@ -78,11 +78,17 @@ function drawCurtains(
       context.strokeStyle = gradient;
       context.lineCap = "round";
       // Halo + narrow filament: luminosity without painting the whole viewport.
-      context.lineWidth = spacing * (mobile ? 2 : 2.2);
-      context.globalAlpha = .055 * rayOpacity;
+      // A broad but translucent halo emulates the soft CSS gradients from
+      // the reference without washing the entire background red.
+      context.lineWidth = spacing * 5.4;
+      context.globalAlpha = .16 * rayOpacity;
       context.stroke();
-      context.lineWidth = mobile ? 2.1 : 2.8;
-      context.globalAlpha = .36 * rayOpacity;
+      context.lineWidth = spacing * 2.4;
+      context.globalAlpha = .28 * rayOpacity;
+      context.stroke();
+      // The irregular narrow filament remains distinguishable from the haze.
+      context.lineWidth = mobile ? 3.2 : 4;
+      context.globalAlpha = .72 * rayOpacity;
       context.stroke();
     }
   }
@@ -157,6 +163,8 @@ export function AuroraBackdrop() {
 
   return (
     <div className="jl-aurora" aria-hidden="true" data-ambient="aurora">
+      <span className="jl-aurora-wisp jl-aurora-wisp--left" />
+      <span className="jl-aurora-wisp jl-aurora-wisp--right" />
       <canvas ref={canvasRef} className="jl-aurora-canvas" />
     </div>
   );
