@@ -690,13 +690,6 @@ html:has(.jl-site) { scroll-behavior: smooth; }
   gap: 9px;
   margin-bottom: 27px;
 }
-.jl-pricing-number {
-  font-size: 11px;
-  font-weight: 650;
-  color: #cc9eac;
-  letter-spacing: .08em;
-}
-.jl-pricing-card--pro .jl-pricing-number { color: #ffb3c3; }
 .jl-pricing-recommended {
   display: inline-flex;
   align-items: center;
