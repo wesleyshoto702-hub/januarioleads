@@ -333,8 +333,6 @@ export function MarketingHome() {
               <a href="#recursos" onClick={() => setMobileOpen(false)}>Funcionalidades</a>
               <a href="#para-quem" onClick={() => setMobileOpen(false)}>Para quem</a>
               <a href="#duvidas" onClick={() => setMobileOpen(false)}>Perguntas</a>
-              <Link to="/cadastro" onClick={() => setMobileOpen(false)}>Criar conta</Link>
-              <button type="button" className="jl-mobile-account-login" onClick={() => void accessAccount()} disabled={checkingAccount}>Acessar conta</button>
             </div>
           </nav>
         )}
