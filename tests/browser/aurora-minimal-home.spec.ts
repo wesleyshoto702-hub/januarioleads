@@ -125,3 +125,43 @@ for (const width of [320, 360, 390, 768, 1280]) {
     await expect(page.locator(".jl-auth-shell > .jl-aurora")).toBeAttached();
   });
 }
+
+
+test("aurora permanece luminosa atrás de todas as seções da homepage", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await isolate(page, () => {});
+  await page.goto("/");
+
+  const appearance = await page.evaluate(() => {
+    const aurora = document.querySelector<HTMLElement>(".jl-site > .jl-aurora")!;
+    const rose = aurora.querySelector<HTMLElement>(".jl-aurora-veil--rose")!;
+    const sections = Array.from(document.querySelectorAll<HTMLElement>(".jl-site > main > section"));
+    return {
+      height: aurora.getBoundingClientRect().height,
+      viewport: window.innerHeight,
+      roseOpacity: parseFloat(getComputedStyle(rose).opacity),
+      roseAnimation: getComputedStyle(rose).animationName,
+      sections: sections.map((section) => ({
+        className: section.className,
+        background: getComputedStyle(section).backgroundColor,
+      })),
+    };
+  });
+  expect(appearance.height).toBeGreaterThan(appearance.viewport * .95);
+  expect(appearance.roseOpacity).toBeGreaterThan(.6);
+  expect(appearance.roseAnimation).toBe("jlAuroraFullDrift");
+  expect(appearance.sections.length).toBeGreaterThanOrEqual(8);
+  for (const section of appearance.sections) {
+    // A translucent scrim lets the fixed aurora remain visible across scroll.
+    const match = section.background.match(/rgba?\(([^)]+)\)/);
+    expect(match, section.className).not.toBeNull();
+    const alpha = match![1].split(/[,/]/).map((token) => token.trim());
+    expect(alpha.length === 4 ? Number(alpha[3]) : 1, section.className).toBeLessThan(.30);
+  }
+
+  await page.locator("#duvidas").scrollIntoViewIfNeeded();
+  const after = await page.locator(".jl-site > .jl-aurora").boundingBox();
+  expect(after).not.toBeNull();
+  expect(Math.abs(after!.y)).toBeLessThan(2);
+  await expect(page.locator(".jl-site > .jl-footer")).toBeVisible();
+});
