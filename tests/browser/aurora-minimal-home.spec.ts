@@ -367,7 +367,7 @@ test("na seção Da pesquisa à rotina os ícones aparecem antes dos textos e as
 
   await workflow.scrollIntoViewIfNeeded();
   await expect(track).toHaveAttribute("data-stage", "2", { timeout: 9500 });
-  await expect(nodes.filter({ has: page.locator(".jl-workflow-node") }).filter({ visible: true })).toHaveCount(3);
+  await expect(nodes.locator(".jl-workflow-node")).toHaveCount(3);
   for (const index of [1, 2]) {
     const copy = nodes.nth(index).locator(".jl-workflow-copy");
     await expect.poll(() => copy.evaluate((element) => Number(getComputedStyle(element).opacity))).toBe(1);
@@ -385,7 +385,7 @@ test("linha de conexão alcança o centro dos próximos ícones no celular e des
     await workflow.scrollIntoViewIfNeeded();
     await expect(workflow.locator(".jl-workflow-track")).toHaveAttribute("data-stage", "2", { timeout: 9500 });
 
-    const segments = await workflow.locator(".jl-workflow-track").evaluate((list) => {
+    const segments = await workflow.locator(".jl-workflow-track").evaluate((list, mobile) => {
       const rows = Array.from(list.querySelectorAll("li"));
       return rows.slice(0, 2).map((row, index) => {
         const start = row.querySelector(".jl-workflow-node")!.getBoundingClientRect();
@@ -400,11 +400,11 @@ test("linha de conexão alcança o centro dos próximos ícones no celular e des
           y: end.top + end.height / 2,
         };
         return {
-          coloredLength: parseFloat(width <= 640 ? styles.height : styles.width),
-          distance: width <= 640 ? to.y - from.y : to.x - from.x,
+          coloredLength: parseFloat(mobile ? styles.height : styles.width),
+          distance: mobile ? to.y - from.y : to.x - from.x,
         };
       });
-    });
+    }, width <= 640);
     for (const { coloredLength, distance } of segments) {
       expect(Math.abs(coloredLength - distance)).toBeLessThan(3);
     }
