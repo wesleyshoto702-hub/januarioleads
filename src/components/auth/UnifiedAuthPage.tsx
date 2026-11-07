@@ -109,25 +109,27 @@ export function UnifiedAuthPage({ initialMode }: { initialMode: AuthMode }) {
         <span className="jl-signup-safe-badge">PROSPECÇÃO ORGANIZADA, DO PRIMEIRO CONTATO AO PRÓXIMO PASSO</span>
 
         <section className="jl-signup-card" aria-label="Entrar ou criar conta no Januário Leads">
-          <nav className="jl-signup-tabs" aria-label="Escolha a operação da conta">
+          <div className="jl-signup-tabs" role="tablist" aria-label="Acesso à conta">
             <button
               type="button"
+              role="tab" id="jl-auth-tab-login" aria-controls="jl-auth-panel"
               className={mode === "login" ? "active" : undefined}
-              aria-current={mode === "login" ? "page" : undefined}
-              aria-pressed={mode === "login"}
+              aria-selected={mode === "login"}
               disabled={busy}
               onClick={() => selectMode("login")}
             >Entrar</button>
             <button
               type="button"
+              role="tab" id="jl-auth-tab-signup" aria-controls="jl-auth-panel"
               className={mode === "signup" ? "active" : undefined}
-              aria-current={mode === "signup" ? "page" : undefined}
-              aria-pressed={mode === "signup"}
+              aria-selected={mode === "signup"}
               disabled={busy}
               onClick={() => selectMode("signup")}
             >Criar conta</button>
-          </nav>
+          </div>
 
+          <div role="tabpanel" id="jl-auth-panel"
+            aria-labelledby={mode === "login" ? "jl-auth-tab-login" : "jl-auth-tab-signup"}>
           {completed && mode === "signup" ? (
             <div className="jl-signup-complete">
               <span className="jl-signup-complete-icon"><CheckCircle2 size={30} aria-hidden="true" /></span>
@@ -231,6 +233,8 @@ export function UnifiedAuthPage({ initialMode }: { initialMode: AuthMode }) {
               </p>
             </>
           )}
+
+          </div>
 
           <div className="jl-signup-security">
             <ShieldCheck size={17} aria-hidden="true" />
