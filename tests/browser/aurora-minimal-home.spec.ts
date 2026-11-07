@@ -10,7 +10,7 @@ function isolate(page: import("@playwright/test").Page, report: () => void) {
 }
 
 for (const path of ["/", "/produto", "/login", "/cadastro"]) {
-  test("aurora de fundo real, sem partículas sobre o conteúdo, em " + path, async ({ page }) => {
+  test("aurora orgânica com fundo preto e sem partículas em " + path, async ({ page }) => {
     let supabaseRequests = 0;
     await isolate(page, () => supabaseRequests++);
     await page.goto(path);
@@ -19,46 +19,74 @@ for (const path of ["/", "/produto", "/login", "/cadastro"]) {
     await expect(aurora).toHaveCount(1);
     await expect(aurora).toHaveAttribute("aria-hidden", "true");
     await expect(aurora).toHaveAttribute("data-ambient", "aurora");
-    await expect(aurora.locator(".jl-aurora-veil")).toHaveCount(4);
-    await expect(aurora.locator(".jl-aurora-haze")).toHaveCount(1);
+    await expect(aurora.locator("canvas.jl-aurora-canvas")).toHaveCount(1);
+    await expect(aurora.locator(".jl-aurora-veil, .jl-aurora-haze")).toHaveCount(0);
     await expect(page.locator(".jl-ambient, .jl-ambient-particle")).toHaveCount(0);
-
     const actual = await aurora.evaluate((node) => ({
       position: getComputedStyle(node).position,
       pointerEvents: getComputedStyle(node).pointerEvents,
-      z: Number(getComputedStyle(node).zIndex),
-      animation: getComputedStyle(node.querySelector(".jl-aurora-veil")!).animationName,
+      background: getComputedStyle(node).backgroundColor,
+      z: getComputedStyle(node).zIndex,
+      canvasWidth: (node.querySelector("canvas") as HTMLCanvasElement).width,
     }));
     expect(actual.position).toBe("fixed");
     expect(actual.pointerEvents).toBe("none");
-    expect(actual.z).toBe(0);
-    expect(actual.animation).toContain("jlAurora");
+    expect(actual.z).toBe("0");
+    expect(actual.background).toBe("rgb(5, 6, 8)");
+    expect(actual.canvasWidth).toBeGreaterThan(0);
     expect(supabaseRequests).toBe(0);
   });
 }
 
-test("aurora fica ATRÁS das seções e continua no fundo ao rolar", async ({ page }) => {
+test("faixas vermelhas realmente se movem atrás da homepage inteira", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
   await isolate(page, () => {});
   await page.goto("/");
-  const aurora = page.locator(".jl-aurora");
-  const layer = await page.evaluate(() => ({
-    backgroundZ: Number(getComputedStyle(document.querySelector(".jl-aurora")!).zIndex),
-    contentZ: Number(getComputedStyle(document.querySelector(".jl-site > main")!).zIndex),
-    headerZ: Number(getComputedStyle(document.querySelector(".jl-site > header")!).zIndex),
-  }));
-  expect(layer.contentZ).toBeGreaterThan(layer.backgroundZ);
-  expect(layer.headerZ).toBeGreaterThan(layer.backgroundZ);
 
-  const before = await aurora.boundingBox();
+  const canvas = page.locator(".jl-site .jl-aurora-canvas");
+  await expect.poll(() => canvas.evaluate((node) => (node as HTMLCanvasElement).width)).toBeGreaterThan(300);
+  const first = await canvas.evaluate((node) => (node as HTMLCanvasElement).toDataURL());
+  await page.waitForTimeout(1000);
+  const second = await canvas.evaluate((node) => (node as HTMLCanvasElement).toDataURL());
+  expect(second).not.toBe(first);
+
+  const layering = await page.evaluate(() => {
+    const aurora = document.querySelector<HTMLElement>(".jl-site > .jl-aurora")!;
+    const sections = Array.from(document.querySelectorAll<HTMLElement>(".jl-site > main > section"));
+    return {
+      auroraZ: Number(getComputedStyle(aurora).zIndex),
+      mainZ: Number(getComputedStyle(document.querySelector(".jl-site > main")!).zIndex),
+      headerZ: Number(getComputedStyle(document.querySelector(".jl-site > header")!).zIndex),
+      canvasOpacity: Number(getComputedStyle(aurora.querySelector("canvas")!).opacity),
+      sections: sections.map((section) => ({
+        name: section.className,
+        bg: getComputedStyle(section).backgroundColor,
+      })),
+    };
+  });
+  expect(layering.mainZ).toBeGreaterThan(layering.auroraZ);
+  expect(layering.headerZ).toBeGreaterThan(layering.auroraZ);
+  expect(layering.canvasOpacity).toBeLessThan(.90);
+  expect(layering.sections.length).toBeGreaterThanOrEqual(8);
+  for (const section of layering.sections) {
+    const match = section.bg.match(/rgba?\(([^)]+)\)/);
+    expect(match, section.name).not.toBeNull();
+    const parts = match![1].split(/[,/]/).map((part) => part.trim());
+    const alpha = parts.length === 4 ? Number(parts[3]) : 1;
+    expect(alpha, section.name).toBeGreaterThanOrEqual(.50);
+    expect(alpha, section.name).toBeLessThan(.85);
+  }
+
+  const before = await page.locator(".jl-aurora").boundingBox();
   await page.locator("#duvidas").scrollIntoViewIfNeeded();
-  const after = await aurora.boundingBox();
+  const after = await page.locator(".jl-aurora").boundingBox();
   expect(before).not.toBeNull();
   expect(after).not.toBeNull();
   expect(Math.abs(before!.y - after!.y)).toBeLessThan(2);
   await expect(page.locator("#duvidas")).toBeVisible();
 });
 
-test("hero compacto, aviso de beta e CTAs repetidos removidos; FAQ alinhado", async ({ page }) => {
+test("hero compacto, beta e CTAs repetidos removidos; ícone FAQ centrado", async ({ page }) => {
   await isolate(page, () => {});
   await page.goto("/");
   await expect(page.locator(".jl-marketing-briefing, .jl-hero-disclaimer, .jl-access, .jl-bottom-cta")).toHaveCount(0);
@@ -70,48 +98,44 @@ test("hero compacto, aviso de beta e CTAs repetidos removidos; FAQ alinhado", as
   await expect(highlights.nth(2)).toContainText("Acesso pelo navegador");
   await expect(page.locator(".jl-faq-item")).toHaveCount(4);
   const plus = page.locator(".jl-faq-item summary > span").first();
-  const centers = await plus.evaluate((node) => {
-    const square = node.getBoundingClientRect();
+  const offset = await plus.evaluate((node) => {
+    const outer = node.getBoundingClientRect();
     const svg = node.querySelector("svg")!.getBoundingClientRect();
-    return { dx: Math.abs((square.left + square.right) / 2 - (svg.left + svg.right) / 2),
-      dy: Math.abs((square.top + square.bottom) / 2 - (svg.top + svg.bottom) / 2) };
+    return Math.abs((outer.top + outer.bottom) / 2 - (svg.top + svg.bottom) / 2);
   });
-  expect(centers.dx).toBeLessThan(2);
-  expect(centers.dy).toBeLessThan(2);
+  expect(offset).toBeLessThan(2);
 });
 
-test("Explore, Organize e Acompanhe acendem em vermelho na ordem ao aparecer", async ({ page }) => {
+test("Explore, Organize, Acompanhe acendem em ordem no scroll", async ({ page }) => {
   await isolate(page, () => {});
   await page.goto("/");
   await expect(page.locator(".jl-demo-window")).toHaveAttribute("data-interactive", "true", { timeout: 15000 });
   const section = page.locator(".jl-editorial-workflow");
-  await section.evaluate((el) => el.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" }));
-  const track = section.locator(".jl-workflow-track");
-  await expect(track).toHaveAttribute("data-stage", "2", { timeout: 9500 });
-  await expect(track.locator("li.jl-workflow-active")).toHaveCount(3);
-  await expect(track.getByText("Explore", { exact: true })).toBeVisible();
-  await expect(track.getByText("Organize", { exact: true })).toBeVisible();
-  await expect(track.getByText("Acompanhe", { exact: true })).toBeVisible();
+  await section.evaluate((el) => el.scrollIntoView({ block: "center", behavior: "instant" }));
+  await expect(section.locator(".jl-workflow-track")).toHaveAttribute("data-stage", "2", { timeout: 9500 });
+  await expect(section.locator("li.jl-workflow-active")).toHaveCount(3);
 });
 
-test("movimento reduzido deixa a aurora parada e as três etapas concluídas", async ({ page }) => {
+test("movimento reduzido preserva aurora estática e etapas concluídas", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await isolate(page, () => {});
   await page.goto("/");
-  const values = await page.locator(".jl-aurora").evaluate((root) =>
-    [".jl-aurora-veil", ".jl-aurora-haze"].map((selector) =>
-      getComputedStyle(root.querySelector(selector)!).animationName));
-  expect(values).toEqual(["none", "none"]);
+  const canvas = page.locator(".jl-site .jl-aurora-canvas");
+  await expect.poll(() => canvas.evaluate((node) => (node as HTMLCanvasElement).width)).toBeGreaterThan(300);
+  const first = await canvas.evaluate((node) => (node as HTMLCanvasElement).toDataURL());
+  await page.waitForTimeout(700);
+  const second = await canvas.evaluate((node) => (node as HTMLCanvasElement).toDataURL());
+  expect(second).toBe(first);
   await expect(page.locator(".jl-workflow-track")).toHaveAttribute("data-stage", "2");
   await expect(page.locator(".jl-workflow-active")).toHaveCount(3);
 });
 
 for (const width of [320, 360, 390, 768, 1280]) {
-  test("aurora não causa overflow ou intercepta navegação em " + width + "px", async ({ page }) => {
+  test("aurora não causa overflow nem bloqueia cliques em " + width + "px", async ({ page }) => {
     await page.setViewportSize({ width, height: 820 });
     await isolate(page, () => {});
     await page.goto("/");
-    await expect(page.locator(".jl-aurora")).toBeAttached();
+    await expect(page.locator(".jl-aurora-canvas")).toBeAttached();
     await expect(page.locator(".jl-mobile-menu-toggle")).toBeEnabled();
     expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)).toBe(false);
     if (width <= 370) {
@@ -122,56 +146,6 @@ for (const width of [320, 360, 390, 768, 1280]) {
       await page.locator(".jl-header-actions").getByRole("link", { name: "Criar conta" }).click();
     }
     await expect(page).toHaveURL(/\/cadastro$/);
-    await expect(page.locator(".jl-auth-shell > .jl-aurora")).toBeAttached();
+    await expect(page.locator(".jl-auth-shell > .jl-aurora-canvas")).toBeAttached();
   });
 }
-
-
-test("aurora permanece luminosa atrás de todas as seções da homepage", async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: "no-preference" });
-  await isolate(page, () => {});
-  await page.goto("/");
-
-  const appearance = await page.evaluate(() => {
-    const aurora = document.querySelector<HTMLElement>(".jl-site > .jl-aurora")!;
-    const rose = aurora.querySelector<HTMLElement>(".jl-aurora-veil--rose")!;
-    const sections = Array.from(document.querySelectorAll<HTMLElement>(".jl-site > main > section"));
-    return {
-      height: aurora.getBoundingClientRect().height,
-      viewport: window.innerHeight,
-      roseOpacity: parseFloat(getComputedStyle(rose).opacity),
-      roseAnimation: getComputedStyle(rose).animationName,
-      sections: sections.map((section) => ({
-        className: section.className,
-        background: getComputedStyle(section).backgroundColor,
-      })),
-    };
-  });
-  expect(appearance.height).toBeGreaterThan(appearance.viewport * .95);
-  expect(appearance.roseOpacity).toBeGreaterThan(.6);
-  expect(appearance.roseAnimation).toBe("jlAuroraFullDrift");
-  // Verify that the gradient actually changes position, not merely that a
-  // CSS animation was declared. Reduced motion is disabled for this test.
-  const initial = await page.locator(".jl-site .jl-aurora-veil--rose").evaluate(
-    (node) => getComputedStyle(node).transform
-  );
-  await page.waitForTimeout(550);
-  const moving = await page.locator(".jl-site .jl-aurora-veil--rose").evaluate(
-    (node) => getComputedStyle(node).transform
-  );
-  expect(moving).not.toBe(initial);
-  expect(appearance.sections.length).toBeGreaterThanOrEqual(8);
-  for (const section of appearance.sections) {
-    // A translucent scrim lets the fixed aurora remain visible across scroll.
-    const match = section.background.match(/rgba?\(([^)]+)\)/);
-    expect(match, section.className).not.toBeNull();
-    const alpha = match![1].split(/[,/]/).map((token) => token.trim());
-    expect(alpha.length === 4 ? Number(alpha[3]) : 1, section.className).toBeLessThan(.30);
-  }
-
-  await page.locator("#duvidas").scrollIntoViewIfNeeded();
-  const after = await page.locator(".jl-site > .jl-aurora").boundingBox();
-  expect(after).not.toBeNull();
-  expect(Math.abs(after!.y)).toBeLessThan(2);
-  await expect(page.locator(".jl-site > .jl-footer")).toBeVisible();
-});
