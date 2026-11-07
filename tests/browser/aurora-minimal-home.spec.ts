@@ -10,7 +10,7 @@ function isolate(page: import("@playwright/test").Page, report: () => void) {
 }
 
 for (const path of ["/", "/produto", "/login", "/cadastro"]) {
-  test("aurora orgânica com fundo preto e sem partículas em " + path, async ({ page }) => {
+  test("aurora carmesim do HTML de referência renderiza sem scripts externos em " + path, async ({ page }) => {
     let supabaseRequests = 0;
     await isolate(page, () => supabaseRequests++);
     await page.goto(path);
@@ -18,9 +18,9 @@ for (const path of ["/", "/produto", "/login", "/cadastro"]) {
     const aurora = page.locator(".jl-aurora");
     await expect(aurora).toHaveCount(1);
     await expect(aurora).toHaveAttribute("aria-hidden", "true");
-    await expect(aurora).toHaveAttribute("data-ambient", "aurora");
+    await expect(aurora).toHaveAttribute("data-ambient", "crimson-ribbons");
     await expect(aurora.locator("canvas.jl-aurora-canvas")).toHaveCount(1);
-    await expect(aurora.locator(".jl-aurora-wisp")).toHaveCount(4);
+    await expect(aurora.locator(".jl-aurora-wisp")).toHaveCount(0);
     await expect(aurora.locator(".jl-aurora-veil, .jl-aurora-haze")).toHaveCount(0);
     await expect(page.locator(".jl-ambient, .jl-ambient-particle")).toHaveCount(0);
     const actual = await aurora.evaluate((node) => ({
@@ -33,7 +33,7 @@ for (const path of ["/", "/produto", "/login", "/cadastro"]) {
     expect(actual.position).toBe("fixed");
     expect(actual.pointerEvents).toBe("none");
     expect(actual.z).toBe("0");
-    expect(actual.background).toBe("rgb(5, 6, 8)");
+    expect(actual.background).toBe("rgb(5, 1, 2)");
     expect(actual.canvasWidth).toBeGreaterThan(0);
     expect(supabaseRequests).toBe(0);
   });
@@ -152,127 +152,75 @@ for (const width of [320, 360, 390, 768, 1280]) {
 }
 
 
-test("aurora híbrida mantém as cores originais da homepage e suas luzes atrás dos textos", async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: "no-preference" });
-  await isolate(page, () => {});
-  await page.goto("/");
-
-  const visual = await page.evaluate(() => {
-    const aurora = document.querySelector(".jl-site > .jl-aurora")!;
-    const left = aurora.querySelector<HTMLElement>(".jl-aurora-wisp--left")!;
-    const canvas = aurora.querySelector<HTMLElement>(".jl-aurora-canvas")!;
-    return {
-      bodyBackground: getComputedStyle(aurora).backgroundColor,
-      heroTitle: getComputedStyle(document.querySelector(".jl-hero h1")!).color,
-      titleAccent: getComputedStyle(document.querySelector(".jl-hero h1 em")!).color,
-      description: getComputedStyle(document.querySelector(".jl-hero-description")!).color,
-      wispPointerEvents: getComputedStyle(left).pointerEvents,
-      wispAnimation: getComputedStyle(left).animationName,
-      wispOpacity: Number(getComputedStyle(left).opacity),
-      canvasOpacity: Number(getComputedStyle(canvas).opacity),
-    };
-  });
-  expect(visual.bodyBackground).toBe("rgb(5, 6, 8)");
-  expect(visual.heroTitle).toBe("rgb(248, 250, 252)");
-  expect(visual.titleAccent).toBe("rgb(255, 87, 114)");
-  expect(visual.description).toBe("rgb(178, 186, 199)");
-  expect(visual.wispPointerEvents).toBe("none");
-  expect(visual.wispAnimation).toBe("jlAuroraSoftSway");
-  expect(visual.wispOpacity).toBeLessThanOrEqual(.40);
-  expect(visual.canvasOpacity).toBeLessThan(.97);
-});
-
-test("movimento reduzido também desativa as névoas, sem interferir no Canvas estático", async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  await isolate(page, () => {});
-  await page.goto("/");
-  const animation = await page.locator(".jl-aurora-wisp--left").evaluate((node) => getComputedStyle(node).animationName);
-  expect(animation).toBe("none");
-});
-
-
-test("aurora acelerada tem camadas com velocidades independentes e movimento perceptível", async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: "no-preference" });
-  await isolate(page, () => {});
-  await page.goto("/");
-
-  const layers = await page.evaluate(() => {
-    const left = getComputedStyle(document.querySelector(".jl-aurora-wisp--left")!);
-    const right = getComputedStyle(document.querySelector(".jl-aurora-wisp--right")!);
-    return {
-      left: left.animationDuration,
-      right: right.animationDuration,
-      directions: [left.animationDirection, right.animationDirection],
-      background: getComputedStyle(document.querySelector(".jl-site > .jl-aurora")!).backgroundColor,
-      text: getComputedStyle(document.querySelector(".jl-hero-description")!).color,
-    };
-  });
-  expect(layers.left).toBe("13s");
-  expect(layers.right).toBe("10s");
-  expect(layers.directions[0]).toBe("alternate");
-  expect(layers.directions[1]).toBe("alternate-reverse");
-  expect(layers.background).toBe("rgb(5, 6, 8)");
-  expect(layers.text).toBe("rgb(178, 186, 199)");
-
-  const canvas = page.locator(".jl-aurora-canvas");
-  await expect.poll(() => canvas.evaluate((el) => (el as HTMLCanvasElement).width)).toBeGreaterThan(300);
-  const first = await canvas.evaluate((el) => (el as HTMLCanvasElement).toDataURL());
-  await page.waitForTimeout(350);
-  const next = await canvas.evaluate((el) => (el as HTMLCanvasElement).toDataURL());
-  expect(next).not.toBe(first);
-});
-
-
-test("auroras separadas ocupam também o terço inferior do viewport e continuam atrás do rodapé", async ({ page }) => {
+test("nova aurora usa quatro ondas carmesim e partículas sem camadas CSS animadas", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await isolate(page, () => {});
   await page.goto("/");
-  // Wait for hydration/canvas sizing before reading the rendered pixels.
-  await expect.poll(() => page.locator(".jl-site .jl-aurora-canvas")
-    .evaluate((canvas) => (canvas as HTMLCanvasElement).width)).toBeGreaterThan(350);
+  const backdrop = page.locator(".jl-site > .jl-aurora");
+  const canvas = backdrop.locator("canvas.jl-aurora-canvas");
+  await expect(canvas).toHaveAttribute("data-aurora-engine", "crimson-canvas");
+  await expect(backdrop.locator(".jl-aurora-wisp")).toHaveCount(0);
+  await expect.poll(() => canvas.evaluate((node) => (node as HTMLCanvasElement).width)).toBeGreaterThan(300);
 
-  const measurements = await page.evaluate(() => {
-    const backdrop = document.querySelector<HTMLElement>(".jl-site > .jl-aurora")!;
-    const canvas = backdrop.querySelector<HTMLCanvasElement>("canvas")!;
-    const bottomLeft = backdrop.querySelector<HTMLElement>(".jl-aurora-wisp--lower-left")!;
-    const bottomRight = backdrop.querySelector<HTMLElement>(".jl-aurora-wisp--lower-right")!;
-    const left = backdrop.querySelector<HTMLElement>(".jl-aurora-wisp--left")!;
-    const right = backdrop.querySelector<HTMLElement>(".jl-aurora-wisp--right")!;
-    const ctx = canvas.getContext("2d")!;
-    const { width, height } = canvas;
-
-    // The canvas itself must contain actual red rays in the lower 25% of the
-    // viewport, not just a CSS halo or an effect confined to the upper half.
-    const pixels = ctx.getImageData(0, Math.floor(height * .72), width, Math.floor(height * .24)).data;
-    let visibleLowerPixels = 0;
-    for (let i = 0; i < pixels.length; i += 4) {
-      if (pixels[i + 3] > 6 && pixels[i] > pixels[i + 1] * 1.4) visibleLowerPixels++;
+  const visual = await page.evaluate(() => {
+    const element = document.querySelector<HTMLCanvasElement>(".jl-site .jl-aurora-canvas")!;
+    const context = element.getContext("2d")!;
+    let redSamples = 0;
+    for (let y = 1; y < 10; y++) {
+      for (let x = 1; x < 10; x++) {
+        const rgba = context.getImageData(
+          Math.floor(element.width * x / 10),
+          Math.floor(element.height * y / 10), 1, 1,
+        ).data;
+        if (rgba[0] > rgba[1] + 12 && rgba[0] > 20) redSamples++;
+      }
     }
+    const header = document.querySelector<HTMLElement>(".jl-site > .jl-header")!;
     return {
-      visibleLowerPixels,
-      lowerLeftTop: bottomLeft.getBoundingClientRect().top,
-      lowerRightTop: bottomRight.getBoundingClientRect().top,
-      upperLeftTop: left.getBoundingClientRect().top,
-      upperRightTop: right.getBoundingClientRect().top,
-      backdropHeight: backdrop.getBoundingClientRect().height,
-      footerZ: Number(getComputedStyle(document.querySelector(".jl-site > .jl-footer")!).zIndex),
-      backdropZ: Number(getComputedStyle(backdrop).zIndex),
-      lowerLeftDuration: getComputedStyle(bottomLeft).animationDuration,
-      lowerRightDuration: getComputedStyle(bottomRight).animationDuration,
+      redSamples,
+      background: getComputedStyle(document.querySelector(".jl-site > .jl-aurora")!).backgroundColor,
+      heroTitle: getComputedStyle(document.querySelector(".jl-hero h1")!).color,
+      titleAccent: getComputedStyle(document.querySelector(".jl-hero h1 em")!).color,
+      description: getComputedStyle(document.querySelector(".jl-hero-description")!).color,
+      headerBackdrop: getComputedStyle(header).backdropFilter,
+      pixels: element.width * element.height,
+      canvasOpacity: Number(getComputedStyle(element).opacity),
     };
   });
-  expect(measurements.backdropHeight).toBeGreaterThan(800);
-  expect(measurements.visibleLowerPixels).toBeGreaterThan(100);
-  expect(measurements.lowerLeftTop).toBeGreaterThan(measurements.upperLeftTop);
-  expect(measurements.lowerRightTop).toBeGreaterThan(measurements.upperRightTop);
-  expect(measurements.lowerLeftTop).toBeGreaterThan(844 * .40);
-  expect(measurements.lowerRightTop).toBeGreaterThan(844 * .53);
-  expect(measurements.lowerLeftDuration).toBe("17s");
-  expect(measurements.lowerRightDuration).toBe("15s");
-  expect(measurements.footerZ).toBeGreaterThan(measurements.backdropZ);
+  expect(visual.redSamples).toBeGreaterThan(0);
+  expect(visual.background).toBe("rgb(5, 1, 2)");
+  expect(visual.heroTitle).toBe("rgb(248, 250, 252)");
+  expect(visual.titleAccent).toBe("rgb(255, 87, 114)");
+  expect(visual.description).toBe("rgb(178, 186, 199)");
+  expect(visual.headerBackdrop).toBe("none");
+  expect(visual.pixels).toBeLessThan(605_000);
+  expect(visual.canvasOpacity).toBeLessThan(.97);
 });
 
+test("nova aurora limita pixels no desktop e permanece fixa atrás do rodapé", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await isolate(page, () => {});
+  await page.goto("/");
+  const canvas = page.locator(".jl-site .jl-aurora-canvas");
+  await expect.poll(() => canvas.evaluate((node) => (node as HTMLCanvasElement).width)).toBeGreaterThan(300);
+  const metrics = await page.evaluate(() => {
+    const canvas = document.querySelector<HTMLCanvasElement>(".jl-site .jl-aurora-canvas")!;
+    const backdrop = document.querySelector<HTMLElement>(".jl-site > .jl-aurora")!;
+    return {
+      pixels: canvas.width * canvas.height,
+      backdropZ: Number(getComputedStyle(backdrop).zIndex),
+      footerZ: Number(getComputedStyle(document.querySelector(".jl-site > .jl-footer")!).zIndex),
+      pointerEvents: getComputedStyle(canvas).pointerEvents,
+    };
+  });
+  expect(metrics.pixels).toBeLessThan(905_000);
+  expect(metrics.footerZ).toBeGreaterThan(metrics.backdropZ);
+  expect(metrics.pointerEvents).toBe("none");
+  await page.locator("#duvidas").scrollIntoViewIfNeeded();
+  await expect(page.locator(".jl-site > .jl-aurora")).toBeVisible();
+});
 
 test("homepage apresenta as seis seções reais sem promessa de cadastro público ou automação", async ({ page }) => {
   await isolate(page, () => {});
