@@ -146,6 +146,6 @@ for (const width of [320, 360, 390, 768, 1280]) {
       await page.locator(".jl-header-actions").getByRole("link", { name: "Criar conta" }).click();
     }
     await expect(page).toHaveURL(/\/cadastro$/);
-    await expect(page.locator(".jl-auth-shell > .jl-aurora-canvas")).toBeAttached();
+    await expect(page.locator(".jl-auth-shell > .jl-aurora > .jl-aurora-canvas")).toBeAttached();
   });
 }
