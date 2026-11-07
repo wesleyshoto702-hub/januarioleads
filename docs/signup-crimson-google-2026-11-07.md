@@ -1,50 +1,47 @@
-# Cadastro carmesim e acesso Google — 07/11/2026
+# Cadastro exclusivamente com conta Google verificada — 07/11/2026
 
-## Interface implementada
+## Decisão de produto
 
-Referência visual aprovada pelo responsável: mockup da tela "Criar conta" Januário Leads, adaptado da estrutura de cadastro da Clonefy **sem copiar identidade, logo ou textos comerciais de terceiros**.
+Novos cadastros do Januário Leads agora são iniciados **exclusivamente pelo Google OAuth**, que valida a identidade e o controle da conta. Não basta digitar `@gmail.com` — a existência ou titularidade de um e-mail não pode ser comprovada por um formulário comum.
 
-- `/cadastro`: marca central, indicação de acesso seguro, abas Entrar/Criar conta, nome, e-mail, senha e confirmação, botão carmesim, botão Continuar com Google, navegação para login e nota de segurança.
-- O fundo usa o componente `AuroraBackdrop` já empregado pela homepage e login, sem outro motor ou dependência de animação.
-- Design responsivo em `src/styles/signup-crimson.css`, carregado somente em cadastro e retorno de Google.
-- `/login` também tem link de criação de conta e opção Google.
-- `/auth/retorno` conclui o código OAuth usando PKCE, valida a identidade e consulta a **autorização existente** antes de gravar a sessão.
+**Importante:** uma conta Google pode usar um e-mail `@gmail.com` **ou um endereço não Gmail associado a uma Conta Google**. O requisito implementado é **conta Google validada**, não **domínio Gmail exclusivamente**.
 
-## Funcionalidade de cadastro por e-mail
+O login existente por e-mail/senha para usuários antigos **permanece disponível**. Não foram migradas contas existentes nem redefinidas senhas.
 
-`src/lib/public-registration.ts` chama `POST /auth/v1/signup` com a chave **publicável**, nome apenas em `user_metadata.full_name`, e senha forte de 12–128 caracteres. Não armazena tokens retornados durante o cadastro e não faz nenhuma escrita em `private_access`.
+## Implementação no aplicativo
 
-Valida email, nome, senhas e origem do redirect, não transmite valores inválidos, não ecoa erros do backend que possam revelar se o e-mail existe, e trata limites de tentativas e falhas de rede. A confirmação por e-mail e a disponibilidade do endpoint dependem das configurações do Supabase Auth. Quando a confirmação por e-mail estiver desativada, uma sessão poderá ser retornada pelo servidor; ela não é adotada pelo frontend, e o usuário deverá entrar com suas credenciais após o cadastro.
+- `/cadastro` agora apresenta somente **Criar conta com Google**, dentro do design carmesim aprovado e com a aurora existente.
+- O formulário de novo cadastro por nome/e-mail/senha foi removido da interface; o antigo `requestPublicSignup` foi removido do módulo público.
+- O botão verifica se o provedor Google foi ativado no Supabase e só então abre a autenticação OAuth.
+- O OAuth usa **PKCE S256** e `state` de uso único ligado ao mesmo navegador, com expiração.
+- No retorno, o aplicativo consulta `/auth/v1/user` no Supabase para confirmar **identidade Google** e **e-mail confirmado** antes de verificar `private_access`.
+- **Autenticação Google ≠ autorização do CRM**: sem `private_access`, a sessão não é armazenada, o token é revogado e a pessoa recebe uma explicação. Nenhum usuário é incluído automaticamente na allowlist.
+- O fundo animado da página de cadastro é o mesmo `AuroraBackdrop` usado nas outras telas.
 
-**Cadastro de identidade ≠ acesso comercial:** o banco existente usa RLS de `private_access`, limitado ao próprio usuário `auth.uid() = user_id`. A função `acceptExternalSession` também exige essa mesma autorização e revoga o token de OAuth em caso de ausência. Nenhum mecanismo de auto-ativação do CRM foi implementado. Este fluxo **não** gera assinatura, cobrança nem concede dados privados.
+## Configuração externa AINDA NECESSÁRIA
 
-## Integração Google
+As ferramentas de acesso a Supabase e GitHub disponíveis nesta sessão **não permitem alterar as configurações de provedores de Auth** nem criar OAuth Client IDs no Google Cloud. Por isso, **o provedor Google não foi ativado no Supabase**, e **Client ID / Client Secret não foram criados ou inseridos**. O formulário fica protegido contra cadastros por e-mail na interface, mas isso sozinho **não bloqueia chamadas HTTP diretas ao endpoint Supabase Auth de signup**.
 
-Implementado cliente OAuth com **PKCE S256** (verifier e challenge de criptografia aleatória), nonce por tentativa guardado em `sessionStorage`, redirecionamento local validado e troca única de código por tokens. A autenticação Google não pula a autorização do CRM.
+### Ativar o Google OAuth
 
-Antes de redirecionar, o navegador consulta `/auth/v1/settings` para verificar se `external.google` está habilitado; se não estiver, mostra uma mensagem clara, sem redirecionar a uma tela de erro externa.
+1. Acesse [Google Auth Platform](https://console.cloud.google.com/auth/overview) com a conta administradora. Configure **Branding**, **Audience** (interno/externo, usuários de teste enquanto não houver publicação) e os escopos `openid`, `email` e `profile`.
+2. Em [Clients](https://console.cloud.google.com/auth/clients), crie um **OAuth Client ID** do tipo **Web application**. Em *Authorized JavaScript origins*, adicione o endereço real do seu site (e o local de desenvolvimento quando aplicável). Em *Authorized redirect URIs*, insira **exatamente** `https://czkazbianiflhldenhcj.supabase.co/auth/v1/callback`.
+3. Copie Client ID e **Client Secret** diretamente para [Supabase → Authentication → Providers → Google](https://supabase.com/dashboard/project/czkazbianiflhldenhcj/auth/providers), habilite Google e salve. **Nunca coloque Client Secret no repositório, em variáveis `VITE_*` nem no chat.**
+4. Em [Supabase → Authentication → URL Configuration](https://supabase.com/dashboard/project/czkazbianiflhldenhcj/auth/url-configuration), configure o domínio em que o site estiver realmente publicado e permita a URL `/auth/retorno` incluindo os parâmetros do OAuth (o código envia `?state=...`). Configure localhost somente para testes de desenvolvimento.
+5. **Para impor a restrição no servidor**, desative **novos cadastros por e-mail** no Auth do Supabase, mantendo o provedor de login por senha para contas já existentes. Verifique a configuração específica **Allow email signups / Enable email signups**, pois desligar por completo o provedor Email pode quebrar a autenticação de usuários antigos. Se essa opção específica não estiver disponível, use um **Before User Created Hook** que recuse o provedor `email` e aceite somente `google`, testado primeiro em staging.
+6. Após configurar, teste em ambiente não público: Google habilitado e desabilitado; conta Google com email confirmado; conta não autorizada; conta autorizada; cancelamento de login; recusa do cadastro por e-mail via API; usuários antigos por senha; mobile. Só então republique, caso queira.
 
-### Configuração externa obrigatória para funcionar no ar
+> **Não ativar o provedor ou o bloqueio backend sem as credenciais e sem validar o efeito sobre as contas existentes.** Nenhuma alteração foi executada no Auth hospedado.
 
-1. No Google Auth Platform, configurar OAuth Consent Screen, branding, públicos e scopes básicos (`openid`, e-mail e perfil), registrar um OAuth **Web application** e obter Client ID/Client Secret.
-2. Na página de [provedor Google do Supabase](https://supabase.com/dashboard/project/czkazbianiflhldenhcj/auth/providers), habilitar Google e informar os dados gerados. **Não inserir Client Secret no frontend, GitHub ou `VITE_*`.**
-3. No OAuth Client do Google, autorizar o callback Supabase: `https://czkazbianiflhldenhcj.supabase.co/auth/v1/callback`.
-4. Em Supabase Authentication → URL Configuration, permitir o domínio **real de publicação** e os redirects `https://<DOMINIO>/login` e `https://<DOMINIO>/auth/retorno?state=*` (usar padrão wildcard compatível com a URL allow list; verificar a configuração efetiva). Inclua localhost apenas para desenvolvimento.
-5. Configurar confirmação de e-mail, SMTP com limite apropriado, política de senhas, CAPTCHA/limites de abuso quando abrir ao público e política de privacidade/termos publicados.
-6. Testar cadastro, recebimento de e-mail, login, conta sem aprovação, conta aprovada, Google cancelado e bloqueios em mobile/desktop antes de divulgar.
+## Garantias e limites
 
-**Limitação atual:** não foram habilitados provedores Google ou SMTP no projeto hospedado, nem enviada mensagem real ou criada uma conta real durante esta implementação. Não há domínio público funcional enquanto Vercel estiver despublicada.
+- **Implementado no frontend:** apenas Google para novas contas; validação de Google + e-mail confirmado no callback.
+- **Ainda pendente no backend:** ativar Google e impedir *qualquer* novo cadastro de usuário por e-mail, inclusive chamadas diretas ao endpoint Supabase Auth. A interface sozinha não controla isso.
+- **CRM permanece restrito:** `private_access` é obrigatório, com política RLS `auth.uid() = user_id`.
+- Google OAuth não garante que uma pessoa nunca perderá acesso à conta ou que endereços associados jamais mudarão. Confirma a identidade fornecida pelo provedor no momento da autenticação.
+- A hospedagem Vercel foi despublicada pelo administrador e não é alterada por esta PR.
 
-**BFF experimental**: `VITE_HTTPONLY_SESSION=true` desabilita este cadastro direto e o botão Google; é necessária uma implementação específica de backend para manter tokens em cookies HttpOnly.
-
-**Beta isolado**: quando `BETA_SIGNUP_CONFIG` está explicitamente configurado para staging, o formulário de e-mail mantém a chamada beta isolada; Google fica indisponível em staging para não misturar identidades de projetos.
-
-## Fluxo público "Da pesquisa à rotina"
-
-O modelo mantém a sequência Explore → Organize → Acompanhe, mas os conectores ficam apenas **entre os cards**, sem passar por trás das legendas. Ícones e texto estão alinhados verticalmente no mesmo eixo; em telas de até 900px o fluxo vira uma coluna com conectores verticais. A revelação de texto só começa após a conclusão do respectivo segmento. `prefers-reduced-motion` apresenta tudo sem animação.
-
-## Testes
-
-Atualizados Playwright para cadastro responsivo, validação de senha, chamada Auth simulada, não persistência de tokens em signup, Google desabilitado, fluxo PKCE com identidade sem autorização, links no login, alinhamento da linha sem sobrepor os textos. Testes unitários do novo módulo cobrem validação de dados e criação do challenge PKCE. Nenhum deles envia e-mail ou toca em usuários reais.
-
-Referências: [Sign in with Google](https://supabase.com/docs/guides/auth/social-sign-in/auth-google), [Redirect URLs](https://supabase.com/docs/guides/auth/redirect-urls), [PKCE flow](https://supabase.com/docs/guides/auth/sessions/pkce-flow).
+Referências:
+- [Supabase: Sign in with Google](https://supabase.com/docs/guides/auth/social-sign-in/auth-google)
+- [Supabase: Before User Created Hook](https://supabase.com/docs/guides/auth/auth-hooks/before-user-created-hook)
+- [Supabase: Email/password sign-in](https://supabase.com/docs/guides/auth/passwords)
