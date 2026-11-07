@@ -1,8 +1,7 @@
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, USE_HTTPONLY_SESSION } from "./supabase-config";
+import { GMAIL_SIGNUP_ERROR, isGmailSignupEmail, normalizeSignupEmail } from "./signup-email";
 
 export type RegistrationResult = { ok: true } | { ok: false; message: string };
-
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function safeRedirect(origin: string, path: string): string | null {
   try {
@@ -40,12 +39,12 @@ export async function requestPublicSignup(
   requester: typeof fetch = fetch,
 ): Promise<RegistrationResult> {
   const fullName = name.trim().replace(/\s+/g, " ");
-  const cleanEmail = email.trim().toLowerCase();
+  const cleanEmail = normalizeSignupEmail(email);
   if (fullName.length < 2 || fullName.length > 100) {
     return { ok: false, message: "Informe seu nome (entre 2 e 100 caracteres)." };
   }
-  if (!EMAIL.test(cleanEmail) || cleanEmail.length > 320) {
-    return { ok: false, message: "Informe um endereço de e-mail válido." };
+  if (!isGmailSignupEmail(cleanEmail)) {
+    return { ok: false, message: GMAIL_SIGNUP_ERROR };
   }
   if (password.length < 12 || password.length > 128) {
     return { ok: false, message: "A senha deve ter entre 12 e 128 caracteres." };

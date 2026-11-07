@@ -15,10 +15,10 @@ test("cadastro por e-mail e senha mantém a aurora e não oferece login Google",
   await page.goto("/cadastro");
   await expect(page.getByRole("heading", { name: "Crie sua conta no Januário Leads" })).toBeVisible();
   for (const placeholder of [
-    "Seu nome completo", "seuemail@empresa.com", "Crie uma senha forte", "Repita sua senha",
+    "Seu nome completo", "seunome@gmail.com", "Crie uma senha forte", "Repita sua senha",
   ]) await expect(page.getByPlaceholder(placeholder)).toBeVisible();
   await expect(page.getByRole("button", { name: /Criar conta/ })).toBeEnabled();
-  await expect(page.getByRole("link", { name: "Entrar" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Entrar" })).toBeVisible();
   await expect(page.locator(".jl-signup-page .jl-aurora-canvas")).toBeVisible();
   await expect(page.getByRole("button", { name: /Google/i })).toHaveCount(0);
   expect(outsideRequests).toBe(0);
@@ -29,7 +29,7 @@ test("senhas diferentes não acionam o serviço de cadastro", async ({ page }) =
   await blockExternal(page, () => calls++);
   await page.goto("/cadastro");
   await page.getByPlaceholder("Seu nome completo").fill("Teste Pessoa");
-  await page.getByPlaceholder("seuemail@empresa.com").fill("teste@example.invalid");
+  await page.getByPlaceholder("seunome@gmail.com").fill("teste@gmail.com");
   await page.getByPlaceholder("Crie uma senha forte").fill("Senha-segura-exemplo-123");
   await page.getByPlaceholder("Repita sua senha").fill("Senha-segura-exemplo-124");
   await page.getByRole("button", { name: /Criar conta/ }).click();
@@ -47,7 +47,7 @@ test("cadastro chama somente o endpoint Supabase Auth sem guardar tokens ou conc
       const data = route.request().postDataJSON() as {
         email: string; password: string; data: { full_name: string };
       };
-      expect(data.email).toBe("teste@example.invalid");
+      expect(data.email).toBe("teste@gmail.com");
       expect(data.data.full_name).toBe("Teste Pessoa");
       expect(data.password.length).toBeGreaterThanOrEqual(12);
       return route.fulfill({
@@ -59,13 +59,13 @@ test("cadastro chama somente o endpoint Supabase Auth sem guardar tokens ou conc
   });
   await page.goto("/cadastro");
   await page.getByPlaceholder("Seu nome completo").fill("Teste Pessoa");
-  await page.getByPlaceholder("seuemail@empresa.com").fill("teste@example.invalid");
+  await page.getByPlaceholder("seunome@gmail.com").fill("teste@gmail.com");
   await page.getByPlaceholder("Crie uma senha forte").fill("Senha-segura-exemplo-123");
   await page.getByPlaceholder("Repita sua senha").fill("Senha-segura-exemplo-123");
   await page.getByRole("button", { name: /Criar conta/ }).click();
   await expect(page.getByRole("heading", { name: "Cadastro solicitado" })).toBeVisible();
   await expect(page.getByText(/O acesso ao CRM depende de liberação separada/).first()).toBeVisible();
-  await expect(page.getByRole("link", { name: /Acessar conta/ }).first()).toHaveAttribute("href", "/login");
+  await expect(page.getByRole("button", { name: "Entrar na minha conta" })).toBeVisible();
   expect(paths).toEqual(["/auth/v1/signup"]);
   expect(await page.evaluate(() => localStorage.getItem("januarioleads:auth-session"))).toBeNull();
 });
@@ -79,12 +79,25 @@ test("erro do Supabase não revela se o e-mail já foi registrado", async ({ pag
   });
   await page.goto("/cadastro");
   await page.getByPlaceholder("Seu nome completo").fill("Teste Pessoa");
-  await page.getByPlaceholder("seuemail@empresa.com").fill("teste@example.invalid");
+  await page.getByPlaceholder("seunome@gmail.com").fill("teste@gmail.com");
   await page.getByPlaceholder("Crie uma senha forte").fill("Senha-segura-exemplo-123");
   await page.getByPlaceholder("Repita sua senha").fill("Senha-segura-exemplo-123");
   await page.getByRole("button", { name: /Criar conta/ }).click();
   await expect(page.getByRole("alert")).toContainText("Não foi possível solicitar o cadastro");
   await expect(page.getByRole("alert")).not.toContainText("User already registered");
+});
+
+test("cadastro rejeita Outlook no próprio formulário, sem chamadas ao Supabase", async ({ page }) => {
+  let calls = 0;
+  await blockExternal(page, () => calls++);
+  await page.goto("/cadastro");
+  await page.getByPlaceholder("Seu nome completo").fill("Pessoa Teste");
+  await page.getByPlaceholder("seunome@gmail.com").fill("pessoa@outlook.com");
+  await page.getByPlaceholder("Crie uma senha forte").fill("Senha-segura-exemplo-123");
+  await page.getByPlaceholder("Repita sua senha").fill("Senha-segura-exemplo-123");
+  await page.getByRole("button", { name: /Criar conta/ }).click();
+  await expect(page.getByRole("alert")).toContainText("@gmail.com");
+  expect(calls).toBe(0);
 });
 
 test("cadastro em celular não produz overflow horizontal", async ({ page }) => {

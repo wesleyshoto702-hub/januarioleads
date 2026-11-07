@@ -8,6 +8,7 @@ import { AuroraBackdrop } from "../marketing/AuroraBackdrop";
 import { getValidSession, signIn } from "../../lib/auth";
 import { BETA_SIGNUP_CONFIG, requestBetaSignup } from "../../lib/beta-registration";
 import { requestPublicSignup } from "../../lib/public-registration";
+import { GMAIL_SIGNUP_ERROR, isGmailSignupEmail } from "../../lib/signup-email";
 import { USE_HTTPONLY_SESSION } from "../../lib/supabase-config";
 
 export type AuthMode = "login" | "signup";
@@ -70,6 +71,10 @@ export function UnifiedAuthPage({ initialMode }: { initialMode: AuthMode }) {
 
       if (name.trim().length < 2) {
         setError("Informe seu nome.");
+        return;
+      }
+      if (!isGmailSignupEmail(email)) {
+        setError(GMAIL_SIGNUP_ERROR);
         return;
       }
       if (password !== confirm) {
@@ -135,8 +140,7 @@ export function UnifiedAuthPage({ initialMode }: { initialMode: AuthMode }) {
               <span className="jl-signup-complete-icon"><CheckCircle2 size={30} aria-hidden="true" /></span>
               <h1>Cadastro solicitado</h1>
               <p role="status">
-                Caso seu endereço possa ser cadastrado, confira sua caixa de entrada
-                e siga as instruções de confirmação, quando exigidas.
+                Confira seu Gmail e siga as instruções de confirmação do endereço.
                 Depois, entre com suas credenciais. O acesso ao CRM depende de liberação separada.
               </p>
               <button type="button" className="jl-signup-primary" onClick={() => selectMode("login")}>
@@ -150,7 +154,7 @@ export function UnifiedAuthPage({ initialMode }: { initialMode: AuthMode }) {
                   <h1>{mode === "login" ? "Acesse seu espaço de trabalho." : "Crie sua conta no Januário Leads"}</h1>
                   <p>{mode === "login"
                     ? "Entre com seu e-mail e senha para continuar acompanhando seus leads e oportunidades."
-                    : "Cadastre seu e-mail e crie uma senha para começar."}</p>
+                    : "Use seu Gmail e crie uma senha. Você precisará confirmar o endereço de e-mail."}</p>
                 </div>
               </div>
               <form className="jl-signup-form" onSubmit={(event) => void submit(event)}>
@@ -170,7 +174,7 @@ export function UnifiedAuthPage({ initialMode }: { initialMode: AuthMode }) {
                   <div className="jl-signup-control">
                     <Mail size={17} aria-hidden="true" />
                     <input type="email" name="email" autoComplete="email" required maxLength={320}
-                      placeholder={mode === "login" ? "seu@email.com" : "seuemail@empresa.com"}
+                      placeholder={mode === "login" ? "seu@email.com" : "seunome@gmail.com"}
                       value={email} onChange={(event) => setEmail(event.target.value)} />
                   </div>
                 </label>
