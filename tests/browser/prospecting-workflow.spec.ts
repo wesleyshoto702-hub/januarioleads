@@ -393,10 +393,10 @@ test("CSV import requires user confirmation and never imports external Google fi
     buffer: Buffer.from("empresa;segmento;telefone;cidade;uf;status;observacoes\n" +
       "Empresa Propria;Restaurante;35922222222;Lavras;MG;send_message;Minha observacao\n"),
   });
-  await expect(panel.getByText("1 novos contatos prontos para importar")).toBeVisible();
+  await expect(panel.getByText("1 novo contato pronto para importar")).toBeVisible();
   expect(writes).toBe(0);
-  await panel.getByRole("button", { name: "Confirmar importação de 1 contatos" }).click();
+  await panel.getByRole("button", { name: "Confirmar importação de 1 contato" }).click();
   await expect.poll(() => writes).toBeGreaterThanOrEqual(1);
   await expect(page.locator(".desktop-table")).toContainText("Empresa Propria");
-  await expect(panel.getByRole("button", { name: /Exportar 1 contatos/ })).toBeEnabled();
+  await expect(panel.getByRole("button", { name: /Exportar 1 contato manual/ })).toBeEnabled();
 });
