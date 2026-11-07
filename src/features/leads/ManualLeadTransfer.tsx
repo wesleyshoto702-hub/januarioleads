@@ -79,7 +79,7 @@ export function ManualLeadTransfer({
               <input type="file" accept=".csv,text/csv" onChange={(event) => void selectFile(event)} />
             </label>
             <button type="button" disabled={exportable.count === 0} onClick={() => downloadCsv("januarioleads-contatos-manuais.csv", exportable.csv)}>
-              <Download size={15} aria-hidden="true"/> Exportar {exportable.count} contatos manuais
+              <Download size={15} aria-hidden="true"/> Exportar {exportable.count} {exportable.count === 1 ? "contato manual" : "contatos manuais"}
             </button>
           </div>
           <p className="manual-csv-policy">
@@ -90,14 +90,14 @@ export function ManualLeadTransfer({
           {notice && <p role="status" className="manual-csv-notice">{notice}</p>}
           {preview && (
             <div className="manual-csv-preview">
-              <strong>{preview.rows.length} novos contatos prontos para importar</strong>
+              <strong>{preview.rows.length} {preview.rows.length === 1 ? "novo contato pronto" : "novos contatos prontos"} para importar</strong>
               <small>{preview.duplicates} duplicatas ignoradas · {preview.errors.length} linhas inválidas</small>
               {preview.errors.length > 0 && <p role="alert">{preview.errors.slice(0, 4).join(" ")}</p>}
               {preview.rows.length > 0 && (
                 <>
                   <ul>{preview.rows.slice(0, 5).map((row) => <li key={row.company + row.city}>{row.company} · {row.city}/{row.state}</li>)}</ul>
                   <button type="button" className="primary-button" disabled={working} onClick={() => void importConfirmed()}>
-                    {working ? "Importando..." : "Confirmar importação de " + preview.rows.length + " contatos"}
+                    {working ? "Importando..." : "Confirmar importação de " + preview.rows.length + (preview.rows.length === 1 ? " contato" : " contatos")}
                   </button>
                 </>
               )}
