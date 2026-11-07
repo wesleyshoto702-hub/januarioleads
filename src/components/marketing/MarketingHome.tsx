@@ -79,7 +79,6 @@ const faq = [
 const pricingPlans = [
   {
     code: "free",
-    number: "01",
     name: "Free",
     summary: "O primeiro passo para encontrar e organizar oportunidades.",
     price: "R$ 0,00",
@@ -93,7 +92,6 @@ const pricingPlans = [
   },
   {
     code: "pro",
-    number: "02",
     name: "Pro",
     summary: "Mais contatos e organização para quem prospecta todos os dias.",
     price: "R$ 14,90",
@@ -108,7 +106,6 @@ const pricingPlans = [
   },
   {
     code: "advanced",
-    number: "03",
     name: "Advanced",
     summary: "Maior volume e ferramentas para decisões comerciais mais rápidas.",
     price: "R$ 29,90",
@@ -481,7 +478,6 @@ export function MarketingHome() {
                   aria-label={`Plano ${plan.name}`}
                 >
                   <div className="jl-pricing-card-top">
-                    <span className="jl-pricing-number" aria-hidden="true">{plan.number}</span>
                     {plan.code === "pro" && <span className="jl-pricing-recommended">Recomendado</span>}
                   </div>
                   <h3>{plan.name}</h3>
