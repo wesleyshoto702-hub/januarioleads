@@ -21,8 +21,48 @@
   display: block;
   width: 100%;
   height: 100%;
-  opacity: .84;
+  opacity: .88;
   pointer-events: none;
+}
+
+
+/*
+ * Small, blurred red halos adapted from the reference HTML.
+ * The canvas supplies independent vertical movement; these gradients only
+ * soften their edges. They do NOT paint the page background red.
+ */
+.jl-aurora-wisp {
+  position: absolute;
+  z-index: 0;
+  display: block;
+  width: min(70vw, 1000px);
+  height: 36vh;
+  border-radius: 48% 52% 58% 42%;
+  pointer-events: none;
+  opacity: .35;
+  filter: blur(60px);
+  background: radial-gradient(ellipse at 50% 50%,
+    rgba(238, 30, 59, .23) 0%,
+    rgba(185, 15, 43, .10) 35%,
+    transparent 74%);
+  animation: jlAuroraSoftSway 28s ease-in-out infinite alternate;
+}
+.jl-aurora-wisp--left {
+  left: -13%;
+  top: 11%;
+  transform-origin: center;
+}
+.jl-aurora-wisp--right {
+  right: -18%;
+  top: 24%;
+  animation-duration: 37s;
+  animation-delay: -11s;
+  animation-direction: alternate-reverse;
+}
+@keyframes jlAuroraSoftSway {
+  0% { transform: translate3d(-5%, 3%, 0) rotate(-7deg) scale(.97); opacity: .26; }
+  47% { transform: translate3d(3%, -6%, 0) rotate(4deg) scale(1.10); opacity: .36; }
+  100% { transform: translate3d(9%, 6%, 0) rotate(9deg) scale(1.02); opacity: .29; }
 }
 
 /* Vignette softens the edges of the ribbons without tinting the black sky. */
@@ -83,9 +123,11 @@
 }
 
 @media (max-width: 700px) {
-  .jl-aurora-canvas { opacity: .67; }
+  .jl-aurora-canvas { opacity: .73; }
+  .jl-aurora-wisp { filter: blur(38px); opacity: .25; }
   .jl-site > main > section { background-color: rgba(5, 6, 8, .67); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .jl-aurora-canvas { opacity: .58; }
+  .jl-aurora-canvas { opacity: .65; }
+  .jl-aurora-wisp { animation: none !important; opacity: .24; transform: none !important; }
 }
