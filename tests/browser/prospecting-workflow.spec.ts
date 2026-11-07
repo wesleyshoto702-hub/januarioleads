@@ -356,7 +356,7 @@ test("Kanban shows the real CRM stages and updates a lead through the existing p
   const board = page.getByRole("region", { name: "Funil de status dos leads" });
   await expect(board).toBeVisible();
   await expect(board.locator(".lead-kanban-column")).toHaveCount(4);
-  await expect(board.getByText("Oficina Exemplo")).toBeVisible();
+  await expect(board.getByText("Oficina Exemplo", { exact: true })).toBeVisible();
   await board.getByRole("combobox", { name: "Status de Oficina Exemplo" }).selectOption("accepted");
   await expect(board.getByRole("region", { name: /Aceito: 1 leads/ })).toContainText("Oficina Exemplo");
   await expect.poll(() => writes).toBeGreaterThanOrEqual(1);
@@ -375,5 +375,28 @@ test("guided daily routine lets a user schedule a follow-up without sending any 
   await expect(routine).toContainText("Não envia mensagens");
   await routine.getByRole("button", { name: "Agendar amanhã" }).click();
   await expect.poll(() => writes).toBeGreaterThanOrEqual(1);
-  await expect(routine).not.toContainText("Sem ação definida");
+  await expect(routine).toContainText("0 Sem ação definida");
+  await expect(routine).toContainText("Nenhuma atividade pendente");
+});
+
+
+test("CSV import requires user confirmation and never imports external Google fields", async ({ page }) => {
+  let writes = 0;
+  await loginWithMocks(page, { leads: [], onLeadWrite: () => { writes++; return true; } });
+  await page.getByRole("button", { name: "Meus Leads", exact: true }).first().click();
+  const panel = page.getByRole("region", { name: "Importação e exportação de contatos próprios" });
+  await panel.getByRole("button", { name: /Importar \/ exportar/ }).click();
+  await expect(panel.getByRole("button", { name: /Exportar 0 contatos/ })).toBeDisabled();
+  await panel.locator('input[type="file"]').setInputFiles({
+    name: "minha-carteira.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("empresa;segmento;telefone;cidade;uf;status;observacoes\n" +
+      "Empresa Propria;Restaurante;35922222222;Lavras;MG;send_message;Minha observacao\n"),
+  });
+  await expect(panel.getByText("1 novo contato pronto para importar")).toBeVisible();
+  expect(writes).toBe(0);
+  await panel.getByRole("button", { name: "Confirmar importação de 1 contato" }).click();
+  await expect.poll(() => writes).toBeGreaterThanOrEqual(1);
+  await expect(page.locator(".desktop-table")).toContainText("Empresa Propria");
+  await expect(panel.getByRole("button", { name: /Exportar 1 contato manual/ })).toBeEnabled();
 });

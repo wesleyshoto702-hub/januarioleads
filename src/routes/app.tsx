@@ -2,6 +2,8 @@ import { useLeadWorkspace, STORAGE } from "../features/leads/use-lead-workspace"
 import { PrivateWorkspace } from "../components/app-shell/PrivateWorkspace";
 import { LeadRow, LeadCard, Select, Modal, EmptyState } from "../features/leads/LeadPresentation";
 import { LeadKanban } from "../features/leads/LeadKanban";
+import { ManualLeadTransfer } from "../features/leads/ManualLeadTransfer";
+import { leadIdentity, type ManualLeadCsvRow } from "../features/leads/manual-leads-csv";
 import {
   enqueueLead,
   flushPendingLeads,
@@ -954,6 +956,34 @@ function LeadFlowApp() {
     setEditingLead(null);
   }
 
+  async function importManualLeads(rows: ManualLeadCsvRow[]): Promise<{ count: number; synced: boolean }> {
+    // Final duplicate check at commit time, not only at CSV preview time.
+    const known = new Set(leads.map((lead) => leadIdentity(lead)));
+    const fresh: Lead[] = [];
+    for (const row of rows.slice(0, 100)) {
+      const identity = leadIdentity(row);
+      if (known.has(identity)) continue;
+      known.add(identity);
+      const lead: Lead = {
+        ...row, id: crypto.randomUUID(), source: "manual",
+        firstContact: crmToday(), createdAt: new Date().toISOString(),
+      };
+      fresh.push(lead);
+    }
+    if (!fresh.length) return { count: 0, synced: true };
+    // Queue all writes first; a failed connection keeps the account-scoped
+    // mutations available for retry rather than discarding the new leads.
+    for (const item of fresh) enqueueLead(item.id, item);
+    setLeads((current) => [...fresh, ...current]);
+    try {
+      await flushPendingLeads();
+      return { count: fresh.length, synced: true };
+    } catch {
+      setRemoteError("Contatos importados na cópia local; sincronização pendente até a conexão voltar.");
+      return { count: fresh.length, synced: false };
+    }
+  }
+
   function changeStatus(id: string, status: Status) {
     const lead = leads.find((item) => item.id === id);
     if (!lead || lead.status === status) return;
@@ -1651,6 +1681,8 @@ function LeadFlowApp() {
               {financeError}
             </p>
           )}
+
+          <ManualLeadTransfer leads={leads} onImport={importManualLeads} />
 
           <div className="lead-panel">
             <div className="panel-toolbar">
