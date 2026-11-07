@@ -343,3 +343,70 @@ test("homepage exibe a aurora mais iluminada que o login sem criar outro canvas"
   expect(home.canvasOpacity).toBeGreaterThan(login.canvasOpacity);
   expect(home.heroBackground).toBe("rgba(5, 1, 2, 0.3)");
 });
+
+
+test("na seção Da pesquisa à rotina os ícones aparecem antes dos textos e as frases revelam da esquerda para direita", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await isolate(page, () => {});
+  await page.goto("/");
+  const workflow = page.locator(".jl-editorial-workflow");
+  const track = workflow.locator(".jl-workflow-track");
+  const nodes = track.locator("li");
+  await expect(nodes).toHaveCount(3);
+  await expect(nodes.nth(0)).toContainText("Explore");
+  await expect(nodes.nth(0)).toContainText("Escolha o segmento e a cidade.");
+
+  // Icons are present for all three stages, but non-Explore copies begin
+  // visually clipped. They remain in the DOM for assistive technologies.
+  for (const index of [1, 2]) {
+    await expect(nodes.nth(index).locator(".jl-workflow-node svg")).toBeVisible();
+    const initialOpacity = await nodes.nth(index).locator(".jl-workflow-copy")
+      .evaluate((element) => Number(getComputedStyle(element).opacity));
+    expect(initialOpacity).toBe(0);
+  }
+
+  await workflow.scrollIntoViewIfNeeded();
+  await expect(track).toHaveAttribute("data-stage", "2", { timeout: 9500 });
+  await expect(nodes.filter({ has: page.locator(".jl-workflow-node") }).filter({ visible: true })).toHaveCount(3);
+  for (const index of [1, 2]) {
+    const copy = nodes.nth(index).locator(".jl-workflow-copy");
+    await expect.poll(() => copy.evaluate((element) => Number(getComputedStyle(element).opacity))).toBe(1);
+    await expect.poll(() => copy.evaluate((element) => getComputedStyle(element).clipPath)).toMatch(/inset\(0px(?: 0px){0,3}\)/);
+    await expect(copy).toHaveCSS("animation-name", "jlWorkflowCopyReveal");
+  }
+});
+
+test("linha de conexão alcança o centro dos próximos ícones no celular e desktop", async ({ page }) => {
+  await isolate(page, () => {});
+  for (const width of [390, 1280]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto("/");
+    const workflow = page.locator(".jl-editorial-workflow");
+    await workflow.scrollIntoViewIfNeeded();
+    await expect(workflow.locator(".jl-workflow-track")).toHaveAttribute("data-stage", "2", { timeout: 9500 });
+
+    const segments = await workflow.locator(".jl-workflow-track").evaluate((list) => {
+      const rows = Array.from(list.querySelectorAll("li"));
+      return rows.slice(0, 2).map((row, index) => {
+        const start = row.querySelector(".jl-workflow-node")!.getBoundingClientRect();
+        const end = rows[index + 1]!.querySelector(".jl-workflow-node")!.getBoundingClientRect();
+        const styles = getComputedStyle(row, "::after");
+        const from = {
+          x: start.left + start.width / 2,
+          y: start.top + start.height / 2,
+        };
+        const to = {
+          x: end.left + end.width / 2,
+          y: end.top + end.height / 2,
+        };
+        return {
+          coloredLength: parseFloat(width <= 640 ? styles.height : styles.width),
+          distance: width <= 640 ? to.y - from.y : to.x - from.x,
+        };
+      });
+    });
+    for (const { coloredLength, distance } of segments) {
+      expect(Math.abs(coloredLength - distance)).toBeLessThan(3);
+    }
+  }
+});
