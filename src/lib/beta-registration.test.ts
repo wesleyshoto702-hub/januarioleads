@@ -129,3 +129,21 @@ Deno.test("erro, senha fraca e redirecionamento inseguro nao vazam respostas Aut
     throw new Error("Network failure leaks details");
   }
 });
+
+Deno.test("cadastro beta rejeita provedores que não são Gmail sem chamar Auth", async () => {
+  let calls = 0;
+  const requester = (async () => {
+    calls++;
+    throw new Error("Não deveria acessar a rede");
+  }) as typeof fetch;
+  for (const email of ["teste@outlook.com", "teste@gmail.com.example.test", "teste@yahoo.com"]) {
+    const result = await requestBetaSignup(
+      config(), email, "long example password", "https://app.test", requester,
+    );
+    if (result.ok || !result.message.includes("@gmail.com")) {
+      throw new Error("Endereço não Gmail foi aceito: " + email);
+    }
+  }
+  if (calls !== 0) throw new Error("Cadastro beta acessou Auth indevidamente");
+});
+
