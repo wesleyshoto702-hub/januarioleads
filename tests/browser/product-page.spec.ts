@@ -10,7 +10,7 @@ function blockExternal(page: import("@playwright/test").Page, onSupabase?: () =>
   });
 }
 
-test("home publica vende o produto sem consultar Supabase ou prometer planos", async ({ page }) => {
+test("home publica apresenta os planos em preparação sem consultar Supabase ou ativar checkout", async ({ page }) => {
   let supabaseRequests = 0;
   await blockExternal(page, () => { supabaseRequests++; });
   await page.goto("/");
@@ -21,7 +21,7 @@ test("home publica vende o produto sem consultar Supabase ou prometer planos", a
   await expect(page.locator(".jl-marketing-briefing")).toHaveCount(0);
   await expect(page.locator(".jl-access, .jl-bottom-cta")).toHaveCount(0);
   await expect(page.getByText(/Acesso atual por convite/i)).toHaveCount(0);
-  await expect(page.locator(".jl-header-actions").getByRole("link", { name: "Acessar conta" })).toBeVisible();
+  await expect(page.locator(".jl-header-actions").getByRole("button", { name: "Acessar conta" })).toBeVisible();
   await expect(page.getByRole("button", { name: /cadastrar|assinar|pagar/i })).toHaveCount(0);
   expect(supabaseRequests).toBe(0);
 
@@ -35,10 +35,13 @@ test("home publica vende o produto sem consultar Supabase ou prometer planos", a
   await expect(page.getByText("Belo Horizonte · MG").first()).toBeVisible();
   expect(supabaseRequests).toBe(0);
 
-  await page.locator(".jl-header-actions").getByRole("link", { name: "Acessar conta" }).click();
+  await page.locator(".jl-header-actions").getByRole("button", { name: "Acessar conta" }).click();
+  const dialog = page.getByRole("dialog", { name: "Você já possui uma conta?" });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("link", { name: /Já tenho conta/ }).click();
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.getByPlaceholder("seu@email.com")).toBeVisible();
-  await page.getByRole("link", { name: /Conhecer a plataforma/i }).click();
+  await page.getByRole("link", { name: /Voltar ao Januário Leads/i }).click();
   await expect(page).toHaveURL(/\/$/);
 });
 
@@ -55,7 +58,7 @@ test("rota antiga /produto segue funcionando como pagina informativa", async ({ 
   await page.goto("/produto");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await expect(page.locator(".jl-hero-search .jl-demo-window")).toBeVisible();
-  await expect(page.locator(".jl-header-actions").getByRole("link", { name: "Acessar conta" })).toBeVisible();
+  await expect(page.locator(".jl-header-actions").getByRole("button", { name: "Acessar conta" })).toBeVisible();
 });
 
 for (const width of [360, 390, 768, 1280]) {
@@ -71,3 +74,53 @@ for (const width of [360, 390, 768, 1280]) {
     expect(hasOverflow).toBe(false);
   });
 }
+
+
+test("planos Free Pro Advanced substituem o comparativo e respeitam preços e limites", async ({ page }) => {
+  await blockExternal(page);
+  await page.goto("/#planos");
+  const section = page.getByRole("region", { name: /Um plano para cada ritmo de prospecção/i });
+  const cards = section.locator(".jl-pricing-card");
+  await expect(cards).toHaveCount(3);
+  const expected = [
+    { name: "Free", price: "R$ 0,00", limit: "5 novos leads por dia" },
+    { name: "Pro", price: "R$ 14,90", limit: "25 novos leads por dia" },
+    { name: "Advanced", price: "R$ 29,90", limit: "70 novos leads por dia" },
+  ] as const;
+  for (let index = 0; index < expected.length; index++) {
+    const plan = cards.nth(index);
+    await expect(plan.getByRole("heading", { level: 3 })).toHaveText(expected[index].name);
+    await expect(plan.locator(".jl-pricing-price")).toContainText(expected[index].price);
+    await expect(plan.getByText(expected[index].limit, { exact: true })).toBeVisible();
+    await expect(plan.getByRole("link")).toHaveAttribute("href", "/cadastro");
+  }
+  await expect(cards.nth(1).getByText("Recomendado", { exact: true })).toBeVisible();
+  await expect(cards.nth(0).getByText("Recomendado", { exact: true })).toHaveCount(0);
+  await expect(cards.nth(2).getByText("Recomendado", { exact: true })).toHaveCount(0);
+  await expect(section.getByText(/não contrata uma assinatura nem realiza cobrança/i)).toBeVisible();
+  await expect(page.getByText("Prospecção manual", { exact: true })).toHaveCount(0);
+});
+
+for (const width of [320, 360, 390, 768, 900, 1280]) {
+  test("cards de planos aparecem sem overflow horizontal em " + width + "px", async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await blockExternal(page);
+    await page.goto("/#planos");
+    const cards = page.locator(".jl-pricing-card");
+    await expect(cards).toHaveCount(3);
+    for (const card of await cards.all()) {
+      await expect(card.getByRole("link")).toBeVisible();
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1))
+      .toBe(false);
+  });
+}
+
+test("animação dos botões respeita preferência de movimento reduzido", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await blockExternal(page);
+  await page.goto("/#planos");
+  const transition = await page.locator(".jl-pricing-card--pro .jl-pricing-cta")
+    .evaluate((element) => getComputedStyle(element).transitionDuration);
+  expect(transition.split(",").every((duration) => parseFloat(duration) === 0)).toBe(true);
+});
