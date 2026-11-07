@@ -10,16 +10,21 @@ import { useEffect, useRef } from "react";
 type Curtain = {
   top: number;
   length: number;
+  center: number;
+  spread: number;
   phase: number;
   speed: number;
   brightness: number;
 };
 
+// Localized, independently drifting ribbons leave black gaps between them.
+// The last two bands intentionally illuminate the lower half of the viewport.
 const CURTAINS: readonly Curtain[] = [
-  { top: .10, length: .44, phase: .4, speed: 1.55, brightness: 1.18 },
-  { top: .24, length: .33, phase: 2.2, speed: -1.28, brightness: .92 },
-  { top: .04, length: .28, phase: 4.7, speed: 1.92, brightness: .72 },
-  { top: .18, length: .22, phase: 6.1, speed: -.96, brightness: .58 },
+  { top: .07, length: .24, center: .18, spread: .31, phase: .4, speed: 1.72, brightness: 1.02 },
+  { top: .18, length: .30, center: .77, spread: .30, phase: 1.9, speed: -1.14, brightness: .84 },
+  { top: .34, length: .34, center: .39, spread: .29, phase: 3.6, speed: 1.48, brightness: .78 },
+  { top: .52, length: .28, center: .76, spread: .27, phase: 5.2, speed: -.92, brightness: .74 },
+  { top: .66, length: .22, center: .21, spread: .28, phase: 6.7, speed: 1.18, brightness: .65 },
 ];
 
 function flowingWave(x: number, time: number, phase: number, speed: number) {
@@ -57,12 +62,17 @@ function drawCurtains(
       const twitch = Math.sin(u * 171 - time * curtain.speed * 1.8 + curtain.phase * 5.2) * .06;
       const envelope = .28 + .72 * (.5 + .5 * Math.sin(u * 12.8 + curtain.phase + time * curtain.speed * .24));
       const flicker = .68 + .32 * Math.sin(u * 67 + time * curtain.speed * 1.1 + curtain.phase * 1.4);
-      const rayOpacity = curtain.brightness * envelope * flicker;
+      // A localized bell-shaped envelope makes each band distinct instead
+      // of drawing five overlapping full-width red blankets.
+      const centerDrift = Math.sin(time * curtain.speed * .19 + curtain.phase) * .06;
+      const distance = (u - curtain.center - centerDrift) / curtain.spread;
+      const separation = Math.exp(-Math.pow(distance, 4) * 1.25);
+      const rayOpacity = curtain.brightness * envelope * flicker * separation;
 
-      const startY = height * (curtain.top + wave * .125 + twitch);
-      const curtainLength = height * curtain.length * (.68 + .25 * wave + .16 * micro + .08 * twitch);
-      const endY = Math.min(height * .86, startY + curtainLength);
-      if (endY <= startY + 8) continue;
+      const startY = height * (curtain.top + wave * .095 + twitch * .65);
+      const curtainLength = height * curtain.length * (.74 + .24 * wave + .16 * micro + .08 * twitch);
+      const endY = Math.min(height * .98, startY + curtainLength);
+      if (endY <= startY + 8 || separation < .025) continue;
 
       const bend = Math.sin(u * 15.5 - time * curtain.speed * .72 + curtain.phase) * width * .04;
       const shift =
@@ -172,6 +182,8 @@ export function AuroraBackdrop() {
     <div className="jl-aurora" aria-hidden="true" data-ambient="aurora">
       <span className="jl-aurora-wisp jl-aurora-wisp--left" />
       <span className="jl-aurora-wisp jl-aurora-wisp--right" />
+      <span className="jl-aurora-wisp jl-aurora-wisp--lower-left" />
+      <span className="jl-aurora-wisp jl-aurora-wisp--lower-right" />
       <canvas ref={canvasRef} className="jl-aurora-canvas" />
     </div>
   );
