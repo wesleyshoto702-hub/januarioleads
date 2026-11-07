@@ -43,57 +43,101 @@
 }
 .jl-site .jl-faq { padding-bottom:clamp(65px,7vw,95px); }
 
-/* Explore → Organize → Acompanhe: each line segment grows precisely from
- * one icon to the next. The copy stays clipped until its icon is reached. */
-.jl-workflow-track li { animation: none; }
+/* Polished workflow: connectors live ONLY in the gap after each item,
+ * never behind labels. The heading + description form one vertically centred
+ * text group beside the node; icons remain visible before copy reveals. */
+.jl-workflow-track {
+  --jl-workflow-gap: clamp(24px, 3.8vw, 62px);
+  display: grid;
+  grid-template-columns: repeat(3,minmax(0,1fr));
+  gap: var(--jl-workflow-gap);
+  align-items: center;
+  overflow: visible;
+}
+.jl-workflow-track li {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 68px;
+  gap: 14px;
+  padding: 0;
+  animation: none;
+}
 .jl-workflow-track li:not(:last-child)::before,
 .jl-workflow-track li:not(:last-child)::after {
   content: "";
   position: absolute;
-  pointer-events: none;
   z-index: 0;
-  left: 23px;
-  top: 22px;
-  width: 100%;
+  pointer-events: none;
+  top: calc(50% - 1.5px);
+  left: 100%;
   height: 3px;
-  border-radius: 10px;
+  width: var(--jl-workflow-gap);
+  border-radius: 4px;
 }
 .jl-workflow-track li:not(:last-child)::before {
-  background: rgba(107,68,83,.45);
+  background: rgba(125, 67, 85, .47);
 }
 .jl-workflow-track li:not(:last-child)::after {
   width: 0;
-  background: linear-gradient(90deg,#bb284a,#ef4b6d,#ff8299);
-  box-shadow: 0 0 14px rgba(239,65,99,.36);
+  background: linear-gradient(90deg,#b52a50,#f65479,#ff92a7);
+  box-shadow: 0 0 10px rgba(244,69,102,.32);
   transition: width .85s linear;
 }
-.jl-workflow-track li.jl-workflow-active:not(:last-child)::after { width: 100%; }
-
+.jl-workflow-track li.jl-workflow-active:not(:last-child)::after {
+  width: var(--jl-workflow-gap);
+}
 .jl-workflow-node {
+  display: grid;
+  place-items: center;
+  position: relative;
   z-index: 2;
-  background: #211f2a;
-  border-color: #594252;
-  color: #ac91a0;
-  box-shadow: 0 0 0 5px #15131e;
-  transition: background .55s ease,border-color .55s ease,box-shadow .55s ease,color .55s ease;
+  width: 56px;
+  height: 56px;
+  flex: 0 0 56px;
+  border: 1px solid #d84b69;
+  border-radius: 16px;
+  color: #ffb9c6;
+  background: linear-gradient(145deg,#481527,#8c1e3c);
+  box-shadow: inset 0 0 0 4px rgba(17,11,21,.9), 0 0 18px rgba(236,58,96,.09);
+  transition: background .45s ease, box-shadow .45s ease, border-color .45s ease;
 }
-.jl-workflow-copy { position: relative; z-index: 1; min-width: 0; }
-.jl-workflow-track li strong {
-  transition: color .45s ease;
-  color: #c5cbd4;
-}
+.jl-workflow-node svg { width: 22px; height: 22px; }
 .jl-workflow-track li.jl-workflow-active .jl-workflow-node {
-  background: linear-gradient(145deg,#b72143,#f04a6a);
-  border-color: #ff8ca1;
   color: white;
-  box-shadow: 0 0 0 5px #15131e,0 0 22px rgba(240,67,108,.29);
+  border-color: #ff7993;
+  background: linear-gradient(145deg,#a71c40,#ef3c60);
+  box-shadow: inset 0 0 0 4px rgba(17,11,21,.94), 0 0 19px rgba(239,57,100,.24);
 }
-.jl-workflow-track li.jl-workflow-active strong { color: #fff; }
-.jl-workflow-track li.jl-workflow-active p { color: #d4b8c4; }
-
-/* Explore and its explanation are readable immediately. The other icons are
- * visible, while their title and description progressively reveal once the
- * connecting line has reached each node (1050ms and 2200ms in the sequence). */
+.jl-workflow-copy {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  padding: 3px 0;
+  text-align: left;
+}
+.jl-workflow-copy strong {
+  display: block;
+  color: #f5f6fa;
+  font: 750 clamp(16px,1.6vw,21px)/1.25 "Space Grotesk",Inter,sans-serif;
+}
+.jl-workflow-copy p {
+  margin: 0;
+  color: #c0bdc8;
+  font-size: 12px;
+  line-height: 1.55;
+  max-width: 250px;
+}
+.jl-workflow-track li.jl-workflow-active .jl-workflow-copy strong { color: #fff; }
+.jl-workflow-track li.jl-workflow-active .jl-workflow-copy p { color: #e0c1cc; }
+/* Reveal the text only once the previous connecting segment has arrived.
+ * Accessible content stays in the DOM; compositing remains lightweight. */
 .jl-workflow-track li:not(:first-child) .jl-workflow-copy {
   opacity: 0;
   clip-path: inset(0 100% 0 0);
@@ -102,32 +146,41 @@
   animation: jlWorkflowCopyReveal .74s cubic-bezier(.22,1,.36,1) both;
 }
 @keyframes jlWorkflowCopyReveal {
-  0%   { opacity: 0; clip-path: inset(0 100% 0 0); }
-  12%  { opacity: 1; }
+  0% { opacity: 0; clip-path: inset(0 100% 0 0); }
+  15% { opacity: 1; }
   100% { opacity: 1; clip-path: inset(0 0 0 0); }
 }
-
-/* Under 640px the three icons stack. Each vertical segment spans the exact
- * height of its own row plus the 24px grid gap to the following icon. */
-@media (max-width:640px) {
+/* Vertical mode begins before the horizontal cards become cramped, so
+ * connector lines also remain outside the text on small tablets. */
+@media (max-width: 900px) {
+  .jl-workflow-track { --jl-workflow-gap: 25px; grid-template-columns: 1fr; }
+  .jl-workflow-track li { min-height: 68px; }
   .jl-workflow-track li:not(:last-child)::before,
   .jl-workflow-track li:not(:last-child)::after {
-    left: 22px;
-    top: 23px;
+    left: 27px;
+    top: 62px;
     width: 3px;
-    height: calc(100% + 24px);
+    height: var(--jl-workflow-gap);
   }
   .jl-workflow-track li:not(:last-child)::after {
     height: 0;
-    background: linear-gradient(180deg,#bb284a,#ef4b6d,#ff8299);
+    background: linear-gradient(180deg,#b52a50,#f65479,#ff92a7);
     transition: height .85s linear;
   }
   .jl-workflow-track li.jl-workflow-active:not(:last-child)::after {
     width: 3px;
-    height: calc(100% + 24px);
+    height: var(--jl-workflow-gap);
   }
 }
-
+@media (prefers-reduced-motion: reduce) {
+  .jl-workflow-track li:not(:last-child)::after,
+  .jl-workflow-node { transition: none !important; }
+  .jl-workflow-track li:not(:first-child) .jl-workflow-copy {
+    opacity: 1 !important;
+    clip-path: none !important;
+    animation: none !important;
+  }
+}
 @media (max-width:850px) {
  .jl-site .jl-hero-grid { padding-block:39px 53px; }
 }
@@ -139,14 +192,4 @@
  .jl-site .jl-hero-highlights span { font-size:9px; gap:4px; }
  .jl-site .jl-hero-highlights svg { width:13px; height:13px; }
 
-}
-@media (prefers-reduced-motion:reduce) {
-  .jl-workflow-track li:not(:last-child)::after,
-  .jl-workflow-node,
-  .jl-workflow-track li strong { transition: none !important; }
-  .jl-workflow-track li:not(:first-child) .jl-workflow-copy {
-    opacity: 1 !important;
-    clip-path: none !important;
-    animation: none !important;
-  }
 }
