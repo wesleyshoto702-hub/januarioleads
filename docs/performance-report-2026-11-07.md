@@ -53,6 +53,7 @@ Novos chunks observados: `SearchLeadsView` 29,23 kB, `OpportunityView` 13,63 kB,
 ## 4. Integridade e regressão
 
 - Build Vite/TanStack Start de produção e `tsc --noEmit` verificados.
+- GitHub Actions (PR #69, código): **95 testes Playwright passaram, 1 foi ignorado**, **124 testes unitários passaram, 0 falharam**; verificação de responsividade em múltiplos navegadores e build de produção concluídos com sucesso.
 - Testes automatizados adicionais: CSS presente apenas nas rotas correspondentes; aurora preservada; renderização de 40 e 80 leads; filtros de carteira e comportamento do Kanban.
 - Manutenção de `prefers-reduced-motion` e pausa da aurora em aba oculta.
 - Sem alterações na identidade vermelha/preta, textos, regras de negócio, migrations, autenticação ou dados financeiros.
