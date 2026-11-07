@@ -35,35 +35,53 @@
   position: absolute;
   z-index: 0;
   display: block;
-  width: min(74vw, 1080px);
-  height: 40vh;
+  width: min(58vw, 900px);
+  height: 30vh;
   border-radius: 44% 56% 61% 39%;
   pointer-events: none;
-  opacity: .42;
-  filter: blur(56px);
+  opacity: .34;
+  filter: blur(54px);
   background: radial-gradient(ellipse at 50% 50%,
-    rgba(238, 30, 59, .28) 0%,
-    rgba(185, 15, 43, .14) 34%,
-    transparent 74%);
+    rgba(238, 30, 59, .24) 0%,
+    rgba(185, 15, 43, .12) 34%,
+    transparent 76%);
   animation: jlAuroraSoftSway 14s cubic-bezier(.45, .05, .55, .95) infinite alternate;
 }
 .jl-aurora-wisp--left {
-  left: -13%;
-  top: 11%;
+  left: -18%;
+  top: 8%;
   transform-origin: center;
+  animation-duration: 13s;
 }
 .jl-aurora-wisp--right {
-  right: -18%;
-  top: 24%;
-  animation-duration: 11s;
-  animation-delay: -3s;
+  right: -20%;
+  top: 22%;
+  animation-duration: 10s;
+  animation-delay: -2s;
   animation-direction: alternate-reverse;
 }
+.jl-aurora-wisp--lower-left {
+  left: -10%;
+  top: 58%;
+  width: min(52vw, 760px);
+  height: 26vh;
+  animation-duration: 17s;
+  animation-delay: -6s;
+  animation-direction: alternate-reverse;
+}
+.jl-aurora-wisp--lower-right {
+  right: -12%;
+  top: 72%;
+  width: min(48vw, 700px);
+  height: 24vh;
+  animation-duration: 15s;
+  animation-delay: -9s;
+}
 @keyframes jlAuroraSoftSway {
-  0% { transform: translate3d(-9%, 4%, 0) rotate(-11deg) scale(.94); opacity: .24; }
-  25% { transform: translate3d(2%, -8%, 0) rotate(6deg) scale(1.08); opacity: .40; }
-  55% { transform: translate3d(-3%, 6%, 0) rotate(-4deg) scale(1.14); opacity: .31; }
-  100% { transform: translate3d(11%, 8%, 0) rotate(13deg) scale(1); opacity: .28; }
+  0% { transform: translate3d(-12%, 3%, 0) rotate(-12deg) scale(.92); opacity: .18; }
+  25% { transform: translate3d(4%, -9%, 0) rotate(7deg) scale(1.10); opacity: .34; }
+  55% { transform: translate3d(-6%, 7%, 0) rotate(-5deg) scale(1.08); opacity: .26; }
+  100% { transform: translate3d(13%, 9%, 0) rotate(14deg) scale(.98); opacity: .20; }
 }
 
 /* Vignette softens the edges of the ribbons without tinting the black sky. */
@@ -79,7 +97,7 @@
       rgba(5, 6, 8, .40),
       transparent 20%,
       transparent 58%,
-      rgba(5, 6, 8, .62) 100%
+      rgba(5, 6, 8, .30) 100%
     );
 }
 
@@ -112,7 +130,7 @@
 .jl-site > main > .jl-editorial-audience { background: rgba(5, 6, 8, .60); }
 .jl-site > main > .jl-comparison { background: rgba(5, 6, 8, .57); }
 .jl-site > main > .jl-faq { background: rgba(5, 6, 8, .58); }
-.jl-site > .jl-footer { background: rgba(5, 6, 8, .78); }
+.jl-site > .jl-footer { background: rgba(5, 6, 8, .66); }
 
 /* The login/register also share the subtle effect, always behind forms. */
 .jl-auth-shell { background: #050608; }
@@ -125,7 +143,9 @@
 
 @media (max-width: 700px) {
   .jl-aurora-canvas { opacity: .84; }
-  .jl-aurora-wisp { filter: blur(38px); opacity: .30; }
+  .jl-aurora-wisp { filter: blur(38px); }
+  .jl-aurora-wisp--lower-left { top: 56%; }
+  .jl-aurora-wisp--lower-right { top: 70%; }
   .jl-site > main > section { background-color: rgba(5, 6, 8, .67); }
 }
 @media (prefers-reduced-motion: reduce) {
