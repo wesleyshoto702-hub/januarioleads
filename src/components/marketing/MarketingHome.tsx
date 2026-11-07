@@ -496,7 +496,6 @@ export function MarketingHome() {
                     aria-label={`${plan.action} — plano ${plan.name}`}
                   >
                     <span>{plan.action}</span>
-                    <span className="jl-pricing-cta-arrow" aria-hidden="true">↗</span>
                   </Link>
                   <div className="jl-pricing-rule" aria-hidden="true" />
                   <ul className="jl-pricing-feature-list">
