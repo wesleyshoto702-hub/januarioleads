@@ -632,3 +632,220 @@ html:has(.jl-site) { scroll-behavior: smooth; }
     transition: none !important;
   }
 }
+
+
+/* Home pricing — screenshot-inspired dark blue surfaces, without external images or checkout. */
+.jl-pricing-section {
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 56% 54% at 50% 13%, rgba(43,67,179,.14), transparent 78%),
+    linear-gradient(180deg,#080d1c 0%,#0b1020 47%,#090d17 100%);
+  border-top: 1px solid rgba(100,128,230,.15);
+  border-bottom: 1px solid rgba(100,128,230,.14);
+}
+.jl-pricing-heading { margin-bottom: clamp(35px,4vw,55px); }
+.jl-pricing-section .jl-pricing-heading .jl-eyebrow {
+  color: #9aafff;
+  letter-spacing: .14em;
+}
+.jl-pricing-section .jl-pricing-heading h2 span { color: #8da8ff; }
+.jl-pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(3,minmax(0,1fr));
+  gap: clamp(14px,1.9vw,23px);
+  align-items: stretch;
+}
+.jl-pricing-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: clamp(24px,2.7vw,34px);
+  border: 1px solid rgba(123,146,226,.29);
+  border-radius: 24px;
+  background: linear-gradient(155deg, #121932 0%, #0e1426 68%, #101526 100%);
+  box-shadow: 0 18px 52px rgba(1,3,14,.2);
+  color: #f5f7ff;
+  transition: border-color .22s ease, transform .22s ease, box-shadow .22s ease;
+}
+.jl-pricing-card--pro {
+  background: linear-gradient(155deg, #243cbb 0%,#202d83 42%,#151c3c 100%);
+  border-color: rgba(135,163,255,.67);
+  box-shadow: inset 0 1px 0 rgba(225,234,255,.12), 0 22px 56px rgba(22,38,124,.16);
+}
+@media (hover:hover) {
+  .jl-pricing-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(150,176,255,.65);
+    box-shadow: 0 26px 62px rgba(3,8,30,.32);
+  }
+}
+.jl-pricing-card-top {
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 9px;
+  margin-bottom: 27px;
+}
+.jl-pricing-number {
+  font-size: 11px;
+  font-weight: 650;
+  color: #91a8e6;
+  letter-spacing: .08em;
+}
+.jl-pricing-card--pro .jl-pricing-number { color: #a9bbff; }
+.jl-pricing-recommended {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border: 1px solid rgba(207,220,255,.33);
+  border-radius: 6px;
+  background: rgba(255,255,255,.075);
+  color: #d9e4ff;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: .02em;
+  white-space: nowrap;
+}
+.jl-pricing-card h3 {
+  font: 760 clamp(28px,2.75vw,38px)/1.17 "Space Grotesk", Inter, sans-serif;
+  letter-spacing: -.04em;
+}
+.jl-pricing-summary {
+  min-height: 79px;
+  margin-top: 17px !important;
+  color: #b6c2da;
+  font-size: 12px;
+  line-height: 1.75;
+}
+.jl-pricing-card--pro .jl-pricing-summary { color: #d7e0ff; }
+.jl-pricing-price {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  white-space: nowrap;
+  margin-top: 33px;
+  margin-bottom: 27px;
+}
+.jl-pricing-price strong {
+  font: 780 clamp(30px,3.05vw,42px)/1.12 "Space Grotesk",Inter,sans-serif;
+  letter-spacing: -.055em;
+}
+.jl-pricing-price > span {
+  font-size: 12px;
+  color: #aabbe0;
+}
+.jl-pricing-cta {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 54px;
+  gap: 10px;
+  overflow: hidden;
+  padding: 12px 17px;
+  border: 1px solid rgba(113,139,217,.52);
+  border-bottom: 3px solid #5f94ec;
+  border-radius: 12px;
+  background: linear-gradient(180deg,#1a2440,#151d32);
+  color: #e8efff;
+  font-size: 13px;
+  font-weight: 760;
+  line-height: 1.4;
+  text-align: center;
+  transition: background-color .2s ease, transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+.jl-pricing-card--pro .jl-pricing-cta {
+  border-color: rgba(124,161,255,.95);
+  border-bottom-color: #89a6ff;
+  background: linear-gradient(130deg,#3159ff,#3554ef);
+  color: white;
+  box-shadow: 0 5px 18px rgba(34,69,195,.24);
+}
+.jl-pricing-cta:before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(105deg, transparent 15%,rgba(255,255,255,.1) 48%,transparent 82%);
+  transform: translateX(-125%);
+  transition: transform .55s ease;
+}
+.jl-pricing-cta-arrow {
+  display: inline-block;
+  opacity: .75;
+  transform: translate(0,0);
+  transition: transform .2s ease, opacity .2s ease;
+}
+@media (hover:hover) {
+  .jl-pricing-cta:hover {
+    color: #fff;
+    border-color: #a5baff;
+    transform: translateY(-2px);
+    box-shadow: 0 12px 24px rgba(35,68,180,.28);
+  }
+  .jl-pricing-cta:hover:before { transform: translateX(125%); }
+  .jl-pricing-cta:hover .jl-pricing-cta-arrow {
+    opacity: 1;
+    transform: translate(2px,-2px);
+  }
+}
+.jl-pricing-cta:focus-visible { outline: 3px solid #bfd0ff; outline-offset: 4px; }
+.jl-pricing-rule {
+  height: 1px;
+  width: 100%;
+  margin: 33px 0 24px;
+  background: rgba(145,166,221,.17);
+}
+.jl-pricing-feature-list {
+  display: grid;
+  gap: 18px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: #bdcce7;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.jl-pricing-feature-list li { display: flex; align-items: flex-start; gap: 12px; }
+.jl-pricing-feature-list svg {
+  flex: 0 0 17px;
+  color: #7eafff;
+  margin-top: 1px;
+}
+.jl-pricing-card--pro .jl-pricing-feature-list { color: #e4e9ff; }
+.jl-pricing-card--pro .jl-pricing-feature-list svg { color: #b0c9ff; }
+.jl-pricing-footnote {
+  max-width: 720px;
+  margin: 26px auto 0 !important;
+  color: #8997b6;
+  font-size: 11px;
+  text-align: center;
+  line-height: 1.75;
+}
+.jl-site #planos { scroll-margin-top: 94px; }
+@media (max-width: 860px) {
+  .jl-pricing-grid { grid-template-columns: 1fr; max-width: 520px; margin-inline: auto; }
+  .jl-pricing-card { padding: clamp(24px,5vw,34px); border-radius: 22px; }
+  .jl-pricing-card-top { margin-bottom: 24px; }
+  .jl-pricing-summary { min-height: 0; margin-top: 14px !important; }
+  .jl-pricing-price { margin-top: 33px; margin-bottom: 24px; }
+  .jl-pricing-section { padding-block: 66px 75px; }
+}
+@media (max-width: 400px) {
+  .jl-pricing-card { padding: 23px 21px; border-radius: 20px; }
+  .jl-pricing-price strong { font-size: 34px; }
+  .jl-pricing-price > span { font-size: 12px; }
+  .jl-pricing-feature-list { gap: 16px; }
+  .jl-pricing-card-top { margin-bottom: 22px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .jl-pricing-card, .jl-pricing-cta, .jl-pricing-cta::before, .jl-pricing-cta-arrow {
+    transition: none !important;
+    transform: none !important;
+  }
+}
