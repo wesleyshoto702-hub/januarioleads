@@ -377,3 +377,25 @@ test("guided daily routine lets a user schedule a follow-up without sending any 
   await expect.poll(() => writes).toBeGreaterThanOrEqual(1);
   await expect(routine).not.toContainText("Sem ação definida");
 });
+
+
+test("CSV import requires user confirmation and never imports external Google fields", async ({ page }) => {
+  let writes = 0;
+  await loginWithMocks(page, { leads: [], onLeadWrite: () => { writes++; return true; } });
+  await page.getByRole("button", { name: "Meus Leads", exact: true }).first().click();
+  const panel = page.getByRole("region", { name: "Importação e exportação de contatos próprios" });
+  await panel.getByRole("button", { name: /Importar \/ exportar/ }).click();
+  await expect(panel.getByRole("button", { name: /Exportar 0 contatos/ })).toBeDisabled();
+  await panel.locator('input[type="file"]').setInputFiles({
+    name: "minha-carteira.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("empresa;segmento;telefone;cidade;uf;status;observacoes\n" +
+      "Empresa Propria;Restaurante;35922222222;Lavras;MG;send_message;Minha observacao\n"),
+  });
+  await expect(panel.getByText("1 novos contatos prontos para importar")).toBeVisible();
+  expect(writes).toBe(0);
+  await panel.getByRole("button", { name: "Confirmar importação de 1 contatos" }).click();
+  await expect.poll(() => writes).toBeGreaterThanOrEqual(1);
+  await expect(page.locator(".desktop-table")).toContainText("Empresa Propria");
+  await expect(panel.getByRole("button", { name: /Exportar 1 contatos/ })).toBeEnabled();
+});
