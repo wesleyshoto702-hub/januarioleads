@@ -7,7 +7,7 @@ import {
 import { useState, type FormEvent } from "react";
 import { AuroraBackdrop } from "../components/marketing/AuroraBackdrop";
 import { BETA_SIGNUP_CONFIG, requestBetaSignup } from "../lib/beta-registration";
-import { requestPublicSignup, prepareGoogleOAuth } from "../lib/public-registration";
+import { requestPublicSignup, prepareGoogleOAuth, googleProviderStatus } from "../lib/public-registration";
 import { USE_HTTPONLY_SESSION } from "../lib/supabase-config";
 
 export const Route = createFileRoute("/cadastro")({
@@ -78,6 +78,11 @@ function RegistrationPage() {
     }
     setGoogleLoading(true);
     try {
+      const availability = await googleProviderStatus();
+      if (!availability.ok) {
+        setError(availability.message);
+        return;
+      }
       const result = await prepareGoogleOAuth(window.location.origin, sessionStorage);
       if (!result.ok || !result.url) {
         setError(result.ok ? "Não foi possível abrir o Google." : result.message);
