@@ -115,8 +115,8 @@ function RegistrationPage() {
           {completed ? (
             <div className="jl-signup-complete">
               <span className="jl-signup-complete-icon"><CheckCircle2 size={30} aria-hidden="true" /></span>
-              <h1>Confira seu e-mail</h1>
-              <p role="status">Se o endereço puder ser cadastrado, você receberá as instruções de confirmação. A ativação do CRM acontece separadamente.</p>
+              <h1>Cadastro solicitado</h1>
+              <p role="status">Se a confirmação por e-mail estiver habilitada, você receberá instruções. Depois, entre com suas credenciais. O acesso ao CRM depende de liberação separada.</p>
               <Link className="jl-signup-primary" to="/login">Ir para acessar conta <ArrowRight size={18} aria-hidden="true" /></Link>
             </div>
           ) : (
