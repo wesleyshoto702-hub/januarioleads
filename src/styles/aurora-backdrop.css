@@ -1,6 +1,9 @@
-/* Genuine behind-content aurora: fixed translucent gradient curtains.
- * No foreground dots, pointer interception, JS, images or external libraries.
- * The public page content lives in a HIGHER stacking layer than the aurora. */
+/*
+ * Northern lights, not a red background.
+ * The black background is always dominant. A low-opacity canvas draws
+ * irregular red light rays only in localized bands (no red full-page wash).
+ * Every interactive/typographic element remains in a higher stacking layer.
+ */
 .jl-site > .jl-aurora,
 .jl-auth-shell > .jl-aurora {
   position: fixed;
@@ -9,306 +12,80 @@
   overflow: hidden;
   pointer-events: none;
   user-select: none;
-  contain: layout style paint;
-  background:
-    radial-gradient(ellipse at 52% 44%,rgba(22,25,45,.35),transparent 78%),
-    #080a0f;
+  background: #050608;
 }
-.jl-site > .jl-header { position: relative; z-index: 5; }
+
+.jl-aurora-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: .84;
+  pointer-events: none;
+}
+
+/* Vignette softens the edges of the ribbons without tinting the black sky. */
+.jl-site > .jl-aurora::after,
+.jl-auth-shell > .jl-aurora::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      to bottom,
+      rgba(5, 6, 8, .40),
+      transparent 20%,
+      transparent 58%,
+      rgba(5, 6, 8, .62) 100%
+    );
+}
+
+.jl-site > .jl-header {
+  position: relative;
+  z-index: 5;
+  background: rgba(5, 6, 8, .83);
+}
 .jl-site > main,
-.jl-site > .jl-footer { position: relative; z-index: 1; }
+.jl-site > .jl-footer {
+  position: relative;
+  z-index: 1;
+}
 .jl-site > .jl-skip { z-index: 50; }
 
-/* Sections must have partly transparent surfaces so that a background truly
- * BEHIND the page can still be seen, rather than layering effects over text. */
-.jl-site .jl-hero {
-  background:
-    linear-gradient(rgba(255,255,255,.013) 1px,transparent 1px),
-    linear-gradient(90deg,rgba(255,255,255,.013) 1px,transparent 1px),
-    radial-gradient(ellipse 60% 60% at 90% 20%,rgba(226,51,98,.055),transparent 100%),
-    rgba(8,10,16,.30);
-  background-size: 86px 86px,86px 86px,auto,auto;
-}
-.jl-site .jl-tour-section { background: rgba(9,12,20,.48); }
-.jl-site .jl-editorial-challenge { background: rgba(9,12,18,.68); }
-.jl-site .jl-editorial-workflow { background: linear-gradient(180deg,rgba(18,19,32,.64),rgba(17,14,27,.68)); }
-.jl-site .jl-feature-section { background: rgba(7,10,19,.64); }
-.jl-site .jl-editorial-audience { background: linear-gradient(150deg,rgba(15,18,32,.67),rgba(10,12,22,.63)); }
-.jl-site .jl-comparison { background: rgba(9,11,19,.57); }
-.jl-site .jl-faq { background: rgba(11,15,25,.63); }
-.jl-site .jl-footer { background: rgba(7,9,15,.76); }
-.jl-site .jl-header { background: rgba(8,10,16,.87); }
-
-/* Animated aurora curtains: soft elliptical lights, with calm wandering
- * movement inspired by northern lights, adapted to Januário's red identity. */
-.jl-aurora-veil {
-  display: block;
-  position: absolute;
-  width: 100vw;
-  height: 65vh;
-  border-radius: 38% 62% 46% 54% / 40% 60% 46% 54%;
-  filter: blur(48px);
-  opacity: .34;
-  transform-origin: center center;
-  will-change: transform, opacity;
-  animation: jlAuroraDrift 31s ease-in-out infinite alternate;
-}
-.jl-aurora-veil--rose {
-  width: 110vw;
-  height: 69vh;
-  left: -38%;
-  top: -34%;
-  background:
-    linear-gradient(118deg,transparent 5%,rgba(248,42,84,.37) 34%,rgba(255,91,118,.24) 53%,transparent 79%);
-  animation-duration: 28s;
-}
-.jl-aurora-veil--violet {
-  width: 110vw;
-  height: 76vh;
-  right: -43%;
-  top: -8%;
-  opacity: .30;
-  background:
-    linear-gradient(125deg,transparent 6%,rgba(149,76,198,.32) 36%,rgba(209,66,132,.29) 55%,transparent 83%);
-  animation: jlAuroraSway 40s ease-in-out -14s infinite alternate;
-}
-.jl-aurora-veil--plum {
-  width: 106vw;
-  height: 70vh;
-  left: -27%;
-  bottom: -33%;
-  opacity: .27;
-  background: linear-gradient(132deg,transparent 9%,rgba(199,37,92,.36) 43%,rgba(115,62,145,.23) 62%,transparent 88%);
-  animation: jlAuroraSway 37s ease-in-out -22s infinite alternate-reverse;
-}
-.jl-aurora-veil--blue {
-  width: 95vw;
-  height: 67vh;
-  right: -32%;
-  bottom: -31%;
-  opacity: .19;
-  background: linear-gradient(128deg,transparent 10%,rgba(54,113,164,.34) 43%,rgba(120,79,169,.22) 59%,transparent 80%);
-  animation: jlAuroraDrift 44s ease-in-out -19s infinite alternate-reverse;
-}
-.jl-aurora-haze {
-  display:block;
-  position:absolute;
-  inset:0;
-  opacity:.48;
-  background:
-    radial-gradient(ellipse 40% 35% at 24% 72%,rgba(175,42,91,.09),transparent 90%),
-    radial-gradient(ellipse 42% 45% at 79% 35%,rgba(134,77,162,.09),transparent 85%);
-  animation: jlAuroraBreath 24s ease-in-out infinite alternate;
-}
-@keyframes jlAuroraDrift {
-  0% { transform: translate3d(-8%,-2%,0) rotate(-15deg) scale(.88); opacity:.18; }
-  45% { transform: translate3d(4%,8%,0) rotate(4deg) scale(1.12); opacity:.37; }
-  100% { transform: translate3d(16%,-9%,0) rotate(19deg) scale(1.06); opacity:.29; }
-}
-@keyframes jlAuroraSway {
-  0% { transform:translate3d(-12%,-9%,0) rotate(18deg) scale(.92); opacity:.17; }
-  50% { transform:translate3d(5%,6%,0) rotate(-7deg) scale(1.11); opacity:.37; }
-  100% { transform:translate3d(14%,-5%,0) rotate(-23deg) scale(1.19); opacity:.27; }
-}
-@keyframes jlAuroraBreath {
-  from { opacity:.30; transform:scale(1); }
-  to { opacity:.56; transform:scale(1.08); }
-}
-
-/* Public login/register: same aurora placed BEHIND all forms. */
-.jl-auth-shell { background:#080a0f; }
-.jl-auth-shell > .jl-aurora { opacity:.78; }
-.jl-auth-shell > .jl-auth-header,
-.jl-auth-shell > .jl-auth-main,
-.jl-auth-shell > .jl-auth-footer { position:relative; z-index:2; }
-
-@media (max-width:700px) {
-  .jl-aurora-veil { filter:blur(34px); }
-  .jl-aurora-veil--blue { display:none; }
-  .jl-aurora-veil--rose { opacity:.24; }
-  .jl-aurora-veil--violet { opacity:.23; }
-  .jl-aurora-veil--plum { opacity:.21; }
-}
-@media (prefers-reduced-motion:reduce) {
-  .jl-aurora-veil, .jl-aurora-haze {
-    animation:none !important;
-    transform:none !important;
-    will-change:auto;
-  }
-  .jl-aurora-veil { opacity:.18; }
-  .jl-aurora-haze { opacity:.30; }
-}
-
-
-/* Homepage-wide aurora visibility fix.
- * Keep one viewport-sized BACKGROUND while scrolling: no foreground particle
- * layer, no pointer interception, no effect on the private CRM.
- * The previous very faint veils behind 60-70% opaque section backgrounds were
- * virtually invisible beyond the hero. Increase luminous coverage and let the
- * same moving backdrop show through every public homepage section. */
-.jl-site > .jl-aurora {
-  inset: 0;
-  width: 100%;
-  height: 100vh;
-  height: 100dvh;
-  contain: none;
-  isolation: isolate;
-  background:
-    radial-gradient(ellipse 78% 88% at 8% 16%, rgba(89, 20, 55, .36), transparent 85%),
-    radial-gradient(ellipse 72% 83% at 93% 79%, rgba(34, 41, 100, .40), transparent 88%),
-    #080a10;
-}
-
-/* Broad, moving curtains span the entire viewport at all scroll positions. */
-.jl-site > .jl-aurora .jl-aurora-veil {
-  width: 135%;
-  height: 132%;
-  border-radius: 44% 56% 57% 43% / 60% 40% 58% 42%;
-  filter: blur(45px);
-  opacity: .78;
-  mix-blend-mode: screen;
-  transform-origin: 50% 50%;
-  will-change: transform, opacity;
-}
-.jl-site > .jl-aurora .jl-aurora-veil--rose {
-  left: -29%;
-  top: -28%;
-  background:
-    linear-gradient(104deg,
-      transparent 7%, rgba(238, 35, 79, .10) 17%,
-      rgba(246, 45, 93, .64) 29%, rgba(250, 80, 126, .22) 40%,
-      rgba(188, 28, 86, .44) 51%, transparent 70%),
-    radial-gradient(ellipse 52% 60% at 34% 51%, rgba(219, 32, 87, .46), transparent 87%);
-  animation: jlAuroraFullDrift 23s ease-in-out -5s infinite alternate;
-}
-.jl-site > .jl-aurora .jl-aurora-veil--violet {
-  right: -30%;
-  top: -25%;
-  background:
-    linear-gradient(125deg,
-      transparent 12%, rgba(145, 75, 215, .12) 21%,
-      rgba(161, 73, 218, .53) 36%, rgba(220, 76, 163, .26) 50%,
-      rgba(104, 65, 185, .42) 65%, transparent 84%),
-    radial-gradient(ellipse 58% 65% at 63% 46%, rgba(120, 63, 189, .35), transparent 85%);
-  animation: jlAuroraFullSway 29s ease-in-out -13s infinite alternate-reverse;
-}
-.jl-site > .jl-aurora .jl-aurora-veil--plum {
-  left: -36%;
-  bottom: -39%;
-  background:
-    linear-gradient(111deg,
-      transparent 13%, rgba(242, 50, 118, .40) 28%,
-      rgba(172, 53, 139, .49) 42%, rgba(115, 54, 154, .29) 59%,
-      transparent 79%),
-    radial-gradient(ellipse 56% 49% at 45% 49%, rgba(174, 37, 106, .30), transparent 91%);
-  animation: jlAuroraFullSway 27s ease-in-out -18s infinite alternate;
-}
-.jl-site > .jl-aurora .jl-aurora-veil--blue {
-  right: -31%;
-  bottom: -42%;
-  background:
-    linear-gradient(123deg,
-      transparent 8%, rgba(67, 104, 195, .09) 20%,
-      rgba(73, 122, 197, .45) 38%, rgba(115, 78, 179, .29) 54%,
-      transparent 78%),
-    radial-gradient(ellipse 60% 55% at 56% 54%, rgba(61, 91, 169, .34), transparent 90%);
-  animation: jlAuroraFullDrift 34s ease-in-out -17s infinite alternate-reverse;
-}
-/* Extra translucent light folds; still contained inside the BACKGROUND node. */
-.jl-site > .jl-aurora::before {
-  content: "";
-  position: absolute;
-  inset: -18% -24%;
-  z-index: 1;
-  border-radius: 45%;
-  pointer-events: none;
-  background: repeating-linear-gradient(
-    112deg,
-    transparent 0%, rgba(245, 59, 109, .16) 12%,
-    transparent 23%, rgba(160, 88, 212, .20) 35%,
-    transparent 46%, rgba(83, 120, 205, .12) 59%,
-    transparent 71%
-  );
-  filter: blur(62px);
-  opacity: .62;
-  animation: jlAuroraFullCurtain 26s ease-in-out -9s infinite alternate;
-}
-/* Dark edge softening keeps long-form reading comfortable. */
-.jl-site > .jl-aurora::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  pointer-events: none;
-  background: radial-gradient(ellipse 88% 87% at 50% 49%, transparent 38%, rgba(5, 7, 13, .25) 100%);
-}
-.jl-site > .jl-aurora .jl-aurora-haze {
-  opacity: .65;
-  background:
-    radial-gradient(ellipse 58% 60% at 25% 75%, rgba(220, 35, 92, .23), transparent 86%),
-    radial-gradient(ellipse 58% 70% at 78% 26%, rgba(134, 69, 202, .23), transparent 88%);
-  animation: jlAuroraFullBreathe 18s ease-in-out infinite alternate;
-}
-@keyframes jlAuroraFullDrift {
-  0%   { transform: translate3d(-7%, -8%, 0) rotate(-12deg) scale(.96); opacity: .65; }
-  50%  { transform: translate3d(3%, 7%, 0) rotate(4deg) scale(1.09); opacity: .92; }
-  100% { transform: translate3d(10%, -4%, 0) rotate(13deg) scale(1.02); opacity: .77; }
-}
-@keyframes jlAuroraFullSway {
-  0%   { transform: translate3d(-10%, 3%, 0) rotate(8deg) scale(1.03); opacity: .67; }
-  50%  { transform: translate3d(6%, -8%, 0) rotate(-9deg) scale(.97); opacity: .92; }
-  100% { transform: translate3d(12%, 8%, 0) rotate(-17deg) scale(1.12); opacity: .77; }
-}
-@keyframes jlAuroraFullCurtain {
-  0%   { transform: translate3d(-10%, -3%, 0) rotate(-7deg); opacity: .45; }
-  100% { transform: translate3d(10%, 5%, 0) rotate(8deg); opacity: .78; }
-}
-@keyframes jlAuroraFullBreathe {
-  from { opacity: .43; transform: scale(1); }
-  to   { opacity: .73; transform: scale(1.10); }
-}
-
-/* The aurora is BEHIND all page content, not a moving foreground overlay.
- * Sections are dark translucent scrims, rather than opaque blocks hiding it. */
-.jl-site > .jl-header { background: rgba(8, 10, 17, .68); }
+/* Dark translucent panels preserve contrast for the EXISTING text colors.
+ * These are deliberately darker than the earlier .18-.24 scrims, which let
+ * bright background gradients wash over the typography. */
 .jl-site > main > .jl-hero {
   background:
-    linear-gradient(rgba(255, 255, 255, .012) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, .012) 1px, transparent 1px),
-    rgba(7, 9, 15, .18);
+    linear-gradient(rgba(255,255,255,.010) 1px, transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.010) 1px,transparent 1px),
+    rgba(5, 6, 8, .51);
   background-size: 86px 86px, 86px 86px, auto;
 }
-.jl-site > main > .jl-tour-section { background: rgba(7, 9, 15, .19); }
-.jl-site > main > .jl-editorial-challenge { background: rgba(7, 9, 15, .24); }
-.jl-site > main > .jl-editorial-workflow { background: rgba(12, 11, 21, .20); }
-.jl-site > main > .jl-feature-section { background: rgba(7, 9, 15, .19); }
-.jl-site > main > .jl-editorial-audience { background: rgba(9, 11, 21, .22); }
-.jl-site > main > .jl-comparison { background: rgba(7, 9, 15, .19); }
-.jl-site > main > .jl-faq { background: rgba(7, 9, 15, .22); }
-.jl-site > .jl-footer { background: rgba(7, 9, 15, .45); }
+.jl-site > main > .jl-tour-section { background: rgba(5, 6, 8, .55); }
+.jl-site > main > .jl-editorial-challenge { background: rgba(5, 6, 8, .62); }
+.jl-site > main > .jl-editorial-workflow { background: rgba(5, 6, 8, .56); }
+.jl-site > main > .jl-feature-section { background: rgba(5, 6, 8, .57); }
+.jl-site > main > .jl-editorial-audience { background: rgba(5, 6, 8, .60); }
+.jl-site > main > .jl-comparison { background: rgba(5, 6, 8, .57); }
+.jl-site > main > .jl-faq { background: rgba(5, 6, 8, .58); }
+.jl-site > .jl-footer { background: rgba(5, 6, 8, .78); }
+
+/* The login/register also share the subtle effect, always behind forms. */
+.jl-auth-shell { background: #050608; }
+.jl-auth-shell > .jl-auth-header,
+.jl-auth-shell > .jl-auth-main,
+.jl-auth-shell > .jl-auth-footer {
+  position: relative;
+  z-index: 2;
+}
 
 @media (max-width: 700px) {
-  /* All four colors remain visible on mobile, with less expensive blur. */
-  .jl-site > .jl-aurora .jl-aurora-veil {
-    filter: blur(30px);
-  }
-  .jl-site > .jl-aurora .jl-aurora-veil--blue {
-    display: block;
-  }
-  .jl-site > .jl-aurora::before {
-    filter: blur(36px);
-    opacity: .45;
-  }
-  .jl-site > .jl-aurora .jl-aurora-haze { opacity: .5; }
+  .jl-aurora-canvas { opacity: .67; }
+  .jl-site > main > section { background-color: rgba(5, 6, 8, .67); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .jl-site > .jl-aurora .jl-aurora-veil,
-  .jl-site > .jl-aurora .jl-aurora-haze,
-  .jl-site > .jl-aurora::before {
-    animation: none !important;
-    transform: none !important;
-    will-change: auto;
-  }
-  .jl-site > .jl-aurora .jl-aurora-veil { opacity: .72; }
-  .jl-site > .jl-aurora::before { opacity: .45; }
+  .jl-aurora-canvas { opacity: .58; }
 }
