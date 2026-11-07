@@ -110,7 +110,7 @@
   background: linear-gradient(145deg,#a71c40,#ef3c60);
   box-shadow: inset 0 0 0 4px rgba(17,11,21,.94), 0 0 19px rgba(239,57,100,.24);
 }
-.jl-workflow-copy {
+.jl-workflow-track li > .jl-workflow-copy {
   position: relative;
   z-index: 1;
   display: flex;
@@ -122,12 +122,12 @@
   padding: 3px 0;
   text-align: left;
 }
-.jl-workflow-copy strong {
+.jl-workflow-track li .jl-workflow-copy strong {
   display: block;
   color: #f5f6fa;
   font: 750 clamp(16px,1.6vw,21px)/1.25 "Space Grotesk",Inter,sans-serif;
 }
-.jl-workflow-copy p {
+.jl-workflow-track li .jl-workflow-copy p {
   margin: 0;
   color: #c0bdc8;
   font-size: 12px;
