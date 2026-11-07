@@ -56,18 +56,46 @@ test("mensagem editável não exibe rotulagem de conteúdo fictício", async ({ 
   await expect(demo.getByText("Sem envio automático")).toBeVisible();
 });
 
-test("login oferece e-mail, senha e cadastro sem botão Google", async ({ page }) => {
+test("login e cadastro compartilham um único cartão carmesim com abas locais", async ({ page }) => {
   let supabaseCalls = 0;
   await isolatePublicPage(page, () => supabaseCalls++);
   await page.goto("/login");
-  await expect(page.getByRole("heading", { name: /Um só lugar para descobrir/i })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /Acesse seu espaço de trabalho/i })).toBeVisible();
-  await expect(page.locator(".jl-auth-shell a[href='/cadastro']").first()).toBeVisible();
-  await expect(page.locator('.jl-auth-fields input[type="email"]')).toBeVisible();
-  await expect(page.locator('.jl-auth-fields input[type="password"]')).toBeVisible();
-  await expect(page.getByRole("button", { name: /Continuar com Google/ })).toHaveCount(0);
-  await expect(page.getByText(/A criação de uma identidade não libera o CRM/)).toBeVisible();
+
+  const card = page.locator(".jl-signup-card");
+  await expect(card).toHaveCount(1);
+  await expect(page.locator(".jl-auth-main, .jl-auth-story, .jl-auth-form-card")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Acesse seu espaço de trabalho." })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Entrar" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tab", { name: "Criar conta" })).toHaveAttribute("aria-selected", "false");
+  await expect(card.locator('input[type="email"]')).toBeVisible();
+  await expect(card.locator('input[type="password"]')).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Continuar com Google" })).toHaveCount(0);
+
+  const originalUrl = page.url();
+  await page.getByRole("tab", { name: "Criar conta" }).click();
+  await expect(page.getByRole("heading", { name: "Crie sua conta no Januário Leads" })).toBeVisible();
+  await expect(card.locator('input[type="password"]')).toHaveCount(2);
+  await expect(page.getByPlaceholder("Seu nome completo")).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Criar conta" })).toHaveAttribute("aria-selected", "true");
+  expect(page.url()).toBe(originalUrl);
+
+  await page.getByRole("tab", { name: "Entrar" }).click();
+  await expect(page.getByRole("heading", { name: "Acesse seu espaço de trabalho." })).toBeVisible();
+  await expect(card.locator('input[type="password"]')).toHaveCount(1);
+  expect(page.url()).toBe(originalUrl);
   expect(supabaseCalls).toBe(0);
+});
+
+test("a identidade do cadastro não exibe ícones de logotipo nem cadeado no badge", async ({ page }) => {
+  await isolatePublicPage(page, () => {});
+  await page.goto("/cadastro");
+  await expect(page.getByRole("tab", { name: "Criar conta" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("heading", { name: "Crie sua conta no Januário Leads" })).toBeVisible();
+  await expect(page.locator(".jl-signup-brand")).toContainText("Januário");
+  await expect(page.locator(".jl-signup-brand svg, .jl-signup-brand-mark")).toHaveCount(0);
+  await expect(page.locator(".jl-signup-safe-badge")).toContainText("PROSPECÇÃO ORGANIZADA");
+  await expect(page.locator(".jl-signup-safe-badge svg")).toHaveCount(0);
+  await expect(page.locator(".jl-auth-main, .jl-auth-story")).toHaveCount(0);
 });
 
 for (const width of [360, 390, 768, 1280]) {
