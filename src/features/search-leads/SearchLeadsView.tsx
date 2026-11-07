@@ -1106,6 +1106,29 @@ export function SearchLeadsView({
     setDetails((current) => (current ? merge(current) : current));
   }
 
+  const saasUsagePanel = SAAS_STAGING_ACTIVE ? (
+    <div className="search-cache-notice" role="status" aria-live="polite">
+      <strong>
+        {saasUsage
+          ? "Plano " + saasUsage.plan.toUpperCase() + " — " +
+            saasUsage.remaining_today + " de " + saasUsage.daily_limit +
+            " leads disponíveis hoje"
+          : "Plano e limite de leads"}
+      </strong>
+      <span>
+        {saasUsage
+          ? saasUsage.used_today +
+            " leads utilizados hoje. O limite renova à meia-noite, horário de Brasília." +
+            (saasUsage.remaining_today === 0
+              ? " Você atingiu o limite. Volte amanhã para fazer novas buscas."
+              : "")
+          : saasUsageError
+            ? "Não foi possível consultar seu saldo agora. O servidor continua protegendo os limites."
+            : "Consultando seu saldo diário..."}
+      </span>
+    </div>
+  ) : null;
+
   if (screen === "segments") {
     return (
       <section className="page-wrap search-leads-page">
@@ -1123,6 +1146,7 @@ export function SearchLeadsView({
           </div>
         </div>
 
+        {saasUsagePanel}
         <div className="search-location-panel">
           <label className="search-location-field">
             <span>Estado</span>
@@ -1271,7 +1295,8 @@ export function SearchLeadsView({
               !selectedSegment ||
               !selectedCity ||
               loading ||
-              municipalitiesLoading
+              municipalitiesLoading ||
+              (SAAS_STAGING_ACTIVE && saasUsage?.remaining_today === 0)
             }
             onClick={startSearch}
           >
@@ -1303,6 +1328,7 @@ export function SearchLeadsView({
         </div>
       </div>
 
+      {saasUsagePanel}
       {/* Choose the open-now filter only after the niche search has returned. */}
       <SearchModeSwitcher mode={mode} onModeChange={onModeChange} />
       {mode === "open" && (
