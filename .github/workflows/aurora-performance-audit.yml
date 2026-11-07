@@ -1,0 +1,36 @@
+name: Medir Web Vitals e travamentos da aurora
+
+on:
+  pull_request:
+    paths:
+      - "src/components/marketing/AuroraBackdrop.tsx"
+      - "src/styles/aurora-backdrop.css"
+      - "tests/browser/aurora-performance-probe.spec.ts"
+      - "scripts/performance/page-speed.mjs"
+      - ".github/workflows/aurora-performance-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  aurora-homepage:
+    name: Diagnóstico da homepage publicada e candidata
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+      - name: Instalar dependências
+        run: bun install --frozen-lockfile
+      - name: Instalar Chromium
+        run: bunx playwright install --with-deps chromium
+      - name: Comparar frames, long tasks, LCP, CLS e interações de laboratório
+        env:
+          RUN_AURORA_PERF_AUDIT: "1"
+        run: bunx playwright test tests/browser/aurora-performance-probe.spec.ts --reporter=list
+      - name: Consultar CrUX (INP real quando disponível) e Lighthouse via PageSpeed
+        if: always()
+        run: node scripts/performance/page-speed.mjs

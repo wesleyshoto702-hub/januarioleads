@@ -44,7 +44,9 @@ function drawCurtains(
   mobile: boolean,
 ) {
   context.clearRect(0, 0, width, height);
-  const spacing = mobile ? 10 : 7;
+  // An aurora moves slowly: fewer, wider overlapping rays retain its soft
+  // curtains while avoiding thousands of Canvas strokes per second.
+  const spacing = mobile ? 16 : 12;
   const rayCount = Math.ceil(width / spacing);
   context.lineCap = "round";
 
@@ -60,6 +62,12 @@ function drawCurtains(
     for (let index = 0; index <= rayCount; index++) {
       const x = index * spacing;
       const u = x / width;
+      // Most outer rays are almost transparent. Skip them before evaluating
+      // four trigonometric waves, shape bends, gradients and three strokes.
+      const distance = (u - curtain.center - centerDrift) / curtain.spread;
+      if (Math.abs(distance) > 1.32) continue;
+      const separation = Math.exp(-Math.pow(distance, 4) * 1.25);
+      if (separation < .025) continue;
       const wave = flowingWave(u, time, curtain.phase, curtain.speed);
       const micro = Math.sin(u * 103 + time * curtain.speed * .42 + curtain.phase * 3.9);
       // Small independent ripples, not global canvas jitter. Signed speeds let
@@ -69,14 +77,12 @@ function drawCurtains(
       const flicker = .68 + .32 * Math.sin(u * 67 + time * curtain.speed * 1.1 + curtain.phase * 1.4);
       // A localized bell-shaped envelope makes each band distinct instead
       // of drawing five overlapping full-width red blankets.
-      const distance = (u - curtain.center - centerDrift) / curtain.spread;
-      const separation = Math.exp(-Math.pow(distance, 4) * 1.25);
       const rayOpacity = curtain.brightness * envelope * flicker * separation;
 
       const startY = height * (curtain.top + wave * .095 + twitch * .65);
       const curtainLength = height * curtain.length * (.74 + .24 * wave + .16 * micro + .08 * twitch);
       const endY = Math.min(height * .98, startY + curtainLength);
-      if (endY <= startY + 8 || separation < .025) continue;
+      if (endY <= startY + 8) continue;
 
       const bend = Math.sin(u * 15.5 - time * curtain.speed * .72 + curtain.phase) * width * .04;
       const shift =
@@ -103,11 +109,9 @@ function drawCurtains(
       context.lineWidth = spacing * 6.3;
       context.globalAlpha = Math.min(.9, .18 * rayOpacity);
       context.stroke();
-      context.lineWidth = spacing * 3;
-      context.globalAlpha = Math.min(.9, .34 * rayOpacity);
-      context.stroke();
-      // Brighter filament, still bounded so the site stays predominantly black.
-      context.lineWidth = mobile ? 3.8 : 4.8;
+      // A halo and a bright filament supply depth without a third full
+      // Canvas stroke for every ray. Their visual span overlaps adjacent rays.
+      context.lineWidth = mobile ? 4.6 : 5.1;
       context.globalAlpha = Math.min(.92, .88 * rayOpacity);
       context.stroke();
     }
@@ -135,6 +139,19 @@ export function AuroraBackdrop() {
     let cssWidth = 0;
     let cssHeight = 0;
     let lastRatio = 0;
+    // Base cadence is deliberately below a 60 Hz display refresh because
+    // diffuse northern lights do not need 38 full-canvas repaints per second.
+    // When drawing gets expensive, the cadence backs off automatically.
+    let frameInterval = mobile.matches ? 1000 / 14 : 1000 / 18;
+    let averagePaintCost = 0;
+    let deferPaintingUntil = 0;
+
+    // Interactions take priority over decorative animation. A wheel, swipe,
+    // keyboard action or pointer press temporarily yields the main thread so
+    // scrolling, input and button feedback remain responsive.
+    function yieldToUser() {
+      deferPaintingUntil = performance.now() + 300;
+    }
 
     function paint(time: number) {
       if (cssWidth <= 0 || cssHeight <= 0) return;
@@ -144,7 +161,11 @@ export function AuroraBackdrop() {
     function resize() {
       const width = canvas!.clientWidth;
       const height = canvas!.clientHeight;
-      const resolution = Math.min(window.devicePixelRatio || 1, 1.5);
+      // The effect is intentionally diffuse. Rendering 4+ million physical
+      // pixels on large retina desktops wastes fill-rate without visible gain.
+      const pixelBudget = mobile.matches ? 850_000 : 2_000_000;
+      const pixelRatioBudget = Math.sqrt(pixelBudget / Math.max(1, width * height));
+      const resolution = Math.min(window.devicePixelRatio || 1, 1.5, pixelRatioBudget);
       if (width <= 0 || height <= 0) {
         cssWidth = 0;
         cssHeight = 0;
@@ -162,8 +183,20 @@ export function AuroraBackdrop() {
     }
 
     function tick(now: number) {
-      if (now - lastPaint >= (mobile.matches ? 1000 / 26 : 1000 / 38)) {
+      if (now < deferPaintingUntil) {
+        frame = window.requestAnimationFrame(tick);
+        return;
+      }
+      if (now - lastPaint >= frameInterval) {
+        const beganAt = performance.now();
         paint((now - startedAt) / 1000);
+        const paintCost = performance.now() - beganAt;
+        averagePaintCost = averagePaintCost
+          ? averagePaintCost * .75 + paintCost * .25
+          : paintCost;
+        const baseInterval = mobile.matches ? 1000 / 19 : 1000 / 24;
+        // Protect input/scroll responsiveness if software Canvas becomes slow.
+        frameInterval = Math.max(baseInterval, Math.min(1000 / 9, averagePaintCost * 3));
         lastPaint = now;
       }
       frame = window.requestAnimationFrame(tick);
@@ -175,11 +208,18 @@ export function AuroraBackdrop() {
       // Pause when offscreen/tab hidden or user requests reduced motion.
       if (!reducedMotion.matches && document.visibilityState === "visible") {
         lastPaint = 0;
+        averagePaintCost = 0;
+        frameInterval = mobile.matches ? 1000 / 19 : 1000 / 24;
         frame = window.requestAnimationFrame(tick);
       }
     }
 
     window.addEventListener("resize", syncAnimation, { passive: true });
+    window.addEventListener("scroll", yieldToUser, { passive: true });
+    window.addEventListener("wheel", yieldToUser, { passive: true });
+    window.addEventListener("touchmove", yieldToUser, { passive: true });
+    window.addEventListener("pointerdown", yieldToUser, { passive: true });
+    window.addEventListener("keydown", yieldToUser, { passive: true });
     document.addEventListener("visibilitychange", syncAnimation);
     reducedMotion.addEventListener("change", syncAnimation);
     mobile.addEventListener("change", syncAnimation);
@@ -188,6 +228,11 @@ export function AuroraBackdrop() {
     return () => {
       window.cancelAnimationFrame(frame);
       window.removeEventListener("resize", syncAnimation);
+      window.removeEventListener("scroll", yieldToUser);
+      window.removeEventListener("wheel", yieldToUser);
+      window.removeEventListener("touchmove", yieldToUser);
+      window.removeEventListener("pointerdown", yieldToUser);
+      window.removeEventListener("keydown", yieldToUser);
       document.removeEventListener("visibilitychange", syncAnimation);
       reducedMotion.removeEventListener("change", syncAnimation);
       mobile.removeEventListener("change", syncAnimation);

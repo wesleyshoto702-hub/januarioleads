@@ -40,7 +40,9 @@
   border-radius: 44% 56% 61% 39%;
   pointer-events: none;
   opacity: .34;
-  filter: blur(54px);
+  /* The radial gradient is already soft; a smaller blur avoids oversized
+     continuously-composited filtered layers on laptops and phones. */
+  filter: blur(26px);
   background: radial-gradient(ellipse at 50% 50%,
     rgba(238, 30, 59, .24) 0%,
     rgba(185, 15, 43, .12) 34%,
@@ -104,7 +106,12 @@
 .jl-site > .jl-header {
   position: relative;
   z-index: 5;
-  background: rgba(5, 6, 8, .83);
+  /* The header sits above an animating canvas. A backdrop blur would require
+     recompositing that entire strip on every aurora frame. Keep it opaque
+     enough for contrast without repeatedly sampling the moving background. */
+  background: rgba(5, 6, 8, .94);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 .jl-site > main,
 .jl-site > .jl-footer {
@@ -143,7 +150,7 @@
 
 @media (max-width: 700px) {
   .jl-aurora-canvas { opacity: .84; }
-  .jl-aurora-wisp { filter: blur(38px); }
+  .jl-aurora-wisp { filter: blur(14px); }
   .jl-aurora-wisp--lower-left { top: 56%; }
   .jl-aurora-wisp--lower-right { top: 70%; }
   .jl-site > main > section { background-color: rgba(5, 6, 8, .67); }
