@@ -3,7 +3,6 @@ import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, USE_HTTPONLY_SESSION } from "./
 export type RegistrationResult = { ok: true } | { ok: false; message: string };
 
 const GOOGLE_PENDING = "januarioleads:google-oauth-pkce";
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function safeRedirect(origin: string, path: string): string | null {
   try {
@@ -26,48 +25,6 @@ function validAuthOrigin() {
       !url.search && !url.hash;
   } catch {
     return false;
-  }
-}
-
-/** Creates an Auth identity only. private_access permission remains separate. */
-export async function requestPublicSignup(
-  name: string, email: string, password: string, origin: string,
-  requester: typeof fetch = fetch,
-): Promise<RegistrationResult> {
-  const fullName = name.trim().replace(/\s+/g, " ");
-  const cleanEmail = email.trim().toLowerCase();
-  if (fullName.length < 2 || fullName.length > 100) {
-    return { ok: false, message: "Informe seu nome completo (2 a 100 caracteres)." };
-  }
-  if (!EMAIL.test(cleanEmail) || cleanEmail.length > 320 ||
-      password.length < 12 || password.length > 128) {
-    return { ok: false, message: "Informe um e-mail válido e uma senha entre 12 e 128 caracteres." };
-  }
-  const redirect = safeRedirect(origin, "/login");
-  if (!redirect || !validAuthOrigin()) {
-    return { ok: false, message: "A criação de contas ainda não está configurada neste ambiente." };
-  }
-  try {
-    const target = new URL(SUPABASE_URL + "/auth/v1/signup");
-    target.searchParams.set("redirect_to", redirect);
-    const response = await requester(target.toString(), {
-      method: "POST", cache: "no-store", credentials: "omit",
-      headers: { apikey: SUPABASE_PUBLISHABLE_KEY, "Content-Type": "application/json" },
-      body: JSON.stringify({ email: cleanEmail, password, data: { full_name: fullName } }),
-    });
-    if (!response.ok) {
-      return {
-        ok: false,
-        message: response.status === 429
-          ? "Muitas tentativas. Aguarde antes de tentar novamente."
-          : "Não foi possível solicitar a conta. Confira os dados ou tente novamente.",
-      };
-    }
-    // Supabase may return a session if email confirmation is disabled.
-    // Never store these tokens or grant CRM access as a side effect of signup.
-    return { ok: true };
-  } catch {
-    return { ok: false, message: "Não foi possível conectar ao cadastro. Tente novamente." };
   }
 }
 
