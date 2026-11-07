@@ -425,3 +425,16 @@ test("commercial reports use CRM registration cohorts, explicit status definitio
   await reports.getByRole("button", { name: "Ver carteira" }).click();
   await expect(page.getByRole("heading", { name: "Meus Leads" })).toBeVisible();
 });
+
+
+test("Dashboard shows weekly portfolio trend and aggregated CSV export without lead details", async ({ page }) => {
+  await loginWithMocks(page);
+  const report = page.getByRole("region", { name: "Tendências e prioridades" });
+  await expect(report).toBeVisible();
+  await expect(report.getByText("Não exporta empresas", { exact: false })).toBeVisible();
+  await expect(report.getByRole("img", { name: "Cadastros de leads por semana nas últimas oito semanas" })).toBeVisible();
+  await report.getByRole("group", { name: "Tipo de análise" }).getByRole("button", { name: "Segmentos" }).click();
+  await expect(report.getByText("Oficina", { exact: true })).toBeVisible();
+  await report.getByRole("group", { name: "Tipo de análise" }).getByRole("button", { name: "Cadastros por semana" }).click();
+  await expect(report.getByRole("img", { name: "Cadastros de leads por semana nas últimas oito semanas" })).toBeVisible();
+});

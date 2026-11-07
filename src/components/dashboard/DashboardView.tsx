@@ -12,6 +12,7 @@ import type { PersistedLead } from "../../features/leads/remote-leads";
 import type { OpportunityRecord } from "../../features/opportunities/types";
 import { formatCurrency, type LeadPayment } from "../../features/lead-finance/finance";
 import { CommercialReports } from "../../features/analytics/CommercialReports";
+import { ProspectingInsights } from "../../features/analytics/ProspectingInsights";
 import type { NextActionType } from "../../features/next-actions/types";
 import { DailyProspectingQueue } from "../../features/next-actions/DailyProspectingQueue";
 import type { AppView } from "../app-shell/AppShell";
@@ -183,6 +184,8 @@ export function DashboardView({
           )}
         </section>
       </div>
+
+      <ProspectingInsights leads={leads} onViewLeads={() => onNavigate("leads")} />
 
       <CommercialReports
         leads={leads}
