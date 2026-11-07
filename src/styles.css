@@ -6631,3 +6631,22 @@ a{
 #lovable-badge {
   display: none !important;
 }
+
+
+/* Evolution 1: account-scoped ideal customer profile and explainable ranking */
+.icp-panel{margin:22px 0 26px}
+.icp-heading{flex-wrap:wrap;gap:12px}
+.icp-heading button{display:inline-flex;gap:8px;align-items:center}
+.icp-explainer{font-size:12px;line-height:1.6;color:var(--muted);margin:10px 0 18px}
+.icp-form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:12px 0;padding:16px;border-radius:12px;background:var(--surface-2)}
+.icp-form label{display:grid;gap:7px;font-size:12px;font-weight:600;color:var(--muted);min-width:0}
+.icp-form input,.icp-form select{width:100%;min-height:40px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)}
+.icp-actions{grid-column:1/-1;display:flex;justify-content:flex-end;flex-wrap:wrap;gap:10px}
+.icp-actions button:not(.primary-button){border:1px solid var(--border);border-radius:8px;padding:8px 12px;background:var(--surface)}
+.icp-ranked{display:grid;gap:8px}
+.icp-ranked>button{border:1px solid var(--border);border-radius:10px;background:var(--surface-2);padding:12px;display:grid;grid-template-columns:85px minmax(0,1fr) minmax(0,1.3fr);text-align:left;gap:12px;align-items:center}
+.icp-ranked>button:hover,.icp-ranked>button:focus-visible{border-color:var(--primary)}
+.icp-score{display:flex;align-items:center;gap:5px;color:var(--primary);font-weight:750;font-size:12px}
+.icp-lead-name{display:grid;gap:4px;min-width:0}.icp-lead-name strong{font-size:13px;overflow-wrap:anywhere}.icp-lead-name small{font-size:11px;color:var(--muted)}
+.icp-reasons{font-size:11px;color:var(--muted);line-height:1.45}
+@media(max-width:800px){.icp-form{grid-template-columns:1fr}.icp-ranked>button{grid-template-columns:70px minmax(0,1fr)}.icp-reasons{grid-column:2}}
