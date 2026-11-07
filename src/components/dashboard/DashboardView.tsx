@@ -130,6 +130,9 @@ export function DashboardView({
               <span>PERFORMANCE COMERCIAL</span>
               <strong>Conversão dos contatos trabalhados</strong>
             </div>
+            <a className="commercial-report-jump" href="#commercial-reports-title">
+              Ver relatórios <ArrowRight size={14} aria-hidden="true" />
+            </a>
           </div>
           <div className="dashboard-conversion">
             <strong>{conversion === null ? "—" : `${conversion}%`}</strong>
