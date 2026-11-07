@@ -38,7 +38,7 @@ const scenes = [
   {
     title: "Tenha uma carteira organizada",
     short: "Organizar no CRM",
-    text: "Acompanhe cada empresa com situação, histórico e contexto em vez de espalhar informações entre várias ferramentas.",
+    text: "Acompanhe o status de cada empresa e registre atividades e anotações sem espalhar informações entre várias ferramentas.",
     cue: "CRM em contexto",
     icon: LayoutDashboard,
   },
@@ -155,10 +155,10 @@ function CrmScene() {
         </div>
         <div className="jl-tour-crm-column">
           <div className="jl-tour-column-title"><span>Em conversa</span><small>1</small></div>
-          <div className="jl-tour-crm-lead"><span className="jl-tour-crm-tag">Oportunidade</span><strong>Movimento Exemplo</strong><small>Negociação em acompanhamento</small></div>
+          <div className="jl-tour-crm-lead"><span className="jl-tour-crm-tag">Oportunidade</span><strong>Movimento Exemplo</strong><small>Contato em acompanhamento</small></div>
         </div>
       </div>
-      <div className="jl-tour-crm-note"><Sparkles size={15} aria-hidden="true" /> Cada empresa continua com contexto e histórico.</div>
+      <div className="jl-tour-crm-note"><Sparkles size={15} aria-hidden="true" /> Cada empresa mantém seu histórico de atividades registradas.</div>
     </div>
   );
 }
