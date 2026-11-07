@@ -19,8 +19,8 @@ const STATES: Record<string, LeadStatus> = {
   accepted: "accepted", aceito: "accepted",
   rejected: "rejected", recusado: "rejected",
 };
-function clean(value: string) {
-  return value.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
+function clean(value: string | undefined | null) {
+  return (value ?? "").trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
 }
 export function leadIdentity(value: { company: string; city?: string | undefined; state?: string | undefined }) {
   return [clean(value.company), clean(value.city), normalizeBrazilianStateCode(value.state)].join("|");
