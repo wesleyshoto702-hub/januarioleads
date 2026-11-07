@@ -42,7 +42,7 @@ Avisos informativos do advisor: saas_billing_events sem policy para clientes é 
 
 ## Próxima implementação (AINDA NÃO PRONTA)
 
-1. Conciliar o esquema completo do CRM no Supabase Staging (por ora, o projeto Staging foi usado principalmente para Auth).
+1. **Concluído em Staging:** 17 tabelas e 38 políticas RLS do CRM preparadas e comparadas com produção, sem copiar dados. Veja [preparação do CRM](saas-crm-staging-preparacao-2026-11-07.md).
 2. Integrar search-places com a RPC de desbloqueio e **filtrar no servidor** os resultados antes de retornar empresas ao navegador, incluindo paginação/cache e enriquecimento. Uma checagem de saldo antes da chamada ao Google também deve evitar gastos desnecessários.
 3. Separar limites técnicos de chamadas externas (Google Places e outros) dos limites comerciais de leads.
 4. Criar interface de Plano atual, saldo diário e upgrade; conectar os bloqueios de recursos às validações de backend. Ocultar botão não é segurança.
