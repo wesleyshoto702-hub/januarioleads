@@ -22,7 +22,7 @@ const STATES: Record<string, LeadStatus> = {
 function clean(value: string) {
   return value.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
 }
-export function leadIdentity(value: Pick<ManualLeadCsvRow, "company" | "city" | "state">) {
+export function leadIdentity(value: { company: string; city?: string | undefined; state?: string | undefined }) {
   return [clean(value.company), clean(value.city), normalizeBrazilianStateCode(value.state)].join("|");
 }
 function parseCells(source: string) {
