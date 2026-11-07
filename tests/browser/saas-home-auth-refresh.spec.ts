@@ -225,7 +225,7 @@ test("login validado abre o dashboard e logout continua exigindo credenciais", a
   await expect(page.getByRole("dialog", { name: "Você já possui uma conta?" })).not.toBeVisible();
 });
 
-test("navegador recorrente usa login tambem pelo rodape e menu mobile", async ({ page }) => {
+test("navegador recorrente entra pelo rodape e pela barra mobile", async ({ page }) => {
   await isolatePublicPage(page, () => {});
   await page.goto("/");
   await page.evaluate(() => localStorage.setItem("januarioleads:previously-signed-in:v1", "1"));
@@ -235,8 +235,38 @@ test("navegador recorrente usa login tambem pelo rodape e menu mobile", async ({
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  await page.getByRole("button", { name: "Abrir menu" }).click();
-  await page.getByRole("navigation", { name: "Navegação para celular" })
-    .getByRole("button", { name: "Acessar conta" }).click();
+  await page.locator(".jl-header-actions").getByRole("button", { name: "Acessar conta" }).click();
   await expect(page).toHaveURL(/\/login$/);
 });
+
+for (const width of [320, 360, 390, 430, 620, 768]) {
+  test("mobile " + width + " exibe Criar conta e Acessar conta fora do menu", async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await isolatePublicPage(page, () => {});
+    await page.goto("/");
+
+    const header = page.locator(".jl-header");
+    const actions = header.locator(".jl-header-actions");
+    const signup = actions.getByRole("link", { name: "Criar conta" });
+    const login = actions.getByRole("button", { name: "Acessar conta" });
+    await expect(signup).toBeVisible();
+    await expect(signup).toHaveAttribute("href", "/cadastro");
+    await expect(login).toBeVisible();
+
+    const toggle = header.getByRole("button", { name: "Abrir menu" });
+    await expect(toggle).toBeVisible();
+    await toggle.click();
+
+    const menu = header.getByRole("navigation", { name: "Navegação para celular" });
+    await expect(menu).toBeVisible();
+    await expect(menu.getByRole("link", { name: "Criar conta" })).toHaveCount(0);
+    await expect(menu.getByRole("button", { name: "Acessar conta" })).toHaveCount(0);
+    await expect(menu.getByRole("link", { name: "Funcionalidades" })).toBeVisible();
+    await expect(signup).toBeVisible();
+    await expect(login).toBeVisible();
+
+    const horizontalOverflow = await page.evaluate(() =>
+      document.documentElement.scrollWidth > window.innerWidth + 1);
+    expect(horizontalOverflow, "Barra mobile nao deve estourar em " + width).toBe(false);
+  });
+}
