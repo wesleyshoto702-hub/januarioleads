@@ -1,3 +1,4 @@
+import { AUTH_STYLES } from "../lib/route-styles";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Eye, EyeOff, Loader2, LockKeyhole, LogIn } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
@@ -7,6 +8,7 @@ import { BETA_SIGNUP_CONFIG } from "../lib/beta-registration";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
+    links: [...AUTH_STYLES],
     meta: [
       { title: "Entrar | Januário Leads" },
       { name: "description", content: "Entre na sua conta Januário Leads e acompanhe suas oportunidades de prospecção." },
