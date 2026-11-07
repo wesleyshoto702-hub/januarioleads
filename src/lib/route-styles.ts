@@ -14,6 +14,7 @@ import marketingEditorialCss from "../styles/marketing-editorial.css?url";
 import authIdentityCss from "../styles/auth-identity.css?url";
 import auroraBackdropCss from "../styles/aurora-backdrop.css?url";
 import homeMinimalWorkflowCss from "../styles/home-minimal-workflow.css?url";
+import signupCrimsonCss from "../styles/signup-crimson.css?url";
 
 const stylesheet = (href: string) => ({ rel: "stylesheet" as const, href });
 
@@ -34,3 +35,6 @@ export const AUTH_STYLES = [
   stylesheet(authIdentityCss),
   stylesheet(auroraBackdropCss),
 ];
+
+/** Cadastro tem a mesma aurora do login, com seu próprio layout. */
+export const SIGNUP_STYLES = [...AUTH_STYLES, stylesheet(signupCrimsonCss)];
