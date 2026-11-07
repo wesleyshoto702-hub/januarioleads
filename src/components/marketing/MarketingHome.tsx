@@ -1,4 +1,5 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { getValidSession, hasPreviouslySignedInOnThisBrowser } from "../../lib/auth";
 import {
   Building2,
   Check,
@@ -224,6 +225,9 @@ function SearchDemo() {
 }
 
 export function MarketingHome() {
+  const navigate = useNavigate();
+  const [checkingAccount, setCheckingAccount] = useState(false);
+  const accessInFlightRef = useRef(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileReady, setMobileReady] = useState(false);
   const [accountPromptOpen, setAccountPromptOpen] = useState(false);
@@ -258,8 +262,8 @@ export function MarketingHome() {
     };
   }, []);
 
+  // The signup prompt is reserved for visitors with no known login history.
   // Native modal handles focus containment, Escape and background interactions.
-  // No animation loop or extra network request is needed to show this prompt.
   useEffect(() => {
     const dialog = accountPromptRef.current;
     if (!dialog) return;
@@ -267,9 +271,27 @@ export function MarketingHome() {
     if (!accountPromptOpen && dialog.open) dialog.close();
   }, [accountPromptOpen]);
 
-  function openAccountPrompt() {
+  async function accessAccount() {
+    if (accessInFlightRef.current) return;
+    accessInFlightRef.current = true;
+    setCheckingAccount(true);
     setMobileOpen(false);
-    setAccountPromptOpen(true);
+
+    try {
+      // A valid, authorized session may take the visitor straight to the CRM.
+      // A previous login is only a UX hint, never permission to skip authentication.
+      const session = await getValidSession().catch(() => null);
+      if (session) {
+        await navigate({ to: "/app" });
+      } else if (hasPreviouslySignedInOnThisBrowser()) {
+        await navigate({ to: "/login" });
+      } else {
+        setAccountPromptOpen(true);
+      }
+    } finally {
+      accessInFlightRef.current = false;
+      setCheckingAccount(false);
+    }
   }
   return (
     <div className="jl-site">
@@ -288,7 +310,7 @@ export function MarketingHome() {
           <div className="jl-header-actions">
             <Link className="jl-button jl-button-small jl-button-outline jl-header-signup" to="/cadastro">Criar conta</Link>
             <button type="button" className="jl-button jl-button-small jl-header-login"
-              onClick={openAccountPrompt}>Acessar conta</button>
+              onClick={() => void accessAccount()} disabled={checkingAccount}>Acessar conta</button>
             <button
               type="button"
               className="jl-mobile-menu-toggle"
@@ -312,7 +334,7 @@ export function MarketingHome() {
               <a href="#para-quem" onClick={() => setMobileOpen(false)}>Para quem</a>
               <a href="#duvidas" onClick={() => setMobileOpen(false)}>Perguntas</a>
               <Link to="/cadastro" onClick={() => setMobileOpen(false)}>Criar conta</Link>
-              <button type="button" className="jl-mobile-account-login" onClick={openAccountPrompt}>Acessar conta</button>
+              <button type="button" className="jl-mobile-account-login" onClick={() => void accessAccount()} disabled={checkingAccount}>Acessar conta</button>
             </div>
           </nav>
         )}
@@ -457,7 +479,7 @@ export function MarketingHome() {
             <a href="#recursos">Funcionalidades</a>
             <a href="#duvidas">Perguntas</a>
             <Link to="/cadastro">Criar conta</Link>
-            <button type="button" className="jl-footer-account-login" onClick={openAccountPrompt}>Acessar conta</button>
+            <button type="button" className="jl-footer-account-login" onClick={() => void accessAccount()} disabled={checkingAccount}>Acessar conta</button>
           </nav>
         </div>
         <div className="jl-container jl-footer-bottom">
