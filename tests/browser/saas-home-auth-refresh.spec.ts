@@ -9,14 +9,14 @@ function isolatePublicPage(page: import("@playwright/test").Page, count: () => v
   });
 }
 
-test("homepage tem CTA Criar conta no cabeçalho e hero sem os dois botões", async ({ page }) => {
+test("homepage tem CTA Acessar conta no cabeçalho e hero sem os dois botões", async ({ page }) => {
   let supabaseCalls = 0;
   await isolatePublicPage(page, () => supabaseCalls++);
   await page.goto("/");
   await expect(page.locator(".jl-hero-ctas")).toHaveCount(0);
   await expect(page.locator(".jl-demo-bottom").getByRole("link")).toHaveCount(0);
   await expect(page.getByRole("navigation", { name: "Navegação principal" })).toBeVisible();
-  await expect(page.locator(".jl-header-actions").getByRole("link", { name: "Criar conta" })).toHaveAttribute("href", "/cadastro");
+  await expect(page.locator(".jl-header-actions").getByRole("link", { name: "Acessar conta" })).toHaveAttribute("href", "/login");
   await expect(page.getByRole("heading", { name: /Como funciona o Januário Leads/i })).toBeVisible();
   await expect(page.getByText(/Lavras[·,/ ]+MG/i)).toHaveCount(0);
   expect(supabaseCalls).toBe(0);
@@ -29,7 +29,7 @@ test("módulos interativos não repetem o grid antigo e exibem recursos reais", 
   const modules = page.getByRole("group", { name: "Módulos da plataforma" });
   await expect(modules.getByRole("button")).toHaveCount(6);
   await modules.getByRole("button", { name: /Oportunidades/i }).click();
-  await expect(page.getByRole("region", { name: /Oportunidades/i }).getByText(/Saiba o que acontece depois do primeiro contato/)).toBeVisible();
+  await expect(page.getByRole("region", { name: /Oportunidades/i }).getByText(/Identifique regiões e segmentos com sinais de oportunidade/)).toBeVisible();
   await modules.getByRole("button", { name: /Mensagens/i }).click();
   await expect(page.getByRole("region", { name: /Mensagens/i }).getByText(/O envio é manual/)).toBeVisible();
 });
@@ -56,16 +56,14 @@ test("mensagem editável não exibe rotulagem de conteúdo fictício", async ({ 
   await expect(demo.getByText("Sem envio automático")).toBeVisible();
 });
 
-test("login reformulado leva ao cadastro sem criar conta na produção", async ({ page }) => {
+test("login público apresenta indisponibilidade de cadastro sem oferecer inscrição", async ({ page }) => {
   let supabaseCalls = 0;
   await isolatePublicPage(page, () => supabaseCalls++);
   await page.goto("/login");
   await expect(page.getByRole("heading", { name: /Um só lugar para descobrir/i })).toBeVisible();
   await expect(page.getByRole("heading", { name: /Acesse seu espaço de trabalho/i })).toBeVisible();
-  await page.getByRole("link", { name: /Criar minha conta/i }).click();
-  await expect(page).toHaveURL(/\/cadastro$/);
-  await expect(page.getByRole("heading", { name: /Comece sua jornada com o Januário Leads/i })).toBeVisible();
-  await expect(page.getByText(/Cadastro público em preparação/i)).toBeVisible();
+  await expect(page.getByText(/Acesso para contas já autorizadas/)).toBeVisible();
+  await expect(page.locator(".jl-auth-shell a[href='/cadastro']")).toHaveCount(0);
   expect(supabaseCalls).toBe(0);
 });
 
