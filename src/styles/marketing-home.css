@@ -794,6 +794,10 @@ html:has(.jl-site) { scroll-behavior: smooth; }
     transform: translate(2px,-2px);
   }
 }
+.jl-pricing-cta:active {
+  transform: translateY(1px) scale(.99);
+  box-shadow: 0 3px 8px rgba(31,59,161,.16);
+}
 .jl-pricing-cta:focus-visible { outline: 3px solid #bfd0ff; outline-offset: 4px; }
 .jl-pricing-rule {
   height: 1px;
