@@ -5,6 +5,8 @@ import { type FormEvent, useEffect, useState } from "react";
 import { getValidSession, signIn } from "../lib/auth";
 import { AuthShell } from "../components/auth/AuthShell";
 import { BETA_SIGNUP_CONFIG } from "../lib/beta-registration";
+import { prepareGoogleOAuth } from "../lib/public-registration";
+import { USE_HTTPONLY_SESSION } from "../lib/supabase-config";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -26,6 +28,7 @@ function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   useEffect(() => {
     void getValidSession()
@@ -58,6 +61,28 @@ function LoginPage() {
       setError("Não foi possível conectar. Verifique sua conexão e tente novamente.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loginGoogle() {
+    if (googleLoading || loading) return;
+    setError("");
+    if (BETA_SIGNUP_CONFIG || USE_HTTPONLY_SESSION) {
+      setError("Google não está disponível neste modo de autenticação.");
+      return;
+    }
+    setGoogleLoading(true);
+    try {
+      const result = await prepareGoogleOAuth(window.location.origin, sessionStorage);
+      if (!result.ok || !result.url) {
+        setError(result.ok ? "Não foi possível abrir o Google." : result.message);
+        return;
+      }
+      window.location.assign(result.url);
+    } catch {
+      setError("Não foi possível iniciar a conexão com Google.");
+    } finally {
+      setGoogleLoading(false);
     }
   }
 
@@ -104,18 +129,19 @@ function LoginPage() {
           {loading ? "Entrando..." : "Entrar"}
         </button>
       </form>
-      {BETA_SIGNUP_CONFIG ? (
-        <>
-          <div className="jl-auth-form-divider">AMBIENTE DE HOMOLOGAÇÃO</div>
-          <Link className="jl-auth-bottom-link" to="/cadastro">
-            Cadastro de homologação
-          </Link>
-        </>
-      ) : (
-        <p className="jl-auth-form-footnote">
-          Acesso para contas já autorizadas. Novos cadastros não estão disponíveis neste ambiente.
-        </p>
-      )}
+      <div className="jl-auth-form-divider">OU CONTINUE COM</div>
+      <button className="jl-auth-google" type="button"
+        disabled={googleLoading || loading || USE_HTTPONLY_SESSION || Boolean(BETA_SIGNUP_CONFIG)}
+        onClick={() => void loginGoogle()}>
+        <span className="jl-google-g" aria-hidden="true">G</span>
+        {googleLoading ? "Conectando..." : "Continuar com Google"}
+      </button>
+      <p className="jl-auth-form-footnote">
+        Não tem uma conta? <Link to="/cadastro" className="jl-auth-bottom-inline">Criar conta</Link>
+      </p>
+      <p className="jl-auth-form-footnote">
+        A criação de uma identidade não libera o CRM sem autorização.
+      </p>
     </AuthShell>
   );
 }
