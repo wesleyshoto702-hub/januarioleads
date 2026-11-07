@@ -144,6 +144,14 @@ export function AuroraBackdrop() {
     // When drawing gets expensive, the cadence backs off automatically.
     let frameInterval = mobile.matches ? 1000 / 14 : 1000 / 18;
     let averagePaintCost = 0;
+    let deferPaintingUntil = 0;
+
+    // Interactions take priority over decorative animation. A wheel, swipe,
+    // keyboard action or pointer press temporarily yields the main thread so
+    // scrolling, input and button feedback remain responsive.
+    function yieldToUser() {
+      deferPaintingUntil = performance.now() + 300;
+    }
 
     function paint(time: number) {
       if (cssWidth <= 0 || cssHeight <= 0) return;
@@ -175,6 +183,10 @@ export function AuroraBackdrop() {
     }
 
     function tick(now: number) {
+      if (now < deferPaintingUntil) {
+        frame = window.requestAnimationFrame(tick);
+        return;
+      }
       if (now - lastPaint >= frameInterval) {
         const beganAt = performance.now();
         paint((now - startedAt) / 1000);
@@ -203,6 +215,11 @@ export function AuroraBackdrop() {
     }
 
     window.addEventListener("resize", syncAnimation, { passive: true });
+    window.addEventListener("scroll", yieldToUser, { passive: true });
+    window.addEventListener("wheel", yieldToUser, { passive: true });
+    window.addEventListener("touchmove", yieldToUser, { passive: true });
+    window.addEventListener("pointerdown", yieldToUser, { passive: true });
+    window.addEventListener("keydown", yieldToUser, { passive: true });
     document.addEventListener("visibilitychange", syncAnimation);
     reducedMotion.addEventListener("change", syncAnimation);
     mobile.addEventListener("change", syncAnimation);
@@ -211,6 +228,11 @@ export function AuroraBackdrop() {
     return () => {
       window.cancelAnimationFrame(frame);
       window.removeEventListener("resize", syncAnimation);
+      window.removeEventListener("scroll", yieldToUser);
+      window.removeEventListener("wheel", yieldToUser);
+      window.removeEventListener("touchmove", yieldToUser);
+      window.removeEventListener("pointerdown", yieldToUser);
+      window.removeEventListener("keydown", yieldToUser);
       document.removeEventListener("visibilitychange", syncAnimation);
       reducedMotion.removeEventListener("change", syncAnimation);
       mobile.removeEventListener("change", syncAnimation);
