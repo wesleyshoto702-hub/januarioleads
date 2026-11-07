@@ -1,8 +1,8 @@
 /*
- * Northern lights, not a red background.
- * The black background is always dominant. A low-opacity canvas draws
- * irregular red light rays only in localized bands (no red full-page wash).
- * Every interactive/typographic element remains in a higher stacking layer.
+ * Crimson Aurora background — adapted from the user's HTML reference.
+ * Only one bounded Canvas 2D layer. The former five curtain renderer and
+ * four continuously blurred/animated CSS wisps are completely removed.
+ * All content remains above this fixed, non-interactive decoration.
  */
 .jl-site > .jl-aurora,
 .jl-auth-shell > .jl-aurora {
@@ -12,7 +12,7 @@
   overflow: hidden;
   pointer-events: none;
   user-select: none;
-  background: #050608;
+  background: #050102;
 }
 
 .jl-aurora-canvas {
@@ -21,95 +21,31 @@
   display: block;
   width: 100%;
   height: 100%;
-  opacity: .96;
+  opacity: .88;
   pointer-events: none;
 }
 
-
-/*
- * Small, blurred red halos adapted from the reference HTML.
- * The canvas supplies independent vertical movement; these gradients only
- * soften their edges. They do NOT paint the page background red.
- */
-.jl-aurora-wisp {
-  position: absolute;
-  z-index: 0;
-  display: block;
-  width: min(58vw, 900px);
-  height: 30vh;
-  border-radius: 44% 56% 61% 39%;
-  pointer-events: none;
-  opacity: .34;
-  /* The radial gradient is already soft; a smaller blur avoids oversized
-     continuously-composited filtered layers on laptops and phones. */
-  filter: blur(26px);
-  background: radial-gradient(ellipse at 50% 50%,
-    rgba(238, 30, 59, .24) 0%,
-    rgba(185, 15, 43, .12) 34%,
-    transparent 76%);
-  animation: jlAuroraSoftSway 14s cubic-bezier(.45, .05, .55, .95) infinite alternate;
-}
-.jl-aurora-wisp--left {
-  left: -18%;
-  top: 8%;
-  transform-origin: center;
-  animation-duration: 13s;
-}
-.jl-aurora-wisp--right {
-  right: -20%;
-  top: 22%;
-  animation-duration: 10s;
-  animation-delay: -2s;
-  animation-direction: alternate-reverse;
-}
-.jl-aurora-wisp--lower-left {
-  left: -10%;
-  top: 58%;
-  width: min(52vw, 760px);
-  height: 26vh;
-  animation-duration: 17s;
-  animation-delay: -6s;
-  animation-direction: alternate-reverse;
-}
-.jl-aurora-wisp--lower-right {
-  right: -12%;
-  top: 72%;
-  width: min(48vw, 700px);
-  height: 24vh;
-  animation-duration: 15s;
-  animation-delay: -9s;
-}
-@keyframes jlAuroraSoftSway {
-  0% { transform: translate3d(-12%, 3%, 0) rotate(-12deg) scale(.92); opacity: .18; }
-  25% { transform: translate3d(4%, -9%, 0) rotate(7deg) scale(1.10); opacity: .34; }
-  55% { transform: translate3d(-6%, 7%, 0) rotate(-5deg) scale(1.08); opacity: .26; }
-  100% { transform: translate3d(13%, 9%, 0) rotate(14deg) scale(.98); opacity: .20; }
-}
-
-/* Vignette softens the edges of the ribbons without tinting the black sky. */
+/* Lightweight static vignette; no feTurbulence, moving CSS filters or blur. */
 .jl-site > .jl-aurora::after,
 .jl-auth-shell > .jl-aurora::after {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background:
-    linear-gradient(
-      to bottom,
-      rgba(5, 6, 8, .40),
-      transparent 20%,
-      transparent 58%,
-      rgba(5, 6, 8, .30) 100%
-    );
+  background: linear-gradient(
+    to bottom,
+    rgba(5, 1, 2, .12),
+    transparent 18%,
+    transparent 65%,
+    rgba(5, 1, 2, .24) 100%
+  );
 }
 
 .jl-site > .jl-header {
   position: relative;
   z-index: 5;
-  /* The header sits above an animating canvas. A backdrop blur would require
-     recompositing that entire strip on every aurora frame. Keep it opaque
-     enough for contrast without repeatedly sampling the moving background. */
-  background: rgba(5, 6, 8, .94);
+  /* Avoid a backdrop-filter over the moving canvas, which can amplify jank. */
+  background: rgba(5, 1, 2, .94);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
@@ -120,27 +56,25 @@
 }
 .jl-site > .jl-skip { z-index: 50; }
 
-/* Dark translucent panels preserve contrast for the EXISTING text colors.
- * These are deliberately darker than the earlier .18-.24 scrims, which let
- * bright background gradients wash over the typography. */
+/* Existing marketing copy and illustrations remain legible against crimson. */
 .jl-site > main > .jl-hero {
   background:
     linear-gradient(rgba(255,255,255,.010) 1px, transparent 1px),
     linear-gradient(90deg,rgba(255,255,255,.010) 1px,transparent 1px),
-    rgba(5, 6, 8, .51);
+    rgba(5, 1, 2, .51);
   background-size: 86px 86px, 86px 86px, auto;
 }
-.jl-site > main > .jl-tour-section { background: rgba(5, 6, 8, .55); }
-.jl-site > main > .jl-editorial-challenge { background: rgba(5, 6, 8, .62); }
-.jl-site > main > .jl-editorial-workflow { background: rgba(5, 6, 8, .56); }
-.jl-site > main > .jl-feature-section { background: rgba(5, 6, 8, .57); }
-.jl-site > main > .jl-editorial-audience { background: rgba(5, 6, 8, .60); }
-.jl-site > main > .jl-comparison { background: rgba(5, 6, 8, .57); }
-.jl-site > main > .jl-faq { background: rgba(5, 6, 8, .58); }
-.jl-site > .jl-footer { background: rgba(5, 6, 8, .66); }
+.jl-site > main > .jl-tour-section { background: rgba(5, 1, 2, .55); }
+.jl-site > main > .jl-editorial-challenge { background: rgba(5, 1, 2, .62); }
+.jl-site > main > .jl-editorial-workflow { background: rgba(5, 1, 2, .56); }
+.jl-site > main > .jl-feature-section { background: rgba(5, 1, 2, .57); }
+.jl-site > main > .jl-editorial-audience { background: rgba(5, 1, 2, .60); }
+.jl-site > main > .jl-comparison { background: rgba(5, 1, 2, .57); }
+.jl-site > main > .jl-faq { background: rgba(5, 1, 2, .58); }
+.jl-site > .jl-footer { background: rgba(5, 1, 2, .66); }
 
-/* The login/register also share the subtle effect, always behind forms. */
-.jl-auth-shell { background: #050608; }
+/* Login and invitation-only registration use the same replacement background. */
+.jl-auth-shell { background: #050102; }
 .jl-auth-shell > .jl-auth-header,
 .jl-auth-shell > .jl-auth-main,
 .jl-auth-shell > .jl-auth-footer {
@@ -149,13 +83,9 @@
 }
 
 @media (max-width: 700px) {
-  .jl-aurora-canvas { opacity: .84; }
-  .jl-aurora-wisp { filter: blur(14px); }
-  .jl-aurora-wisp--lower-left { top: 56%; }
-  .jl-aurora-wisp--lower-right { top: 70%; }
-  .jl-site > main > section { background-color: rgba(5, 6, 8, .67); }
+  .jl-aurora-canvas { opacity: .80; }
+  .jl-site > main > section { background-color: rgba(5, 1, 2, .67); }
 }
 @media (prefers-reduced-motion: reduce) {
   .jl-aurora-canvas { opacity: .70; }
-  .jl-aurora-wisp { animation: none !important; opacity: .24; transform: none !important; }
 }
