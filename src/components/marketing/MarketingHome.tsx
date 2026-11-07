@@ -235,7 +235,7 @@ export function MarketingHome() {
     const main = homepageMainRef.current;
     // Keep all content visible without JS, IntersectionObserver, or when the
     // visitor requests reduced motion. No timers or scroll-event handlers.
-    if (!main || !("IntersectionObserver" in window) ||
+    if (!main || typeof IntersectionObserver === "undefined" ||
         window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
     const sections = Array.from(main.querySelectorAll<HTMLElement>(":scope > section"));
