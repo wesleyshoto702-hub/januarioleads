@@ -1,16 +1,21 @@
-import { AUTH_STYLES } from "../lib/route-styles";
+import { SIGNUP_STYLES } from "../lib/route-styles";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CheckCircle2, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, UserRoundPlus } from "lucide-react";
+import {
+  ArrowRight, BarChart3, CheckCircle2, Eye, EyeOff,
+  Loader2, LockKeyhole, Mail, ShieldCheck, UserRound, UserRoundPlus,
+} from "lucide-react";
 import { useState, type FormEvent } from "react";
+import { AuroraBackdrop } from "../components/marketing/AuroraBackdrop";
 import { BETA_SIGNUP_CONFIG, requestBetaSignup } from "../lib/beta-registration";
-import { AuthShell } from "../components/auth/AuthShell";
+import { requestPublicSignup, prepareGoogleOAuth } from "../lib/public-registration";
+import { USE_HTTPONLY_SESSION } from "../lib/supabase-config";
 
 export const Route = createFileRoute("/cadastro")({
   head: () => ({
-    links: [...AUTH_STYLES],
+    links: [...SIGNUP_STYLES],
     meta: [
       { title: "Criar conta | Januário Leads" },
-      { name: "description", content: "Conheça a criação de conta do Januário Leads e como funciona a liberação de acesso à plataforma." },
+      { name: "description", content: "Crie sua identidade no Januário Leads com e-mail ou Google. A liberação do CRM é realizada separadamente." },
       { name: "robots", content: "noindex,follow" },
     ],
   }),
@@ -18,116 +23,179 @@ export const Route = createFileRoute("/cadastro")({
 });
 
 function RegistrationPage() {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [repeatPassword, setRepeatPassword] = useState("");
-  const [acceptedTesting, setAcceptedTesting] = useState(false);
-  const [visiblePassword, setVisiblePassword] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [confirm, setConfirm] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [error, setError] = useState("");
-  const signupConfig = BETA_SIGNUP_CONFIG;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!signupConfig || submitting || completed) return;
+    if (loading || completed) return;
     setError("");
-    if (password !== repeatPassword) {
+    if (name.trim().length < 2) {
+      setError("Informe seu nome completo.");
+      return;
+    }
+    if (password !== confirm) {
       setError("As senhas não coincidem.");
       return;
     }
     if (password.length < 12 || password.length > 128) {
-      setError("Use uma senha entre 12 e 128 caracteres.");
+      setError("A senha deve ter entre 12 e 128 caracteres.");
       return;
     }
-    if (!acceptedTesting) {
-      setError("Confirme sua participação no ambiente de homologação.");
-      return;
-    }
-    setSubmitting(true);
+    setLoading(true);
     try {
-      const result = await requestBetaSignup(signupConfig, email, password, window.location.origin);
+      const result = BETA_SIGNUP_CONFIG
+        ? await requestBetaSignup(BETA_SIGNUP_CONFIG, email, password, window.location.origin)
+        : await requestPublicSignup(name, email, password, window.location.origin);
       if (!result.ok) {
         setError(result.message);
         return;
       }
       setCompleted(true);
       setPassword("");
-      setRepeatPassword("");
+      setConfirm("");
+    } catch {
+      setError("Não foi possível concluir o cadastro. Tente novamente.");
     } finally {
-      setSubmitting(false);
+      setLoading(false);
+    }
+  }
+
+  async function googleLogin() {
+    if (googleLoading) return;
+    setError("");
+    if (BETA_SIGNUP_CONFIG || USE_HTTPONLY_SESSION) {
+      setError("O Google não está disponível no ambiente de teste ou no modo de sessão do servidor.");
+      return;
+    }
+    setGoogleLoading(true);
+    try {
+      const result = await prepareGoogleOAuth(window.location.origin, sessionStorage);
+      if (!result.ok || !result.url) {
+        setError(result.ok ? "Não foi possível abrir o Google." : result.message);
+        return;
+      }
+      window.location.assign(result.url);
+    } catch {
+      setError("Não foi possível iniciar o Google. Verifique a configuração do provedor.");
+    } finally {
+      setGoogleLoading(false);
     }
   }
 
   return (
-    <AuthShell page="cadastro">
-      {completed ? (
-        <div className="jl-auth-feedback">
-          <span className="jl-auth-feedback-icon"><CheckCircle2 size={26} aria-hidden="true" /></span>
-          <h2>Verifique seu e-mail.</h2>
-          <p role="status">Se o endereço puder ser cadastrado, você receberá as instruções de confirmação. A entrada no CRM dependerá de uma ativação de acesso separada.</p>
-          <Link className="jl-auth-top-action" to="/login">Ir para o login</Link>
-        </div>
-      ) : (
-        <>
-          <span className="jl-auth-form-eyebrow"><UserRoundPlus size={16} aria-hidden="true" /> CRIAÇÃO DE CONTA</span>
-          <h2>Comece sua jornada com o Januário Leads.</h2>
-          <p className="jl-auth-form-intro">
-            {signupConfig
-              ? "Cadastre seu e-mail no ambiente de homologação. A liberação de acesso ao CRM acontece separadamente."
-              : "O cadastro de novos usuários ainda não está disponível neste ambiente. Quem já possui conta pode entrar normalmente."}
-          </p>
-          {!signupConfig ? (
-            <div className="jl-auth-feedback">
-              <div className="jl-auth-state">
-                <LockKeyhole size={22} aria-hidden="true" />
-                <span><strong>Cadastro público em preparação.</strong> A criação de contas ainda não está aberta nesta versão. Acessos existentes continuam funcionando normalmente.</span>
-              </div>
-              <p>A experiência de cadastro já está estruturada. A abertura depende da confirmação de e-mail e da liberação de acesso na plataforma.</p>
-              <Link className="jl-auth-bottom-link" to="/login">Já tenho uma conta</Link>
+    <main className="jl-auth-shell jl-signup-page">
+      <AuroraBackdrop />
+      <div className="jl-signup-container">
+        <Link to="/" className="jl-signup-brand" aria-label="Januário Leads — página inicial">
+          <span className="jl-signup-brand-mark"><BarChart3 size={25} aria-hidden="true" /></span>
+          <span>Januário <strong>Leads</strong></span>
+        </Link>
+        <span className="jl-signup-safe-badge"><LockKeyhole size={13} aria-hidden="true" /> Acesso seguro à plataforma</span>
+
+        <section className="jl-signup-card" aria-label="Crie sua conta no Januário Leads">
+          <nav className="jl-signup-tabs" aria-label="Autenticação">
+            <Link to="/login">Entrar</Link>
+            <span aria-current="page">Criar conta</span>
+          </nav>
+
+          {completed ? (
+            <div className="jl-signup-complete">
+              <span className="jl-signup-complete-icon"><CheckCircle2 size={30} aria-hidden="true" /></span>
+              <h1>Confira seu e-mail</h1>
+              <p role="status">Se o endereço puder ser cadastrado, você receberá as instruções de confirmação. A ativação do CRM acontece separadamente.</p>
+              <Link className="jl-signup-primary" to="/login">Ir para acessar conta <ArrowRight size={18} aria-hidden="true" /></Link>
             </div>
           ) : (
-            <form className="jl-auth-fields" onSubmit={(event) => void submit(event)}>
-              <label className="jl-auth-field">
-                <span>E-mail</span>
-                <input type="email" autoComplete="email" required maxLength={320}
-                  placeholder="voce@empresa.com" value={email}
-                  onChange={(event) => setEmail(event.target.value)} />
-              </label>
-              <label className="jl-auth-field">
-                <span>Senha · mínimo de 12 caracteres</span>
-                <div className="jl-auth-input-password">
-                  <input type={visiblePassword ? "text" : "password"} autoComplete="new-password"
-                    required minLength={12} maxLength={128} value={password}
-                    onChange={(event) => setPassword(event.target.value)} />
-                  <button type="button" aria-label={visiblePassword ? "Ocultar senha" : "Mostrar senha"}
-                    onClick={() => setVisiblePassword((previous) => !previous)}>
-                    {visiblePassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
-                  </button>
+            <>
+              <div className="jl-signup-intro">
+                <UserRoundPlus size={25} aria-hidden="true" />
+                <div>
+                  <h1>Crie sua conta no Januário Leads</h1>
+                  <p>Comece a prospectar, organizar e acompanhar seus leads em um só lugar.</p>
                 </div>
-              </label>
-              <label className="jl-auth-field">
-                <span>Confirme sua senha</span>
-                <input type={visiblePassword ? "text" : "password"} autoComplete="new-password"
-                  required minLength={12} maxLength={128} value={repeatPassword}
-                  onChange={(event) => setRepeatPassword(event.target.value)} />
-              </label>
-              <label className="jl-auth-check">
-                <input type="checkbox" checked={acceptedTesting} required
-                  onChange={(event) => setAcceptedTesting(event.target.checked)} />
-                <span>Estou participando da homologação e compreendo que criar uma conta não libera o CRM automaticamente.</span>
-              </label>
-              {error && <p className="jl-auth-error" role="alert">{error}</p>}
-              <button className="jl-auth-form-submit" type="submit" disabled={submitting}>
-                {submitting ? "Criando conta..." : "Criar conta de homologação"}
+              </div>
+
+              <form className="jl-signup-form" onSubmit={(event) => void submit(event)}>
+                <label className="jl-signup-field">
+                  <span>Nome</span>
+                  <div className="jl-signup-control">
+                    <UserRound size={17} aria-hidden="true" />
+                    <input type="text" name="name" autoComplete="name" required minLength={2} maxLength={100}
+                      placeholder="Seu nome completo" value={name} onChange={(event) => setName(event.target.value)} />
+                  </div>
+                </label>
+                <label className="jl-signup-field">
+                  <span>E-mail</span>
+                  <div className="jl-signup-control">
+                    <Mail size={17} aria-hidden="true" />
+                    <input type="email" name="email" autoComplete="email" maxLength={320} required
+                      placeholder="seuemail@empresa.com" value={email} onChange={(event) => setEmail(event.target.value)} />
+                  </div>
+                </label>
+                <label className="jl-signup-field">
+                  <span>Senha <small>· mínimo de 12 caracteres</small></span>
+                  <div className="jl-signup-control">
+                    <LockKeyhole size={17} aria-hidden="true" />
+                    <input type={showPassword ? "text" : "password"} name="password" autoComplete="new-password"
+                      required minLength={12} maxLength={128} placeholder="Crie uma senha forte"
+                      value={password} onChange={(event) => setPassword(event.target.value)} />
+                    <button className="jl-signup-eye" type="button"
+                      aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                      onClick={() => setShowPassword((current) => !current)}>
+                      {showPassword ? <EyeOff size={17} aria-hidden="true" /> : <Eye size={17} aria-hidden="true" />}
+                    </button>
+                  </div>
+                </label>
+                <label className="jl-signup-field">
+                  <span>Confirmar senha</span>
+                  <div className="jl-signup-control">
+                    <LockKeyhole size={17} aria-hidden="true" />
+                    <input type={showConfirm ? "text" : "password"} name="confirmPassword" autoComplete="new-password"
+                      required minLength={12} maxLength={128} placeholder="Repita sua senha"
+                      value={confirm} onChange={(event) => setConfirm(event.target.value)} />
+                    <button className="jl-signup-eye" type="button"
+                      aria-label={showConfirm ? "Ocultar confirmação de senha" : "Mostrar confirmação de senha"}
+                      onClick={() => setShowConfirm((current) => !current)}>
+                      {showConfirm ? <EyeOff size={17} aria-hidden="true" /> : <Eye size={17} aria-hidden="true" />}
+                    </button>
+                  </div>
+                </label>
+
+                {error && <p className="jl-signup-error" role="alert">{error}</p>}
+                <button className="jl-signup-primary" type="submit" disabled={loading || googleLoading || USE_HTTPONLY_SESSION}>
+                  {loading ? <Loader2 size={19} className="jl-auth-spinner" aria-hidden="true" /> : null}
+                  {loading ? "Criando conta..." : "Criar conta"}
+                  {!loading && <ArrowRight size={18} aria-hidden="true" />}
+                </button>
+              </form>
+
+              {USE_HTTPONLY_SESSION && <p className="jl-signup-notice">Cadastro indisponível neste modo de sessão. Configure o backend antes de abrir inscrições.</p>}
+              <div className="jl-signup-divider"><span>Ou continue com</span></div>
+              <button type="button" className="jl-signup-google" onClick={() => void googleLogin()}
+                disabled={loading || googleLoading || USE_HTTPONLY_SESSION || Boolean(BETA_SIGNUP_CONFIG)}>
+                <span className="jl-google-g" aria-hidden="true">G</span>
+                {googleLoading ? "Conectando..." : "Continuar com Google"}
               </button>
-              <p className="jl-auth-form-footnote"><Mail size={13} aria-hidden="true" /> A confirmação de e-mail depende das configurações do serviço de homologação.</p>
-            </form>
+              <p className="jl-signup-login-prompt">Já tem uma conta? <Link to="/login">Acessar conta</Link></p>
+            </>
           )}
-        </>
-      )}
-      <div className="jl-auth-form-divider">SEGURANÇA E ACESSO</div>
-      <span className="jl-auth-story-note"><ShieldCheck size={17} aria-hidden="true" /> O acesso aos dados de cada conta é controlado separadamente da criação de identidade.</span>
-    </AuthShell>
+
+          <div className="jl-signup-security">
+            <ShieldCheck size={17} aria-hidden="true" />
+            <span>Conexão criptografada. O acesso ao CRM depende de autorização separada.</span>
+          </div>
+        </section>
+        <Link to="/" className="jl-signup-home-link">Voltar ao Januário Leads</Link>
+      </div>
+    </main>
   );
 }
