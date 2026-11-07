@@ -1,4 +1,4 @@
-import { AUTH_STYLES } from "../../lib/route-styles";
+import { SIGNUP_STYLES } from "../../lib/route-styles";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { CheckCircle2, Loader2, ShieldCheck } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -8,7 +8,7 @@ import { acceptExternalSession } from "../../lib/auth";
 
 export const Route = createFileRoute("/auth/retorno")({
   head: () => ({
-    links: [...AUTH_STYLES],
+    links: [...SIGNUP_STYLES],
     meta: [
       { title: "Verificar Google | Januário Leads" },
       { name: "robots", content: "noindex,nofollow" },
