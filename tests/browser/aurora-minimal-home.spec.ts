@@ -84,8 +84,9 @@ test("Explore, Organize e Acompanhe acendem em vermelho na ordem ao aparecer", a
   await isolate(page, () => {});
   await page.goto("/");
   const section = page.locator(".jl-editorial-workflow");
-  await section.scrollIntoViewIfNeeded();
+  await section.evaluate((el) => el.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" }));
   const track = section.locator(".jl-workflow-track");
+  await expect(track).toHaveAttribute("data-stage", "0", { timeout: 6500 });
   await expect(track).toHaveAttribute("data-stage", "2", { timeout: 7500 });
   await expect(track.locator("li.jl-workflow-active")).toHaveCount(3);
   await expect(track.getByText("Explore", { exact: true })).toBeVisible();
