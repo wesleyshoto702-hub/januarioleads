@@ -13,7 +13,7 @@ import {
   Target,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatedProductTour } from "./AnimatedProductTour";
 import { AuroraBackdrop } from "./AuroraBackdrop";
 import { MessageExampleDemo } from "./MessageExampleDemo";
@@ -226,7 +226,23 @@ function SearchDemo() {
 export function MarketingHome() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileReady, setMobileReady] = useState(false);
+  const [accountPromptOpen, setAccountPromptOpen] = useState(false);
+  const accountPromptRef = useRef<HTMLDialogElement>(null);
   useEffect(() => { setMobileReady(true); }, []);
+
+  // Native modal handles focus containment, Escape and background interactions.
+  // No animation loop or extra network request is needed to show this prompt.
+  useEffect(() => {
+    const dialog = accountPromptRef.current;
+    if (!dialog) return;
+    if (accountPromptOpen && !dialog.open) dialog.showModal();
+    if (!accountPromptOpen && dialog.open) dialog.close();
+  }, [accountPromptOpen]);
+
+  function openAccountPrompt() {
+    setMobileOpen(false);
+    setAccountPromptOpen(true);
+  }
   return (
     <div className="jl-site">
       <AuroraBackdrop />
@@ -242,7 +258,9 @@ export function MarketingHome() {
             <a href="#duvidas">Perguntas</a>
           </nav>
           <div className="jl-header-actions">
-            <Link className="jl-button jl-button-small" to="/login">Acessar conta</Link>
+            <Link className="jl-button jl-button-small jl-button-outline jl-header-signup" to="/cadastro">Criar conta</Link>
+            <button type="button" className="jl-button jl-button-small jl-header-login"
+              onClick={openAccountPrompt}>Acessar conta</button>
             <button
               type="button"
               className="jl-mobile-menu-toggle"
@@ -263,8 +281,10 @@ export function MarketingHome() {
               <a href="#demonstracao" onClick={() => setMobileOpen(false)}>Buscar Leads</a>
               <a href="#como-funciona" onClick={() => setMobileOpen(false)}>Como funciona</a>
               <a href="#recursos" onClick={() => setMobileOpen(false)}>Funcionalidades</a>
+              <a href="#para-quem" onClick={() => setMobileOpen(false)}>Para quem</a>
               <a href="#duvidas" onClick={() => setMobileOpen(false)}>Perguntas</a>
-              <Link to="/login" onClick={() => setMobileOpen(false)}>Acessar conta</Link>
+              <Link to="/cadastro" onClick={() => setMobileOpen(false)}>Criar conta</Link>
+              <button type="button" className="jl-mobile-account-login" onClick={openAccountPrompt}>Acessar conta</button>
             </div>
           </nav>
         )}
@@ -408,7 +428,8 @@ export function MarketingHome() {
             <a href="#como-funciona">Como funciona</a>
             <a href="#recursos">Funcionalidades</a>
             <a href="#duvidas">Perguntas</a>
-            <Link to="/login">Acessar conta</Link>
+            <Link to="/cadastro">Criar conta</Link>
+            <button type="button" className="jl-footer-account-login" onClick={openAccountPrompt}>Acessar conta</button>
           </nav>
         </div>
         <div className="jl-container jl-footer-bottom">
@@ -416,6 +437,34 @@ export function MarketingHome() {
           <span>Feito para encontrar oportunidades com organização.</span>
         </div>
       </footer>
+
+      <dialog ref={accountPromptRef} className="jl-account-dialog"
+        aria-labelledby="jl-account-dialog-title"
+        aria-describedby="jl-account-dialog-description"
+        onClose={() => setAccountPromptOpen(false)}
+        onCancel={() => setAccountPromptOpen(false)}
+        onClick={(event) => {
+          if (event.target === event.currentTarget) setAccountPromptOpen(false);
+        }}>
+        <div className="jl-account-dialog-card">
+          <button type="button" className="jl-account-dialog-dismiss"
+            aria-label="Fechar aviso" onClick={() => setAccountPromptOpen(false)}>
+            <X size={19} aria-hidden="true" />
+          </button>
+          <span className="jl-account-dialog-eyebrow">BEM-VINDO AO JANUÁRIO LEADS</span>
+          <h2 id="jl-account-dialog-title">Você já possui uma conta?</h2>
+          <p id="jl-account-dialog-description">
+            Ainda não tem cadastro? Crie sua conta para começar a organizar sua prospecção.
+            Se já é cliente, continue com seu e-mail e senha.
+          </p>
+          <div className="jl-account-dialog-actions">
+            <Link to="/cadastro" className="jl-account-dialog-primary"
+              onClick={() => setAccountPromptOpen(false)}>Criar conta</Link>
+            <Link to="/login" className="jl-account-dialog-secondary"
+              onClick={() => setAccountPromptOpen(false)}>Já tenho conta — Entrar</Link>
+          </div>
+        </div>
+      </dialog>
     </div>
   );
 }

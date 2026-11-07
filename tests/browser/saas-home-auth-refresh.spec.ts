@@ -9,17 +9,66 @@ function isolatePublicPage(page: import("@playwright/test").Page, count: () => v
   });
 }
 
-test("homepage tem CTA Acessar conta no cabeçalho e hero sem os dois botões", async ({ page }) => {
+test("homepage tem Criar conta à esquerda de Acessar conta e mantém o hero enxuto", async ({ page }) => {
   let supabaseCalls = 0;
   await isolatePublicPage(page, () => supabaseCalls++);
   await page.goto("/");
   await expect(page.locator(".jl-hero-ctas")).toHaveCount(0);
   await expect(page.locator(".jl-demo-bottom").getByRole("link")).toHaveCount(0);
   await expect(page.getByRole("navigation", { name: "Navegação principal" })).toBeVisible();
-  await expect(page.locator(".jl-header-actions").getByRole("link", { name: "Acessar conta" })).toHaveAttribute("href", "/login");
+  const actions = page.locator(".jl-header-actions");
+  await expect(actions.getByRole("link", { name: "Criar conta" })).toHaveAttribute("href", "/cadastro");
+  await expect(actions.getByRole("button", { name: "Acessar conta" })).toBeVisible();
+  expect(await actions.locator(".jl-button-small").allTextContents()).toEqual(["Criar conta", "Acessar conta"]);
   await expect(page.getByRole("heading", { name: /Como funciona o Januário Leads/i })).toBeVisible();
   await expect(page.getByText(/Lavras[·,/ ]+MG/i)).toHaveCount(0);
   expect(supabaseCalls).toBe(0);
+});
+
+test("Acessar conta mostra escolha central, sem presumir existência da conta", async ({ page }) => {
+  let supabaseCalls = 0;
+  await isolatePublicPage(page, () => supabaseCalls++);
+  await page.goto("/");
+  await page.locator(".jl-header-actions").getByRole("button", { name: "Acessar conta" }).click();
+  const dialog = page.getByRole("dialog", { name: "Você já possui uma conta?" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("link", { name: "Criar conta" })).toHaveAttribute("href", "/cadastro");
+  await expect(dialog.getByRole("link", { name: /Já tenho conta/ })).toHaveAttribute("href", "/login");
+  await expect(page).toHaveURL(/\/$/);
+  await page.keyboard.press("Escape");
+  await expect(dialog).not.toBeVisible();
+  await page.locator(".jl-header-actions").getByRole("button", { name: "Acessar conta" }).click();
+  await dialog.getByRole("link", { name: "Criar conta" }).click();
+  await expect(page).toHaveURL(/\/cadastro$/);
+  await expect(page.getByRole("tab", { name: "Criar conta" })).toHaveAttribute("aria-selected", "true");
+  expect(supabaseCalls).toBe(0);
+});
+
+test("aviso permite que quem já tem conta entre normalmente", async ({ page }) => {
+  await isolatePublicPage(page, () => {});
+  await page.goto("/");
+  await page.locator(".jl-header-actions").getByRole("button", { name: "Acessar conta" }).click();
+  await page.getByRole("dialog", { name: "Você já possui uma conta?" })
+    .getByRole("link", { name: /Já tenho conta/ }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByRole("tab", { name: "Entrar" })).toHaveAttribute("aria-selected", "true");
+});
+
+test("navegação por âncoras usa rolagem suave e respeita movimento reduzido", async ({ page }) => {
+  await isolatePublicPage(page, () => {});
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.goto("/");
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollBehavior)).toBe("smooth");
+  const nav = page.getByRole("navigation", { name: "Navegação principal" });
+  await nav.getByRole("link", { name: "Perguntas" }).click();
+  await expect(page).toHaveURL(/#duvidas$/);
+  await expect.poll(() => page.evaluate(() => {
+    const heading = document.getElementById("duvidas");
+    return heading ? Math.round(heading.getBoundingClientRect().top) : -999;
+  })).toBeLessThan(150);
+  expect(await page.locator("#duvidas").evaluate((node) => node.getBoundingClientRect().top)).toBeGreaterThanOrEqual(60);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollBehavior)).toBe("auto");
 });
 
 test("módulos interativos não repetem o grid antigo e exibem recursos reais", async ({ page }) => {
@@ -112,3 +161,14 @@ for (const width of [360, 390, 768, 1280]) {
     }
   });
 }
+
+test("Entrar e Criar conta não exibem seta de avanço no botão principal", async ({ page }) => {
+  await isolatePublicPage(page, () => {});
+  await page.goto("/login");
+  const submit = page.locator(".jl-signup-form .jl-signup-primary");
+  await expect(submit).toBeVisible();
+  await expect(submit.locator("svg.lucide-arrow-right")).toHaveCount(0);
+  await page.getByRole("tab", { name: "Criar conta" }).click();
+  await expect(submit).toContainText("Criar conta");
+  await expect(submit.locator("svg.lucide-arrow-right")).toHaveCount(0);
+});
