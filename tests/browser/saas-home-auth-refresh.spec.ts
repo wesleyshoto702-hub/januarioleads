@@ -64,8 +64,9 @@ test("navegação por âncoras usa rolagem suave e respeita movimento reduzido",
   await expect(page).toHaveURL(/#duvidas$/);
   await expect.poll(() => page.evaluate(() => {
     const heading = document.getElementById("duvidas");
-    return heading ? heading.getBoundingClientRect().top : -999;
-  })).toBeGreaterThanOrEqual(60);
+    return heading ? Math.round(heading.getBoundingClientRect().top) : -999;
+  })).toBeLessThan(150);
+  expect(await page.locator("#duvidas").evaluate((node) => node.getBoundingClientRect().top)).toBeGreaterThanOrEqual(60);
   await page.emulateMedia({ reducedMotion: "reduce" });
   expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollBehavior)).toBe("auto");
 });
@@ -160,3 +161,14 @@ for (const width of [360, 390, 768, 1280]) {
     }
   });
 }
+
+test("Entrar e Criar conta não exibem seta de avanço no botão principal", async ({ page }) => {
+  await isolatePublicPage(page, () => {});
+  await page.goto("/login");
+  const submit = page.locator(".jl-signup-form .jl-signup-primary");
+  await expect(submit).toBeVisible();
+  await expect(submit.locator("svg.lucide-arrow-right")).toHaveCount(0);
+  await page.getByRole("tab", { name: "Criar conta" }).click();
+  await expect(submit).toContainText("Criar conta");
+  await expect(submit.locator("svg.lucide-arrow-right")).toHaveCount(0);
+});
