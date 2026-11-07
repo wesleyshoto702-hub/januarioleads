@@ -20,7 +20,7 @@ for (const path of ["/", "/produto", "/login", "/cadastro"]) {
     await expect(aurora).toHaveAttribute("aria-hidden", "true");
     await expect(aurora).toHaveAttribute("data-ambient", "aurora");
     await expect(aurora.locator("canvas.jl-aurora-canvas")).toHaveCount(1);
-    await expect(aurora.locator(".jl-aurora-wisp")).toHaveCount(2);
+    await expect(aurora.locator(".jl-aurora-wisp")).toHaveCount(4);
     await expect(aurora.locator(".jl-aurora-veil, .jl-aurora-haze")).toHaveCount(0);
     await expect(page.locator(".jl-ambient, .jl-ambient-particle")).toHaveCount(0);
     const actual = await aurora.evaluate((node) => ({
@@ -207,8 +207,8 @@ test("aurora acelerada tem camadas com velocidades independentes e movimento per
       text: getComputedStyle(document.querySelector(".jl-hero-description")!).color,
     };
   });
-  expect(layers.left).toBe("14s");
-  expect(layers.right).toBe("11s");
+  expect(layers.left).toBe("13s");
+  expect(layers.right).toBe("10s");
   expect(layers.directions[0]).toBe("alternate");
   expect(layers.directions[1]).toBe("alternate-reverse");
   expect(layers.background).toBe("rgb(5, 6, 8)");
@@ -220,4 +220,52 @@ test("aurora acelerada tem camadas com velocidades independentes e movimento per
   await page.waitForTimeout(350);
   const next = await canvas.evaluate((el) => (el as HTMLCanvasElement).toDataURL());
   expect(next).not.toBe(first);
+});
+
+
+test("auroras separadas ocupam também o terço inferior do viewport e continuam atrás do rodapé", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await isolate(page, () => {});
+  await page.goto("/");
+
+  const measurements = await page.evaluate(() => {
+    const backdrop = document.querySelector<HTMLElement>(".jl-site > .jl-aurora")!;
+    const canvas = backdrop.querySelector<HTMLCanvasElement>("canvas")!;
+    const bottomLeft = backdrop.querySelector<HTMLElement>(".jl-aurora-wisp--lower-left")!;
+    const bottomRight = backdrop.querySelector<HTMLElement>(".jl-aurora-wisp--lower-right")!;
+    const left = backdrop.querySelector<HTMLElement>(".jl-aurora-wisp--left")!;
+    const right = backdrop.querySelector<HTMLElement>(".jl-aurora-wisp--right")!;
+    const ctx = canvas.getContext("2d")!;
+    const { width, height } = canvas;
+
+    // The canvas itself must contain actual red rays in the lower 25% of the
+    // viewport, not just a CSS halo or an effect confined to the upper half.
+    const pixels = ctx.getImageData(0, Math.floor(height * .72), width, Math.floor(height * .24)).data;
+    let visibleLowerPixels = 0;
+    for (let i = 0; i < pixels.length; i += 4) {
+      if (pixels[i + 3] > 6 && pixels[i] > pixels[i + 1] * 1.4) visibleLowerPixels++;
+    }
+    return {
+      visibleLowerPixels,
+      lowerLeftTop: bottomLeft.getBoundingClientRect().top,
+      lowerRightTop: bottomRight.getBoundingClientRect().top,
+      upperLeftTop: left.getBoundingClientRect().top,
+      upperRightTop: right.getBoundingClientRect().top,
+      backdropHeight: backdrop.getBoundingClientRect().height,
+      footerZ: Number(getComputedStyle(document.querySelector(".jl-site > .jl-footer")!).zIndex),
+      backdropZ: Number(getComputedStyle(backdrop).zIndex),
+      lowerLeftDuration: getComputedStyle(bottomLeft).animationDuration,
+      lowerRightDuration: getComputedStyle(bottomRight).animationDuration,
+    };
+  });
+  expect(measurements.backdropHeight).toBeGreaterThan(800);
+  expect(measurements.visibleLowerPixels).toBeGreaterThan(100);
+  expect(measurements.lowerLeftTop).toBeGreaterThan(measurements.upperLeftTop);
+  expect(measurements.lowerRightTop).toBeGreaterThan(measurements.upperRightTop);
+  expect(measurements.lowerLeftTop).toBeGreaterThan(844 * .40);
+  expect(measurements.lowerRightTop).toBeGreaterThan(844 * .53);
+  expect(measurements.lowerLeftDuration).toBe("17s");
+  expect(measurements.lowerRightDuration).toBe("15s");
+  expect(measurements.footerZ).toBeGreaterThan(measurements.backdropZ);
 });
