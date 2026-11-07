@@ -1,8 +1,5 @@
 import { Link } from "@tanstack/react-router";
 import {
-  ArrowDown,
-  ArrowRight,
-  ArrowUpRight,
   Building2,
   Check,
   CheckCircle2,
@@ -11,15 +8,14 @@ import {
   MapPin,
   MessageCircle,
   Menu,
+  Plus,
   Search,
-  ShieldCheck,
-  Sparkles,
   Target,
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AnimatedProductTour } from "./AnimatedProductTour";
-import { AmbientParticles } from "./AmbientParticles";
+import { AuroraBackdrop } from "./AuroraBackdrop";
 import { MessageExampleDemo } from "./MessageExampleDemo";
 import { AudienceSwitcher, ChallengeStory, FeatureExplorer, WorkflowRibbon } from "./MarketingModules";
 
@@ -76,11 +72,6 @@ const faq = [
     question: "Preciso instalar algum programa?",
     answer:
       "Não para utilizar a plataforma. O Januário Leads foi desenvolvido para ser acessado em um navegador compatível.",
-  },
-  {
-    question: "Já posso contratar uma assinatura?",
-    answer:
-      "Ainda não. Estamos preparando o cadastro comercial, os planos e a cobrança. Neste momento, o acesso ao sistema é concedido por convite.",
   },
 ];
 
@@ -226,10 +217,6 @@ function SearchDemo() {
               <span className="jl-demo-result-status">{phase === 3 && index === 0 ? "No CRM · prévia" : index === 0 ? "Descobrir" : index === 1 ? "Selecionar" : "Organizar"}</span>
             </div>
           ))}
-          <div className="jl-demo-bottom">
-            <span><ShieldCheck size={15} aria-hidden="true" /> Simulação local sem custos de API</span>
-            
-          </div>
         </div>
       </div>
     </div>
@@ -242,7 +229,7 @@ export function MarketingHome() {
   useEffect(() => { setMobileReady(true); }, []);
   return (
     <div className="jl-site">
-      <AmbientParticles />
+      <AuroraBackdrop />
       <a className="jl-skip" href="#conteudo">Pular para o conteúdo</a>
       <header className="jl-header">
         <div className="jl-container jl-header-inner">
@@ -256,7 +243,7 @@ export function MarketingHome() {
           </nav>
           <div className="jl-header-actions">
             <Link className="jl-nav-login" to="/login">Entrar</Link>
-            <Link className="jl-button jl-button-small" to="/cadastro">Criar conta <ArrowUpRight size={15} aria-hidden="true" /></Link>
+            <Link className="jl-button jl-button-small" to="/cadastro">Criar conta</Link>
             <button
               type="button"
               className="jl-mobile-menu-toggle"
@@ -283,17 +270,8 @@ export function MarketingHome() {
           </nav>
         )}
       </header>
-      <div className="jl-marketing-briefing">
-        <div className="jl-container jl-marketing-briefing-inner">
-          <span><CheckCircle2 size={14} aria-hidden="true" /> Pesquisa de empresas por cidade e segmento</span>
-          <span><CheckCircle2 size={14} aria-hidden="true" /> CRM e acompanhamento de contatos</span>
-          <Link to="/cadastro">Criar conta <ArrowRight size={14} aria-hidden="true" /></Link>
-        </div>
-      </div>
-
       <main id="conteudo">
         <section className="jl-hero">
-          <div className="jl-hero-shine" aria-hidden="true" />
           <div className="jl-container jl-hero-grid">
             <div className="jl-hero-copy">
               <span className="jl-kicker"><span className="jl-kicker-dot" /> PROSPECÇÃO B2B COM ORGANIZAÇÃO</span>
@@ -307,7 +285,6 @@ export function MarketingHome() {
                 <span><Check size={15} aria-hidden="true" /> CRM e próximos contatos</span>
                 <span><Check size={15} aria-hidden="true" /> Acesso pelo navegador</span>
               </div>
-              <p className="jl-hero-disclaimer"><ShieldCheck size={15} aria-hidden="true" /> Plataforma em evolução comercial. Acesso atual por convite.</p>
             </div>
             <div className="jl-hero-search" id="demonstracao" aria-label="Buscar Leads — demonstração animada do Januário Leads">
               <div className="jl-hero-search-glow" aria-hidden="true" />
@@ -321,13 +298,8 @@ export function MarketingHome() {
                 <span className="jl-hero-search-live"><span /> ANIMADO</span>
               </div>
               <SearchDemo />
-              <div className="jl-hero-search-caption">
-                <span><CheckCircle2 size={14} aria-hidden="true" /> Busca por nicho e cidade</span>
-                <span><CheckCircle2 size={14} aria-hidden="true" /> Escolha e organização no CRM</span>
-              </div>
             </div>
           </div>
-          <a href="#tour" className="jl-scroll-cue"><ArrowDown size={15} aria-hidden="true" /> Descubra o processo completo</a>
         </section>
 
         <section className="jl-section jl-tour-section" id="tour" aria-labelledby="tour-title">
@@ -356,7 +328,6 @@ export function MarketingHome() {
                   <span><CheckCircle2 size={17} aria-hidden="true" /> Retornos e próximas ações acompanhados</span>
                   <span><CheckCircle2 size={17} aria-hidden="true" /> Visão de oportunidades e negociações</span>
                 </div>
-                <a href="#acesso" className="jl-inline-link">Conheça o momento do produto <ArrowRight size={16} aria-hidden="true" /></a>
               </div>
               <div className="jl-followup-preview" aria-label="Exemplo ilustrativo de organização comercial">
                 <div className="jl-followup-head"><span>Próximas ações</span><span>EXEMPLO</span></div>
@@ -411,32 +382,17 @@ export function MarketingHome() {
           </div>
         </section>
 
-        <section className="jl-section jl-access" id="acesso" aria-labelledby="access-title">
-          <div className="jl-container">
-            <div className="jl-access-panel">
-              <span className="jl-eyebrow"><Sparkles size={15} aria-hidden="true"/> EM EVOLUÇÃO PARA SAAS</span>
-              <h2 id="access-title">A próxima fase da sua prospecção começa por aqui.</h2>
-              <p>O Januário Leads já possui uma área de trabalho funcional. Estamos preparando o cadastro comercial, os planos e a abertura de assinaturas.</p>
-              <div className="jl-access-actions">
-                <Link to="/login" className="jl-button jl-button-primary">Já tenho acesso <ArrowRight size={17} aria-hidden="true"/></Link>
-                <Link to="/cadastro" className="jl-button jl-button-outline">Criar conta <Sparkles size={16} aria-hidden="true"/></Link>
-              </div>
-              <span className="jl-access-note"><ShieldCheck size={16} aria-hidden="true" /> Acesso por convite no momento. Não há checkout ou assinatura automática disponível.</span>
-            </div>
-          </div>
-        </section>
-
         <section className="jl-section jl-faq" id="duvidas" aria-labelledby="faq-title">
           <div className="jl-container jl-faq-layout">
             <div className="jl-faq-intro">
               <span className="jl-eyebrow">PERGUNTAS FREQUENTES</span>
               <h2 id="faq-title">Antes de começar, <span>saiba como funciona.</span></h2>
-              <p>Respostas claras sobre a ferramenta e a fase atual do produto.</p>
+              <p>Respostas diretas sobre a pesquisa de empresas e a organização de contatos.</p>
             </div>
             <div className="jl-faq-list">
               {faq.map((item) => (
                 <details key={item.question} className="jl-faq-item">
-                  <summary>{item.question}<span aria-hidden="true">+</span></summary>
+                  <summary>{item.question}<span aria-hidden="true"><Plus size={16} strokeWidth={2} /></span></summary>
                   <p>{item.answer}</p>
                 </details>
               ))}
@@ -444,13 +400,6 @@ export function MarketingHome() {
           </div>
         </section>
 
-        <section className="jl-container jl-bottom-cta" aria-labelledby="bottom-title">
-          <div className="jl-bottom-deco" aria-hidden="true" />
-          <span className="jl-eyebrow">JANUÁRIO LEADS</span>
-          <h2 id="bottom-title">Transforme sua pesquisa em um <span>processo comercial.</span></h2>
-          <p>Encontre empresas, organize sua carteira e mantenha o foco na próxima oportunidade.</p>
-          <Link to="/login" className="jl-button jl-button-primary">Entrar na plataforma <ArrowUpRight size={17} aria-hidden="true"/></Link>
-        </section>
       </main>
 
       <footer className="jl-footer">

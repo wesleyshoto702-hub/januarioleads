@@ -18,8 +18,10 @@ test("home publica vende o produto sem consultar Supabase ou prometer planos", a
   await expect(page.getByRole("heading", { name: /Cada módulo com um papel no seu processo/ })).toBeVisible();
   await expect(page.getByText(/Prévia animada · nenhum dado real/i)).toBeVisible();
   await expect(page.locator(".jl-hero-search .jl-demo-window")).toBeVisible();
-  await expect(page.getByText(/Acesso atual por convite/i)).toBeVisible();
-  await expect(page.getByRole("link", { name: /Já tenho acesso/i }).first()).toBeVisible();
+  await expect(page.locator(".jl-marketing-briefing")).toHaveCount(0);
+  await expect(page.locator(".jl-access, .jl-bottom-cta")).toHaveCount(0);
+  await expect(page.getByText(/Acesso atual por convite/i)).toHaveCount(0);
+  await expect(page.locator(".jl-header-actions").getByRole("link", { name: "Entrar" })).toBeVisible();
   await expect(page.getByRole("button", { name: /cadastrar|assinar|pagar/i })).toHaveCount(0);
   expect(supabaseRequests).toBe(0);
 
@@ -33,19 +35,19 @@ test("home publica vende o produto sem consultar Supabase ou prometer planos", a
   await expect(page.getByText("Belo Horizonte · MG").first()).toBeVisible();
   expect(supabaseRequests).toBe(0);
 
-  await page.getByRole("link", { name: /Já tenho acesso/i }).first().click();
+  await page.locator(".jl-header-actions").getByRole("link", { name: "Entrar" }).click();
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.getByPlaceholder("seu@email.com")).toBeVisible();
   await page.getByRole("link", { name: /Conhecer a plataforma/i }).click();
   await expect(page).toHaveURL(/\/$/);
 });
 
-test("FAQ deixa claro que assinaturas nao estao abertas", async ({ page }) => {
+test("FAQ explica funcionamento das mensagens sem prometer automação", async ({ page }) => {
   await blockExternal(page);
   await page.goto("/");
-  const faq = page.locator(".jl-faq-item").filter({ hasText: "Já posso contratar uma assinatura?" });
+  const faq = page.locator(".jl-faq-item").filter({ hasText: "O sistema envia mensagens automaticamente?" });
   await faq.locator("summary").click();
-  await expect(faq.getByText(/Ainda não.*planos e a cobrança/)).toBeVisible();
+  await expect(faq.getByText(/O envio da abordagem continua sob seu controle/)).toBeVisible();
 });
 
 test("rota antiga /produto segue funcionando como pagina informativa", async ({ page }) => {
