@@ -634,22 +634,23 @@ html:has(.jl-site) { scroll-behavior: smooth; }
 }
 
 
-/* Home pricing — screenshot-inspired dark blue surfaces, without external images or checkout. */
-.jl-pricing-section {
+/* Home pricing — crimson palette with animated Aurora visible through translucent backgrounds. */
+.jl-site > main > .jl-pricing-section {
   isolation: isolate;
   overflow: hidden;
   background:
-    radial-gradient(ellipse 56% 54% at 50% 13%, rgba(43,67,179,.14), transparent 78%),
-    linear-gradient(180deg,#080d1c 0%,#0b1020 47%,#090d17 100%);
-  border-top: 1px solid rgba(100,128,230,.15);
-  border-bottom: 1px solid rgba(100,128,230,.14);
+    radial-gradient(ellipse 65% 55% at 49% 14%, rgba(226,37,79,.17), transparent 76%),
+    radial-gradient(ellipse 58% 58% at 93% 86%, rgba(136,17,52,.13), transparent 79%),
+    linear-gradient(180deg,rgba(5,1,3,.20),rgba(8,2,5,.42) 54%,rgba(5,1,3,.29));
+  border-top: 1px solid rgba(247,100,128,.15);
+  border-bottom: 1px solid rgba(247,100,128,.15);
 }
 .jl-pricing-heading { margin-bottom: clamp(35px,4vw,55px); }
 .jl-pricing-section .jl-pricing-heading .jl-eyebrow {
-  color: #9aafff;
+  color: #fb839a;
   letter-spacing: .14em;
 }
-.jl-pricing-section .jl-pricing-heading h2 span { color: #8da8ff; }
+.jl-pricing-section .jl-pricing-heading h2 span { color: #fc607a; }
 .jl-pricing-grid {
   display: grid;
   grid-template-columns: repeat(3,minmax(0,1fr));
@@ -662,23 +663,23 @@ html:has(.jl-site) { scroll-behavior: smooth; }
   flex-direction: column;
   min-width: 0;
   padding: clamp(24px,2.7vw,34px);
-  border: 1px solid rgba(123,146,226,.29);
+  border: 1px solid rgba(237,116,147,.25);
   border-radius: 24px;
-  background: linear-gradient(155deg, #121932 0%, #0e1426 68%, #101526 100%);
-  box-shadow: 0 18px 52px rgba(1,3,14,.2);
-  color: #f5f7ff;
+  background: linear-gradient(155deg,rgba(32,18,27,.94) 0%,rgba(17,13,21,.97) 72%,rgba(16,11,19,.97) 100%);
+  box-shadow: 0 18px 52px rgba(6,1,4,.27);
+  color: #fff5f7;
   transition: border-color .22s ease, transform .22s ease, box-shadow .22s ease;
 }
 .jl-pricing-card--pro {
-  background: linear-gradient(155deg, #243cbb 0%,#202d83 42%,#151c3c 100%);
-  border-color: rgba(135,163,255,.67);
-  box-shadow: inset 0 1px 0 rgba(225,234,255,.12), 0 22px 56px rgba(22,38,124,.16);
+  background: linear-gradient(153deg,rgba(111,24,49,.95) 0%,rgba(56,16,34,.96) 54%,rgba(23,13,23,.97) 100%);
+  border-color: rgba(255,120,149,.57);
+  box-shadow: inset 0 1px 0 rgba(255,220,228,.09), 0 22px 56px rgba(64,5,26,.25);
 }
 @media (hover:hover) {
   .jl-pricing-card:hover {
     transform: translateY(-3px);
-    border-color: rgba(150,176,255,.65);
-    box-shadow: 0 26px 62px rgba(3,8,30,.32);
+    border-color: rgba(255,138,166,.65);
+    box-shadow: 0 26px 62px rgba(9,1,5,.38);
   }
 }
 .jl-pricing-card-top {
@@ -692,18 +693,18 @@ html:has(.jl-site) { scroll-behavior: smooth; }
 .jl-pricing-number {
   font-size: 11px;
   font-weight: 650;
-  color: #91a8e6;
+  color: #cc9eac;
   letter-spacing: .08em;
 }
-.jl-pricing-card--pro .jl-pricing-number { color: #a9bbff; }
+.jl-pricing-card--pro .jl-pricing-number { color: #ffb3c3; }
 .jl-pricing-recommended {
   display: inline-flex;
   align-items: center;
   padding: 5px 10px;
-  border: 1px solid rgba(207,220,255,.33);
+  border: 1px solid rgba(255,181,199,.29);
   border-radius: 6px;
-  background: rgba(255,255,255,.075);
-  color: #d9e4ff;
+  background: rgba(255,220,228,.065);
+  color: #f6c5d0;
   font-size: 10px;
   font-weight: 650;
   letter-spacing: .02em;
@@ -716,11 +717,11 @@ html:has(.jl-site) { scroll-behavior: smooth; }
 .jl-pricing-summary {
   min-height: 79px;
   margin-top: 17px !important;
-  color: #b6c2da;
+  color: #cbb8c1;
   font-size: 12px;
   line-height: 1.75;
 }
-.jl-pricing-card--pro .jl-pricing-summary { color: #d7e0ff; }
+.jl-pricing-card--pro .jl-pricing-summary { color: #f0cdd6; }
 .jl-pricing-price {
   display: flex;
   align-items: baseline;
@@ -735,7 +736,7 @@ html:has(.jl-site) { scroll-behavior: smooth; }
 }
 .jl-pricing-price > span {
   font-size: 12px;
-  color: #aabbe0;
+  color: #c9abb7;
 }
 .jl-pricing-cta {
   position: relative;
@@ -748,11 +749,11 @@ html:has(.jl-site) { scroll-behavior: smooth; }
   gap: 10px;
   overflow: hidden;
   padding: 12px 17px;
-  border: 1px solid rgba(113,139,217,.52);
-  border-bottom: 3px solid #5f94ec;
+  border: 1px solid rgba(238,100,129,.48);
+  border-bottom: 3px solid #bb3859;
   border-radius: 12px;
-  background: linear-gradient(180deg,#1a2440,#151d32);
-  color: #e8efff;
+  background: linear-gradient(180deg,#3e1d2c,#291722);
+  color: #ffebef;
   font-size: 13px;
   font-weight: 760;
   line-height: 1.4;
@@ -760,11 +761,11 @@ html:has(.jl-site) { scroll-behavior: smooth; }
   transition: background-color .2s ease, transform .2s ease, box-shadow .2s ease, border-color .2s ease;
 }
 .jl-pricing-card--pro .jl-pricing-cta {
-  border-color: rgba(124,161,255,.95);
-  border-bottom-color: #89a6ff;
-  background: linear-gradient(130deg,#3159ff,#3554ef);
+  border-color: rgba(255,145,163,.8);
+  border-bottom-color: #ff8097;
+  background: linear-gradient(130deg,#de304f,#f34265);
   color: white;
-  box-shadow: 0 5px 18px rgba(34,69,195,.24);
+  box-shadow: 0 5px 18px rgba(185,31,65,.22);
 }
 .jl-pricing-cta:before {
   content: "";
@@ -775,35 +776,25 @@ html:has(.jl-site) { scroll-behavior: smooth; }
   transform: translateX(-125%);
   transition: transform .55s ease;
 }
-.jl-pricing-cta-arrow {
-  display: inline-block;
-  opacity: .75;
-  transform: translate(0,0);
-  transition: transform .2s ease, opacity .2s ease;
-}
 @media (hover:hover) {
   .jl-pricing-cta:hover {
     color: #fff;
-    border-color: #a5baff;
+    border-color: #ff9cad;
     transform: translateY(-2px);
-    box-shadow: 0 12px 24px rgba(35,68,180,.28);
+    box-shadow: 0 12px 24px rgba(162,20,55,.23);
   }
   .jl-pricing-cta:hover:before { transform: translateX(125%); }
-  .jl-pricing-cta:hover .jl-pricing-cta-arrow {
-    opacity: 1;
-    transform: translate(2px,-2px);
-  }
 }
 .jl-pricing-cta:active {
   transform: translateY(1px) scale(.99);
-  box-shadow: 0 3px 8px rgba(31,59,161,.16);
+  box-shadow: 0 3px 8px rgba(126,20,46,.16);
 }
-.jl-pricing-cta:focus-visible { outline: 3px solid #bfd0ff; outline-offset: 4px; }
+.jl-pricing-cta:focus-visible { outline: 3px solid #ff9fb4; outline-offset: 4px; }
 .jl-pricing-rule {
   height: 1px;
   width: 100%;
   margin: 33px 0 24px;
-  background: rgba(145,166,221,.17);
+  background: rgba(242,148,168,.17);
 }
 .jl-pricing-feature-list {
   display: grid;
@@ -811,22 +802,22 @@ html:has(.jl-site) { scroll-behavior: smooth; }
   margin: 0;
   padding: 0;
   list-style: none;
-  color: #bdcce7;
+  color: #d2bfc8;
   font-size: 12px;
   line-height: 1.6;
 }
 .jl-pricing-feature-list li { display: flex; align-items: flex-start; gap: 12px; }
 .jl-pricing-feature-list svg {
   flex: 0 0 17px;
-  color: #7eafff;
+  color: #ff839c;
   margin-top: 1px;
 }
-.jl-pricing-card--pro .jl-pricing-feature-list { color: #e4e9ff; }
-.jl-pricing-card--pro .jl-pricing-feature-list svg { color: #b0c9ff; }
+.jl-pricing-card--pro .jl-pricing-feature-list { color: #ffe6ed; }
+.jl-pricing-card--pro .jl-pricing-feature-list svg { color: #ff9db2; }
 .jl-pricing-footnote {
   max-width: 720px;
   margin: 26px auto 0 !important;
-  color: #8997b6;
+  color: #b49fa9;
   font-size: 11px;
   text-align: center;
   line-height: 1.75;
@@ -848,7 +839,7 @@ html:has(.jl-site) { scroll-behavior: smooth; }
   .jl-pricing-card-top { margin-bottom: 22px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .jl-pricing-card, .jl-pricing-cta, .jl-pricing-cta::before, .jl-pricing-cta-arrow {
+  .jl-pricing-card, .jl-pricing-cta, .jl-pricing-cta::before {
     transition: none !important;
     transform: none !important;
   }
