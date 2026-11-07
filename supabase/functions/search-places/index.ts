@@ -140,10 +140,26 @@ const corsHeaders = {
 };
 
 function isAllowedBrowserOrigin(origin: string) {
-  return isTrustedBrowserOrigin(
-    origin,
-    Deno.env.get("APP_ALLOWED_ORIGINS") ?? "",
-  );
+  if (isTrustedBrowserOrigin(origin, Deno.env.get("APP_ALLOWED_ORIGINS") ?? "")) {
+    return true;
+  }
+
+  // Only the isolated Staging Supabase project accepts previews belonging to
+  // the Januário Leads Vercel project. Production CORS is unchanged.
+  if (Deno.env.get("SUPABASE_URL")?.replace(/\/$/, "") !== SAAS_STAGING_URL) {
+    return false;
+  }
+  try {
+    const parsed = new URL(origin);
+    return parsed.origin === origin &&
+      parsed.protocol === "https:" &&
+      parsed.port === "" &&
+      /^januarioleads-[a-z0-9-]+-wesley-s-projects16\.vercel\.app$/.test(
+        parsed.hostname.toLowerCase(),
+      );
+  } catch {
+    return false;
+  }
 }
 
 function withRequestCors(response: Response, request: Request) {
