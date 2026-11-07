@@ -18,7 +18,7 @@ O saldo diário renova à meia-noite em America/Sao_Paulo; um Google Place ID j�
 - A Edge Function `search-places` consulta essa RPC depois de autenticar JWT e `private_access`, **antes** de chamar o Google. Com saldo zero devolve HTTP 429 / `DAILY_LEAD_LIMIT`, sem solicitar o Google.
 - Cada lote de Places IDs do Google passa pela RPC atômica `claim_daily_leads_for_user` antes de ser enviado ao navegador. IDs não aprovados são removidos. A paginação é encerrada ao esgotar saldo.
 - A resposta de sucesso informa `quota: {plan,daily_limit,used_today,remaining_today,usage_date}`. Falhas de RPC impedem que qualquer resultado seja entregue.
-- Enriquecimento Google é negado a contas Free em ambientes com cotas ativas (ainda há outros recursos a conectar às permissões do plano).
+- Enriquecimento Google e descoberta de presença online exigem a flag `lead_enrichment` ativa do plano (Free: negada, Pro/Advanced: permitida); há outros recursos a conectar às permissões do plano.
 - O frontend tem um serviço de leitura do saldo autenticado (`src/features/search-leads/saas-usage.ts`) e mostra plano, utilizados, disponíveis e renovação. Com saldo zero, desativa o botão de nova pesquisa.
 - A integração de frontend é ativada apenas quando o URL público do projeto é o Supabase Staging. A aplicação em produção permanece inalterada pela branch. No backend, produção só ativa cotas se o operador configurar `SAAS_DAILY_QUOTAS_ENABLED=true` **depois** de aplicar e verificar o schema comercial.
 - A lista de CORS do backend foi estendida **somente para o Supabase Staging**, aceitando previews HTTPS de `januarioleads-*-wesley-s-projects16.vercel.app`. JWT e `private_access` permanecem obrigatórios; CORS não é autenticação.
@@ -33,14 +33,14 @@ Os limites e a filtragem são os mesmos que seriam aplicados a IDs de empresas r
 
 ## Implantação verificada
 
-- Supabase Staging: `search-places` ACTIVE, versão 2, `verify_jwt=true`.
+- Supabase Staging: `search-places` ACTIVE, versão 3, `verify_jwt=true` (código comparado à branch).
 - Vercel: branch `feature/saas-plans-quotas-staging-20261107` tem quatro variáveis privadas de preview: `VITE_DEPLOY_TARGET=staging`, `VITE_SUPABASE_URL` apontando exclusivamente a Staging, chave publicável de Staging e `VITE_HTTPONLY_SESSION=false`.
 - O Preview da branch foi construído com status READY. A prévia pode exigir autenticação Vercel do proprietário.
 - Não alterados: segredo Google de produção, banco de produção, domínio `januarioleads.vercel.app`, variáveis do ambiente production, `private_access` de produção.
 
 ## Testes executados
 
-- SQL transacional, sem resíduos: `supabase/staging/tests/20261107_verify_search_quota_pipeline.sql`.
+- SQL transacional, sem resíduos: `supabase/staging/tests/20261107_verify_search_quota_pipeline.sql` e `supabase/staging/tests/20261107_verify_saas_search_quota.sql`.
 - Testes confirmaram saldo 5/5, seis IDs novos retornam no máximo cinco, saldo final zero, repetição não consome cota, Pro calcula 25, Advanced calcula 70 e cancelamento volta ao Free.
 - ACL: clientes `anon` e `authenticated` não podem executar a RPC administrativa `peek_daily_leads_for_user`.
 - Os testes de SQL ocorreram em `BEGIN`/ `ROLLBACK`. Nenhuma assinatura, nenhum consumo nem empresa fictícia foi persistida.
