@@ -969,6 +969,7 @@ async function placeDetails(googleApiKey: string, placeId: string) {
 async function runSegmentSearch(
   googleApiKey: string,
   body: Record<string, unknown>,
+  userId: string,
 ) {
   const segment = body.segment;
   const pageToken = body.pageToken;
@@ -1017,12 +1018,34 @@ async function runSegmentSearch(
 
   if (!searched.ok) return searched.response;
 
+  const matchedResults = searched.results.filter((business) =>
+    locationMatches(business, location.city, location.state)
+  );
+
+  if (!saasQuotasEnabled()) {
+    return json({
+      ok: true, results: matchedResults,
+      nextPageToken: searched.nextPageToken,
+    });
+  }
+
+  // Never return a Google business not authorized by the server's atomic quota.
+  const claim = await claimSaasLeads(userId, matchedResults.map((business) => business.placeId));
+  if (!claim) {
+    return failure("REQUEST_FAILED", "Não foi possível registrar os leads na sua cota diária.", 503);
+  }
+  const allowed = new Set(claim.allowed_place_ids);
   return json({
     ok: true,
-    results: searched.results.filter((business) =>
-      locationMatches(business, location.city, location.state)
-    ),
-    nextPageToken: searched.nextPageToken,
+    results: matchedResults.filter((business) => allowed.has(business.placeId)),
+    nextPageToken: claim.remaining_today > 0 ? searched.nextPageToken : null,
+    quota: {
+      plan: claim.plan,
+      daily_limit: claim.daily_limit,
+      used_today: claim.used_today,
+      remaining_today: claim.remaining_today,
+      usage_date: claim.usage_date,
+    },
   });
 }
 
