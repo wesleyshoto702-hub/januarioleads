@@ -131,7 +131,7 @@ test("Google com identidade sem autorização de CRM bloqueia sessão após PKCE
   });
   await page.goto("/cadastro");
   await page.getByRole("button", { name:"Continuar com Google" }).click();
-  await expect(page.getByRole("heading",{name:"Verificação concluída"})).toBeVisible({timeout:12000});
+  await expect(page.getByRole("heading",{name:"Acesso ainda não liberado"})).toBeVisible({timeout:12000});
   await expect(page.getByText(/O acesso ao CRM precisa ser liberado/)).toBeVisible();
   expect(called).toContain("/rest/v1/private_access");
   expect(await page.evaluate(()=>localStorage.getItem("januarioleads:auth-session"))).toBeNull();
