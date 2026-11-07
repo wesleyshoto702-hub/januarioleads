@@ -150,6 +150,16 @@ test("aurora permanece luminosa atrás de todas as seções da homepage", async 
   expect(appearance.height).toBeGreaterThan(appearance.viewport * .95);
   expect(appearance.roseOpacity).toBeGreaterThan(.6);
   expect(appearance.roseAnimation).toBe("jlAuroraFullDrift");
+  // Verify that the gradient actually changes position, not merely that a
+  // CSS animation was declared. Reduced motion is disabled for this test.
+  const initial = await page.locator(".jl-site .jl-aurora-veil--rose").evaluate(
+    (node) => getComputedStyle(node).transform
+  );
+  await page.waitForTimeout(550);
+  const moving = await page.locator(".jl-site .jl-aurora-veil--rose").evaluate(
+    (node) => getComputedStyle(node).transform
+  );
+  expect(moving).not.toBe(initial);
   expect(appearance.sections.length).toBeGreaterThanOrEqual(8);
   for (const section of appearance.sections) {
     // A translucent scrim lets the fixed aurora remain visible across scroll.
