@@ -284,13 +284,35 @@ export async function acceptExternalSession(response: {
     return { ok: false, message: "O Google não retornou uma sessão válida." };
   }
   try {
-    const user = await validateUser(candidate.accessToken);
-    if (!user || user.id !== candidate.user.id ||
-        !(await isAuthorizedUser(candidate.accessToken, user.id))) {
+    // Check the verified identity from Supabase Auth on the server, not
+    // user_metadata supplied by the browser or a typed @gmail.com address.
+    const profileResponse = await request("/auth/v1/user", {
+      method: "GET",
+      headers: { Authorization: `Bearer ${candidate.accessToken}` },
+    });
+    if (!profileResponse.ok) throw new Error("Google user validation failed");
+    const profile = await profileResponse.json() as {
+      id?: string;
+      email?: string | null;
+      email_confirmed_at?: string | null;
+      identities?: Array<{ provider?: string }>;
+      app_metadata?: { provider?: string; providers?: string[] };
+    };
+    const googleLinked = profile.identities?.some((identity) => identity.provider === "google") === true ||
+      profile.app_metadata?.providers?.includes("google") === true ||
+      profile.app_metadata?.provider === "google";
+    if (!googleLinked || !profile.email_confirmed_at ||
+        typeof profile.email !== "string" || !profile.email.includes("@") ||
+        profile.id !== candidate.user.id) {
+      await revokeSession(candidate.accessToken);
+      return { ok: false, message: "A identidade Google não apresentou um e-mail confirmado." };
+    }
+    const user: AuthUser = { id: profile.id, email: profile.email };
+    if (!(await isAuthorizedUser(candidate.accessToken, user.id))) {
       await revokeSession(candidate.accessToken);
       return {
         ok: false,
-        message: "Conta Google reconhecida. O acesso ao CRM precisa ser liberado antes de entrar.",
+        message: "Conta Google verificada. O acesso ao CRM precisa ser liberado antes de entrar.",
       };
     }
     writeSession({ ...candidate, user });
