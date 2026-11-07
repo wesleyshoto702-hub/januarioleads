@@ -228,6 +228,9 @@ test("auroras separadas ocupam também o terço inferior do viewport e continuam
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await isolate(page, () => {});
   await page.goto("/");
+  // Wait for hydration/canvas sizing before reading the rendered pixels.
+  await expect.poll(() => page.locator(".jl-site .jl-aurora-canvas")
+    .evaluate((canvas) => (canvas as HTMLCanvasElement).width)).toBeGreaterThan(350);
 
   const measurements = await page.evaluate(() => {
     const backdrop = document.querySelector<HTMLElement>(".jl-site > .jl-aurora")!;
