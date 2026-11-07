@@ -19,6 +19,7 @@ import {
 import type { AppView } from "../app-shell/AppShell";
 import { MetricCard } from "../app-shell/MetricCard";
 import { PageHeader } from "../app-shell/PageHeader";
+import { IdealCustomerPanel } from "../../features/qualification/IdealCustomerPanel";
 
 type Counts = {
   all: number;
@@ -161,6 +162,8 @@ export function DashboardView({
         <MetricCard label="Aceitos" value={counts.accepted} tone="accepted" icon={<BadgeCheck size={17} />} />
         <MetricCard label="Recusados" value={counts.rejected} tone="rejected" icon={<Ban size={17} />} />
       </div>
+
+      <IdealCustomerPanel leads={leads} onOpenLead={onOpenLead} />
 
       <section className="dashboard-panel dashboard-today">
         <div className="dashboard-panel-heading">
