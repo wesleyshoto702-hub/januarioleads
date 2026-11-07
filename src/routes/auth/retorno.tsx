@@ -1,6 +1,6 @@
 import { SIGNUP_STYLES } from "../../lib/route-styles";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { CheckCircle2, Loader2, ShieldCheck } from "lucide-react";
+import { Loader2, ShieldCheck } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { AuroraBackdrop } from "../../components/marketing/AuroraBackdrop";
 import { exchangeGoogleCode } from "../../lib/public-registration";
@@ -65,8 +65,8 @@ function OAuthReturn() {
             </div>
           ) : (
             <div className="jl-signup-complete">
-              <CheckCircle2 size={28} aria-hidden="true" />
-              <h1>Verificação concluída</h1>
+              <ShieldCheck size={28} aria-hidden="true" />
+              <h1>Acesso ainda não liberado</h1>
               <p role="status">{message || "Seu acesso está sendo confirmado."}</p>
               <Link to="/login" className="jl-signup-primary">Voltar para acessar conta</Link>
               <Link to="/cadastro" className="jl-signup-home-link">Criar conta com e-mail</Link>
