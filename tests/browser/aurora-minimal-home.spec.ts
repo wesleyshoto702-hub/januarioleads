@@ -293,3 +293,53 @@ for (const input of ["wheel", "touchmove"]) {
     expect(snapshots.during).not.toBe(snapshots.before);
   });
 }
+
+
+for (const width of [390, 1280]) {
+  test("cabeçalho permanece fixo no topo durante a rolagem em " + width + "px", async ({ page }) => {
+    await page.setViewportSize({ width, height: 820 });
+    await isolate(page, () => {});
+    await page.goto("/");
+    const header = page.locator(".jl-site > .jl-header");
+
+    await expect(header).toBeVisible();
+    expect(await header.evaluate((node) => getComputedStyle(node).position)).toBe("sticky");
+    await page.evaluate(() => window.scrollTo(0, Math.min(950, document.documentElement.scrollHeight - innerHeight)));
+    await expect.poll(() => header.evaluate((node) => Math.round(node.getBoundingClientRect().top))).toBe(0);
+    expect(await header.evaluate((node) => Number(getComputedStyle(node).zIndex))).toBeGreaterThan(10);
+    await expect(header.getByRole("link", { name: "Acessar conta" })).toBeVisible();
+
+    if (width === 390) {
+      await header.getByRole("button", { name: "Abrir menu" }).click();
+      await expect(header.getByRole("navigation", { name: "Navegação para celular" })).toBeVisible();
+      await header.getByRole("navigation", { name: "Navegação para celular" })
+        .getByRole("link", { name: "Perguntas" }).click();
+    } else {
+      await header.getByRole("navigation", { name: "Navegação principal" })
+        .getByRole("link", { name: "Perguntas" }).click();
+    }
+    await expect(page).toHaveURL(/#duvidas$/);
+    await expect.poll(() => header.evaluate((node) => Math.round(node.getBoundingClientRect().top))).toBe(0);
+    const anchorTop = await page.locator("#duvidas").evaluate((node) => node.getBoundingClientRect().top);
+    expect(anchorTop).toBeGreaterThanOrEqual(60);
+  });
+}
+
+test("homepage exibe a aurora mais iluminada que o login sem criar outro canvas", async ({ page }) => {
+  await isolate(page, () => {});
+  await page.goto("/");
+  const home = await page.evaluate(() => ({
+    canvasOpacity: Number(getComputedStyle(document.querySelector(".jl-site .jl-aurora-canvas")!).opacity),
+    heroBackground: getComputedStyle(document.querySelector(".jl-site > main > .jl-hero")!).backgroundColor,
+    canvases: document.querySelectorAll(".jl-aurora-canvas").length,
+  }));
+  await page.goto("/login");
+  const login = await page.evaluate(() => ({
+    canvasOpacity: Number(getComputedStyle(document.querySelector(".jl-auth-shell .jl-aurora-canvas")!).opacity),
+    canvases: document.querySelectorAll(".jl-aurora-canvas").length,
+  }));
+  expect(home.canvases).toBe(1);
+  expect(login.canvases).toBe(1);
+  expect(home.canvasOpacity).toBeGreaterThan(login.canvasOpacity);
+  expect(home.heroBackground).toBe("rgba(5, 1, 2, 0.3)");
+});

@@ -21,75 +21,60 @@ test("homepage abre tour de quatro etapas sem chamadas ao Supabase", async ({ pa
   await expect(page).toHaveURL(/#tour$/);
   const tour = page.locator(".jl-tour-stage");
   await expect(tour).toBeVisible();
-  await expect(page.locator(".jl-tour-step-button")).toHaveCount(4);
+  await expect(page.locator(".jl-tour-step-indicator")).toHaveCount(4);
+  await expect(page.locator(".jl-tour-step-buttons button")).toHaveCount(0);
   await expect(page.getByRole("heading", { name: /Como funciona o Januário Leads\? Veja na prática/i })).toBeVisible();
-  await expect(page.getByText(/Demonstração interativa com dados simulados/i)).toBeVisible();
+  await expect(page.getByText(/Demonstração automática com dados simulados/i)).toBeVisible();
   expect(supabaseCalls).toBe(0);
 });
 
-test("tour navega manualmente por seleção, CRM e follow-up sem enviar mensagens", async ({ page }) => {
+test("tour não oferece pausa, reinício nem navegação manual", async ({ page }) => {
   await interceptExternal(page, () => { throw new Error("Supabase called"); });
   await page.goto("/#tour");
   const player = page.locator(".jl-tour-stage");
+  const indicators = page.locator(".jl-tour-step-indicator");
 
-  await page.getByRole("button", { name: /02 Escolher leads/ }).click();
-  await expect(player).toHaveAttribute("data-stage", "1");
-  await expect(page.getByText("2 empresas selecionadas")).toBeVisible();
-  await expect(page.getByText("Salvar no CRM")).toBeVisible();
+  await expect(indicators).toHaveCount(4);
+  await expect(indicators.nth(0)).toHaveAttribute("aria-current", "step");
+  for (const label of ["Buscar empresas", "Escolher leads", "Organizar no CRM", "Planejar follow-up"]) {
+    await expect(page.getByText(label, { exact: true }).first()).toBeVisible();
+  }
 
-  await page.getByRole("button", { name: /03 Organizar no CRM/ }).click();
-  await expect(player).toHaveAttribute("data-stage", "2");
-  await expect(page.locator(".jl-tour-crm-columns")).toBeVisible();
-  await expect(page.locator(".jl-tour-crm-lead")).toHaveCount(3);
-
-  await page.getByRole("button", { name: /04 Planejar follow-up/ }).click();
-  await expect(player).toHaveAttribute("data-stage", "3");
-  await expect(page.getByText(/Follow-up organizado · envio manual/)).toBeVisible();
-  await expect(page.getByText(/Modelo de mensagem disponível para revisar e adaptar/)).toBeVisible();
-
-  await page.getByRole("button", { name: "Reiniciar demonstração" }).click();
+  await expect(page.locator(".jl-tour-play-controls, .jl-tour-arrow-controls")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Pausar demonstração|Reproduzir demonstração|Reiniciar demonstração|Etapa anterior|Próxima etapa/i })).toHaveCount(0);
+  await expect(player.getByRole("button")).toHaveCount(0);
   await expect(player).toHaveAttribute("data-stage", "0");
-  await expect(player).toHaveAttribute("data-playing", "false");
+});
+
+test("tour reproduz as quatro etapas automaticamente e retorna ao início", async ({ page }) => {
+  test.setTimeout(30000);
+  await interceptExternal(page, () => { throw new Error("Supabase called"); });
+  await page.goto("/#tour");
+  const player = page.locator(".jl-tour-stage");
+  await page.bringToFront();
+  await player.scrollIntoViewIfNeeded();
+  await expect(player).toHaveAttribute("data-playing", "true");
+  for (let next = 1; next <= 3; next++) {
+    await expect(player).toHaveAttribute("data-stage", String(next), { timeout: 6500 });
+    await expect(page.locator(".jl-tour-step-indicator").nth(next)).toHaveAttribute("aria-current", "step");
+  }
+  await expect(player).toHaveAttribute("data-stage", "0", { timeout: 6500 });
   await expect(page.locator(".jl-tour-search-grid")).toBeVisible();
 });
 
-test("tour avança automaticamente, pausa e permite reprodução", async ({ page }) => {
-  await interceptExternal(page, () => { throw new Error("Supabase called"); });
-  await page.goto("/");
-  const player = page.locator(".jl-tour-stage");
-  await page.bringToFront();
-  await player.evaluate((node) => node.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" }));
-  await expect(player).toHaveAttribute("data-interactive", "true");
-  const debug = await player.evaluate((node) => ({
-    documentVisibility: document.visibilityState,
-    inViewport: node.getAttribute("data-in-viewport"),
-    tabVisible: node.getAttribute("data-tab-visible"),
-    wantsPlay: node.getAttribute("data-wants-play"),
-    reduced: node.getAttribute("data-reduced"),
-    rect: node.getBoundingClientRect().toJSON(),
-    viewportHeight: window.innerHeight,
-  }));
-  await expect(player, JSON.stringify(debug)).toHaveAttribute("data-playing", "true");
-
-  const stage = await player.getAttribute("data-stage");
-  await expect.poll(() => player.getAttribute("data-stage"), { timeout: 8500 }).not.toBe(stage);
-
-  await page.getByRole("button", { name: "Pausar demonstração" }).click();
-  await expect(player).toHaveAttribute("data-playing", "false");
-  await page.getByRole("button", { name: "Reproduzir demonstração" }).click();
-  await expect(player).toHaveAttribute("data-playing", "true");
-});
-
-test("preferência de movimento reduzido impede autoplay mas mantém controles", async ({ page }) => {
+test("preferência por movimento reduzido mantém a apresentação estática e legível", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await interceptExternal(page, () => { throw new Error("Supabase called"); });
   await page.goto("/#tour");
   const player = page.locator(".jl-tour-stage");
   await expect(player).toHaveAttribute("data-reduced", "true");
   await expect(player).toHaveAttribute("data-playing", "false");
-  await expect(page.getByRole("button", { name: "Reproduzir demonstração" })).toBeDisabled();
-  await page.getByRole("button", { name: /04 Planejar follow-up/ }).click();
-  await expect(player).toHaveAttribute("data-stage", "3");
+  await expect(page.locator(".jl-tour-step-indicator")).toHaveCount(4);
+  await expect(page.getByText(/Movimento reduzido ativado: o exemplo permanece estático/i)).toBeVisible();
+  await expect(player).toHaveAttribute("data-stage", "0");
+  await page.waitForTimeout(5100);
+  await expect(player).toHaveAttribute("data-stage", "0");
+  await expect(page.locator(".jl-tour-play-controls, .jl-tour-arrow-controls")).toHaveCount(0);
 });
 
 test("menu de celular abre, direciona para demonstração e fecha", async ({ page }) => {

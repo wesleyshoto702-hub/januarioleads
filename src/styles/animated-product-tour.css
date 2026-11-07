@@ -19,29 +19,18 @@
 .jl-tour-side h3 { max-width: 510px; font: 750 clamp(29px, 3vw, 44px)/1.13 "Space Grotesk", Inter,sans-serif; letter-spacing: -.055em; }
 .jl-tour-side h3 span { color: #fe6983; }
 .jl-tour-side > p:not(.jl-tour-side-overline) { color: #a9b3c0; font-size: 13px; line-height: 1.85; max-width: 480px; }
-.jl-tour-step-buttons { display: grid; gap: 8px; width: 100%; max-width: 450px; }
-.jl-tour-step-button {
+.jl-tour-step-indicators { display: grid; gap: 8px; width: 100%; max-width: 450px; margin: 0; padding: 0; list-style: none; }
+.jl-tour-step-indicator {
   display: flex; align-items: center; gap: 12px;
   min-height: 53px; width: 100%; border: 1px solid rgba(169,183,202,.13);
   border-radius: 11px; background: #131821; color: #aeb9c7;
-  text-align: left; padding: 11px 14px; cursor: pointer;
-  font-size: 12px; font-weight: 720; transition: background .2s,border-color .2s,color .2s,transform .2s;
+  text-align: left; padding: 11px 14px;
+  font-size: 12px; font-weight: 720; transition: background .2s,border-color .2s,color .2s;
 }
-.jl-tour-step-button:hover { color: #fff; border-color: rgba(255,117,141,.42); transform: translateX(3px); }
-.jl-tour-step-button.active { color: #fff; border-color: rgba(255,107,133,.53); background: linear-gradient(100deg,rgba(229,51,84,.18),#1a1c27 75%); }
+.jl-tour-step-indicator.active { color: #fff; border-color: rgba(255,107,133,.53); background: linear-gradient(100deg,rgba(229,51,84,.18),#1a1c27 75%); }
 .jl-tour-step-number { color: #e87991; font-size: 10px; font-weight: 800; letter-spacing: .04em; }
-.jl-tour-step-button > svg:first-of-type { color: #ff6e89; }
-.jl-tour-step-button > span:nth-of-type(2) { flex: 1; }
-.jl-tour-step-button > svg:last-child { color: #707888; }
-.jl-tour-play-controls { display: flex; flex-wrap: wrap; gap: 11px; align-items: center; margin-top: 2px; }
-.jl-tour-play-button, .jl-tour-restart-button {
-  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
-  border: 1px solid #424756; border-radius: 9px; background: #1d212b; color: #e3e7ee;
-  min-height: 42px; padding: 9px 14px; font-size: 11px; font-weight: 720; cursor: pointer;
-}
-.jl-tour-play-button:hover:not(:disabled), .jl-tour-restart-button:hover { background: #2a2d38; }
-.jl-tour-play-button:disabled { opacity: .55; cursor: not-allowed; }
-.jl-tour-play-button svg { color: #fa7790; }
+.jl-tour-step-indicator > svg { color: #ff6e89; }
+.jl-tour-step-indicator > span:nth-of-type(2) { flex: 1; }
 .jl-tour-reduced-note { font-size: 11px !important; color: #a3adbd !important; }
 .jl-tour-stage {
   min-width: 0; overflow: hidden;
@@ -163,9 +152,6 @@
 .jl-tour-player-caption > span { font-size: 9px; font-weight: 770; color: #fd8297; letter-spacing: .06em; }
 .jl-tour-player-caption strong { color: #f6f7fa; font: 750 16px "Space Grotesk",Inter,sans-serif; letter-spacing: -.02em; }
 .jl-tour-player-caption > p { color: #aab4c2; font-size: 10px; line-height: 1.7; }
-.jl-tour-arrow-controls { display: flex; align-items: center; gap: 7px; }
-.jl-tour-arrow-controls button { display: grid; place-items: center; border: 1px solid #424b5a; color: #d9e0e9; background: #242b37; border-radius: 8px; width: 31px; height: 31px; cursor: pointer; }
-.jl-tour-arrow-controls button:hover { border-color: #f57991; color: #fff; }
 .jl-tour-truth { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 37px; padding: 8px 16px; border-top: 1px solid #303744; background: #11151e; color: #99a6b5; font-size: 9px; text-align: center; line-height: 1.5; }
 .jl-tour-truth svg { color: #72c6a6; flex-shrink: 0; }
 
@@ -230,7 +216,7 @@
 @media (max-width: 930px) {
   .jl-tour-grid { grid-template-columns: 1fr; gap: 38px; }
   .jl-tour-side { max-width: 760px; }
-  .jl-tour-step-buttons { max-width: 100%; grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .jl-tour-step-indicators { max-width: 100%; grid-template-columns: repeat(2,minmax(0,1fr)); }
   .jl-tour-stage { width: 100%; max-width: 760px; margin-inline: auto; }
 }
 @media (max-width: 850px) {
@@ -239,8 +225,8 @@
 @media (max-width: 600px) {
   .jl-tour-grid { margin-top: 26px; }
   .jl-tour-side { gap: 17px; }
-  .jl-tour-step-buttons { grid-template-columns: 1fr; gap: 7px; }
-  .jl-tour-step-button { min-height: 46px; padding: 10px 13px; }
+  .jl-tour-step-indicators { grid-template-columns: 1fr; gap: 7px; }
+  .jl-tour-step-indicator { min-height: 46px; padding: 10px 13px; }
   .jl-tour-player-topbar { gap: 8px; padding-inline: 10px; }
   .jl-tour-player-topbar > span:nth-child(2) { font-size: 10px; }
   .jl-tour-player-topbar small { font-size: 8px; }
@@ -275,8 +261,6 @@
   .jl-tour-player-icon svg { width: 16px; }
   .jl-tour-player-caption strong { font-size: 14px; }
   .jl-tour-player-caption p { font-size: 9px; }
-  .jl-tour-arrow-controls { gap: 4px; }
-  .jl-tour-arrow-controls button { width: 25px; height: 28px; }
   .jl-tour-truth { font-size: 8px; }
   .jl-product-proof-card { padding: 16px; }
 }
@@ -293,8 +277,7 @@
     animation: none !important;
     transition: none !important;
   }
-  .jl-tour-step-button { transition: none; }
-  .jl-tour-step-button:hover { transform: none; }
+  .jl-tour-step-indicator { transition: none; }
 }
 
 

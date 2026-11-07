@@ -24,6 +24,10 @@
   opacity: .88;
   pointer-events: none;
 }
+/* The login renders this very same crimson canvas without the homepage's
+   sectional scrims. Give the homepage similar luminosity, using CSS alone:
+   no extra ribbons, particles, pixels or animation work. */
+.jl-site > .jl-aurora .jl-aurora-canvas { opacity: .96; }
 
 /* Lightweight static vignette; no feTurbulence, moving CSS filters or blur. */
 .jl-site > .jl-aurora::after,
@@ -42,9 +46,10 @@
 }
 
 .jl-site > .jl-header {
-  position: relative;
-  z-index: 5;
-  /* Avoid a backdrop-filter over the moving canvas, which can amplify jank. */
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  /* Opaque navigation avoids a moving backdrop-filter over the canvas. */
   background: rgba(5, 1, 2, .94);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
@@ -61,17 +66,17 @@
   background:
     linear-gradient(rgba(255,255,255,.010) 1px, transparent 1px),
     linear-gradient(90deg,rgba(255,255,255,.010) 1px,transparent 1px),
-    rgba(5, 1, 2, .51);
+    rgba(5, 1, 2, .30);
   background-size: 86px 86px, 86px 86px, auto;
 }
-.jl-site > main > .jl-tour-section { background: rgba(5, 1, 2, .55); }
-.jl-site > main > .jl-editorial-challenge { background: rgba(5, 1, 2, .62); }
-.jl-site > main > .jl-editorial-workflow { background: rgba(5, 1, 2, .56); }
-.jl-site > main > .jl-feature-section { background: rgba(5, 1, 2, .57); }
-.jl-site > main > .jl-editorial-audience { background: rgba(5, 1, 2, .60); }
+.jl-site > main > .jl-tour-section { background: rgba(5, 1, 2, .40); }
+.jl-site > main > .jl-editorial-challenge { background: rgba(5, 1, 2, .46); }
+.jl-site > main > .jl-editorial-workflow { background: rgba(5, 1, 2, .42); }
+.jl-site > main > .jl-feature-section { background: rgba(5, 1, 2, .43); }
+.jl-site > main > .jl-editorial-audience { background: rgba(5, 1, 2, .45); }
 .jl-site > main > .jl-comparison { background: rgba(5, 1, 2, .57); }
-.jl-site > main > .jl-faq { background: rgba(5, 1, 2, .58); }
-.jl-site > .jl-footer { background: rgba(5, 1, 2, .66); }
+.jl-site > main > .jl-faq { background: rgba(5, 1, 2, .44); }
+.jl-site > .jl-footer { background: rgba(5, 1, 2, .52); }
 
 /* Login and invitation-only registration use the same replacement background. */
 .jl-auth-shell { background: #050102; }
@@ -84,8 +89,10 @@
 
 @media (max-width: 700px) {
   .jl-aurora-canvas { opacity: .80; }
-  .jl-site > main > section { background-color: rgba(5, 1, 2, .67); }
+  .jl-site > .jl-aurora .jl-aurora-canvas { opacity: .88; }
+  .jl-site > main > section { background-color: rgba(5, 1, 2, .50); }
 }
 @media (prefers-reduced-motion: reduce) {
   .jl-aurora-canvas { opacity: .70; }
+  .jl-site > .jl-aurora .jl-aurora-canvas { opacity: .75; }
 }
