@@ -46,7 +46,7 @@ function drawCurtains(
   context.clearRect(0, 0, width, height);
   // An aurora moves slowly: fewer, wider overlapping rays retain its soft
   // curtains while avoiding thousands of Canvas strokes per second.
-  const spacing = mobile ? 12 : 10;
+  const spacing = mobile ? 16 : 12;
   const rayCount = Math.ceil(width / spacing);
   context.lineCap = "round";
 
@@ -109,11 +109,9 @@ function drawCurtains(
       context.lineWidth = spacing * 6.3;
       context.globalAlpha = Math.min(.9, .18 * rayOpacity);
       context.stroke();
-      context.lineWidth = spacing * 3;
-      context.globalAlpha = Math.min(.9, .34 * rayOpacity);
-      context.stroke();
-      // Brighter filament, still bounded so the site stays predominantly black.
-      context.lineWidth = mobile ? 3.8 : 4.8;
+      // A halo and a bright filament supply depth without a third full
+      // Canvas stroke for every ray. Their visual span overlaps adjacent rays.
+      context.lineWidth = mobile ? 4.6 : 5.1;
       context.globalAlpha = Math.min(.92, .88 * rayOpacity);
       context.stroke();
     }
@@ -144,7 +142,7 @@ export function AuroraBackdrop() {
     // Base cadence is deliberately below a 60 Hz display refresh because
     // diffuse northern lights do not need 38 full-canvas repaints per second.
     // When drawing gets expensive, the cadence backs off automatically.
-    let frameInterval = mobile.matches ? 1000 / 19 : 1000 / 24;
+    let frameInterval = mobile.matches ? 1000 / 14 : 1000 / 18;
     let averagePaintCost = 0;
 
     function paint(time: number) {
@@ -186,7 +184,7 @@ export function AuroraBackdrop() {
           : paintCost;
         const baseInterval = mobile.matches ? 1000 / 19 : 1000 / 24;
         // Protect input/scroll responsiveness if software Canvas becomes slow.
-        frameInterval = Math.max(baseInterval, Math.min(1000 / 12, averagePaintCost * 3));
+        frameInterval = Math.max(baseInterval, Math.min(1000 / 9, averagePaintCost * 3));
         lastPaint = now;
       }
       frame = window.requestAnimationFrame(tick);
