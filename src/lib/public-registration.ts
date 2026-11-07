@@ -71,6 +71,28 @@ export async function requestPublicSignup(
   }
 }
 
+/** Check the public GoTrue provider status before leaving for Google. */
+export async function googleProviderStatus(
+  requester: typeof fetch = fetch,
+): Promise<RegistrationResult> {
+  if (!validAuthOrigin()) return { ok: false, message: "Google não está disponível neste ambiente." };
+  try {
+    const response = await requester(SUPABASE_URL + "/auth/v1/settings", {
+      method: "GET", cache: "no-store", credentials: "omit",
+      headers: { apikey: SUPABASE_PUBLISHABLE_KEY },
+    });
+    if (!response.ok) return { ok: false, message: "Não foi possível verificar a conexão com Google." };
+    const settings: unknown = await response.json();
+    const external = (settings && typeof settings === "object")
+      ? (settings as { external?: { google?: boolean } }).external : undefined;
+    return external?.google === true
+      ? { ok: true }
+      : { ok: false, message: "Login Google ainda não está ativado no Supabase. Configure o provedor para continuar." };
+  } catch {
+    return { ok: false, message: "Não foi possível verificar a configuração do Google." };
+  }
+}
+
 function b64url(bytes: Uint8Array): string {
   let value = "";
   for (const byte of bytes) value += String.fromCharCode(byte);
