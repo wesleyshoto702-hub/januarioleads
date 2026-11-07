@@ -19,7 +19,7 @@ A nova implementação gera apenas **quatro caminhos fechados** por quadro (36 s
 - Os quadros são limitados em condições normais a aproximadamente **22 por segundo no desktop e 15 no mobile**, com cadência adaptativa (até 9 FPS caso o desenho pese). **Não há promessa de 60 FPS.**
 - O buffer do Canvas é limitado a cerca de **900 mil pixels no desktop e 600 mil no mobile**, em vez de usar DPI máximo do dispositivo indiscriminadamente.
 - A animação pausa em abas ocultas e respeita \`prefers-reduced-motion: reduce\` (quadro estático).
-- Durante scroll, roda do mouse, toque, clique e digitação, o desenho decorativo cede prioridade à interação.
+- A animação **não pausa** durante scroll, roda do mouse, toque, clique nem digitação. Os limites de resolução e quadros adaptativos permanecem ativos.
 - Nenhum \`setState\` React é chamado a cada quadro; eventos e \`requestAnimationFrame\` são removidos no desmontar do componente.
 - O Canvas recebe \`pointer-events: none\` e continua abaixo dos elementos clicáveis do site.
 

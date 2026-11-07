@@ -166,7 +166,6 @@ export function AuroraBackdrop() {
     let frame = 0;
     let lastDrawAt = 0;
     let averageCost = 0;
-    let yieldUntil = 0;
     let disposed = false;
     const mouse = { x: .5, y: .5, targetX: .5, targetY: .5 };
 
@@ -213,16 +212,15 @@ export function AuroraBackdrop() {
 
     function tick(now: number) {
       if (disposed || motion.matches || document.visibilityState !== "visible") return;
-      // Decorative work always yields while users scroll, type or tap.
-      if (now >= yieldUntil) {
-        const baseInterval = mobile.matches ? 1000 / 15 : 1000 / 22;
-        const interval = Math.max(baseInterval, Math.min(1000 / 9, averageCost * 3));
-        if (now - lastDrawAt >= interval) {
-          const began = performance.now();
-          paint(now, true);
-          const cost = performance.now() - began;
-          averageCost = averageCost ? averageCost * .8 + cost * .2 : cost;
-        }
+      // Keep drawing while the user scrolls, touches, types or clicks.
+      // Frame pacing and pixel budgets still bound the decorative work.
+      const baseInterval = mobile.matches ? 1000 / 15 : 1000 / 22;
+      const interval = Math.max(baseInterval, Math.min(1000 / 9, averageCost * 3));
+      if (now - lastDrawAt >= interval) {
+        const began = performance.now();
+        paint(now, true);
+        const cost = performance.now() - began;
+        averageCost = averageCost ? averageCost * .8 + cost * .2 : cost;
       }
       frame = window.requestAnimationFrame(tick);
     }
@@ -244,17 +242,8 @@ export function AuroraBackdrop() {
       mouse.targetY = Math.min(1, Math.max(0, event.clientY / Math.max(1, window.innerHeight)));
     }
 
-    function yieldToInput() {
-      yieldUntil = performance.now() + 320;
-    }
-
     window.addEventListener("resize", sync, { passive: true });
     window.addEventListener("pointermove", onPointerMove, { passive: true });
-    window.addEventListener("scroll", yieldToInput, { passive: true });
-    window.addEventListener("wheel", yieldToInput, { passive: true });
-    window.addEventListener("touchmove", yieldToInput, { passive: true });
-    window.addEventListener("pointerdown", yieldToInput, { passive: true });
-    window.addEventListener("keydown", yieldToInput, { passive: true });
     document.addEventListener("visibilitychange", sync);
     motion.addEventListener("change", sync);
     mobile.addEventListener("change", sync);
@@ -265,11 +254,6 @@ export function AuroraBackdrop() {
       window.cancelAnimationFrame(frame);
       window.removeEventListener("resize", sync);
       window.removeEventListener("pointermove", onPointerMove);
-      window.removeEventListener("scroll", yieldToInput);
-      window.removeEventListener("wheel", yieldToInput);
-      window.removeEventListener("touchmove", yieldToInput);
-      window.removeEventListener("pointerdown", yieldToInput);
-      window.removeEventListener("keydown", yieldToInput);
       document.removeEventListener("visibilitychange", sync);
       motion.removeEventListener("change", sync);
       mobile.removeEventListener("change", sync);
