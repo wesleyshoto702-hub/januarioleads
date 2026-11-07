@@ -174,7 +174,7 @@ function SearchDemo() {
         <div className="jl-search-animation-panel">
           <div className="jl-search-animation-status">
             <div>
-              <span className="jl-search-animation-label">BUSCA ILUSTRATIVA · ETAPA {phase + 1}/4</span>
+              <span className="jl-search-animation-label">BUSCA ILUSTRATIVA</span>
               <strong>{stageText[phase] ?? stageText[0]}</strong>
             </div>
             <div className="jl-search-animation-controls">
