@@ -56,6 +56,10 @@ function drawCurtains(
     // The horizontal envelope drifts at the curtain's speed, not the ray's.
     // Compute it once per curtain instead of recalculating it for every ray.
     const centerDrift = Math.sin(time * curtain.speed * .19 + curtain.phase) * .06;
+    // Neighboring rays share the same vertical color palette. Reusing it over
+    // four nearby filaments avoids rebuilding five gradient stops per ray.
+    let nearbyGradient: CanvasGradient | null = null;
+    let raysUsingGradient = 0;
 
     // Narrow vertical light rays form an undulating, torn aurora curtain.
     // Every ray has a different height and bend; the shape continuously changes.
@@ -88,12 +92,16 @@ function drawCurtains(
       const shift =
         Math.sin(u * 27.5 + time * curtain.speed * .55 + curtain.phase) * width * .014 +
         Math.sin(u * 59 - time * curtain.speed * .92 + curtain.phase * 2.4) * width * .006;
-      const gradient = context.createLinearGradient(x, startY, x, endY);
-      gradient.addColorStop(0, "rgba(160, 5, 22, 0)");
-      gradient.addColorStop(.14, "rgba(196, 11, 30, .23)");
-      gradient.addColorStop(.38, "rgba(248, 32, 48, .85)");
-      gradient.addColorStop(.61, "rgba(223, 15, 38, .47)");
-      gradient.addColorStop(1, "rgba(112, 0, 18, 0)");
+      if (raysUsingGradient === 0 || !nearbyGradient) {
+        nearbyGradient = context.createLinearGradient(x, startY, x, endY);
+        nearbyGradient.addColorStop(0, "rgba(160, 5, 22, 0)");
+        nearbyGradient.addColorStop(.14, "rgba(196, 11, 30, .23)");
+        nearbyGradient.addColorStop(.38, "rgba(248, 32, 48, .85)");
+        nearbyGradient.addColorStop(.61, "rgba(223, 15, 38, .47)");
+        nearbyGradient.addColorStop(1, "rgba(112, 0, 18, 0)");
+        raysUsingGradient = 4;
+      }
+      raysUsingGradient--;
 
       context.beginPath();
       context.moveTo(x + shift, startY);
@@ -102,7 +110,7 @@ function drawCurtains(
         x + shift - bend * .63, startY + curtainLength * .66,
         x + shift + bend, endY,
       );
-      context.strokeStyle = gradient;
+      context.strokeStyle = nearbyGradient;
       // Halo + narrow filament: luminosity without painting the whole viewport.
       // A broad but translucent halo emulates the soft CSS gradients from
       // the reference without washing the entire background red.
@@ -163,9 +171,10 @@ export function AuroraBackdrop() {
       const height = canvas!.clientHeight;
       // The effect is intentionally diffuse. Rendering 4+ million physical
       // pixels on large retina desktops wastes fill-rate without visible gain.
-      const pixelBudget = mobile.matches ? 850_000 : 2_000_000;
+      const pixelBudget = mobile.matches ? 600_000 : 1_000_000;
       const pixelRatioBudget = Math.sqrt(pixelBudget / Math.max(1, width * height));
-      const resolution = Math.min(window.devicePixelRatio || 1, 1.5, pixelRatioBudget);
+      const pixelRatioCap = mobile.matches ? 1.35 : 1;
+      const resolution = Math.min(window.devicePixelRatio || 1, pixelRatioCap, pixelRatioBudget);
       if (width <= 0 || height <= 0) {
         cssWidth = 0;
         cssHeight = 0;
