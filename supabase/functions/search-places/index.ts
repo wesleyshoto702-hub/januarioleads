@@ -231,6 +231,67 @@ async function claimApiBudget(
   }
 }
 
+type SaasQuota = {
+  plan: "free" | "pro" | "advanced";
+  daily_limit: number;
+  used_today: number;
+  remaining_today: number;
+  usage_date: string;
+};
+type SaasClaim = SaasQuota & { allowed_place_ids: string[]; newly_unlocked: number };
+const SAAS_STAGING_URL = "https://prlrxjothrslhswpkoza.supabase.co";
+
+function saasQuotasEnabled(): boolean {
+  const projectUrl = Deno.env.get("SUPABASE_URL")?.replace(/\/$/, "");
+  // Staging runs quotas by default. Production requires an explicit server flag.
+  return projectUrl === SAAS_STAGING_URL ||
+    Deno.env.get("SAAS_DAILY_QUOTAS_ENABLED") === "true";
+}
+
+async function peekSaasQuota(userId: string): Promise<SaasQuota | null> {
+  try {
+    const response = await adminRest("rpc/peek_daily_leads_for_user", {
+      method: "POST",
+      body: JSON.stringify({ p_user_id: userId }),
+    });
+    if (!response?.ok) return null;
+    const data: unknown = await response.json();
+    if (!data || typeof data !== "object") return null;
+    const item = data as Partial<SaasQuota>;
+    if (!["free", "pro", "advanced"].includes(item.plan ?? "") ||
+        !Number.isInteger(item.daily_limit) || !Number.isInteger(item.used_today) ||
+        !Number.isInteger(item.remaining_today) || typeof item.usage_date !== "string") {
+      return null;
+    }
+    return item as SaasQuota;
+  } catch {
+    return null;
+  }
+}
+
+async function claimSaasLeads(userId: string, placeIds: string[]): Promise<SaasClaim | null> {
+  try {
+    const response = await adminRest("rpc/claim_daily_leads_for_user", {
+      method: "POST",
+      body: JSON.stringify({ p_user_id: userId, p_place_ids: placeIds }),
+    });
+    if (!response?.ok) return null;
+    const data: unknown = await response.json();
+    if (!data || typeof data !== "object") return null;
+    const item = data as Partial<SaasClaim>;
+    if (!["free", "pro", "advanced"].includes(item.plan ?? "") ||
+        !Number.isInteger(item.daily_limit) || !Number.isInteger(item.used_today) ||
+        !Number.isInteger(item.remaining_today) || !Number.isInteger(item.newly_unlocked) ||
+        !Array.isArray(item.allowed_place_ids) ||
+        !item.allowed_place_ids.every((id) => typeof id === "string")) {
+      return null;
+    }
+    return item as SaasClaim;
+  } catch {
+    return null;
+  }
+}
+
 function failure(
   code:
     | "NOT_CONFIGURED"
@@ -241,6 +302,8 @@ function failure(
     | "BILLING_REQUIRED"
     | "INVALID_REQUEST"
     | "QUOTA"
+    | "DAILY_LEAD_LIMIT"
+    | "FEATURE_NOT_AVAILABLE"
     | "REQUEST_FAILED",
   message: string,
   status: number,
