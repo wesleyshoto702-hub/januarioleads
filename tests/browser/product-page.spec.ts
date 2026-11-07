@@ -82,6 +82,10 @@ test("planos Free Pro Advanced substituem o comparativo e respeitam preços e li
   const section = page.getByRole("region", { name: /Um plano para cada ritmo de prospecção/i });
   const cards = section.locator(".jl-pricing-card");
   await expect(cards).toHaveCount(3);
+  await expect(section.locator(".jl-pricing-number")).toHaveCount(0);
+  for (const plan of ["01", "02", "03"]) {
+    await expect(cards.getByText(plan, { exact: true })).toHaveCount(0);
+  }
   const expected = [
     { name: "Free", price: "R$ 0,00", limit: "5 novos leads por dia" },
     { name: "Pro", price: "R$ 14,90", limit: "25 novos leads por dia" },
