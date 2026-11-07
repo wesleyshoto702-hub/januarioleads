@@ -966,10 +966,47 @@ async function placeDetails(googleApiKey: string, placeId: string) {
   return { ok: true as const, business: parsed };
 }
 
+// Synthetic pagination for no-cost staging tests. It never runs in production,
+// and callers must still pass Auth, private_access, API and SaaS quota checks.
+function stagingDemoSearch(
+  segment: string, city: string, state: string, pageToken: string | undefined,
+): { ok: true; results: BusinessSearchResult[]; nextPageToken: string | null } | null {
+  const page = pageToken ? Number(pageToken.replace(/^demo-page:/, "")) : 0;
+  if (!Number.isInteger(page) || page < 0 || page > 3 ||
+      (pageToken !== undefined && !/^demo-page:[1-3]$/.test(pageToken))) {
+    return null;
+  }
+  const start = page * 20;
+  const context = [state, city, segment].join("-").normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "").toLowerCase()
+    .replace(/[^a-z0-9-]/g, "-").slice(0, 145);
+  const results: BusinessSearchResult[] = Array.from({ length: 20 }, (_, index) => {
+    const number = start + index + 1;
+    return {
+      placeId: "staging-demo-" + context + "-" + number,
+      name: "EMPRESA FICTÍCIA " + String(number).padStart(2, "0") + " — " + segment,
+      primaryCategory: segment, categories: [],
+      description: "SIMULAÇÃO DE HOMOLOGAÇÃO. Nenhuma empresa real foi consultada.",
+      address: "Endereço fictício " + number + ", " + city + ", " + state,
+      neighborhood: null, city, state, phone: null,
+      internationalPhone: null, rating: null, reviewCount: null,
+      isOpenNow: null, openingHours: [],
+      currentOpeningHours: null, regularOpeningHours: null,
+      website: null, instagram: null, googleMapsUrl: null,
+      businessStatus: null, latitude: null, longitude: null,
+    };
+  });
+  return {
+    ok: true, results,
+    nextPageToken: page < 3 ? "demo-page:" + (page + 1) : null,
+  };
+}
+
 async function runSegmentSearch(
   googleApiKey: string,
   body: Record<string, unknown>,
   userId: string,
+  demoMode = false,
 ) {
   const segment = body.segment;
   const pageToken = body.pageToken;
@@ -1009,13 +1046,19 @@ async function runSegmentSearch(
     );
   }
 
-  const searched = await textSearch(
+  const searched = demoMode
+    ? stagingDemoSearch(
+        segment.trim(), location.city, location.state,
+        typeof pageToken === "string" ? pageToken.trim() : undefined,
+      )
+    : await textSearch(
     googleApiKey,
     `${searchTextForSegment(segment.trim()) ?? segment.trim()} em ${location.city}, ${stateName(location.state)}, Brasil`,
     20,
     typeof pageToken === "string" ? pageToken.trim() : undefined,
   );
 
+  if (!searched) return failure("INVALID_REQUEST", "Página de demonstração inválida.", 400);
   if (!searched.ok) return searched.response;
 
   const matchedResults = searched.results.filter((business) =>
@@ -1046,6 +1089,7 @@ async function runSegmentSearch(
       remaining_today: claim.remaining_today,
       usage_date: claim.usage_date,
     },
+    demo: demoMode,
   });
 }
 
