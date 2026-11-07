@@ -59,7 +59,7 @@
   display: flex;
   align-items: center;
   min-width: 0;
-  min-height: 68px;
+  min-height: 70px;
   gap: 14px;
   padding: 0;
   animation: none;
@@ -154,13 +154,13 @@
  * connector lines also remain outside the text on small tablets. */
 @media (max-width: 900px) {
   .jl-workflow-track { --jl-workflow-gap: 25px; grid-template-columns: 1fr; }
-  .jl-workflow-track li { min-height: 68px; }
+  .jl-workflow-track li { min-height: 70px; }
   .jl-workflow-track li:not(:last-child)::before,
   .jl-workflow-track li:not(:last-child)::after {
     left: 27px;
-    top: 62px;
+    top: 63px;
     width: 3px;
-    height: var(--jl-workflow-gap);
+    height: calc(var(--jl-workflow-gap) + 14px);
   }
   .jl-workflow-track li:not(:last-child)::after {
     height: 0;
@@ -169,7 +169,7 @@
   }
   .jl-workflow-track li.jl-workflow-active:not(:last-child)::after {
     width: 3px;
-    height: var(--jl-workflow-gap);
+    height: calc(var(--jl-workflow-gap) + 14px);
   }
 }
 @media (prefers-reduced-motion: reduce) {
