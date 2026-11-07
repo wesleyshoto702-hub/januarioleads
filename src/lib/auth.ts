@@ -266,6 +266,41 @@ export async function signIn(email: string, password: string) {
   return { ok: true as const, user: session.user };
 }
 
+/**
+ * Complete a third-party login ONLY after server-issued tokens were exchanged.
+ * This does not grant anyone CRM access: existing private_access is mandatory.
+ */
+export async function acceptExternalSession(response: {
+  access_token: string;
+  refresh_token: string;
+  expires_in: number;
+  user?: { id?: string; email?: string | null };
+}): Promise<{ ok: true; user: AuthUser } | { ok: false; message: string }> {
+  if (USE_HTTPONLY_SESSION) {
+    return { ok: false, message: "Login Google não está disponível no modo de sessão do servidor." };
+  }
+  const candidate = fromAuthResponse(response);
+  if (!candidate) {
+    return { ok: false, message: "O Google não retornou uma sessão válida." };
+  }
+  try {
+    const user = await validateUser(candidate.accessToken);
+    if (!user || user.id !== candidate.user.id ||
+        !(await isAuthorizedUser(candidate.accessToken, user.id))) {
+      await revokeSession(candidate.accessToken);
+      return {
+        ok: false,
+        message: "Conta Google reconhecida. O acesso ao CRM precisa ser liberado antes de entrar.",
+      };
+    }
+    writeSession({ ...candidate, user });
+    return { ok: true, user };
+  } catch {
+    await revokeSession(candidate.accessToken);
+    return { ok: false, message: "Não foi possível verificar sua autorização. Tente novamente." };
+  }
+}
+
 async function revokeSession(accessToken: string) {
   try {
     await request("/auth/v1/logout", {
