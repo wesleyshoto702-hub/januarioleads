@@ -77,14 +77,14 @@ Deno.test("cadastro em staging chama apenas Auth, nao armazena token nem altera 
       throw new Error("Incorrect publishable headers");
     }
     const body = JSON.parse(String(init.body)) as { email: string; password: string };
-    if (body.email !== "teste@example.invalid" || body.password !== "my strong password 123") {
+    if (body.email !== "teste@gmail.com" || body.password !== "my strong password 123") {
       throw new Error("Wrong signup request");
     }
     return Response.json({ access_token: "IGNORE-THIS-FAKE-TOKEN", refresh_token: "IGNORE" });
   }) as typeof fetch;
 
   const result = await requestBetaSignup(
-    config(), "  TESTE@EXAMPLE.INVALID ", "my strong password 123",
+    config(), "  TESTE@GMAIL.COM ", "my strong password 123",
     "http://127.0.0.1:5173", requester,
   );
   if (!result.ok || calls !== 1 || Object.keys(result).length !== 1) {
@@ -102,19 +102,19 @@ Deno.test("erro, senha fraca e redirecionamento inseguro nao vazam respostas Aut
     );
   }) as typeof fetch;
 
-  const weak = await requestBetaSignup(config(), "ok@example.invalid", "short", "https://app.test", requester);
+  const weak = await requestBetaSignup(config(), "ok@gmail.com", "short", "https://app.test", requester);
   if (weak.ok || calls) throw new Error("Weak password accepted or sent");
 
-  const badRedirect = await requestBetaSignup(config(), "ok@example.invalid", "long example password", "https://evil.test/steal", requester);
+  const badRedirect = await requestBetaSignup(config(), "ok@gmail.com", "long example password", "https://evil.test/steal", requester);
   if (badRedirect.ok || calls) throw new Error("Invalid redirect accepted or sent");
 
-  const error = await requestBetaSignup(config(), "ok@example.invalid", "long example password", "https://app.test", requester);
+  const error = await requestBetaSignup(config(), "ok@gmail.com", "long example password", "https://app.test", requester);
   if (error.ok || error.message.includes("User already registered") || calls !== 1) {
     throw new Error("Auth error exposes account state");
   }
 
   const throttled = await requestBetaSignup(
-    config(), "ok@example.invalid", "long example password", "https://app.test",
+    config(), "ok@gmail.com", "long example password", "https://app.test",
     (async () => new Response("", { status: 429 })) as typeof fetch,
   );
   if (throttled.ok || !throttled.message.includes("Aguarde")) {
@@ -122,7 +122,7 @@ Deno.test("erro, senha fraca e redirecionamento inseguro nao vazam respostas Aut
   }
 
   const offline = await requestBetaSignup(
-    config(), "ok@example.invalid", "long example password", "https://app.test",
+    config(), "ok@gmail.com", "long example password", "https://app.test",
     (async () => { throw new Error("network down"); }) as typeof fetch,
   );
   if (offline.ok || offline.message.includes("network down")) {
