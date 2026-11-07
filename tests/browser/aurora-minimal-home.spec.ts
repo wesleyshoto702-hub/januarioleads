@@ -142,10 +142,13 @@ for (const width of [320, 360, 390, 768, 1280]) {
     if (width <= 370) {
       await page.getByRole("button", { name: "Abrir menu" }).click();
       await page.getByRole("navigation", { name: "Navegação para celular" })
-        .getByRole("link", { name: "Acessar conta" }).click();
+        .getByRole("button", { name: "Acessar conta" }).click();
     } else {
-      await page.locator(".jl-header-actions").getByRole("link", { name: "Acessar conta" }).click();
+      await page.locator(".jl-header-actions").getByRole("button", { name: "Acessar conta" }).click();
     }
+    const dialog = page.getByRole("dialog", { name: "Você já possui uma conta?" });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole("link", { name: /Já tenho conta/ }).click();
     await expect(page).toHaveURL(/\/login$/);
     await expect(page.locator(".jl-auth-shell > .jl-aurora > .jl-aurora-canvas")).toBeAttached();
   });
@@ -225,8 +228,8 @@ test("nova aurora limita pixels no desktop e permanece fixa atrás do rodapé", 
 test("homepage apresenta as seis seções reais sem promessa de cadastro público ou automação", async ({ page }) => {
   await isolate(page, () => {});
   await page.goto("/");
-  await expect(page.locator(".jl-header-actions").getByRole("link", { name: "Acessar conta" })).toHaveAttribute("href", "/login");
-  await expect(page.locator(".jl-site a[href='/cadastro']")).toHaveCount(0);
+  await expect(page.locator(".jl-header-actions").getByRole("link", { name: "Criar conta" })).toHaveAttribute("href", "/cadastro");
+  await expect(page.locator(".jl-header-actions").getByRole("button", { name: "Acessar conta" })).toBeVisible();
 
   const displayedModules = await page.locator(".jl-module-tab strong").allTextContents();
   expect(displayedModules).toEqual(["Dashboard", "Meus Leads", "Buscar Leads", "Oportunidades", "Mensagens", "Financeiro"]);
@@ -310,7 +313,7 @@ for (const width of [390, 1280]) {
     await page.evaluate(() => window.scrollTo(0, Math.min(950, document.documentElement.scrollHeight - innerHeight)));
     await expect.poll(() => header.evaluate((node) => Math.round(node.getBoundingClientRect().top))).toBe(0);
     expect(await header.evaluate((node) => Number(getComputedStyle(node).zIndex))).toBeGreaterThan(10);
-    await expect(header.getByRole("link", { name: "Acessar conta" })).toBeVisible();
+    await expect(header.getByRole("button", { name: "Acessar conta" })).toBeVisible();
 
     if (width === 390) {
       await header.getByRole("button", { name: "Abrir menu" }).click();
