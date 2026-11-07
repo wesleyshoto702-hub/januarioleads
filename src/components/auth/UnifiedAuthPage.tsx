@@ -216,7 +216,7 @@ export function UnifiedAuthPage({ initialMode }: { initialMode: AuthMode }) {
                     : <LockKeyhole size={18} aria-hidden="true" />}
                   {busy ? (mode === "login" ? "Entrando..." : "Criando conta...")
                     : (mode === "login" ? "Entrar" : "Criar conta")}
-                  {!busy && <ArrowRight size={18} aria-hidden="true" />}
+
                 </button>
               </form>
               {mode === "signup" && USE_HTTPONLY_SESSION && (
