@@ -15,7 +15,6 @@
 .jl-editorial-link:hover { color:white; }
 .jl-challenge-lines { border-top:1px solid #333946; }
 .jl-challenge-line { display:flex; align-items:flex-start; gap:24px; padding:23px 0; border-bottom:1px solid #333946; }
-.jl-challenge-number { font:750 13px "Space Grotesk",Inter,sans-serif; color:#ed8298; padding-top:4px; }
 .jl-challenge-line-copy { display:grid; gap:8px; }
 .jl-challenge-line-heading { display:flex; align-items:center; gap:9px; color:#eef1f7; }
 .jl-challenge-line-heading svg { color:#fa7993; }
@@ -27,11 +26,9 @@
 .jl-editorial-workflow-head { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,.7fr); gap:40px; align-items:end; margin-bottom:34px; }
 .jl-editorial-workflow-head > div { display:grid; gap:14px; }
 .jl-workflow-track { list-style:none; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); padding:0; margin:0; gap:0; position:relative; }
-.jl-workflow-track:before { content:""; position:absolute; top:23px; left:6%; right:6%; height:2px; background:linear-gradient(90deg,#b52e4a,#f96d89,#454354); }
 .jl-workflow-track li { position:relative; display:flex; align-items:flex-start; gap:14px; padding:0 15px 0 0; }
 .jl-workflow-node { position:relative; display:grid; place-items:center; flex:0 0 46px; width:46px; height:46px; border-radius:14px; border:1px solid #8d4660; background:#311f2e; color:#ff91a7; box-shadow:0 0 0 5px #14111b; }
 .jl-workflow-track li > div { display:grid; gap:7px; padding-top:3px; }
-.jl-workflow-track li small { font-size:9px; letter-spacing:.13em; font-weight:800; color:#fb889e; }
 .jl-workflow-track li strong { font:750 19px "Space Grotesk",Inter,sans-serif; color:#f8f8fa; }
 .jl-workflow-track li p { color:#abb5c4; font-size:11px; line-height:1.75; }
 .jl-modules { display:grid; grid-template-columns:minmax(230px,.76fr) minmax(0,1.24fr); gap:22px; }
@@ -57,7 +54,6 @@
 .jl-module-visual-top span { width:7px; height:7px; border-radius:50%; background:#77cfaa; }
 .jl-module-visual > div { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
 .jl-module-visual-item { display:flex; align-items:center; flex-wrap:wrap; gap:6px; color:#d9dfea; padding:9px 0; min-width:0; }
-.jl-module-visual-item small { color:#fc91a2; font-size:9px; font-weight:750; }
 .jl-module-visual-item strong { font-size:10px; line-height:1.6; font-weight:680; }
 .jl-module-visual-item svg { color:#ed738b; }
 .jl-editorial-audience { background:linear-gradient(155deg,#121522,#0b0e14); border-block:1px solid #2e3240; }
@@ -96,7 +92,6 @@
 @media (max-width:640px) {
  .jl-editorial-workflow { padding-block:55px; }
  .jl-workflow-track { grid-template-columns:1fr; gap:24px; }
- .jl-workflow-track:before { left:22px; top:20px; bottom:20px; right:auto; height:auto; width:2px; }
  .jl-workflow-track li { gap:15px; }
  .jl-module-menu { grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; }
  .jl-module-tab { min-height:63px; padding:9px; gap:7px; }

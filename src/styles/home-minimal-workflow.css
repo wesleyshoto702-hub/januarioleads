@@ -43,51 +43,90 @@
 }
 .jl-site .jl-faq { padding-bottom:clamp(65px,7vw,95px); }
 
-/* Explore → Organize → Acompanhe: a red line travels between the three
- * nodes and each completed step stays red once the section is viewed. */
-.jl-workflow-track::before {
+/* Explore → Organize → Acompanhe: each line segment grows precisely from
+ * one icon to the next. The copy stays clipped until its icon is reached. */
+.jl-workflow-track li { animation: none; }
+.jl-workflow-track li:not(:last-child)::before,
+.jl-workflow-track li:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  z-index: 0;
   left: 23px;
-  right: calc(33.333% - 23px);
-  top:22px;
-  height:3px;
-  background:rgba(107,68,83,.45);
+  top: 22px;
+  width: 100%;
+  height: 3px;
+  border-radius: 10px;
 }
-.jl-workflow-track::after {
-  content:"";
-  position:absolute;
-  z-index:0;
-  left:23px;
-  top:22px;
-  height:3px;
-  width:0;
-  border-radius:10px;
-  background:linear-gradient(90deg,#bb284a,#ef4b6d,#ff8299);
-  box-shadow:0 0 14px rgba(239,65,99,.36);
-  transition:width .7s cubic-bezier(.22,1,.36,1);
+.jl-workflow-track li:not(:last-child)::before {
+  background: rgba(107,68,83,.45);
 }
-.jl-workflow-track[data-stage="1"]::after { width:33.333%; }
-.jl-workflow-track[data-stage="2"]::after { width:66.666%; }
-.jl-workflow-track li { animation:none; }
+.jl-workflow-track li:not(:last-child)::after {
+  width: 0;
+  background: linear-gradient(90deg,#bb284a,#ef4b6d,#ff8299);
+  box-shadow: 0 0 14px rgba(239,65,99,.36);
+  transition: width .85s linear;
+}
+.jl-workflow-track li.jl-workflow-active:not(:last-child)::after { width: 100%; }
+
 .jl-workflow-node {
-  z-index:1;
-  background:#211f2a;
-  border-color:#594252;
-  color:#ac91a0;
-  box-shadow:0 0 0 5px #15131e;
-  transition:background .55s ease,border-color .55s ease,box-shadow .55s ease,color .55s ease;
+  z-index: 2;
+  background: #211f2a;
+  border-color: #594252;
+  color: #ac91a0;
+  box-shadow: 0 0 0 5px #15131e;
+  transition: background .55s ease,border-color .55s ease,box-shadow .55s ease,color .55s ease;
 }
+.jl-workflow-copy { position: relative; z-index: 1; min-width: 0; }
 .jl-workflow-track li strong {
-  transition:color .45s ease;
-  color:#c5cbd4;
+  transition: color .45s ease;
+  color: #c5cbd4;
 }
 .jl-workflow-track li.jl-workflow-active .jl-workflow-node {
-  background:linear-gradient(145deg,#b72143,#f04a6a);
-  border-color:#ff8ca1;
-  color:white;
-  box-shadow:0 0 0 5px #15131e,0 0 22px rgba(240,67,108,.29);
+  background: linear-gradient(145deg,#b72143,#f04a6a);
+  border-color: #ff8ca1;
+  color: white;
+  box-shadow: 0 0 0 5px #15131e,0 0 22px rgba(240,67,108,.29);
 }
-.jl-workflow-track li.jl-workflow-active strong { color:#fff; }
-.jl-workflow-track li.jl-workflow-active p { color:#d4b8c4; }
+.jl-workflow-track li.jl-workflow-active strong { color: #fff; }
+.jl-workflow-track li.jl-workflow-active p { color: #d4b8c4; }
+
+/* Explore and its explanation are readable immediately. The other icons are
+ * visible, while their title and description progressively reveal once the
+ * connecting line has reached each node (1050ms and 2200ms in the sequence). */
+.jl-workflow-track li:not(:first-child) .jl-workflow-copy {
+  opacity: 0;
+  clip-path: inset(0 100% 0 0);
+}
+.jl-workflow-track li:not(:first-child).jl-workflow-active .jl-workflow-copy {
+  animation: jlWorkflowCopyReveal .74s cubic-bezier(.22,1,.36,1) both;
+}
+@keyframes jlWorkflowCopyReveal {
+  0%   { opacity: 0; clip-path: inset(0 100% 0 0); }
+  12%  { opacity: 1; }
+  100% { opacity: 1; clip-path: inset(0 0 0 0); }
+}
+
+/* Under 640px the three icons stack. Each vertical segment spans the exact
+ * height of its own row plus the 24px grid gap to the following icon. */
+@media (max-width:640px) {
+  .jl-workflow-track li:not(:last-child)::before,
+  .jl-workflow-track li:not(:last-child)::after {
+    left: 22px;
+    top: 23px;
+    width: 3px;
+    height: calc(100% + 24px);
+  }
+  .jl-workflow-track li:not(:last-child)::after {
+    height: 0;
+    background: linear-gradient(180deg,#bb284a,#ef4b6d,#ff8299);
+    transition: height .85s linear;
+  }
+  .jl-workflow-track li.jl-workflow-active:not(:last-child)::after {
+    width: 3px;
+    height: calc(100% + 24px);
+  }
+}
 
 @media (max-width:850px) {
  .jl-site .jl-hero-grid { padding-block:39px 53px; }
@@ -99,15 +138,15 @@
  .jl-site .jl-hero-highlights { gap:7px; }
  .jl-site .jl-hero-highlights span { font-size:9px; gap:4px; }
  .jl-site .jl-hero-highlights svg { width:13px; height:13px; }
- .jl-workflow-track::before {
-   left:22px; right:auto; top:22px; bottom:22px; height:auto; width:3px;
- }
- .jl-workflow-track::after { left:22px; top:22px; width:3px; height:0; transition:height .7s cubic-bezier(.22,1,.36,1); }
- .jl-workflow-track[data-stage="1"]::after { width:3px; height:44%; }
- .jl-workflow-track[data-stage="2"]::after { width:3px; height:calc(100% - 44px); }
+
 }
 @media (prefers-reduced-motion:reduce) {
- .jl-workflow-track::after,
- .jl-workflow-node,
- .jl-workflow-track li strong { transition:none !important; }
+  .jl-workflow-track li:not(:last-child)::after,
+  .jl-workflow-node,
+  .jl-workflow-track li strong { transition: none !important; }
+  .jl-workflow-track li:not(:first-child) .jl-workflow-copy {
+    opacity: 1 !important;
+    clip-path: none !important;
+    animation: none !important;
+  }
 }

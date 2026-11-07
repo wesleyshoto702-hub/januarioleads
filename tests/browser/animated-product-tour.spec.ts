@@ -102,3 +102,21 @@ for (const width of [360, 390, 768, 1280]) {
     )).toBe(false);
   });
 }
+
+
+test("homepage apresenta etapas sem numeração decorativa no tour, busca e módulos", async ({ page }) => {
+  await interceptExternal(page, () => { throw new Error("Supabase called"); });
+  await page.goto("/");
+  const titles = ["Buscar empresas", "Escolher leads", "Organizar no CRM", "Planejar follow-up"];
+  const steps = page.locator(".jl-tour-step-buttons .jl-tour-step-indicator");
+  await expect(steps).toHaveCount(4);
+  for (let index = 0; index < titles.length; index++) {
+    await expect(steps.nth(index)).toContainText(titles[index]!);
+    await expect(steps.nth(index)).not.toContainText(/\b0[1-4]\b/);
+  }
+  await expect(page.locator(".jl-tour-step-number, .jl-module-visual-item small")).toHaveCount(0);
+  await expect(page.locator(".jl-search-animation-label")).toHaveText("BUSCA ILUSTRATIVA");
+  await expect(page.locator(".jl-tour-player-caption > span")).not.toContainText(/ETAPA \d+ DE \d+/);
+  await expect(page.locator(".jl-module-eyebrow")).not.toContainText(/MÓDULO \d+ DE \d+/);
+  await expect(page.locator(".jl-module-visual-item")).toHaveCount(3);
+});

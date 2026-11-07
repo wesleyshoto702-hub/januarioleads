@@ -224,19 +224,18 @@ export function AnimatedProductTour() {
         <p className="jl-tour-side-overline">SEU FLUXO, EM MOVIMENTO</p>
         <h3>Não é só uma lista. <span>É um processo.</span></h3>
         <p>Assista ao fluxo completo: a demonstração avança automaticamente da busca de empresas ao próximo contato.</p>
-        <ol className="jl-tour-step-buttons" aria-label="Etapas da demonstração automática">
+        <ul className="jl-tour-step-buttons" aria-label="Etapas da demonstração automática">
           {scenes.map(({ icon: StepIcon, short }, index) => (
             <li
               key={short}
               className={"jl-tour-step-indicator " + (current === index ? "active" : "")}
               aria-current={current === index ? "step" : undefined}
             >
-              <span className="jl-tour-step-number">0{index + 1}</span>
               <StepIcon size={17} aria-hidden="true" />
               <span>{short}</span>
             </li>
           ))}
-        </ol>
+        </ul>
         {reducedMotion && <p className="jl-tour-reduced-note">Movimento reduzido ativado: o exemplo permanece estático e as quatro etapas estão descritas acima.</p>}
       </div>
       <div className="jl-tour-stage" data-stage={current} data-playing={isRunning} data-reduced={reducedMotion}>
@@ -272,7 +271,7 @@ export function AnimatedProductTour() {
         <div className="jl-tour-player-footer">
           <span className="jl-tour-player-icon"><Icon size={19} aria-hidden="true" /></span>
           <div className="jl-tour-player-caption">
-            <span>ETAPA {current + 1} DE {scenes.length} · {currentScene.cue}</span>
+            <span>{currentScene.cue}</span>
             <strong>{currentScene.title}</strong>
             <p>{currentScene.text}</p>
           </div>

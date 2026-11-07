@@ -147,7 +147,7 @@ export function WorkflowRibbon() {
           {steps.map(({ title, description, icon: Icon }, index) => (
             <li key={title} className={activeStep >= index ? "jl-workflow-active" : ""}>
               <span className="jl-workflow-node"><Icon size={19} aria-hidden="true" /></span>
-              <div><strong>{title}</strong><p>{description}</p></div>
+              <div className="jl-workflow-copy"><strong>{title}</strong><p>{description}</p></div>
             </li>
           ))}
         </ol>
@@ -226,7 +226,7 @@ export function FeatureExplorer() {
       </div>
       <div className="jl-module-detail" role="region" aria-live="polite" id="jl-module-panel" aria-labelledby={"jl-module-tab-" + selected}>
         <div key={selected} className="jl-module-detail-inner">
-          <span className="jl-module-eyebrow"><ActiveIcon size={18} aria-hidden="true" /> MÓDULO {productModules.findIndex((x) => x.id === selected) + 1} DE {productModules.length}</span>
+          <span className="jl-module-eyebrow"><ActiveIcon size={18} aria-hidden="true" /> {active.name}</span>
           <h3>{active.headline}</h3>
           <p>{active.description}</p>
           <ul className="jl-module-bullets">
@@ -237,7 +237,7 @@ export function FeatureExplorer() {
             <div>
               {active.visual.map((v, i) => (
                 <span className="jl-module-visual-item" key={v}>
-                  <small>0{i + 1}</small><strong>{v}</strong>
+                  <strong>{v}</strong>
                   {i < active.visual.length - 1 && <ArrowRight size={13} aria-hidden="true" />}
                 </span>
               ))}
