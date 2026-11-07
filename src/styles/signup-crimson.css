@@ -167,30 +167,6 @@
 }
 .jl-signup-primary:not(:disabled):hover { filter: brightness(1.1); }
 .jl-signup-primary:disabled { opacity: .58; cursor: wait; }
-.jl-signup-divider { display:flex;align-items:center;gap:14px;margin:23px 0 17px;color:#afa0b1;font-size:11px; }
-.jl-signup-divider::before,.jl-signup-divider::after { content:"";height:1px;flex:1;background:rgba(208,140,163,.27); }
-.jl-signup-google {
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:13px;
-  width:100%;
-  min-height:49px;
-  border-radius:30px;
-  border:1px solid rgba(208,183,203,.39);
-  background:#16151e;
-  color:#f6edf3;
-  font-size:13px;
-  font-weight:750;
-  cursor:pointer;
-}
-.jl-signup-google:hover:not(:disabled) { border-color:#fa6a94;background:#221723; }
-.jl-signup-google:disabled { opacity:.55;cursor:not-allowed; }
-.jl-google-g {
-  font:850 23px/1 Inter,system-ui,sans-serif;
-  background:conic-gradient(#4285f4 0 29%,#34a853 29% 49%,#fbbc05 49% 66%,#ea4335 66% 84%,#4285f4 84% 100%);
-  background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent;
-}
 .jl-signup-login-prompt { margin:17px 0 22px;text-align:center;color:#ccc0c8;font-size:12px; }
 .jl-signup-login-prompt a { color:#ff5389;font-weight:800;text-decoration:underline; }
 .jl-signup-security {
@@ -234,61 +210,4 @@
 }
 @media(prefers-reduced-motion:reduce){
   .jl-signup-control { transition:none; }
-}
-
-/* Verified-Google-only registration. Keep the approved crimson card and
-   aurora, but use an honest single-action enrollment instead of a text field
-   that cannot prove account ownership. */
-.jl-signup-google-only {
-  display: grid;
-  justify-items: center;
-  text-align: center;
-  gap: 12px;
-  margin: 9px 0 24px;
-  padding: clamp(20px,4vw,28px) clamp(15px,3vw,25px);
-  border: 1px solid rgba(249,93,143,.32);
-  border-radius: 16px;
-  background: linear-gradient(135deg,rgba(98,15,48,.32),rgba(40,11,31,.37));
-}
-.jl-signup-verified-icon {
-  display: grid;
-  place-items: center;
-  width: 59px;
-  height: 59px;
-  border-radius: 19px;
-  color: #ff7da2;
-  border: 1px solid rgba(255,128,164,.3);
-  background: rgba(193,28,80,.17);
-}
-.jl-signup-google-only h2 {
-  margin: 0;
-  font: 770 clamp(18px,2.4vw,23px)/1.3 "Space Grotesk",Inter,sans-serif;
-  letter-spacing: -.03em;
-  color: #fff;
-}
-.jl-signup-google-only p {
-  margin: 0;
-  max-width: 390px;
-  color: #d4bcc9;
-  font-size: 12px;
-  line-height: 1.8;
-}
-.jl-signup-google-primary {
-  min-height: 53px;
-  border-radius: 30px;
-  border-color: rgba(255,115,156,.4);
-  background: linear-gradient(120deg,#f12a61,#b50e40);
-  color: #fff;
-  box-shadow: 0 9px 25px rgba(233,20,75,.17);
-}
-.jl-signup-google-primary:hover:not(:disabled) {
-  background: linear-gradient(120deg,#fb4477,#c42152);
-}
-.jl-signup-google-primary .jl-google-g {
-  background: none;
-  -webkit-text-fill-color: initial;
-  color: white;
-}
-@media (max-width: 600px) {
-  .jl-signup-google-only { padding: 19px 15px; }
 }
