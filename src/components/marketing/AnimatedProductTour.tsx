@@ -1,18 +1,14 @@
 import {
-  ArrowLeft,
   ArrowRight,
   Building2,
   CalendarCheck2,
   Check,
   CheckCircle2,
-  CirclePause,
-  CirclePlay,
   Clock3,
   FolderPlus,
   LayoutDashboard,
   MapPin,
   MessageCircle,
-  RotateCcw,
   Search,
   Sparkles,
   Users,
@@ -193,18 +189,13 @@ function FollowupScene() {
 
 export function AnimatedProductTour() {
   const [current, setCurrent] = useState(0);
-  const [hydrated, setHydrated] = useState(false);
-  const [playing, setPlaying] = useState(true);
   const [pageVisible, setPageVisible] = useState(true);
   const [reducedMotion, setReducedMotion] = useState(false);
-
-  useEffect(() => { setHydrated(true); }, []);
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
     const update = () => {
       setReducedMotion(media.matches);
-      if (media.matches) setPlaying(false);
     };
     update();
     media.addEventListener("change", update);
@@ -218,17 +209,12 @@ export function AnimatedProductTour() {
     return () => document.removeEventListener("visibilitychange", onVisibilityChange);
   }, []);
 
-  const isRunning = playing && pageVisible && !reducedMotion;
+  const isRunning = pageVisible && !reducedMotion;
   useEffect(() => {
     if (!isRunning) return;
     const timer = window.setInterval(() => setCurrent((step) => (step + 1) % scenes.length), 4900);
     return () => window.clearInterval(timer);
-  }, [isRunning, current]);
-
-  function selectStep(step: number) {
-    setPlaying(false);
-    setCurrent(step);
-  }
+  }, [isRunning]);
 
   const currentScene = scenes[current] ?? scenes[0];
   const Icon = currentScene.icon;
@@ -237,48 +223,23 @@ export function AnimatedProductTour() {
       <div className="jl-tour-side">
         <p className="jl-tour-side-overline">SEU FLUXO, EM MOVIMENTO</p>
         <h3>Não é só uma lista. <span>É um processo.</span></h3>
-        <p>Uma demonstração animada e original das etapas que você já encontra no Januário Leads. Toque em qualquer etapa para explorar.</p>
-        <div className="jl-tour-step-buttons" aria-label="Etapas da demonstração">
+        <p>Assista ao fluxo completo: a demonstração avança automaticamente da busca de empresas ao próximo contato.</p>
+        <ol className="jl-tour-step-buttons" aria-label="Etapas da demonstração automática">
           {scenes.map(({ icon: StepIcon, short }, index) => (
-            <button
-              type="button"
+            <li
               key={short}
-              className={"jl-tour-step-button " + (current === index ? "active" : "")}
-              aria-pressed={current === index}
-              disabled={!hydrated}
-              onClick={() => selectStep(index)}
+              className={"jl-tour-step-indicator " + (current === index ? "active" : "")}
+              aria-current={current === index ? "step" : undefined}
             >
               <span className="jl-tour-step-number">0{index + 1}</span>
               <StepIcon size={17} aria-hidden="true" />
               <span>{short}</span>
-              <ArrowRight size={15} aria-hidden="true" />
-            </button>
+            </li>
           ))}
-        </div>
-        <div className="jl-tour-play-controls">
-          <button
-            type="button"
-            className="jl-tour-play-button"
-            disabled={reducedMotion || !hydrated}
-            onClick={() => setPlaying((was) => !was)}
-            aria-label={playing && !reducedMotion ? "Pausar demonstração" : "Reproduzir demonstração"}
-          >
-            {playing && !reducedMotion ? <CirclePause size={21} aria-hidden="true" /> : <CirclePlay size={21} aria-hidden="true" />}
-            {playing && !reducedMotion ? "Pausar" : "Reproduzir"}
-          </button>
-          <button
-            type="button"
-            className="jl-tour-restart-button"
-            disabled={!hydrated}
-            onClick={() => { setCurrent(0); setPlaying(false); }}
-            aria-label="Reiniciar demonstração"
-          >
-            <RotateCcw size={16} aria-hidden="true" /> Reiniciar
-          </button>
-        </div>
-        {reducedMotion && <p className="jl-tour-reduced-note">Movimento reduzido ativado: navegue manualmente pelas etapas.</p>}
+        </ol>
+        {reducedMotion && <p className="jl-tour-reduced-note">Movimento reduzido ativado: o exemplo permanece estático e as quatro etapas estão descritas acima.</p>}
       </div>
-      <div className="jl-tour-stage" data-interactive={hydrated} data-stage={current} data-playing={isRunning} data-reduced={reducedMotion}>
+      <div className="jl-tour-stage" data-stage={current} data-playing={isRunning} data-reduced={reducedMotion}>
         <div className="jl-tour-player-topbar">
           <span className="jl-tour-player-dots" aria-hidden="true"><i /><i /><i /></span>
           <span>Januário Leads <span className="jl-tour-window-divider">/</span> Tour do produto</span>
@@ -315,14 +276,10 @@ export function AnimatedProductTour() {
             <strong>{currentScene.title}</strong>
             <p>{currentScene.text}</p>
           </div>
-          <div className="jl-tour-arrow-controls">
-            <button type="button" disabled={!hydrated} onClick={() => selectStep((current + scenes.length - 1) % scenes.length)} aria-label="Etapa anterior"><ArrowLeft size={17} aria-hidden="true" /></button>
-            <button type="button" disabled={!hydrated} onClick={() => selectStep((current + 1) % scenes.length)} aria-label="Próxima etapa"><ArrowRight size={17} aria-hidden="true" /></button>
-          </div>
         </div>
         <div className="jl-tour-truth">
           <CheckCircle2 size={14} aria-hidden="true" />
-          Demonstração interativa com dados simulados — sem consultas ou envios reais.
+          Demonstração automática com dados simulados — sem consultas ou envios reais.
         </div>
       </div>
     </div>
