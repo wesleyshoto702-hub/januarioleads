@@ -12,11 +12,11 @@
 
 > Ainda não ativado automaticamente. Não executar em produção antes de homologação, migrações conciliadas e aprovação específica.
 
-1. Usar um **projeto Supabase de staging distinto do ambiente de produção**.
+1. Usar o projeto Supabase **Januário Leads — Staging**, ref `prlrxjothrslhswpkoza`, independente do projeto de produção.
 2. Em **Authentication → Providers → Email**, deixar o login por e-mail/senha ativo e habilitar **Confirm Email**. Sem isso o Supabase pode confirmar contas automaticamente ou emitir sessões no cadastro, e a mera validação no frontend não fornece segurança.
 3. Em **Authentication → URL Configuration**, definir a Site URL da aplicação de teste e autorizar explicitamente `https://<dominio-de-staging>/login` como URL de redirecionamento.
 4. Configurar SMTP/entrega de e-mail para os destinatários de teste permitidos; o serviço padrão do Supabase pode não enviar para qualquer destinatário.
-5. Aplicar manualmente `supabase/sql/require-gmail-signup-hook.sql` no **SQL Editor do staging**. Esse SQL cria a função em um schema não exposto, concedendo execução somente a `supabase_auth_admin`.
+5. **Concluído no staging em 07/11/2026:** aplicada a função SQL de `supabase/sql/require-gmail-signup-hook.sql` como migration `restrict_signup_to_gmail_staging`. Ela foi testada em 10 cenários (10/10 aprovados) e a permissão foi confirmada somente para `supabase_auth_admin` (não para `anon`/`authenticated`). Não reaplicar sem necessidade.
 6. Em **Authentication → Hooks → Before User Created**, habilitar a opção **Postgres** e selecionar `auth_hooks.require_gmail_signup`. **Criar somente a função SQL não habilita o hook.**
 7. Só depois habilitar o formulário no ambiente correto. Preservar as proteções de staging descritas em `docs/cadastro-beta-staging-2026-11-06.md`; não reutilizar credenciais/chaves de produção.
 
@@ -44,6 +44,6 @@ Resultado esperado: `{}` para Gmail e um objeto `error` para Outlook.
 
 ## Status
 
-A branch desta entrega contém **frontend, validação no cliente, testes, SQL para implantação controlada e instruções**. A garantia de verificação de propriedade e a barreira real do servidor dependem de habilitar **Confirm Email** e **Before User Created Hook** no projeto Supabase de staging, testar fim a fim, e só então planejar a promoção. Não confundir um PR aprovado com configuração de Auth ativada na produção.
+A branch desta entrega contém **frontend, validação no cliente, testes, SQL e instruções**. O projeto `prlrxjothrslhswpkoza` foi criado em São Paulo e está saudável; a função de validação foi instalada e testada em staging (10/10 casos; nenhum alerta de segurança no Advisor). **Ainda falta** habilitar o **Before User Created Hook** pelo painel, verificar que **Confirm Email** está ligado no staging, configurar redirects/entrega de e-mail, testar um cadastro real e executar o CI do PR. Nenhum hook do projeto de produção foi alterado.
 
 Documentação oficial: [Supabase Confirm Email](https://supabase.com/docs/guides/auth/general-configuration) e [Before User Created Hook](https://supabase.com/docs/guides/auth/auth-hooks/before-user-created-hook).
