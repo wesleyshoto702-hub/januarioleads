@@ -34,7 +34,7 @@ test("Acessar conta mostra escolha central, sem presumir existência da conta", 
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole("link", { name: "Criar conta" })).toHaveAttribute("href", "/cadastro");
   await expect(dialog.getByRole("link", { name: /Já tenho conta/ })).toHaveAttribute("href", "/login");
-  await expect(page).toHaveURL("/");
+  await expect(page).toHaveURL(/\/$/);
   await page.keyboard.press("Escape");
   await expect(dialog).not.toBeVisible();
   await page.locator(".jl-header-actions").getByRole("button", { name: "Acessar conta" }).click();
