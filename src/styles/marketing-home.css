@@ -554,3 +554,32 @@ html:has(.jl-site) { scroll-behavior: smooth; }
   border-color: rgba(255,128,163,.65);
   background: rgba(255,255,255,.09);
 }
+
+/*
+ * Homepage: each section's content fades and rises into place once when
+ * entering the viewport. Reveal only the inner .jl-container, not the whole
+ * full-width background (less overdraw while the aurora canvas keeps moving).
+ * Elements are never hidden when JavaScript/IntersectionObserver is absent.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .jl-site > #conteudo > section[data-jl-reveal] > .jl-container {
+    transition:
+      opacity 680ms cubic-bezier(.22,1,.36,1),
+      transform 680ms cubic-bezier(.22,1,.36,1);
+  }
+  .jl-site > #conteudo > section[data-jl-reveal="waiting"] > .jl-container {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  .jl-site > #conteudo > section[data-jl-reveal="visible"] > .jl-container {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .jl-site > #conteudo > section[data-jl-reveal] > .jl-container {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}
