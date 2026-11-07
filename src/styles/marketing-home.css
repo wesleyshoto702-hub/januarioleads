@@ -25,10 +25,15 @@
 .jl-skip:focus { top: 12px; }
 
 .jl-header {
-  position: relative;
-  z-index: 5;
-  background: rgba(8, 10, 14, .9);
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  background: rgba(8, 10, 14, .94);
   border-bottom: 1px solid rgba(255,255,255,.07);
+}
+/* Fixed navigation should never obscure anchor-linked section headings. */
+.jl-site :is(#tour, #demonstracao, #recursos, #para-quem, #duvidas, #como-funciona) {
+  scroll-margin-top: 94px;
 }
 .jl-header-inner { display: flex; align-items: center; justify-content: space-between; min-height: 79px; gap: 26px; }
 .jl-brand { display: inline-flex; gap: 10px; align-items: center; flex: 0 0 auto; color: #f8fafc; }
