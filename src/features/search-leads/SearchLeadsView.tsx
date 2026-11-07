@@ -34,6 +34,11 @@ import {
 } from "./identity";
 import { searchBusinesses } from "./search-businesses";
 import {
+  SAAS_STAGING_ACTIVE,
+  loadMySaasUsage,
+  type SaasUsage,
+} from "./saas-usage";
+import {
   DEFAULT_SEARCH_LOCATION,
   loadBrazilianMunicipalities,
   loadSearchLocation,
@@ -525,6 +530,9 @@ export function SearchLeadsView({
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<{ code: string; message: string } | null>(null);
   const [searchNotice, setSearchNotice] = useState(initialSearchSession?.searchNotice ?? "");
+  const [saasUsage, setSaasUsage] = useState<SaasUsage | null>(null);
+  const [saasUsageError, setSaasUsageError] = useState(false);
+  const [showStagingDemo, setShowStagingDemo] = useState(false);
   const [resultFilters, setResultFilters] = useState<ResultFilterState>(
     initialSearchSession?.resultFilters ?? DEFAULT_RESULT_FILTERS,
   );
@@ -536,6 +544,32 @@ export function SearchLeadsView({
   const hasActiveSearchRef = useRef(Boolean(initialSearchSession));
   // A slower search must never replace results from a newer user request.
   const searchRequestIdRef = useRef(0);
+
+  useEffect(() => {
+    if (!SAAS_STAGING_ACTIVE) return;
+    let active = true;
+    async function refreshUsage() {
+      const usage = await loadMySaasUsage();
+      if (!active) return;
+      if (usage) {
+        setSaasUsage(usage);
+        setSaasUsageError(false);
+      } else {
+        setSaasUsageError(true);
+      }
+    }
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void refreshUsage();
+    };
+    void refreshUsage();
+    window.addEventListener("focus", refreshUsage);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      active = false;
+      window.removeEventListener("focus", refreshUsage);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, []);
 
   useEffect(() => {
     // Do not replace the remote last search with an empty default session.
@@ -876,6 +910,7 @@ export function SearchLeadsView({
     if (requestId !== searchRequestIdRef.current) return;
 
     if (!response.ok) {
+      if (response.quota) setSaasUsage(response.quota);
       if (!append && response.code === "QUOTA") {
         const cached = await fetchCachedPlacesSearchSample(
           location,
@@ -916,6 +951,12 @@ export function SearchLeadsView({
       return;
     }
 
+    if (response.quota) {
+      setSaasUsage(response.quota);
+      setSaasUsageError(false);
+    }
+    setShowStagingDemo(Boolean(response.demo));
+
     const combinedResults = append
       ? [...results, ...response.results]
       : response.results;
@@ -943,7 +984,9 @@ export function SearchLeadsView({
     const uniqueResults = [...uniqueByPlace.values()];
 
     setResults(uniqueResults);
-    setSearchNotice("");
+    setSearchNotice(response.demo
+      ? "Resultados 100% fictícios para homologar os limites de cada plano. Nenhuma empresa real foi consultada."
+      : "");
     storeRecentBusinessSearch(segment,response.results,{
       city: location.city,
       state: location.state,
@@ -1277,7 +1320,7 @@ export function SearchLeadsView({
 
       {searchNotice && (
         <div className="search-cache-notice" role="status">
-          <strong>Resultados salvos</strong>
+          <strong>{showStagingDemo ? "Simulação no Staging" : "Resultados salvos"}</strong>
           <span>{searchNotice}</span>
         </div>
       )}
@@ -1708,6 +1751,10 @@ function SearchError({ error }: { error: { code: string; message: string } }) {
       ? "Integração de busca indisponível"
       : error.code === "QUOTA"
         ? "Limite da API atingido"
+        : error.code === "DAILY_LEAD_LIMIT"
+          ? "Limite diário de leads atingido"
+          : error.code === "FEATURE_NOT_AVAILABLE"
+            ? "Recurso não disponível no seu plano"
         : error.code === "BILLING_REQUIRED"
           ? "Faturamento necessário"
           : error.code === "API_NOT_ENABLED"
