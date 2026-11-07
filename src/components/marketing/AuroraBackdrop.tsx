@@ -13,77 +13,116 @@ export function AuroraBackdrop() {
     const canvas = canvasRef.current;
     const context = canvas?.getContext("2d", { alpha: true });
     if (!canvas || !context) return;
-
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const mobile = window.matchMedia("(max-width: 700px)");
-    let frame = 0;
-    let lastPaint = 0;
     const startedAt = performance.now();
-    // Avoid querying layout twice on every animation frame. Canvas dimensions
-    // only change on resize/zoom (or media-query changes), never per stroke.
     let cssWidth = 0;
     let cssHeight = 0;
-    let lastRatio = 0;
-    // Base cadence is deliberately below a 60 Hz display refresh because
-    // diffuse northern lights do not need 38 full-canvas repaints per second.
-    // When drawing gets expensive, the cadence backs off automatically.
-    let frameInterval = mobile.matches ? 1000 / 14 : 1000 / 18;
-    let averagePaintCost = 0;
-    let deferPaintingUntil = 0;
+    let resolution = 1;
+    let desiredPixelWidth = 0;
+    let desiredPixelHeight = 0;
+    let frame = 0;
+    let lastPaint = 0;
+    let averageCost = 0;
+    let deferUntil = 0;
+    let resumeTimer: number | undefined;
+    let readyTimer: number | undefined;
+    let disposed = false;
+    let worker: Worker | null = null;
 
-    // Interactions take priority over decorative animation. A wheel, swipe,
-    // keyboard action or pointer press temporarily yields the main thread so
-    // scrolling, input and button feedback remain responsive.
-    function yieldToUser() {
-      deferPaintingUntil = performance.now() + 300;
+    function fallback() {
+      if (disposed || !worker) return;
+      worker.terminate();
+      worker = null;
+      window.clearTimeout(readyTimer);
+      canvas!.dataset.renderer = "main";
+      cssWidth = 0;
+      cssHeight = 0;
+      resize();
+      syncAnimation();
     }
 
-    function paint(time: number) {
-      if (cssWidth <= 0 || cssHeight <= 0) return;
+    // A worker renders into its own OffscreenCanvas and transfers ImageBitmaps.
+    // The visible canvas remains 2D, so screenshots, static fallback and
+    // existing accessibility/visual tests still work without special modes.
+    try {
+      if (typeof Worker !== "undefined" && typeof OffscreenCanvas !== "undefined") {
+        const candidate = new Worker(new URL("./aurora.worker.ts", import.meta.url), { type: "module" });
+        worker = candidate;
+        canvas.dataset.renderer = "worker";
+        readyTimer = window.setTimeout(() => fallback(), 4500);
+        candidate.onmessage = (event: MessageEvent<{ type: string; bitmap?: ImageBitmap }>) => {
+          if (disposed || worker !== candidate || event.data.type !== "frame" || !event.data.bitmap) return;
+          const bitmap = event.data.bitmap;
+          window.clearTimeout(readyTimer);
+          try {
+            if (canvas.width !== desiredPixelWidth || canvas.height !== desiredPixelHeight) {
+              canvas.width = desiredPixelWidth;
+              canvas.height = desiredPixelHeight;
+            }
+            context.setTransform(1, 0, 0, 1, 0, 0);
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+          } finally {
+            bitmap.close();
+            candidate.postMessage({ type: "ack" });
+          }
+        };
+        candidate.onerror = (event) => {
+          event.preventDefault();
+          fallback();
+        };
+        candidate.onmessageerror = () => fallback();
+      } else {
+        canvas.dataset.renderer = "main";
+      }
+    } catch {
+      canvas.dataset.renderer = "main";
+    }
+
+    function paintFallback(time: number) {
+      if (worker || cssWidth <= 0 || cssHeight <= 0) return;
       drawCurtains(context!, cssWidth, cssHeight, time, mobile.matches);
     }
 
     function resize() {
       const width = canvas!.clientWidth;
       const height = canvas!.clientHeight;
-      // The effect is intentionally diffuse. Rendering 4+ million physical
-      // pixels on large retina desktops wastes fill-rate without visible gain.
-      const pixelBudget = mobile.matches ? 600_000 : 1_000_000;
-      const pixelRatioBudget = Math.sqrt(pixelBudget / Math.max(1, width * height));
-      const pixelRatioCap = mobile.matches ? 1.35 : 1;
-      const resolution = Math.min(window.devicePixelRatio || 1, pixelRatioCap, pixelRatioBudget);
-      if (width <= 0 || height <= 0) {
-        cssWidth = 0;
-        cssHeight = 0;
-        return;
+      if (width <= 0 || height <= 0) return;
+      const budget = mobile.matches ? 600_000 : 1_000_000;
+      const pixelCap = mobile.matches ? 1.35 : 1;
+      const ratio = Math.min(window.devicePixelRatio || 1, pixelCap,
+        Math.sqrt(budget / Math.max(1, width * height)));
+      const changed = width !== cssWidth || height !== cssHeight || ratio !== resolution;
+      cssWidth = width;
+      cssHeight = height;
+      resolution = ratio;
+      desiredPixelWidth = Math.max(1, Math.round(width * ratio));
+      desiredPixelHeight = Math.max(1, Math.round(height * ratio));
+      if (changed) {
+        if (worker) {
+          worker.postMessage({ type: "resize", width, height, pixelRatio: ratio, mobile: mobile.matches });
+        } else {
+          canvas!.width = desiredPixelWidth;
+          canvas!.height = desiredPixelHeight;
+          context!.setTransform(ratio, 0, 0, ratio, 0, 0);
+        }
       }
-      if (width !== cssWidth || height !== cssHeight || resolution !== lastRatio) {
-        cssWidth = width;
-        cssHeight = height;
-        lastRatio = resolution;
-        canvas!.width = Math.max(1, Math.round(width * resolution));
-        canvas!.height = Math.max(1, Math.round(height * resolution));
-        context!.setTransform(resolution, 0, 0, resolution, 0, 0);
-      }
-      paint(reducedMotion.matches ? 0 : (performance.now() - startedAt) / 1000);
+      if (!worker) paintFallback(reducedMotion.matches ? 0 : (performance.now() - startedAt) / 1000);
     }
 
     function tick(now: number) {
-      if (now < deferPaintingUntil) {
-        frame = window.requestAnimationFrame(tick);
-        return;
-      }
-      if (now - lastPaint >= frameInterval) {
-        const beganAt = performance.now();
-        paint((now - startedAt) / 1000);
-        const paintCost = performance.now() - beganAt;
-        averagePaintCost = averagePaintCost
-          ? averagePaintCost * .75 + paintCost * .25
-          : paintCost;
-        const baseInterval = mobile.matches ? 1000 / 19 : 1000 / 24;
-        // Protect input/scroll responsiveness if software Canvas becomes slow.
-        frameInterval = Math.max(baseInterval, Math.min(1000 / 9, averagePaintCost * 3));
-        lastPaint = now;
+      if (worker || disposed) return;
+      if (now >= deferUntil) {
+        const minimum = mobile.matches ? 1000 / 14 : 1000 / 18;
+        const interval = Math.max(minimum, Math.min(1000 / 9, averageCost * 3));
+        if (now - lastPaint >= interval) {
+          const begin = performance.now();
+          paintFallback((now - startedAt) / 1000);
+          const cost = performance.now() - begin;
+          averageCost = averageCost ? averageCost * .75 + cost * .25 : cost;
+          lastPaint = now;
+        }
       }
       frame = window.requestAnimationFrame(tick);
     }
@@ -91,13 +130,29 @@ export function AuroraBackdrop() {
     function syncAnimation() {
       window.cancelAnimationFrame(frame);
       resize();
-      // Pause when offscreen/tab hidden or user requests reduced motion.
-      if (!reducedMotion.matches && document.visibilityState === "visible") {
+      if (worker) {
+        worker.postMessage({
+          type: reducedMotion.matches || document.visibilityState !== "visible" ? "pause" : "resume",
+          staticFrame: reducedMotion.matches,
+        });
+      } else if (!reducedMotion.matches && document.visibilityState === "visible") {
         lastPaint = 0;
-        averagePaintCost = 0;
-        frameInterval = mobile.matches ? 1000 / 19 : 1000 / 24;
+        averageCost = 0;
         frame = window.requestAnimationFrame(tick);
       }
+    }
+
+    function yieldToUser() {
+      const now = performance.now();
+      const alreadyYielding = now < deferUntil;
+      deferUntil = now + 320;
+      if (!alreadyYielding) worker?.postMessage({ type: "pause" });
+      window.clearTimeout(resumeTimer);
+      resumeTimer = window.setTimeout(() => {
+        if (worker && document.visibilityState === "visible" && !reducedMotion.matches) {
+          worker.postMessage({ type: "resume" });
+        }
+      }, 330);
     }
 
     window.addEventListener("resize", syncAnimation, { passive: true });
@@ -112,7 +167,11 @@ export function AuroraBackdrop() {
     syncAnimation();
 
     return () => {
+      disposed = true;
       window.cancelAnimationFrame(frame);
+      window.clearTimeout(resumeTimer);
+      window.clearTimeout(readyTimer);
+      worker?.terminate();
       window.removeEventListener("resize", syncAnimation);
       window.removeEventListener("scroll", yieldToUser);
       window.removeEventListener("wheel", yieldToUser);
