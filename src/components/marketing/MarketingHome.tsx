@@ -76,6 +76,50 @@ const faq = [
   },
 ];
 
+const pricingPlans = [
+  {
+    code: "free",
+    name: "Free",
+    summary: "O primeiro passo para encontrar e organizar oportunidades.",
+    price: "R$ 0,00",
+    highlights: [
+      "5 novos leads por dia",
+      "Busca por cidade e segmento",
+      "CRM básico para seus contatos",
+      "Modelos de mensagens essenciais",
+    ],
+    action: "Começar grátis",
+  },
+  {
+    code: "pro",
+    name: "Pro",
+    summary: "Mais contatos e organização para quem prospecta todos os dias.",
+    price: "R$ 14,90",
+    highlights: [
+      "25 novos leads por dia",
+      "CRM completo com Kanban",
+      "Modelos de mensagens personalizados",
+      "Central de acompanhamento",
+      "Relatórios comerciais básicos",
+    ],
+    action: "Solicitar acesso Pro",
+  },
+  {
+    code: "advanced",
+    name: "Advanced",
+    summary: "Maior volume e ferramentas para decisões comerciais mais rápidas.",
+    price: "R$ 29,90",
+    highlights: [
+      "70 novos leads por dia",
+      "Todos os recursos do Pro",
+      "Priorização inteligente de leads",
+      "Relatórios comerciais avançados",
+      "Automações internas de acompanhamento",
+    ],
+    action: "Solicitar acesso Advanced",
+  },
+] as const;
+
 function Brand() {
   return (
     <Link className="jl-brand" to="/" aria-label="Januário Leads — página inicial">
@@ -418,34 +462,50 @@ export function MarketingHome() {
 
         <AudienceSwitcher />
 
-        <section className="jl-section jl-comparison" aria-labelledby="compare-title">
+        <section className="jl-section jl-pricing-section" id="planos" aria-labelledby="jl-pricing-title">
           <div className="jl-container">
-            <div className="jl-section-heading jl-centered">
-              <span className="jl-eyebrow">UM JEITO MAIS ORGANIZADO DE TRABALHAR</span>
-              <h2 id="compare-title">Menos ferramentas soltas. <span>Mais continuidade.</span></h2>
+            <div className="jl-section-heading jl-centered jl-pricing-heading">
+              <span className="jl-eyebrow">PLANOS JANUÁRIO LEADS</span>
+              <h2 id="jl-pricing-title">Um plano para cada <span>ritmo de prospecção.</span></h2>
+              <p>Comece gratuitamente e escolha mais recursos conforme sua operação crescer.</p>
             </div>
-            <div className="jl-compare-grid">
-              <div className="jl-compare-panel muted">
-                <span className="jl-compare-label">Quando tudo fica separado</span>
-                <h3>Prospecção manual</h3>
-                <ul>
-                  <li>Pesquisar cada contato por conta própria</li>
-                  <li>Copiar dados para anotações ou planilhas</li>
-                  <li>Lembrar de cada retorno sem uma fila central</li>
-                  <li>Buscar o histórico em ferramentas diferentes</li>
-                </ul>
-              </div>
-              <div className="jl-compare-panel active">
-                <span className="jl-compare-label">Com o Januário Leads</span>
-                <h3>Prospecção conectada</h3>
-                <ul>
-                  <li><CheckCircle2 size={16}/> Pesquise empresas por região e nicho</li>
-                  <li><CheckCircle2 size={16}/> Salve contatos direto no CRM</li>
-                  <li><CheckCircle2 size={16}/> Organize retornos e próximas ações</li>
-                  <li><CheckCircle2 size={16}/> Consulte oportunidades por cidade e nicho</li>
-                </ul>
-              </div>
+
+            <div className="jl-pricing-grid">
+              {pricingPlans.map((plan) => (
+                <article
+                  key={plan.code}
+                  className={`jl-pricing-card jl-pricing-card--${plan.code}`}
+                  aria-label={`Plano ${plan.name}`}
+                >
+                  <div className="jl-pricing-card-top">
+                    {plan.code === "pro" && <span className="jl-pricing-recommended">Recomendado</span>}
+                  </div>
+                  <h3>{plan.name}</h3>
+                  <p className="jl-pricing-summary">{plan.summary}</p>
+                  <div className="jl-pricing-price" aria-label={`${plan.price} por mês`}>
+                    <strong>{plan.price}</strong>
+                    <span>/mês</span>
+                  </div>
+                  <Link
+                    to="/cadastro"
+                    className="jl-pricing-cta"
+                    aria-label={`${plan.action} — plano ${plan.name}`}
+                  >
+                    <span>{plan.action}</span>
+                  </Link>
+                  <div className="jl-pricing-rule" aria-hidden="true" />
+                  <ul className="jl-pricing-feature-list">
+                    {plan.highlights.map((feature) => (
+                      <li key={feature}><Check size={17} strokeWidth={2.2} aria-hidden="true" /><span>{feature}</span></li>
+                    ))}
+                  </ul>
+                </article>
+              ))}
             </div>
+            <p className="jl-pricing-footnote">
+              Planos em preparação. A solicitação de acesso não contrata uma assinatura nem realiza cobrança.
+              Os recursos apresentados serão liberados após os testes e a abertura comercial.
+            </p>
           </div>
         </section>
 
