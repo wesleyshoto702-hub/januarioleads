@@ -364,3 +364,16 @@ test("Kanban shows the real CRM stages and updates a lead through the existing p
     .getByRole("button", { name: "Lista" }).click();
   await expect(page.locator(".desktop-table .table-row")).toContainText(["Oficina Exemplo"]);
 });
+
+
+test("guided daily routine lets a user schedule a follow-up without sending any message", async ({ page }) => {
+  let writes = 0;
+  await loginWithMocks(page, { onLeadWrite: () => { writes++; return true; } });
+  const routine = page.getByRole("region", { name: /Próximos contatos em ordem de prioridade/ });
+  await expect(routine).toBeVisible();
+  await expect(routine).toContainText("Oficina Exemplo");
+  await expect(routine).toContainText("Não envia mensagens");
+  await routine.getByRole("button", { name: "Agendar amanhã" }).click();
+  await expect.poll(() => writes).toBeGreaterThanOrEqual(1);
+  await expect(routine).not.toContainText("Sem ação definida");
+});
