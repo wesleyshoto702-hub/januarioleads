@@ -14,7 +14,7 @@ Referência visual aprovada pelo responsável: mockup da tela "Criar conta" Janu
 
 `src/lib/public-registration.ts` chama `POST /auth/v1/signup` com a chave **publicável**, nome apenas em `user_metadata.full_name`, e senha forte de 12–128 caracteres. Não armazena tokens retornados durante o cadastro e não faz nenhuma escrita em `private_access`.
 
-Valida email, nome, senhas e origem do redirect, não transmite valores inválidos, não ecoa erros do backend que possam revelar se o e-mail existe, e trata limites de tentativas e falhas de rede. A confirmação por e-mail e a disponibilidade do endpoint dependem das configurações do Supabase Auth.
+Valida email, nome, senhas e origem do redirect, não transmite valores inválidos, não ecoa erros do backend que possam revelar se o e-mail existe, e trata limites de tentativas e falhas de rede. A confirmação por e-mail e a disponibilidade do endpoint dependem das configurações do Supabase Auth. Quando a confirmação por e-mail estiver desativada, uma sessão poderá ser retornada pelo servidor; ela não é adotada pelo frontend, e o usuário deverá entrar com suas credenciais após o cadastro.
 
 **Cadastro de identidade ≠ acesso comercial:** o banco existente usa RLS de `private_access`, limitado ao próprio usuário `auth.uid() = user_id`. A função `acceptExternalSession` também exige essa mesma autorização e revoga o token de OAuth em caso de ausência. Nenhum mecanismo de auto-ativação do CRM foi implementado. Este fluxo **não** gera assinatura, cobrança nem concede dados privados.
 
