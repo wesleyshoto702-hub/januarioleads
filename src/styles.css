@@ -6758,3 +6758,7 @@ a{
 @media(max-width:700px){.commercial-report-breakdowns{grid-template-columns:minmax(0,1fr)}.commercial-statuses{grid-template-columns:repeat(2,minmax(0,1fr))}.commercial-report-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:460px){.commercial-reports-toolbar{align-items:stretch}.commercial-period-picker{width:100%;justify-content:space-between}.commercial-period-picker button{flex:1 1 0;padding:8px 6px}.commercial-report-kpis>div{min-height:90px;padding:11px}.commercial-report-kpis>div:last-child{grid-column:1/-1}}
 @media(prefers-reduced-motion:reduce){.commercial-bar-track>span{transition:none}}
+
+.commercial-report-jump{display:inline-flex;align-items:center;gap:6px;text-decoration:none;font-size:12px;font-weight:700;color:var(--primary);border-radius:8px;padding:6px}
+.commercial-report-jump:hover,.commercial-report-jump:focus-visible{text-decoration:underline}
+#commercial-reports-title{scroll-margin-top:100px}
