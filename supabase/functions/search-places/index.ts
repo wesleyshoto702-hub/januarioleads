@@ -2781,13 +2781,6 @@ async function handleRequest(request: Request) {
   }
 
   const googleApiKey = Deno.env.get("GOOGLE_PLACES_API_KEY");
-  if (!googleApiKey) {
-    return failure(
-      "NOT_CONFIGURED",
-      "A credencial privada do Google Places não está configurada no backend.",
-      500,
-    );
-  }
 
   const parsedBody = await readJsonBody(request);
   if (!parsedBody.ok) {
@@ -2816,6 +2809,51 @@ async function handleRequest(request: Request) {
       : requestBody.mode === "presence-discovery"
         ? "presence-discovery"
         : "segment-search";
+
+  // Fixture mode is allowed only by the real Staging project, AFTER JWT and
+  // private_access validation. Requests never reach Google Places in this mode.
+  const demoMode = Deno.env.get("SUPABASE_URL")?.replace(/\/$/, "") === SAAS_STAGING_URL &&
+    mode === "segment-search" && requestBody.stagingDemo === true;
+
+  if (!googleApiKey && !demoMode) {
+    return failure(
+      "NOT_CONFIGURED",
+      "A credencial privada do Google Places não está configurada no backend.",
+      500,
+    );
+  }
+
+  // Refuse quota-exhausted requests before charging the external API budget
+  // or issuing paid Google Places requests.
+  if (saasQuotasEnabled() && mode === "segment-search") {
+    const quota = await peekSaasQuota(userId);
+    if (!quota) {
+      return failure("REQUEST_FAILED", "Não foi possível verificar seu saldo diário.", 503);
+    }
+    if (quota.remaining_today <= 0) {
+      return json({
+        ok: false,
+        code: "DAILY_LEAD_LIMIT",
+        message: "Você usou os " + quota.daily_limit + " leads do plano " +
+          quota.plan.toUpperCase() + " hoje. O limite renova à meia-noite (Brasília).",
+        quota,
+      }, 429);
+    }
+  }
+
+  if (saasQuotasEnabled() && mode === "lead-enrichment") {
+    const quota = await peekSaasQuota(userId);
+    if (!quota) {
+      return failure("REQUEST_FAILED", "Não foi possível verificar seu plano.", 503);
+    }
+    if (quota.plan === "free") {
+      return failure(
+        "FEATURE_NOT_AVAILABLE",
+        "O enriquecimento de leads está disponível nos planos Pro e Advanced.",
+        403,
+      );
+    }
+  }
 
   const rateLimitBucket =
     mode === "lead-enrichment"
@@ -2853,7 +2891,7 @@ async function handleRequest(request: Request) {
       return await runLeadEnrichment(googleApiKey, requestBody);
     }
 
-    return await runSegmentSearch(googleApiKey, requestBody);
+    return await runSegmentSearch(googleApiKey ?? "", requestBody, userId, demoMode);
   } catch {
     return failure(
       "REQUEST_FAILED",
