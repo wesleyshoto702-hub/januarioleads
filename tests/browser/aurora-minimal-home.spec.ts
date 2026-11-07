@@ -298,3 +298,24 @@ test("login não oferece cadastro público quando o acesso é restrito", async (
   await expect(page.getByText("Acesso para contas já autorizadas. Novos cadastros não estão disponíveis neste ambiente.")).toBeVisible();
   await expect(page.locator(".jl-auth-shell a[href='/cadastro']")).toHaveCount(0);
 });
+
+
+test("marketing CSS is route-scoped while aurora remains visible", async ({ page }) => {
+  await page.goto("/");
+  const homeLinks = await page.locator('link[rel="stylesheet"]').evaluateAll((nodes) =>
+    nodes.map((node) => (node as HTMLLinkElement).href),
+  );
+  expect(homeLinks.some((href) => href.includes("marketing-home"))).toBe(true);
+  expect(homeLinks.some((href) => href.includes("aurora-backdrop"))).toBe(true);
+  expect(homeLinks.some((href) => href.includes("app-shell"))).toBe(false);
+  expect(homeLinks.some((href) => href.includes("saas-visual-refresh"))).toBe(false);
+  await expect(page.locator(".jl-aurora-canvas")).toBeVisible();
+  await page.goto("/login");
+  const authLinks = await page.locator('link[rel="stylesheet"]').evaluateAll((nodes) =>
+    nodes.map((node) => (node as HTMLLinkElement).href),
+  );
+  expect(authLinks.some((href) => href.includes("auth-identity"))).toBe(true);
+  expect(authLinks.some((href) => href.includes("aurora-backdrop"))).toBe(true);
+  expect(authLinks.some((href) => href.includes("marketing-home"))).toBe(false);
+  expect(authLinks.some((href) => href.includes("app-shell"))).toBe(false);
+});
