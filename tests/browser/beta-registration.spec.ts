@@ -78,3 +78,61 @@ test("cadastro mantém alinhamento e não gera rolagem horizontal em celular", a
   await expect(page.locator(".jl-aurora-canvas")).toHaveCount(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)).toBe(false);
 });
+
+
+test("Google não configurado mostra orientação sem redirecionar e sem autenticar", async ({ page }) => {
+  await page.route("**/*.supabase.co/**", (route) => {
+    const u=new URL(route.request().url());
+    if(u.pathname==="/auth/v1/settings"){
+      return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({external:{google:false}})});
+    }
+    return route.abort();
+  });
+  await page.goto("/cadastro");
+  await page.getByRole("button", { name:"Continuar com Google" }).click();
+  await expect(page.getByRole("alert")).toContainText("não está ativado no Supabase");
+  await expect(page).toHaveURL(/\/cadastro$/);
+});
+
+test("Google com identidade sem autorização de CRM bloqueia sessão após PKCE", async ({ page }) => {
+  const id="22222222-2222-4222-8222-222222222222";
+  const called:string[]=[];
+  await page.route("**/*.supabase.co/**", (route) => {
+    const url=new URL(route.request().url());
+    called.push(url.pathname);
+    if(url.pathname==="/auth/v1/settings"){
+      return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({external:{google:true}})});
+    }
+    if(url.pathname==="/auth/v1/authorize"){
+      expect(url.searchParams.get("provider")).toBe("google");
+      expect(url.searchParams.get("flow_type")).toBe("pkce");
+      expect(url.searchParams.get("code_challenge")).toBeTruthy();
+      const redirect=new URL(url.searchParams.get("redirect_to")!);
+      redirect.searchParams.set("code","00000000-0000-4000-8000-000000000001");
+      return route.fulfill({status:302,headers:{Location:redirect.toString()}});
+    }
+    if(url.pathname==="/auth/v1/token"){
+      expect(url.searchParams.get("grant_type")).toBe("pkce");
+      const body=route.request().postDataJSON() as {code_verifier:string;auth_code:string};
+      expect(body.code_verifier.length).toBeGreaterThan(43);
+      return route.fulfill({status:200,contentType:"application/json",
+        body:JSON.stringify({access_token:"auth-only-token",refresh_token:"auth-only-refresh",
+          expires_in:3600,user:{id,email:"teste@example.invalid"}})});
+    }
+    if(url.pathname==="/auth/v1/user"){
+      return route.fulfill({status:200,contentType:"application/json",
+        body:JSON.stringify({id,email:"teste@example.invalid"})});
+    }
+    if(url.pathname==="/rest/v1/private_access"){
+      return route.fulfill({status:200,contentType:"application/json",body:"[]"});
+    }
+    if(url.pathname==="/auth/v1/logout")return route.fulfill({status:204,body:""});
+    return route.abort();
+  });
+  await page.goto("/cadastro");
+  await page.getByRole("button", { name:"Continuar com Google" }).click();
+  await expect(page.getByRole("heading",{name:"Verificação concluída"})).toBeVisible({timeout:12000});
+  await expect(page.getByText(/O acesso ao CRM precisa ser liberado/)).toBeVisible();
+  expect(called).toContain("/rest/v1/private_access");
+  expect(await page.evaluate(()=>localStorage.getItem("januarioleads:auth-session"))).toBeNull();
+});
