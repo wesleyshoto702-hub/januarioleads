@@ -8,7 +8,7 @@ async function instrument(page: Page) {
     const data = {
       lcp: null as number | null,
       cls: 0,
-      durations: [] as number[],
+      durations: [] as { time: number; duration: number }[],
       longTasks: [] as number[],
       gaps: [] as { time: number; duration: number }[],
     };
@@ -39,7 +39,7 @@ async function instrument(page: Page) {
     listen("event", (entries) => {
       for (const item of entries) {
         const event = item as PerformanceEntry & { interactionId?: number };
-        if (event.interactionId) data.durations.push(event.duration);
+        if (event.interactionId) data.durations.push({time: event.startTime, duration: event.duration});
       }
     }, { durationThreshold: 16 });
     let previous = 0;
@@ -56,16 +56,17 @@ async function instrument(page: Page) {
 async function snapshot(page: Page, from: number) {
   return page.evaluate((start) => {
     const data = (window as Window & { __perfProbe: {
-      lcp: number | null; cls: number; durations: number[];
+      lcp: number | null; cls: number; durations: {time:number;duration:number}[];
       longTasks: number[]; gaps: { time: number; duration: number }[];
     }}).__perfProbe;
     const gaps = data.gaps.filter((g) => g.time >= start).map((g) => g.duration).sort((a,b)=>a-b);
     const p95 = gaps.length ? gaps[Math.min(gaps.length - 1, Math.ceil(gaps.length * .95) - 1)] : null;
+    const interactions = data.durations.filter((v) => v.time >= start).map((v)=>v.duration);
     return {
       fcpMs: performance.getEntriesByType("paint").find((e)=>e.name==="first-contentful-paint")?.startTime ?? null,
       lcpMs: data.lcp,
       cls: Math.round(data.cls * 10000) / 10000,
-      syntheticMaxEventMs: data.durations.length ? Math.max(...data.durations) : null,
+      syntheticMaxEventMs: interactions.length ? Math.max(...interactions) : null,
       longTasks: data.longTasks.length,
       longTaskTotalMs: Math.round(data.longTasks.reduce((a,b)=>a+b,0)),
       frames: gaps.length,
@@ -100,19 +101,25 @@ for (const device of [
         const activeStart=await page.evaluate(()=>performance.now());
         await page.waitForTimeout(2500);
         const active=await snapshot(page,activeStart);
+        const activeClickStart=await page.evaluate(()=>performance.now());
+        await page.locator(".jl-faq-item summary").first().click({timeout:7000});
+        await page.waitForTimeout(280);
+        const activeClick=await snapshot(page,activeClickStart);
         await page.emulateMedia({reducedMotion:"reduce"});
         await page.waitForTimeout(400);
         const reducedStart=await page.evaluate(()=>performance.now());
         await page.waitForTimeout(2200);
         const reduced=await snapshot(page,reducedStart);
         // An automated interaction cannot replace real-user INP field data.
+        const reducedClickStart=await page.evaluate(()=>performance.now());
         await page.locator(".jl-faq-item summary").first().click({timeout:7000});
-        await page.waitForTimeout(400);
-        const event=await snapshot(page,reducedStart);
+        await page.waitForTimeout(280);
+        const reducedClick=await snapshot(page,reducedClickStart);
         console.log("AURORA_DIAGNOSTIC " + JSON.stringify({
           target:target.label, device:device.name,
           active,reducedMotion:reduced,
-          syntheticClickMaxDurationMs:event.syntheticMaxEventMs,
+          syntheticActiveClickMs:activeClick.syntheticMaxEventMs,
+          syntheticReducedClickMs:reducedClick.syntheticMaxEventMs,
         }));
       } catch(error) {
         console.log("AURORA_DIAGNOSTIC_UNAVAILABLE "+JSON.stringify({
