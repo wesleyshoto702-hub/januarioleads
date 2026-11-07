@@ -1,5 +1,5 @@
-/* Crimson account creation — mirrors the approved reference composition.
- * Scoped to /cadastro, leaves login and private CRM styles unchanged. */
+/* One crimson account card shared by /login and /cadastro.
+ * The retired two-column sign-in layout is no longer rendered. */
 .jl-signup-page {
   position: relative;
   min-height: 100dvh;
@@ -31,36 +31,31 @@
 }
 .jl-signup-brand {
   display: inline-flex;
-  gap: 12px;
   align-items: center;
+  justify-content: center;
+  text-align: center;
   text-decoration: none;
   font: 780 clamp(23px,3vw,28px)/1.1 "Space Grotesk",Inter,sans-serif;
   letter-spacing: -.045em;
   color: white;
 }
 .jl-signup-brand strong { color: #ff537e; }
-.jl-signup-brand-mark {
-  display: grid;
-  place-items: center;
-  width: 45px;
-  height: 45px;
-  border-radius: 12px;
-  color: white;
-  background: linear-gradient(145deg,#ec2356,#820c33);
-  box-shadow: 0 0 30px rgba(241,32,83,.3);
-}
 .jl-signup-safe-badge {
   display: inline-flex;
   align-items: center;
-  gap: 9px;
-  border: 1px solid rgba(250,61,108,.55);
+  justify-content: center;
+  max-width: 100%;
+  border: 1px solid rgba(250,61,108,.42);
   border-radius: 100px;
   padding: 8px 15px;
   background: rgba(41,4,18,.75);
-  font-size: 12px;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: .085em;
+  line-height: 1.5;
+  text-align: center;
   color: #f7e9ee;
 }
-.jl-signup-safe-badge svg { color: #ff4c7b; }
 .jl-signup-card {
   width: 100%;
   border: 1px solid rgba(239,73,126,.57);
@@ -89,9 +84,17 @@
   text-decoration: none;
   font-size: 13px;
   font-weight: 750;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
 }
-.jl-signup-tabs a:hover { color: white; background: rgba(255,255,255,.06); }
-.jl-signup-tabs [aria-current="page"] {
+.jl-signup-tabs button:hover:not(:disabled):not([aria-selected="true"]) {
+  color: white;
+  background: rgba(255,255,255,.06);
+}
+.jl-signup-tabs button:disabled { cursor: wait; }
+.jl-signup-tabs [aria-selected="true"] {
   color: white;
   background: linear-gradient(105deg,#981539,#cf244d);
   box-shadow: 0 4px 17px rgba(212,27,77,.18);
@@ -168,7 +171,19 @@
 .jl-signup-primary:not(:disabled):hover { filter: brightness(1.1); }
 .jl-signup-primary:disabled { opacity: .58; cursor: wait; }
 .jl-signup-login-prompt { margin:17px 0 22px;text-align:center;color:#ccc0c8;font-size:12px; }
-.jl-signup-login-prompt a { color:#ff5389;font-weight:800;text-decoration:underline; }
+.jl-signup-inline-link {
+  display: inline;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  color: #ff5389;
+  text-decoration: underline;
+}
+.jl-signup-inline-link:hover { color: #ff9cb6; }
 .jl-signup-security {
   display:flex;
   gap:10px;
@@ -208,6 +223,14 @@
   .jl-signup-intro h1 { font-size:17px; }
   .jl-signup-form { gap:13px; }
 }
+
+.jl-signup-page *,
+.jl-signup-page *::before,
+.jl-signup-page *::after { box-sizing: border-box; }
+.jl-signup-page a { text-decoration: none; }
+.jl-auth-spinner { animation: jlAuthSpin 1s linear infinite; }
+@keyframes jlAuthSpin { to { transform: rotate(360deg); } }
 @media(prefers-reduced-motion:reduce){
   .jl-signup-control { transition:none; }
+  .jl-auth-spinner { animation: none; }
 }
