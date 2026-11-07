@@ -319,3 +319,22 @@ test("marketing CSS is route-scoped while aurora remains visible", async ({ page
   expect(authLinks.some((href) => href.includes("marketing-home"))).toBe(false);
   expect(authLinks.some((href) => href.includes("app-shell"))).toBe(false);
 });
+
+
+test("aurora cede o Canvas durante o scroll e volta a animar quando o usuário para", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await isolate(page, () => {});
+  await page.goto("/");
+  const canvas = page.locator(".jl-site .jl-aurora-canvas");
+  await expect.poll(() => canvas.evaluate((node) => (node as HTMLCanvasElement).width)).toBeGreaterThan(300);
+
+  await page.evaluate(() => window.dispatchEvent(new WheelEvent("wheel", { bubbles: true })));
+  const before = await canvas.evaluate((node) => (node as HTMLCanvasElement).toDataURL());
+  await page.waitForTimeout(160);
+  const whileScrolling = await canvas.evaluate((node) => (node as HTMLCanvasElement).toDataURL());
+  expect(whileScrolling).toBe(before);
+
+  await page.waitForTimeout(580);
+  const resumed = await canvas.evaluate((node) => (node as HTMLCanvasElement).toDataURL());
+  expect(resumed).not.toBe(whileScrolling);
+});
