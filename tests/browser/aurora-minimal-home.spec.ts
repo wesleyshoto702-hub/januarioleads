@@ -240,11 +240,13 @@ test("homepage apresenta as seis seções reais sem promessa de cadastro públic
   await expect(page.locator(".jl-spotlight-points")).toContainText("Análise de oportunidades por cidade e nicho");
 });
 
-test("login oferece link para cadastro, mantendo CRM sob autorização", async ({ page }) => {
+test("login e cadastro dividem o mesmo cartão e acesso permanece restrito", async ({ page }) => {
   await isolate(page, () => {});
   await page.goto("/login");
-  await expect(page.locator(".jl-auth-shell a[href='/cadastro']").first()).toBeVisible();
-  await expect(page.getByText(/A criação de uma identidade não libera o CRM sem autorização/)).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Criar conta" })).toBeVisible();
+  await expect(page.getByText(/O acesso ao CRM depende de autorização individual/)).toBeVisible();
+  await expect(page.locator(".jl-signup-card")).toHaveCount(1);
+  await expect(page.locator(".jl-auth-story")).toHaveCount(0);
 });
 
 
@@ -262,7 +264,8 @@ test("marketing CSS is route-scoped while aurora remains visible", async ({ page
   const authLinks = await page.locator('link[rel="stylesheet"]').evaluateAll((nodes) =>
     nodes.map((node) => (node as HTMLLinkElement).href),
   );
-  expect(authLinks.some((href) => href.includes("auth-identity"))).toBe(true);
+  expect(authLinks.some((href) => href.includes("signup-crimson"))).toBe(true);
+  expect(authLinks.some((href) => href.includes("auth-identity"))).toBe(false);
   expect(authLinks.some((href) => href.includes("aurora-backdrop"))).toBe(true);
   expect(authLinks.some((href) => href.includes("marketing-home"))).toBe(false);
   expect(authLinks.some((href) => href.includes("app-shell"))).toBe(false);
@@ -340,7 +343,8 @@ test("homepage exibe a aurora mais iluminada que o login sem criar outro canvas"
   }));
   expect(home.canvases).toBe(1);
   expect(login.canvases).toBe(1);
-  expect(home.canvasOpacity).toBeGreaterThan(login.canvasOpacity);
+  expect(home.canvasOpacity).toBeGreaterThan(0.90);
+  expect(login.canvasOpacity).toBeGreaterThan(0.90);
   expect(home.heroBackground).toBe("rgba(5, 1, 2, 0.3)");
 });
 
