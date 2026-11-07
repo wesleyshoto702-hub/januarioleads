@@ -6787,3 +6787,32 @@ a{
 .prospecting-insights-footer small{font-size:11px;color:var(--muted)}
 .prospecting-insights-footer button{border:1px solid var(--border);border-radius:8px;padding:8px 11px;background:var(--surface);font-size:12px}
 @media(max-width:650px){.prospecting-insights-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.prospecting-weekly-chart{gap:5px}.prospecting-segment-table>div{grid-template-columns:minmax(0,1fr) auto}.prospecting-segment-table small{grid-column:1/-1}}
+
+
+/* Bound the initial CRM DOM size while keeping all filters and totals accurate. */
+.lead-progressive-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+.lead-progressive-footer > span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.lead-progressive-footer .secondary-button {
+  min-height: 38px;
+}
+@media (max-width: 620px) {
+  .lead-progressive-footer {
+    align-items: stretch;
+  }
+  .lead-progressive-footer .secondary-button {
+    width: 100%;
+  }
+}

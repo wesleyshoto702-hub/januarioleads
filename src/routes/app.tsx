@@ -1,3 +1,4 @@
+import { APP_STYLES } from "../lib/route-styles";
 import { useLeadWorkspace, STORAGE } from "../features/leads/use-lead-workspace";
 import { PrivateWorkspace } from "../components/app-shell/PrivateWorkspace";
 import { LeadRow, LeadCard, Select, Modal, EmptyState } from "../features/leads/LeadPresentation";
@@ -24,7 +25,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { buildFactualBusinessDescription } from "../features/business-presence/business-description";
 import { discoverBusinessPresence } from "../features/business-presence/discover-business-presence";
 import { presenceFromBusiness } from "../features/business-presence/storage";
@@ -77,18 +78,18 @@ import {
   parseSavedMessageTemplates,
   type MessageTemplate,
 } from "../features/messages/message-templates";
-import { MessagesView } from "../features/messages/MessagesView";
-import { OpportunityView } from "../features/opportunities/OpportunityView";
+
+
 import { loadOpportunityData } from "../features/opportunities/opportunity-data";
 import type { OpportunityRecord } from "../features/opportunities/types";
 import { AppShell, type AppView } from "../components/app-shell/AppShell";
 import { DashboardView } from "../components/dashboard/DashboardView";
-import { FinanceView } from "../components/finance/FinanceView";
+
 import {
   BusinessDetailsModal,
   type BusinessAddResult,
 } from "../features/search-leads/BusinessDetailsModal";
-import { SearchLeadsView, type SearchMode } from "../features/search-leads/SearchLeadsView";
+import type { SearchMode } from "../features/search-leads/SearchLeadsView";
 import {
   loadBrazilianMunicipalities,
   resolveMunicipality,
@@ -101,8 +102,31 @@ import { openWhatsAppLink } from "../lib/whatsapp";
 import { BRAZIL_STATES, normalizeBrazilianStateCode } from "../lib/brazil-locations";
 import { normalizeLocationText } from "../lib/location";
 
+// Heavy workspace sections download only when opened. Dashboard stays eager.
+const SearchLeadsView = lazy(() =>
+  import("../features/search-leads/SearchLeadsView").then((module) => ({
+    default: module.SearchLeadsView,
+  })),
+);
+const OpportunityView = lazy(() =>
+  import("../features/opportunities/OpportunityView").then((module) => ({
+    default: module.OpportunityView,
+  })),
+);
+const FinanceView = lazy(() =>
+  import("../components/finance/FinanceView").then((module) => ({
+    default: module.FinanceView,
+  })),
+);
+const MessagesView = lazy(() =>
+  import("../features/messages/MessagesView").then((module) => ({
+    default: module.MessagesView,
+  })),
+);
+
 export const Route = createFileRoute("/app")({
   head: () => ({
+    links: [...APP_STYLES],
     meta: [
       { title: "JanuarioLeads — Área de trabalho" },
       {
@@ -241,6 +265,7 @@ function LeadFlowApp() {
   } = useLeadWorkspace();
   const [view, setView] = useState<AppView>("dashboard");
   const [leadLayout, setLeadLayout] = useState<"list" | "kanban">("list");
+  const [renderLimit, setRenderLimit] = useState(40);
   const [searchMode, setSearchMode] = useState<SearchMode>("all");
   const [leadModal, setLeadModal] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
@@ -539,6 +564,17 @@ function LeadFlowApp() {
     sort,
     financeByLead,
   ]);
+
+  // Filtering/sorting still covers the full wallet; render a bounded slice.
+  // This prevents thousands of desktop + mobile cards mounting at once.
+  const renderedLeads = useMemo(
+    () => visibleLeads.slice(0, renderLimit),
+    [visibleLeads, renderLimit],
+  );
+
+  useEffect(() => {
+    setRenderLimit(40);
+  }, [search, statusFilter, actionFilter, financialFilter, segmentFilter, stateFilter, cityFilter, sort, leadLayout]);
 
   const actionCounts = useMemo(() => {
     let today = 0;
@@ -1602,6 +1638,7 @@ function LeadFlowApp() {
         }
       }}
     >
+      <Suspense fallback={<div className="page-wrap" role="status" aria-live="polite">Carregando seção...</div>}>
       {view === "dashboard" ? (
         <DashboardView
           counts={counts}
@@ -1817,7 +1854,7 @@ function LeadFlowApp() {
             </div>
 
             {leadLayout === "kanban" ? (
-              <LeadKanban leads={visibleLeads} onChangeStatus={changeStatus} onOpenLead={openLeadDetails} />
+              <LeadKanban leads={renderedLeads} onChangeStatus={changeStatus} onOpenLead={openLeadDetails} />
             ) : (
               <>
             <div className="desktop-table">
@@ -1829,7 +1866,7 @@ function LeadFlowApp() {
                 <span>Ações</span>
               </div>
               {visibleLeads.length ? (
-                visibleLeads.map((lead) => (
+                renderedLeads.map((lead) => (
                   <LeadRow
                     key={lead.id}
                     lead={lead}
@@ -1853,7 +1890,7 @@ function LeadFlowApp() {
 
             <div className="mobile-list">
               {visibleLeads.length ? (
-                visibleLeads.map((lead) => (
+                renderedLeads.map((lead) => (
                   <LeadCard
                     key={lead.id}
                     lead={lead}
@@ -1875,6 +1912,22 @@ function LeadFlowApp() {
               )}
             </div>
               </>
+            )}
+            {visibleLeads.length > 0 && (
+              <div className="lead-progressive-footer">
+                <span role="status">
+                  Exibindo {renderedLeads.length} de {visibleLeads.length} leads filtrados.
+                </span>
+                {renderedLeads.length < visibleLeads.length && (
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => setRenderLimit((current) => current + 40)}
+                  >
+                    Carregar mais leads
+                  </button>
+                )}
+              </div>
             )}
           </div>
         </section>
@@ -1913,6 +1966,7 @@ function LeadFlowApp() {
       ) : (
         <MessagesView messages={messages} onCommit={saveMessages} savedNotice={savedNotice} />
       )}
+      </Suspense>
 
       {followUpNotice && (
         <div className="follow-up-success-notice" role="status" aria-live="polite">

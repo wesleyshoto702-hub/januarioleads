@@ -438,3 +438,42 @@ test("Dashboard shows weekly portfolio trend and aggregated CSV export without l
   await report.getByRole("group", { name: "Tipo de análise" }).getByRole("button", { name: "Cadastros por semana" }).click();
   await expect(report.getByRole("img", { name: "Cadastros de leads por semana nas últimas oito semanas" })).toBeVisible();
 });
+
+
+test("CRM renders at most 40 leads initially and progressively reveals the full filtered wallet", async ({ page }) => {
+  const many = Array.from({ length: 95 }, (_, index) => ({
+    ...WAITING_LEAD,
+    id: "aaaaaaaa-aaaa-4aaa-aaaa-" + (index + 1).toString(16).padStart(12, "0"),
+    company: "Empresa " + (index + 1),
+  }));
+  await loginWithMocks(page, { leads: many });
+  await page.getByRole("button", { name: "Meus Leads", exact: true }).first().click();
+  await expect(page.locator(".desktop-table .table-row")).toHaveCount(40);
+  await expect(page.locator(".mobile-list .lead-card")).toHaveCount(40);
+  await expect(page.locator(".lead-progressive-footer")).toContainText("Exibindo 40 de 95");
+  await page.getByRole("button", { name: "Carregar mais leads" }).click();
+  await expect(page.locator(".desktop-table .table-row")).toHaveCount(80);
+  await expect(page.locator(".lead-progressive-footer")).toContainText("Exibindo 80 de 95");
+
+  await page.getByRole("group", { name: "Visualização da carteira" })
+    .getByRole("button", { name: "Kanban" }).click();
+  await expect(page.locator(".lead-kanban-card")).toHaveCount(40);
+
+  await page.getByRole("group", { name: "Visualização da carteira" })
+    .getByRole("button", { name: "Lista" }).click();
+  await page.getByRole("textbox", { name: "Buscar empresa, nicho, cidade ou UF" }).fill("Empresa 93");
+  await expect(page.locator(".desktop-table .table-row")).toHaveCount(1);
+  await expect(page.locator(".desktop-table .table-row")).toContainText("Empresa 93");
+  await expect(page.locator(".lead-progressive-footer")).toContainText("Exibindo 1 de 1");
+});
+
+test("authenticated CRM loads only app-specific stylesheets", async ({ page }) => {
+  await loginWithMocks(page);
+  const linked = await page.locator('link[rel="stylesheet"]').evaluateAll((nodes) =>
+    nodes.map((node) => (node as HTMLLinkElement).href),
+  );
+  expect(linked.some((href) => href.includes("app-shell"))).toBe(true);
+  expect(linked.some((href) => href.includes("saas-visual-refresh"))).toBe(true);
+  expect(linked.some((href) => href.includes("marketing-home"))).toBe(false);
+  expect(linked.some((href) => href.includes("animated-product-tour"))).toBe(false);
+});

@@ -46,10 +46,14 @@ function drawCurtains(
   context.clearRect(0, 0, width, height);
   const spacing = mobile ? 10 : 7;
   const rayCount = Math.ceil(width / spacing);
+  context.lineCap = "round";
 
   for (let layer = CURTAINS.length - 1; layer >= 0; layer--) {
     const curtain = CURTAINS[layer];
     if (!curtain) continue;
+    // The horizontal envelope drifts at the curtain's speed, not the ray's.
+    // Compute it once per curtain instead of recalculating it for every ray.
+    const centerDrift = Math.sin(time * curtain.speed * .19 + curtain.phase) * .06;
 
     // Narrow vertical light rays form an undulating, torn aurora curtain.
     // Every ray has a different height and bend; the shape continuously changes.
@@ -65,7 +69,6 @@ function drawCurtains(
       const flicker = .68 + .32 * Math.sin(u * 67 + time * curtain.speed * 1.1 + curtain.phase * 1.4);
       // A localized bell-shaped envelope makes each band distinct instead
       // of drawing five overlapping full-width red blankets.
-      const centerDrift = Math.sin(time * curtain.speed * .19 + curtain.phase) * .06;
       const distance = (u - curtain.center - centerDrift) / curtain.spread;
       const separation = Math.exp(-Math.pow(distance, 4) * 1.25);
       const rayOpacity = curtain.brightness * envelope * flicker * separation;
@@ -94,7 +97,6 @@ function drawCurtains(
         x + shift + bend, endY,
       );
       context.strokeStyle = gradient;
-      context.lineCap = "round";
       // Halo + narrow filament: luminosity without painting the whole viewport.
       // A broad but translucent halo emulates the soft CSS gradients from
       // the reference without washing the entire background red.
@@ -128,21 +130,34 @@ export function AuroraBackdrop() {
     let frame = 0;
     let lastPaint = 0;
     const startedAt = performance.now();
+    // Avoid querying layout twice on every animation frame. Canvas dimensions
+    // only change on resize/zoom (or media-query changes), never per stroke.
+    let cssWidth = 0;
+    let cssHeight = 0;
+    let lastRatio = 0;
 
     function paint(time: number) {
-      const width = canvas!.clientWidth;
-      const height = canvas!.clientHeight;
-      if (width <= 0 || height <= 0) return;
-      drawCurtains(context!, width, height, time, mobile.matches);
+      if (cssWidth <= 0 || cssHeight <= 0) return;
+      drawCurtains(context!, cssWidth, cssHeight, time, mobile.matches);
     }
 
     function resize() {
       const width = canvas!.clientWidth;
       const height = canvas!.clientHeight;
       const resolution = Math.min(window.devicePixelRatio || 1, 1.5);
-      canvas!.width = Math.max(1, Math.round(width * resolution));
-      canvas!.height = Math.max(1, Math.round(height * resolution));
-      context!.setTransform(resolution, 0, 0, resolution, 0, 0);
+      if (width <= 0 || height <= 0) {
+        cssWidth = 0;
+        cssHeight = 0;
+        return;
+      }
+      if (width !== cssWidth || height !== cssHeight || resolution !== lastRatio) {
+        cssWidth = width;
+        cssHeight = height;
+        lastRatio = resolution;
+        canvas!.width = Math.max(1, Math.round(width * resolution));
+        canvas!.height = Math.max(1, Math.round(height * resolution));
+        context!.setTransform(resolution, 0, 0, resolution, 0, 0);
+      }
       paint(reducedMotion.matches ? 0 : (performance.now() - startedAt) / 1000);
     }
 

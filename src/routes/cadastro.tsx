@@ -1,3 +1,4 @@
+import { AUTH_STYLES } from "../lib/route-styles";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CheckCircle2, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, UserRoundPlus } from "lucide-react";
 import { useState, type FormEvent } from "react";
@@ -6,6 +7,7 @@ import { AuthShell } from "../components/auth/AuthShell";
 
 export const Route = createFileRoute("/cadastro")({
   head: () => ({
+    links: [...AUTH_STYLES],
     meta: [
       { title: "Criar conta | Januário Leads" },
       { name: "description", content: "Conheça a criação de conta do Januário Leads e como funciona a liberação de acesso à plataforma." },
