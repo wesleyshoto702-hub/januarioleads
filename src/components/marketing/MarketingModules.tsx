@@ -89,6 +89,13 @@ export function WorkflowRibbon() {
     let started = false;
     let timers: number[] = [];
     let observer: IntersectionObserver | undefined;
+
+    function checkVisibility() {
+      if (started) return;
+      const rect = ribbon!.getBoundingClientRect();
+      if (rect.top < window.innerHeight - 16 && rect.bottom > 16) playSequence();
+    }
+
     function playSequence() {
       if (started) return;
       started = true;
@@ -98,19 +105,25 @@ export function WorkflowRibbon() {
         window.setTimeout(() => setActiveStep(2), 2200),
       ];
       observer?.disconnect();
+      window.removeEventListener("scroll", checkVisibility);
+      window.removeEventListener("resize", checkVisibility);
     }
 
-    if (typeof IntersectionObserver === "undefined") {
-      playSequence();
-    } else {
+    window.addEventListener("scroll", checkVisibility, { passive: true });
+    window.addEventListener("resize", checkVisibility);
+    if (typeof IntersectionObserver !== "undefined") {
       observer = new IntersectionObserver((entries) => {
         if (entries.some((entry) => entry.isIntersecting)) playSequence();
       }, { threshold: 0.01 });
       observer.observe(ribbon);
     }
+    // Hydration may happen after the section has already been scrolled into view.
+    checkVisibility();
 
     return () => {
       observer?.disconnect();
+      window.removeEventListener("scroll", checkVisibility);
+      window.removeEventListener("resize", checkVisibility);
       timers.forEach((timer) => window.clearTimeout(timer));
     };
   }, []);
