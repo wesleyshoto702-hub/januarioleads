@@ -63,7 +63,21 @@ async function loginWithMockedSupabase(page: Page) {
   await page.getByPlaceholder("seu@email.com").fill("fake@example.invalid");
   await page.getByPlaceholder("Sua senha").fill("fictional-test-password");
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
-  await expect(page.locator(".saas-shell")).toBeVisible();
+  // The last Firefox desktop run is CPU-heavy on shared CI runners: allow
+  // hydration to finish, without skipping any authentication or layout checks.
+  try {
+    await expect(page.locator(".saas-shell")).toBeVisible({ timeout: 20_000 });
+  } catch (error) {
+    const diagnostics = await page.evaluate(() => ({
+      title: document.title,
+      text: document.body.innerText.slice(0, 800),
+      location: location.pathname,
+    }));
+    throw new Error(
+      "CRM workspace did not appear after mocked login: " + JSON.stringify(diagnostics),
+      { cause: error },
+    );
+  }
 }
 
 async function navigateTo(page: Page, view: string, mobile: boolean) {
