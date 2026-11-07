@@ -9,9 +9,7 @@ import marketingHomeCss from "../styles/marketing-home.css?url";
 import animatedTourCss from "../styles/animated-product-tour.css?url";
 import heroSearchCss from "../styles/hero-search.css?url";
 import messageExampleCss from "../styles/message-example.css?url";
-import betaRegistrationCss from "../styles/beta-registration.css?url";
 import marketingEditorialCss from "../styles/marketing-editorial.css?url";
-import authIdentityCss from "../styles/auth-identity.css?url";
 import auroraBackdropCss from "../styles/aurora-backdrop.css?url";
 import homeMinimalWorkflowCss from "../styles/home-minimal-workflow.css?url";
 import signupCrimsonCss from "../styles/signup-crimson.css?url";
@@ -30,11 +28,9 @@ export const MARKETING_STYLES = [
   stylesheet(homeMinimalWorkflowCss),
 ];
 
+/** Login and signup now share exactly one visual identity and one card. */
 export const AUTH_STYLES = [
-  stylesheet(betaRegistrationCss),
-  stylesheet(authIdentityCss),
   stylesheet(auroraBackdropCss),
+  stylesheet(signupCrimsonCss),
 ];
-
-/** Cadastro tem a mesma aurora do login, com seu próprio layout. */
-export const SIGNUP_STYLES = [...AUTH_STYLES, stylesheet(signupCrimsonCss)];
+export const SIGNUP_STYLES = AUTH_STYLES;
