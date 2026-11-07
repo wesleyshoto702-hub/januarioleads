@@ -266,63 +266,6 @@ export async function signIn(email: string, password: string) {
   return { ok: true as const, user: session.user };
 }
 
-/**
- * Complete a third-party login ONLY after server-issued tokens were exchanged.
- * This does not grant anyone CRM access: existing private_access is mandatory.
- */
-export async function acceptExternalSession(response: {
-  access_token: string;
-  refresh_token: string;
-  expires_in: number;
-  user?: { id?: string; email?: string | null };
-}): Promise<{ ok: true; user: AuthUser } | { ok: false; message: string }> {
-  if (USE_HTTPONLY_SESSION) {
-    return { ok: false, message: "Login Google não está disponível no modo de sessão do servidor." };
-  }
-  const candidate = fromAuthResponse(response);
-  if (!candidate) {
-    return { ok: false, message: "O Google não retornou uma sessão válida." };
-  }
-  try {
-    // Check the verified identity from Supabase Auth on the server, not
-    // user_metadata supplied by the browser or a typed @gmail.com address.
-    const profileResponse = await request("/auth/v1/user", {
-      method: "GET",
-      headers: { Authorization: `Bearer ${candidate.accessToken}` },
-    });
-    if (!profileResponse.ok) throw new Error("Google user validation failed");
-    const profile = await profileResponse.json() as {
-      id?: string;
-      email?: string | null;
-      email_confirmed_at?: string | null;
-      identities?: Array<{ provider?: string }>;
-      app_metadata?: { provider?: string; providers?: string[] };
-    };
-    const googleLinked = profile.identities?.some((identity) => identity.provider === "google") === true ||
-      profile.app_metadata?.providers?.includes("google") === true ||
-      profile.app_metadata?.provider === "google";
-    if (!googleLinked || !profile.email_confirmed_at ||
-        typeof profile.email !== "string" || !profile.email.includes("@") ||
-        profile.id !== candidate.user.id) {
-      await revokeSession(candidate.accessToken);
-      return { ok: false, message: "A identidade Google não apresentou um e-mail confirmado." };
-    }
-    const user: AuthUser = { id: profile.id, email: profile.email };
-    if (!(await isAuthorizedUser(candidate.accessToken, user.id))) {
-      await revokeSession(candidate.accessToken);
-      return {
-        ok: false,
-        message: "Conta Google verificada. O acesso ao CRM precisa ser liberado antes de entrar.",
-      };
-    }
-    writeSession({ ...candidate, user });
-    return { ok: true, user };
-  } catch {
-    await revokeSession(candidate.accessToken);
-    return { ok: false, message: "Não foi possível verificar sua autorização. Tente novamente." };
-  }
-}
-
 async function revokeSession(accessToken: string) {
   try {
     await request("/auth/v1/logout", {
