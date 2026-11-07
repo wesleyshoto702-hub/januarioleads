@@ -5,7 +5,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import { getValidSession, signIn } from "../lib/auth";
 import { AuthShell } from "../components/auth/AuthShell";
 import { BETA_SIGNUP_CONFIG } from "../lib/beta-registration";
-import { prepareGoogleOAuth } from "../lib/public-registration";
+import { prepareGoogleOAuth, googleProviderStatus } from "../lib/public-registration";
 import { USE_HTTPONLY_SESSION } from "../lib/supabase-config";
 
 export const Route = createFileRoute("/login")({
@@ -73,6 +73,11 @@ function LoginPage() {
     }
     setGoogleLoading(true);
     try {
+      const availability = await googleProviderStatus();
+      if (!availability.ok) {
+        setError(availability.message);
+        return;
+      }
       const result = await prepareGoogleOAuth(window.location.origin, sessionStorage);
       if (!result.ok || !result.url) {
         setError(result.ok ? "Não foi possível abrir o Google." : result.message);
