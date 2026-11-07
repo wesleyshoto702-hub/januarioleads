@@ -532,7 +532,9 @@ export function SearchLeadsView({
   const [searchNotice, setSearchNotice] = useState(initialSearchSession?.searchNotice ?? "");
   const [saasUsage, setSaasUsage] = useState<SaasUsage | null>(null);
   const [saasUsageError, setSaasUsageError] = useState(false);
-  const [showStagingDemo, setShowStagingDemo] = useState(false);
+  const [showStagingDemo, setShowStagingDemo] = useState(
+    initialSearchSession?.results.some((business) => business.placeId.startsWith("staging-demo-")) ?? false,
+  );
   const [resultFilters, setResultFilters] = useState<ResultFilterState>(
     initialSearchSession?.resultFilters ?? DEFAULT_RESULT_FILTERS,
   );
