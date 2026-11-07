@@ -345,3 +345,22 @@ test("open-now filter preserves the same loaded companies and does not repeat th
     .toHaveAttribute("aria-current", "page");
   expect(searchRequests).toBe(1);
 });
+
+
+test("Kanban shows the real CRM stages and updates a lead through the existing persistence path", async ({ page }) => {
+  let writes = 0;
+  await loginWithMocks(page, { onLeadWrite: () => { writes++; return true; } });
+  await page.getByRole("button", { name: "Meus Leads", exact: true }).first().click();
+  await page.getByRole("group", { name: "Visualização da carteira" })
+    .getByRole("button", { name: "Kanban" }).click();
+  const board = page.getByRole("region", { name: "Funil de status dos leads" });
+  await expect(board).toBeVisible();
+  await expect(board.locator(".lead-kanban-column")).toHaveCount(4);
+  await expect(board.getByText("Oficina Exemplo")).toBeVisible();
+  await board.getByRole("combobox", { name: "Status de Oficina Exemplo" }).selectOption("accepted");
+  await expect(board.getByRole("region", { name: /Aceito: 1 leads/ })).toContainText("Oficina Exemplo");
+  await expect.poll(() => writes).toBeGreaterThanOrEqual(1);
+  await page.getByRole("group", { name: "Visualização da carteira" })
+    .getByRole("button", { name: "Lista" }).click();
+  await expect(page.locator(".desktop-table .table-row")).toContainText(["Oficina Exemplo"]);
+});
