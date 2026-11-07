@@ -99,6 +99,19 @@ test("planos Free Pro Advanced substituem o comparativo e respeitam preços e li
   await expect(cards.nth(2).getByText("Recomendado", { exact: true })).toHaveCount(0);
   await expect(section.getByText(/não contrata uma assinatura nem realiza cobrança/i)).toBeVisible();
   await expect(page.getByText("Prospecção manual", { exact: true })).toHaveCount(0);
+
+  // Consistência com o visual vermelho da marca, incluindo a Aurora original.
+  await expect(page.locator(".jl-aurora-canvas")).toBeVisible();
+  await expect(section.locator(".jl-pricing-cta-arrow")).toHaveCount(0);
+  for (const cta of await section.locator(".jl-pricing-cta").all()) {
+    await expect(cta).not.toContainText("↗");
+  }
+  const sectionBackground = await section.evaluate((element) =>
+    getComputedStyle(element).backgroundImage);
+  expect(sectionBackground).toMatch(/226,\\s*37,\\s*79/);
+  const proButtonBackground = await cards.nth(1).locator(".jl-pricing-cta")
+    .evaluate((element) => getComputedStyle(element).backgroundImage);
+  expect(proButtonBackground).toMatch(/222,\\s*48,\\s*79/);
 });
 
 for (const width of [320, 360, 390, 768, 900, 1280]) {
