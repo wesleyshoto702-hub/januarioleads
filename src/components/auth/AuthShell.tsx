@@ -5,7 +5,6 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { AuroraBackdrop } from "../marketing/AuroraBackdrop";
-import { BETA_SIGNUP_CONFIG } from "../../lib/beta-registration";
 
 type Props = {
   page: "login" | "cadastro";
@@ -32,9 +31,7 @@ export function AuthShell({ page, children }: Props) {
           <Link to="/" className="jl-auth-back">Conhecer a plataforma</Link>
           {page === "cadastro"
             ? <Link to="/login" className="jl-auth-top-action">Entrar</Link>
-            : BETA_SIGNUP_CONFIG
-              ? <Link to="/cadastro" className="jl-auth-top-action">Cadastro de homologação</Link>
-              : null}
+            : <Link to="/cadastro" className="jl-auth-top-action">Criar conta</Link>}
         </div>
       </header>
       <div className="jl-auth-main">
@@ -49,7 +46,7 @@ export function AuthShell({ page, children }: Props) {
             {flow.map(({ icon: Icon, title, copy }, i) => (
               <div className="jl-auth-flow-step" key={title}>
                 <span className="jl-auth-flow-icon"><Icon size={18} aria-hidden="true" /></span>
-                <div><small>ETAPA 0{i + 1}</small><strong>{title}</strong><p>{copy}</p></div>
+                <div><strong>{title}</strong><p>{copy}</p></div>
                 {i < flow.length - 1 && <ArrowRight size={15} className="jl-auth-flow-arrow" aria-hidden="true" />}
               </div>
             ))}

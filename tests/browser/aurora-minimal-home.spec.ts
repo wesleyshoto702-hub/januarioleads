@@ -240,11 +240,11 @@ test("homepage apresenta as seis seções reais sem promessa de cadastro públic
   await expect(page.locator(".jl-spotlight-points")).toContainText("Análise de oportunidades por cidade e nicho");
 });
 
-test("login não oferece cadastro público quando o acesso é restrito", async ({ page }) => {
+test("login oferece link para cadastro, mantendo CRM sob autorização", async ({ page }) => {
   await isolate(page, () => {});
   await page.goto("/login");
-  await expect(page.getByText("Acesso para contas já autorizadas. Novos cadastros não estão disponíveis neste ambiente.")).toBeVisible();
-  await expect(page.locator(".jl-auth-shell a[href='/cadastro']")).toHaveCount(0);
+  await expect(page.locator(".jl-auth-shell a[href='/cadastro']").first()).toBeVisible();
+  await expect(page.getByText(/A criação de uma identidade não libera o CRM sem autorização/)).toBeVisible();
 });
 
 
@@ -376,37 +376,40 @@ test("na seção Da pesquisa à rotina os ícones aparecem antes dos textos e as
   }
 });
 
-test("linha de conexão alcança o centro dos próximos ícones no celular e desktop", async ({ page }) => {
+test("linhas de conexão respeitam o espaço entre etapas sem atravessar os títulos", async ({ page }) => {
   await isolate(page, () => {});
-  for (const width of [390, 1280]) {
+  for (const width of [390, 768, 1280]) {
     await page.setViewportSize({ width, height: 844 });
     await page.goto("/");
     const workflow = page.locator(".jl-editorial-workflow");
     await workflow.scrollIntoViewIfNeeded();
-    await expect(workflow.locator(".jl-workflow-track")).toHaveAttribute("data-stage", "2", { timeout: 9500 });
-
-    const segments = await workflow.locator(".jl-workflow-track").evaluate((list, mobile) => {
-      const rows = Array.from(list.querySelectorAll("li"));
-      return rows.slice(0, 2).map((row, index) => {
-        const start = row.querySelector(".jl-workflow-node")!.getBoundingClientRect();
-        const end = rows[index + 1]!.querySelector(".jl-workflow-node")!.getBoundingClientRect();
-        const styles = getComputedStyle(row, "::after");
-        const from = {
-          x: start.left + start.width / 2,
-          y: start.top + start.height / 2,
-        };
-        const to = {
-          x: end.left + end.width / 2,
-          y: end.top + end.height / 2,
-        };
+    const track = workflow.locator(".jl-workflow-track");
+    await expect(track).toHaveAttribute("data-stage", "2", { timeout: 9500 });
+    const geometry = await track.evaluate((list, mobile) => {
+      const items = Array.from(list.querySelectorAll("li"));
+      return items.slice(0,2).map((row,index) => {
+        const icon = row.querySelector(".jl-workflow-node")!.getBoundingClientRect();
+        const text = row.querySelector(".jl-workflow-copy")!.getBoundingClientRect();
+        const nextIcon = items[index+1]!.querySelector(".jl-workflow-node")!.getBoundingClientRect();
+        const rect = row.getBoundingClientRect();
+        const after = getComputedStyle(row,"::after");
+        const origin = mobile ? rect.top + parseFloat(after.top) : rect.left + parseFloat(after.left);
+        const length = parseFloat(mobile ? after.height : after.width);
         return {
-          coloredLength: parseFloat(mobile ? styles.height : styles.width),
-          distance: mobile ? to.y - from.y : to.x - from.x,
+          start: origin,
+          end: origin+length,
+          expectedStart: mobile ? icon.bottom : rect.right,
+          expectedEnd: mobile ? nextIcon.top : nextIcon.left,
+          avoidsCopy: mobile || origin >= text.right - 2,
+          iconAlignedWithCopy: Math.abs((icon.top+icon.bottom)/2 - (text.top+text.bottom)/2) < 3,
         };
       });
-    }, width <= 640);
-    for (const { coloredLength, distance } of segments) {
-      expect(Math.abs(coloredLength - distance)).toBeLessThan(3);
+    }, width <= 900);
+    for (const step of geometry) {
+      expect(Math.abs(step.start-step.expectedStart)).toBeLessThan(3);
+      expect(Math.abs(step.end-step.expectedEnd)).toBeLessThan(3);
+      expect(step.avoidsCopy).toBe(true);
+      expect(step.iconAlignedWithCopy).toBe(true);
     }
   }
 });

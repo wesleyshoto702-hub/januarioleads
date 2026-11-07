@@ -94,3 +94,18 @@
 @media (prefers-reduced-motion:reduce) {
  .jl-auth-spinner { animation:none; }
 }
+
+/* Shared Google sign-in action for existing accounts. */
+.jl-auth-google {
+  display:flex;align-items:center;justify-content:center;gap:11px;width:100%;
+  min-height:46px;border:1px solid #6a5267;border-radius:12px;
+  background:#211e2b;color:#f5f0f3;font-size:12px;font-weight:770;cursor:pointer;
+}
+.jl-auth-google:hover:not(:disabled) { border-color:#fa7b99;background:#302331; }
+.jl-auth-google:disabled { opacity:.55;cursor:not-allowed; }
+.jl-auth-bottom-inline { color:#ff7898;font-weight:800;text-decoration:underline; }
+.jl-google-g {
+  font:850 21px/1 Inter,system-ui,sans-serif;
+  background:conic-gradient(#4285f4 0 29%,#34a853 29% 49%,#fbbc05 49% 66%,#ea4335 66% 84%,#4285f4 84% 100%);
+  background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
