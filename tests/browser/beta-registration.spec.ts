@@ -18,7 +18,7 @@ test("cadastro por e-mail e senha mantém a aurora e não oferece login Google",
     "Seu nome completo", "seunome@gmail.com", "Crie uma senha forte", "Repita sua senha",
   ]) await expect(page.getByPlaceholder(placeholder)).toBeVisible();
   await expect(page.getByRole("button", { name: /Criar conta/ })).toBeEnabled();
-  await expect(page.getByRole("link", { name: "Entrar" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Entrar" })).toBeVisible();
   await expect(page.locator(".jl-signup-page .jl-aurora-canvas")).toBeVisible();
   await expect(page.getByRole("button", { name: /Google/i })).toHaveCount(0);
   expect(outsideRequests).toBe(0);
@@ -65,7 +65,7 @@ test("cadastro chama somente o endpoint Supabase Auth sem guardar tokens ou conc
   await page.getByRole("button", { name: /Criar conta/ }).click();
   await expect(page.getByRole("heading", { name: "Cadastro solicitado" })).toBeVisible();
   await expect(page.getByText(/O acesso ao CRM depende de liberação separada/).first()).toBeVisible();
-  await expect(page.getByRole("link", { name: /Acessar conta/ }).first()).toHaveAttribute("href", "/login");
+  await expect(page.getByRole("button", { name: "Entrar na minha conta" })).toBeVisible();
   expect(paths).toEqual(["/auth/v1/signup"]);
   expect(await page.evaluate(() => localStorage.getItem("januarioleads:auth-session"))).toBeNull();
 });
