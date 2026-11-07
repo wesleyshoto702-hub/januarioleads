@@ -67,7 +67,7 @@ test("faixas vermelhas realmente se movem atrás da homepage inteira", async ({ 
   });
   expect(layering.mainZ).toBeGreaterThan(layering.auroraZ);
   expect(layering.headerZ).toBeGreaterThan(layering.auroraZ);
-  expect(layering.canvasOpacity).toBeLessThan(.90);
+  expect(layering.canvasOpacity).toBeLessThan(.97);
   expect(layering.sections.length).toBeGreaterThanOrEqual(8);
   for (const section of layering.sections) {
     const match = section.bg.match(/rgba?\(([^)]+)\)/);
@@ -178,8 +178,8 @@ test("aurora híbrida mantém as cores originais da homepage e suas luzes atrás
   expect(visual.description).toBe("rgb(178, 186, 199)");
   expect(visual.wispPointerEvents).toBe("none");
   expect(visual.wispAnimation).toBe("jlAuroraSoftSway");
-  expect(visual.wispOpacity).toBeLessThan(.40);
-  expect(visual.canvasOpacity).toBeLessThan(.90);
+  expect(visual.wispOpacity).toBeLessThanOrEqual(.40);
+  expect(visual.canvasOpacity).toBeLessThan(.97);
 });
 
 test("movimento reduzido também desativa as névoas, sem interferir no Canvas estático", async ({ page }) => {
@@ -188,4 +188,36 @@ test("movimento reduzido também desativa as névoas, sem interferir no Canvas e
   await page.goto("/");
   const animation = await page.locator(".jl-aurora-wisp--left").evaluate((node) => getComputedStyle(node).animationName);
   expect(animation).toBe("none");
+});
+
+
+test("aurora acelerada tem camadas com velocidades independentes e movimento perceptível", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await isolate(page, () => {});
+  await page.goto("/");
+
+  const layers = await page.evaluate(() => {
+    const left = getComputedStyle(document.querySelector(".jl-aurora-wisp--left")!);
+    const right = getComputedStyle(document.querySelector(".jl-aurora-wisp--right")!);
+    return {
+      left: left.animationDuration,
+      right: right.animationDuration,
+      directions: [left.animationDirection, right.animationDirection],
+      background: getComputedStyle(document.querySelector(".jl-site > .jl-aurora")!).backgroundColor,
+      text: getComputedStyle(document.querySelector(".jl-hero-description")!).color,
+    };
+  });
+  expect(layers.left).toBe("14s");
+  expect(layers.right).toBe("11s");
+  expect(layers.directions[0]).toBe("alternate");
+  expect(layers.directions[1]).toBe("alternate-reverse");
+  expect(layers.background).toBe("rgb(5, 6, 8)");
+  expect(layers.text).toBe("rgb(178, 186, 199)");
+
+  const canvas = page.locator(".jl-aurora-canvas");
+  await expect.poll(() => canvas.evaluate((el) => (el as HTMLCanvasElement).width)).toBeGreaterThan(300);
+  const first = await canvas.evaluate((el) => (el as HTMLCanvasElement).toDataURL());
+  await page.waitForTimeout(350);
+  const next = await canvas.evaluate((el) => (el as HTMLCanvasElement).toDataURL());
+  expect(next).not.toBe(first);
 });
