@@ -83,6 +83,7 @@ test("hero compacto, aviso de beta e CTAs repetidos removidos; FAQ alinhado", as
 test("Explore, Organize e Acompanhe acendem em vermelho na ordem ao aparecer", async ({ page }) => {
   await isolate(page, () => {});
   await page.goto("/");
+  await expect(page.locator(".jl-demo-window")).toHaveAttribute("data-interactive", "true", { timeout: 15000 });
   const section = page.locator(".jl-editorial-workflow");
   await section.evaluate((el) => el.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" }));
   const track = section.locator(".jl-workflow-track");
