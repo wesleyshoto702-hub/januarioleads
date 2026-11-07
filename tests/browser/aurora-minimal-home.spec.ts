@@ -269,20 +269,27 @@ test("marketing CSS is route-scoped while aurora remains visible", async ({ page
 });
 
 
-test("aurora cede o Canvas durante o scroll e volta a animar quando o usuário para", async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: "no-preference" });
-  await isolate(page, () => {});
-  await page.goto("/");
-  const canvas = page.locator(".jl-site .jl-aurora-canvas");
-  await expect.poll(() => canvas.evaluate((node) => (node as HTMLCanvasElement).width)).toBeGreaterThan(300);
+for (const input of ["wheel", "touchmove"]) {
+  test("aurora continua animada durante eventos repetidos de " + input, async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await isolate(page, () => {});
+    await page.goto("/");
+    const canvas = page.locator(".jl-site .jl-aurora-canvas");
+    await expect.poll(() => canvas.evaluate((node) => (node as HTMLCanvasElement).width)).toBeGreaterThan(300);
 
-  await page.evaluate(() => window.dispatchEvent(new WheelEvent("wheel", { bubbles: true })));
-  const before = await canvas.evaluate((node) => (node as HTMLCanvasElement).toDataURL());
-  await page.waitForTimeout(160);
-  const whileScrolling = await canvas.evaluate((node) => (node as HTMLCanvasElement).toDataURL());
-  expect(whileScrolling).toBe(before);
-
-  await page.waitForTimeout(580);
-  const resumed = await canvas.evaluate((node) => (node as HTMLCanvasElement).toDataURL());
-  expect(resumed).not.toBe(whileScrolling);
-});
+    // Send interaction events continuously for more than the old 320ms pause
+    // window: the image must keep changing throughout the interaction.
+    const snapshots = await page.evaluate(async (eventName) => {
+      const element = document.querySelector<HTMLCanvasElement>(".jl-site .jl-aurora-canvas")!;
+      const before = element.toDataURL();
+      const events = window.setInterval(() => {
+        window.dispatchEvent(new Event(eventName, { bubbles: true }));
+      }, 25);
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 650));
+      window.clearInterval(events);
+      const during = element.toDataURL();
+      return { before, during };
+    }, input);
+    expect(snapshots.during).not.toBe(snapshots.before);
+  });
+}
