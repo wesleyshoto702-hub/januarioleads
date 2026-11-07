@@ -1,5 +1,6 @@
 import type { BusinessSearchResponse } from "./types";
 import { getAccessToken } from "../../lib/auth";
+import { SAAS_STAGING_ACTIVE } from "./saas-usage";
 import type { SearchLocation } from "./search-location";
 
 type SearchBusinessesInput = SearchLocation & {
@@ -61,6 +62,7 @@ export async function searchBusinesses(
         city: input.city,
         state: input.state,
         ...(input.pageToken ? { pageToken: input.pageToken } : {}),
+        ...(SAAS_STAGING_ACTIVE ? { stagingDemo: true } : {}),
       }),
     });
 

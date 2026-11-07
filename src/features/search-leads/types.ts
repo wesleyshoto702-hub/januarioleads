@@ -1,3 +1,4 @@
+import type { SaasUsage } from "./saas-usage";
 import type { OpeningHoursSnapshot } from "../../../supabase/functions/_shared/open-now.ts";
 import type { InstagramCandidate, InstagramSource } from "../business-presence/types";
 import type {
@@ -55,6 +56,8 @@ export type BusinessSearchSuccess = {
   ok: true;
   results: BusinessSearchResult[];
   nextPageToken: string | null;
+  quota?: SaasUsage;
+  demo?: boolean;
 };
 
 export type BusinessSearchFailure = {
@@ -68,8 +71,11 @@ export type BusinessSearchFailure = {
     | "BILLING_REQUIRED"
     | "INVALID_REQUEST"
     | "QUOTA"
+    | "DAILY_LEAD_LIMIT"
+    | "FEATURE_NOT_AVAILABLE"
     | "REQUEST_FAILED";
   message: string;
+  quota?: SaasUsage;
 };
 
 export type BusinessSearchResponse = BusinessSearchSuccess | BusinessSearchFailure;

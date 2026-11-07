@@ -140,10 +140,26 @@ const corsHeaders = {
 };
 
 function isAllowedBrowserOrigin(origin: string) {
-  return isTrustedBrowserOrigin(
-    origin,
-    Deno.env.get("APP_ALLOWED_ORIGINS") ?? "",
-  );
+  if (isTrustedBrowserOrigin(origin, Deno.env.get("APP_ALLOWED_ORIGINS") ?? "")) {
+    return true;
+  }
+
+  // Only the isolated Staging Supabase project accepts previews belonging to
+  // the Januário Leads Vercel project. Production CORS is unchanged.
+  if (Deno.env.get("SUPABASE_URL")?.replace(/\/$/, "") !== SAAS_STAGING_URL) {
+    return false;
+  }
+  try {
+    const parsed = new URL(origin);
+    return parsed.origin === origin &&
+      parsed.protocol === "https:" &&
+      parsed.port === "" &&
+      /^januarioleads-[a-z0-9-]+-wesley-s-projects16\.vercel\.app$/.test(
+        parsed.hostname.toLowerCase(),
+      );
+  } catch {
+    return false;
+  }
 }
 
 function withRequestCors(response: Response, request: Request) {
@@ -231,6 +247,68 @@ async function claimApiBudget(
   }
 }
 
+type SaasQuota = {
+  plan: "free" | "pro" | "advanced";
+  daily_limit: number;
+  used_today: number;
+  remaining_today: number;
+  usage_date: string;
+  lead_enrichment?: boolean;
+};
+type SaasClaim = SaasQuota & { allowed_place_ids: string[]; newly_unlocked: number };
+const SAAS_STAGING_URL = "https://prlrxjothrslhswpkoza.supabase.co";
+
+function saasQuotasEnabled(): boolean {
+  const projectUrl = Deno.env.get("SUPABASE_URL")?.replace(/\/$/, "");
+  // Staging runs quotas by default. Production requires an explicit server flag.
+  return projectUrl === SAAS_STAGING_URL ||
+    Deno.env.get("SAAS_DAILY_QUOTAS_ENABLED") === "true";
+}
+
+async function peekSaasQuota(userId: string): Promise<SaasQuota | null> {
+  try {
+    const response = await adminRest("rpc/peek_daily_leads_for_user", {
+      method: "POST",
+      body: JSON.stringify({ p_user_id: userId }),
+    });
+    if (!response?.ok) return null;
+    const data: unknown = await response.json();
+    if (!data || typeof data !== "object") return null;
+    const item = data as Partial<SaasQuota>;
+    if (!["free", "pro", "advanced"].includes(item.plan ?? "") ||
+        !Number.isInteger(item.daily_limit) || !Number.isInteger(item.used_today) ||
+        !Number.isInteger(item.remaining_today) || typeof item.usage_date !== "string") {
+      return null;
+    }
+    return item as SaasQuota;
+  } catch {
+    return null;
+  }
+}
+
+async function claimSaasLeads(userId: string, placeIds: string[]): Promise<SaasClaim | null> {
+  try {
+    const response = await adminRest("rpc/claim_daily_leads_for_user", {
+      method: "POST",
+      body: JSON.stringify({ p_user_id: userId, p_place_ids: placeIds }),
+    });
+    if (!response?.ok) return null;
+    const data: unknown = await response.json();
+    if (!data || typeof data !== "object") return null;
+    const item = data as Partial<SaasClaim>;
+    if (!["free", "pro", "advanced"].includes(item.plan ?? "") ||
+        !Number.isInteger(item.daily_limit) || !Number.isInteger(item.used_today) ||
+        !Number.isInteger(item.remaining_today) || !Number.isInteger(item.newly_unlocked) ||
+        !Array.isArray(item.allowed_place_ids) ||
+        !item.allowed_place_ids.every((id) => typeof id === "string")) {
+      return null;
+    }
+    return item as SaasClaim;
+  } catch {
+    return null;
+  }
+}
+
 function failure(
   code:
     | "NOT_CONFIGURED"
@@ -241,6 +319,8 @@ function failure(
     | "BILLING_REQUIRED"
     | "INVALID_REQUEST"
     | "QUOTA"
+    | "DAILY_LEAD_LIMIT"
+    | "FEATURE_NOT_AVAILABLE"
     | "REQUEST_FAILED",
   message: string,
   status: number,
@@ -903,9 +983,47 @@ async function placeDetails(googleApiKey: string, placeId: string) {
   return { ok: true as const, business: parsed };
 }
 
+// Synthetic pagination for no-cost staging tests. It never runs in production,
+// and callers must still pass Auth, private_access, API and SaaS quota checks.
+function stagingDemoSearch(
+  segment: string, city: string, state: string, pageToken: string | undefined,
+): { ok: true; results: BusinessSearchResult[]; nextPageToken: string | null } | null {
+  const page = pageToken ? Number(pageToken.replace(/^demo-page:/, "")) : 0;
+  if (!Number.isInteger(page) || page < 0 || page > 3 ||
+      (pageToken !== undefined && !/^demo-page:[1-3]$/.test(pageToken))) {
+    return null;
+  }
+  const start = page * 20;
+  const context = [state, city, segment].join("-").normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "").toLowerCase()
+    .replace(/[^a-z0-9-]/g, "-").slice(0, 145);
+  const results: BusinessSearchResult[] = Array.from({ length: 20 }, (_, index) => {
+    const number = start + index + 1;
+    return {
+      placeId: "staging-demo-" + context + "-" + number,
+      name: "EMPRESA FICTÍCIA " + String(number).padStart(2, "0") + " — " + segment,
+      primaryCategory: segment, categories: [],
+      description: "SIMULAÇÃO DE HOMOLOGAÇÃO. Nenhuma empresa real foi consultada.",
+      address: "Endereço fictício " + number + ", " + city + ", " + state,
+      neighborhood: null, city, state, phone: null,
+      internationalPhone: null, rating: null, reviewCount: null,
+      isOpenNow: null, openingHours: [],
+      currentOpeningHours: null, regularOpeningHours: null,
+      website: null, instagram: null, googleMapsUrl: null,
+      businessStatus: null, latitude: null, longitude: null,
+    };
+  });
+  return {
+    ok: true, results,
+    nextPageToken: page < 3 ? "demo-page:" + (page + 1) : null,
+  };
+}
+
 async function runSegmentSearch(
   googleApiKey: string,
   body: Record<string, unknown>,
+  userId: string,
+  demoMode = false,
 ) {
   const segment = body.segment;
   const pageToken = body.pageToken;
@@ -945,21 +1063,50 @@ async function runSegmentSearch(
     );
   }
 
-  const searched = await textSearch(
+  const searched = demoMode
+    ? stagingDemoSearch(
+        segment.trim(), location.city, location.state,
+        typeof pageToken === "string" ? pageToken.trim() : undefined,
+      )
+    : await textSearch(
     googleApiKey,
     `${searchTextForSegment(segment.trim()) ?? segment.trim()} em ${location.city}, ${stateName(location.state)}, Brasil`,
     20,
     typeof pageToken === "string" ? pageToken.trim() : undefined,
   );
 
+  if (!searched) return failure("INVALID_REQUEST", "Página de demonstração inválida.", 400);
   if (!searched.ok) return searched.response;
 
+  const matchedResults = searched.results.filter((business) =>
+    locationMatches(business, location.city, location.state)
+  );
+
+  if (!saasQuotasEnabled()) {
+    return json({
+      ok: true, results: matchedResults,
+      nextPageToken: searched.nextPageToken,
+    });
+  }
+
+  // Never return a Google business not authorized by the server's atomic quota.
+  const claim = await claimSaasLeads(userId, matchedResults.map((business) => business.placeId));
+  if (!claim) {
+    return failure("REQUEST_FAILED", "Não foi possível registrar os leads na sua cota diária.", 503);
+  }
+  const allowed = new Set(claim.allowed_place_ids);
   return json({
     ok: true,
-    results: searched.results.filter((business) =>
-      locationMatches(business, location.city, location.state)
-    ),
-    nextPageToken: searched.nextPageToken,
+    results: matchedResults.filter((business) => allowed.has(business.placeId)),
+    nextPageToken: claim.remaining_today > 0 ? searched.nextPageToken : null,
+    quota: {
+      plan: claim.plan,
+      daily_limit: claim.daily_limit,
+      used_today: claim.used_today,
+      remaining_today: claim.remaining_today,
+      usage_date: claim.usage_date,
+    },
+    demo: demoMode,
   });
 }
 
@@ -2651,13 +2798,6 @@ async function handleRequest(request: Request) {
   }
 
   const googleApiKey = Deno.env.get("GOOGLE_PLACES_API_KEY");
-  if (!googleApiKey) {
-    return failure(
-      "NOT_CONFIGURED",
-      "A credencial privada do Google Places não está configurada no backend.",
-      500,
-    );
-  }
 
   const parsedBody = await readJsonBody(request);
   if (!parsedBody.ok) {
@@ -2686,6 +2826,51 @@ async function handleRequest(request: Request) {
       : requestBody.mode === "presence-discovery"
         ? "presence-discovery"
         : "segment-search";
+
+  // Fixture mode is allowed only by the real Staging project, AFTER JWT and
+  // private_access validation. Requests never reach Google Places in this mode.
+  const demoMode = Deno.env.get("SUPABASE_URL")?.replace(/\/$/, "") === SAAS_STAGING_URL &&
+    mode === "segment-search" && requestBody.stagingDemo === true;
+
+  if (!googleApiKey && !demoMode) {
+    return failure(
+      "NOT_CONFIGURED",
+      "A credencial privada do Google Places não está configurada no backend.",
+      500,
+    );
+  }
+
+  // Refuse quota-exhausted requests before charging the external API budget
+  // or issuing paid Google Places requests.
+  if (saasQuotasEnabled() && mode === "segment-search") {
+    const quota = await peekSaasQuota(userId);
+    if (!quota) {
+      return failure("REQUEST_FAILED", "Não foi possível verificar seu saldo diário.", 503);
+    }
+    if (quota.remaining_today <= 0) {
+      return json({
+        ok: false,
+        code: "DAILY_LEAD_LIMIT",
+        message: "Você usou os " + quota.daily_limit + " leads do plano " +
+          quota.plan.toUpperCase() + " hoje. O limite renova à meia-noite (Brasília).",
+        quota,
+      }, 429);
+    }
+  }
+
+  if (saasQuotasEnabled() && mode !== "segment-search") {
+    const quota = await peekSaasQuota(userId);
+    if (!quota) {
+      return failure("REQUEST_FAILED", "Não foi possível verificar seu plano.", 503);
+    }
+    if (quota.lead_enrichment !== true) {
+      return failure(
+        "FEATURE_NOT_AVAILABLE",
+        "O enriquecimento de leads está disponível nos planos Pro e Advanced.",
+        403,
+      );
+    }
+  }
 
   const rateLimitBucket =
     mode === "lead-enrichment"
@@ -2723,7 +2908,7 @@ async function handleRequest(request: Request) {
       return await runLeadEnrichment(googleApiKey, requestBody);
     }
 
-    return await runSegmentSearch(googleApiKey, requestBody);
+    return await runSegmentSearch(googleApiKey ?? "", requestBody, userId, demoMode);
   } catch {
     return failure(
       "REQUEST_FAILED",
