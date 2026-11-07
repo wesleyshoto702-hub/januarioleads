@@ -1,0 +1,237 @@
+/* Crimson account creation — mirrors the approved reference composition.
+ * Scoped to /cadastro, leaves login and private CRM styles unchanged. */
+.jl-signup-page {
+  position: relative;
+  min-height: 100dvh;
+  overflow: clip;
+  padding: clamp(25px,3vw,45px) 18px 34px;
+  background: #090207;
+  color: #fbf7f9;
+}
+.jl-signup-page > .jl-aurora .jl-aurora-canvas { opacity: .98; }
+.jl-signup-page::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 44% 45% at 9% 59%, rgba(186,15,61,.20),transparent 100%),
+    radial-gradient(ellipse 48% 38% at 91% 21%, rgba(223,38,82,.20),transparent 100%);
+}
+.jl-signup-container {
+  position: relative;
+  z-index: 2;
+  width: min(560px,100%);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+}
+.jl-signup-brand {
+  display: inline-flex;
+  gap: 12px;
+  align-items: center;
+  text-decoration: none;
+  font: 780 clamp(23px,3vw,28px)/1.1 "Space Grotesk",Inter,sans-serif;
+  letter-spacing: -.045em;
+  color: white;
+}
+.jl-signup-brand strong { color: #ff537e; }
+.jl-signup-brand-mark {
+  display: grid;
+  place-items: center;
+  width: 45px;
+  height: 45px;
+  border-radius: 12px;
+  color: white;
+  background: linear-gradient(145deg,#ec2356,#820c33);
+  box-shadow: 0 0 30px rgba(241,32,83,.3);
+}
+.jl-signup-safe-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid rgba(250,61,108,.55);
+  border-radius: 100px;
+  padding: 8px 15px;
+  background: rgba(41,4,18,.75);
+  font-size: 12px;
+  color: #f7e9ee;
+}
+.jl-signup-safe-badge svg { color: #ff4c7b; }
+.jl-signup-card {
+  width: 100%;
+  border: 1px solid rgba(239,73,126,.57);
+  border-radius: 26px;
+  padding: clamp(23px,3.4vw,36px);
+  background: linear-gradient(155deg,rgba(34,9,24,.90),rgba(19,10,19,.95) 48%,rgba(31,8,19,.94));
+  box-shadow: 0 26px 85px rgba(2,0,2,.5), 0 0 35px rgba(236,29,86,.10), inset 0 0 22px rgba(215,46,95,.04);
+  backdrop-filter: none;
+}
+.jl-signup-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+  margin-bottom: 22px;
+  padding: 4px;
+  border-radius: 32px;
+  border: 1px solid rgba(248,69,119,.25);
+  background: rgba(9,5,12,.89);
+}
+.jl-signup-tabs > * {
+  display: grid;
+  place-items: center;
+  min-height: 40px;
+  border-radius: 26px;
+  color: #b9aeb8;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 750;
+}
+.jl-signup-tabs a:hover { color: white; background: rgba(255,255,255,.06); }
+.jl-signup-tabs [aria-current="page"] {
+  color: white;
+  background: linear-gradient(105deg,#981539,#cf244d);
+  box-shadow: 0 4px 17px rgba(212,27,77,.18);
+}
+.jl-signup-intro {
+  display: flex;
+  align-items: flex-start;
+  gap: 15px;
+  margin-bottom: 21px;
+  padding: 19px 18px;
+  border-radius: 14px;
+  border: 1px solid rgba(241,67,112,.25);
+  background: linear-gradient(95deg,rgba(125,12,45,.37),rgba(90,17,41,.24));
+}
+.jl-signup-intro > svg { color: #ff4c80; flex: none; margin-top: 2px; }
+.jl-signup-intro h1 { margin: 0 0 6px; font: 760 19px/1.25 "Space Grotesk",Inter,sans-serif; letter-spacing: -.025em; }
+.jl-signup-intro p { margin: 0; color: #c2aeb9; font-size: 12px; line-height: 1.65; }
+.jl-signup-form { display: grid; gap: 15px; }
+.jl-signup-field { display: grid; gap: 6px; color: #f0e4eb; font-size: 12px; font-weight: 680; }
+.jl-signup-field > span small { color: #9e8c9c; font-weight: 450; }
+.jl-signup-control {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+  border: 1px solid rgba(152,134,153,.35);
+  border-radius: 11px;
+  background: #252531;
+  padding: 0 13px;
+  transition: border-color .2s,box-shadow .2s;
+}
+.jl-signup-control:focus-within { border-color: #f65b88; box-shadow: 0 0 0 3px rgba(237,52,103,.12); }
+.jl-signup-control > svg { color: #d99aaf; flex: none; }
+.jl-signup-control input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: #fff;
+  font: 500 13px Inter,system-ui,sans-serif;
+}
+.jl-signup-control input::placeholder { color: #a59dac; }
+.jl-signup-eye {
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #bcadbb;
+  padding: 7px;
+  cursor: pointer;
+}
+.jl-signup-eye:hover { color: white; background: rgba(255,255,255,.08); }
+.jl-signup-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 11px;
+  width: 100%;
+  min-height: 51px;
+  padding: 12px;
+  border-radius: 30px;
+  border: 1px solid rgba(255,93,145,.35);
+  background: linear-gradient(120deg,#f12a61,#b50e40);
+  color: white;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 9px 25px rgba(233,20,75,.17);
+}
+.jl-signup-primary:not(:disabled):hover { filter: brightness(1.1); }
+.jl-signup-primary:disabled { opacity: .58; cursor: wait; }
+.jl-signup-divider { display:flex;align-items:center;gap:14px;margin:23px 0 17px;color:#afa0b1;font-size:11px; }
+.jl-signup-divider::before,.jl-signup-divider::after { content:"";height:1px;flex:1;background:rgba(208,140,163,.27); }
+.jl-signup-google {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:13px;
+  width:100%;
+  min-height:49px;
+  border-radius:30px;
+  border:1px solid rgba(208,183,203,.39);
+  background:#16151e;
+  color:#f6edf3;
+  font-size:13px;
+  font-weight:750;
+  cursor:pointer;
+}
+.jl-signup-google:hover:not(:disabled) { border-color:#fa6a94;background:#221723; }
+.jl-signup-google:disabled { opacity:.55;cursor:not-allowed; }
+.jl-google-g {
+  font:850 23px/1 Inter,system-ui,sans-serif;
+  background:conic-gradient(#4285f4 0 29%,#34a853 29% 49%,#fbbc05 49% 66%,#ea4335 66% 84%,#4285f4 84% 100%);
+  background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.jl-signup-login-prompt { margin:17px 0 22px;text-align:center;color:#ccc0c8;font-size:12px; }
+.jl-signup-login-prompt a { color:#ff5389;font-weight:800;text-decoration:underline; }
+.jl-signup-security {
+  display:flex;
+  gap:10px;
+  align-items:center;
+  justify-content:center;
+  margin-top:23px;
+  padding-top:18px;
+  border-top:1px solid rgba(244,96,139,.29);
+  color:#aa98a9;
+  font-size:11px;
+  line-height:1.7;
+  text-align:center;
+}
+.jl-signup-security svg { color:#ff477d;flex:none; }
+.jl-signup-error,.jl-signup-notice {
+  margin:0;
+  padding:11px 13px;
+  border-radius:9px;
+  font-size:12px;
+  line-height:1.6;
+}
+.jl-signup-error { border:1px solid #a04460;background:rgba(156,40,72,.23);color:#ffccda; }
+.jl-signup-notice { margin-top:12px;color:#dcc2ca;background:rgba(144,45,75,.13); }
+.jl-signup-complete { display:grid;justify-items:center;text-align:center;gap:15px;padding:35px 8px; }
+.jl-signup-complete-icon { display:grid;place-items:center;width:60px;height:60px;border-radius:18px;background:rgba(66,180,122,.15);color:#8aebbb; }
+.jl-signup-complete h1 { font:750 25px "Space Grotesk",Inter,sans-serif;margin:0; }
+.jl-signup-complete p { color:#d4bfcb;font-size:13px;line-height:1.8;margin:0 0 9px; }
+.jl-signup-home-link { color:#c5b3c1;font-size:11px;text-decoration:none;margin-top:5px; }
+.jl-signup-home-link:hover { color:white; }
+.jl-signup-page :focus-visible { outline:2px solid #ff83aa;outline-offset:3px; }
+@media(max-width:600px){
+  .jl-signup-page { padding:20px 14px 28px; }
+  .jl-signup-container { gap:13px; }
+  .jl-signup-card { padding:19px 16px;border-radius:19px; }
+  .jl-signup-brand { font-size:22px; }
+  .jl-signup-intro { padding:15px 14px;gap:10px; }
+  .jl-signup-intro h1 { font-size:17px; }
+  .jl-signup-form { gap:13px; }
+}
+@media(prefers-reduced-motion:reduce){
+  .jl-signup-control { transition:none; }
+}
