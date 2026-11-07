@@ -253,6 +253,7 @@ type SaasQuota = {
   used_today: number;
   remaining_today: number;
   usage_date: string;
+  lead_enrichment?: boolean;
 };
 type SaasClaim = SaasQuota & { allowed_place_ids: string[]; newly_unlocked: number };
 const SAAS_STAGING_URL = "https://prlrxjothrslhswpkoza.supabase.co";
@@ -2857,12 +2858,12 @@ async function handleRequest(request: Request) {
     }
   }
 
-  if (saasQuotasEnabled() && mode === "lead-enrichment") {
+  if (saasQuotasEnabled() && mode !== "segment-search") {
     const quota = await peekSaasQuota(userId);
     if (!quota) {
       return failure("REQUEST_FAILED", "Não foi possível verificar seu plano.", 503);
     }
-    if (quota.plan === "free") {
+    if (quota.lead_enrichment !== true) {
       return failure(
         "FEATURE_NOT_AVAILABLE",
         "O enriquecimento de leads está disponível nos planos Pro e Advanced.",
