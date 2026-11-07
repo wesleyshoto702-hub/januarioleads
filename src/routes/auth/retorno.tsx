@@ -69,7 +69,7 @@ function OAuthReturn() {
               <h1>Acesso ainda não liberado</h1>
               <p role="status">{message || "Seu acesso está sendo confirmado."}</p>
               <Link to="/login" className="jl-signup-primary">Voltar para acessar conta</Link>
-              <Link to="/cadastro" className="jl-signup-home-link">Criar conta com e-mail</Link>
+              <Link to="/cadastro" className="jl-signup-home-link">Criar conta com Google</Link>
             </div>
           )}
           <div className="jl-signup-security"><ShieldCheck size={17} aria-hidden="true" /> O acesso ao CRM é verificado separadamente da identidade Google.</div>
