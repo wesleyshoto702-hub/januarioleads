@@ -1,6 +1,6 @@
 import { useNavigate, Link } from "@tanstack/react-router";
 import {
-  ArrowRight, CheckCircle2, Eye, EyeOff, Loader2,
+  CheckCircle2, Eye, EyeOff, Loader2,
   LockKeyhole, Mail, ShieldCheck, UserRound,
 } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
@@ -140,7 +140,7 @@ export function UnifiedAuthPage({ initialMode }: { initialMode: AuthMode }) {
                 Depois, entre com suas credenciais. O acesso ao CRM depende de liberação separada.
               </p>
               <button type="button" className="jl-signup-primary" onClick={() => selectMode("login")}>
-                Entrar na minha conta <ArrowRight size={18} aria-hidden="true" />
+                Entrar na minha conta
               </button>
             </div>
           ) : (
