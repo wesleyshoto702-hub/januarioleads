@@ -20,6 +20,7 @@ for (const path of ["/", "/produto", "/login", "/cadastro"]) {
     await expect(aurora).toHaveAttribute("aria-hidden", "true");
     await expect(aurora).toHaveAttribute("data-ambient", "aurora");
     await expect(aurora.locator("canvas.jl-aurora-canvas")).toHaveCount(1);
+    await expect(aurora.locator(".jl-aurora-wisp")).toHaveCount(2);
     await expect(aurora.locator(".jl-aurora-veil, .jl-aurora-haze")).toHaveCount(0);
     await expect(page.locator(".jl-ambient, .jl-ambient-particle")).toHaveCount(0);
     const actual = await aurora.evaluate((node) => ({
@@ -149,3 +150,42 @@ for (const width of [320, 360, 390, 768, 1280]) {
     await expect(page.locator(".jl-auth-shell > .jl-aurora > .jl-aurora-canvas")).toBeAttached();
   });
 }
+
+
+test("aurora híbrida mantém as cores originais da homepage e suas luzes atrás dos textos", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await isolate(page, () => {});
+  await page.goto("/");
+
+  const visual = await page.evaluate(() => {
+    const aurora = document.querySelector(".jl-site > .jl-aurora")!;
+    const left = aurora.querySelector<HTMLElement>(".jl-aurora-wisp--left")!;
+    const canvas = aurora.querySelector<HTMLElement>(".jl-aurora-canvas")!;
+    return {
+      bodyBackground: getComputedStyle(aurora).backgroundColor,
+      heroTitle: getComputedStyle(document.querySelector(".jl-hero h1")!).color,
+      titleAccent: getComputedStyle(document.querySelector(".jl-hero h1 em")!).color,
+      description: getComputedStyle(document.querySelector(".jl-hero-description")!).color,
+      wispPointerEvents: getComputedStyle(left).pointerEvents,
+      wispAnimation: getComputedStyle(left).animationName,
+      wispOpacity: Number(getComputedStyle(left).opacity),
+      canvasOpacity: Number(getComputedStyle(canvas).opacity),
+    };
+  });
+  expect(visual.bodyBackground).toBe("rgb(5, 6, 8)");
+  expect(visual.heroTitle).toBe("rgb(248, 250, 252)");
+  expect(visual.titleAccent).toBe("rgb(255, 87, 114)");
+  expect(visual.description).toBe("rgb(178, 186, 199)");
+  expect(visual.wispPointerEvents).toBe("none");
+  expect(visual.wispAnimation).toBe("jlAuroraSoftSway");
+  expect(visual.wispOpacity).toBeLessThan(.40);
+  expect(visual.canvasOpacity).toBeLessThan(.90);
+});
+
+test("movimento reduzido também desativa as névoas, sem interferir no Canvas estático", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await isolate(page, () => {});
+  await page.goto("/");
+  const animation = await page.locator(".jl-aurora-wisp--left").evaluate((node) => getComputedStyle(node).animationName);
+  expect(animation).toBe("none");
+});
