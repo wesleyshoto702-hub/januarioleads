@@ -1590,6 +1590,8 @@ function LeadFlowApp() {
             setActionFilter("today");
             setView("leads");
           }}
+          onScheduleAction={(id, type, date) => saveNextAction(id, { nextActionType: type, nextActionDate: date, nextActionNotes: undefined })}
+          onCompleteAction={completeNextAction}
         />
       ) : view === "leads" ? (
         <section className="page-wrap">
