@@ -2,7 +2,6 @@ import {
   ArrowRight,
   BadgeCheck,
   Ban,
-  CalendarClock,
   CircleDollarSign,
   Clock3,
   Send,
@@ -12,10 +11,8 @@ import {
 import type { PersistedLead } from "../../features/leads/remote-leads";
 import type { OpportunityRecord } from "../../features/opportunities/types";
 import { formatCurrency } from "../../features/lead-finance/finance";
-import {
-  crmToday,
-  getLeadActionSummary,
-} from "../../features/next-actions/next-actions";
+import type { NextActionType } from "../../features/next-actions/types";
+import { DailyProspectingQueue } from "../../features/next-actions/DailyProspectingQueue";
 import type { AppView } from "../app-shell/AppShell";
 import { MetricCard } from "../app-shell/MetricCard";
 import { PageHeader } from "../app-shell/PageHeader";
@@ -64,6 +61,8 @@ export function DashboardView({
   onOpenLead,
   onNavigate,
   onShowTodayActions,
+  onScheduleAction,
+  onCompleteAction,
 }: {
   counts: Counts;
   financialOverview: FinancialOverview;
@@ -78,6 +77,8 @@ export function DashboardView({
   onOpenLead: (lead: PersistedLead) => void;
   onNavigate: (view: AppView) => void;
   onShowTodayActions: () => void;
+  onScheduleAction: (id: string, type: NextActionType, date: string) => void;
+  onCompleteAction: (id: string) => void;
 }) {
   const workedContacts = counts.waiting + counts.accepted + counts.rejected;
   const conversion =
@@ -89,54 +90,6 @@ export function DashboardView({
     .filter((item) => !item.stale)
     .sort((a, b) => b.score - a.score)
     .slice(0, 3);
-  const today = crmToday();
-  const todayActions = leads
-    .flatMap((lead) => {
-      const summary = getLeadActionSummary(lead, today);
-
-      if (
-        summary.saved?.date &&
-        summary.temporal.daysDelta !== null &&
-        summary.temporal.daysDelta <= 0
-      ) {
-        return [
-          {
-            lead,
-            label: summary.saved.label,
-            detail: summary.temporal.label ?? "Hoje",
-            priority: summary.temporal.urgency === "overdue" ? 0 : 1,
-            date: summary.saved.date,
-            recommended: false,
-          },
-        ];
-      }
-
-      if (
-        !summary.saved &&
-        lead.status === "waiting" &&
-        summary.followUp.recommended
-      ) {
-        return [
-          {
-            lead,
-            label: "Follow-up recomendado",
-            detail: summary.waitingLabel ?? "Aguardando resposta",
-            priority: 2,
-            date: "",
-            recommended: true,
-          },
-        ];
-      }
-
-      return [];
-    })
-    .sort(
-      (a, b) =>
-        a.priority - b.priority ||
-        a.date.localeCompare(b.date) ||
-        a.lead.company.localeCompare(b.lead.company, "pt-BR"),
-    )
-    .slice(0, 8);
 
   return (
     <section className="dashboard-view saas-page">
@@ -165,43 +118,7 @@ export function DashboardView({
 
       <IdealCustomerPanel leads={leads} onOpenLead={onOpenLead} />
 
-      <section className="dashboard-panel dashboard-today">
-        <div className="dashboard-panel-heading">
-          <div>
-            <span>PARA HOJE</span>
-            <strong>Próximas ações que pedem atenção</strong>
-          </div>
-          <button type="button" onClick={onShowTodayActions}>
-            Ver todas <ArrowRight size={14} />
-          </button>
-        </div>
-
-        {todayActions.length === 0 ? (
-          <div className="dashboard-today-empty">
-            <CalendarClock size={17} />
-            <span>Nenhuma ação atrasada, para hoje ou follow-up recomendado.</span>
-          </div>
-        ) : (
-          <div className="dashboard-action-list">
-            {todayActions.map((item) => (
-              <button
-                type="button"
-                key={item.lead.id}
-                onClick={() => onOpenLead(item.lead)}
-              >
-                <CalendarClock size={15} />
-                <span>
-                  <strong>{item.lead.company}</strong>
-                  <small>{item.label}</small>
-                </span>
-                <b className={item.recommended ? "recommended" : ""}>
-                  {item.detail}
-                </b>
-              </button>
-            ))}
-          </div>
-        )}
-      </section>
+      <DailyProspectingQueue leads={leads} onOpenLead={onOpenLead} onShowAll={onShowTodayActions} onSchedule={onScheduleAction} onComplete={onCompleteAction}/>
 
       <div className="dashboard-secondary-grid">
         <section className="dashboard-panel dashboard-performance">
