@@ -1,3 +1,4 @@
+import { APP_STYLES } from "../lib/route-styles";
 import { useLeadWorkspace, STORAGE } from "../features/leads/use-lead-workspace";
 import { PrivateWorkspace } from "../components/app-shell/PrivateWorkspace";
 import { LeadRow, LeadCard, Select, Modal, EmptyState } from "../features/leads/LeadPresentation";
@@ -103,6 +104,7 @@ import { normalizeLocationText } from "../lib/location";
 
 export const Route = createFileRoute("/app")({
   head: () => ({
+    links: [...APP_STYLES],
     meta: [
       { title: "JanuarioLeads — Área de trabalho" },
       {
