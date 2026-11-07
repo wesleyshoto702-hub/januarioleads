@@ -1608,6 +1608,7 @@ function LeadFlowApp() {
           financialOverview={financialOverview}
           financeLoaded={financeLoaded}
           financeError={financeError}
+          payments={leadPayments}
           leads={leads}
           remoteReady={remoteReady}
           remoteError={remoteError}

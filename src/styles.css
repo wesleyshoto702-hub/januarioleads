@@ -6717,3 +6717,48 @@ a{
 .manual-csv-preview ul{margin:0;padding:0 0 0 18px;color:var(--muted);font-size:12px;display:grid;gap:5px}
 .manual-csv-preview button{justify-self:start}
 @media(max-width:650px){.manual-csv-buttons>*{flex:1 1 100%}.manual-csv-preview button{justify-self:stretch}}
+
+
+/* Evolution 5: date-scoped commercial reports using only CRM lead/payment records. */
+.commercial-reports{margin:22px 0 28px;display:grid;gap:16px}
+.commercial-reports-heading{flex-wrap:wrap;gap:10px}
+.commercial-reports-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.commercial-reports-toolbar>span{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);font-weight:650}
+.commercial-period-picker{display:inline-flex;align-items:center;gap:3px;padding:4px;border-radius:10px;border:1px solid var(--border);background:var(--surface-2)}
+.commercial-period-picker button{border:1px solid transparent;border-radius:7px;background:transparent;color:var(--muted);padding:8px 13px;font-size:12px;font-weight:750;min-height:34px}
+.commercial-period-picker button[aria-pressed="true"]{background:var(--surface);border-color:var(--primary);color:var(--primary)}
+.commercial-reports-note{display:flex;gap:8px;align-items:flex-start;font-size:11px;line-height:1.65;color:var(--muted);margin:0}
+.commercial-reports-note svg{flex-shrink:0;margin-top:2px;color:var(--primary)}
+.commercial-report-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px}
+.commercial-report-kpis>div{border:1px solid var(--border);border-radius:10px;background:var(--surface-2);min-height:97px;padding:13px;display:grid;align-content:start;gap:7px;min-width:0}
+.commercial-report-kpis>div>span{font-size:11px;line-height:1.5;color:var(--muted)}
+.commercial-report-kpis>div>strong{font-size:clamp(18px,2.1vw,26px);line-height:1.2;font-weight:750;overflow-wrap:anywhere;color:var(--text)}
+.commercial-report-kpis>div>small{color:var(--muted);font-size:10px;line-height:1.4}
+.commercial-report-formula{font-size:10px;color:var(--muted);line-height:1.65;margin:0}
+.commercial-statuses{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.commercial-statuses>div{display:grid;grid-template-columns:1fr auto;gap:7px;padding:9px 11px;border:1px solid var(--border);border-radius:9px;min-width:0}
+.commercial-statuses>div>span{font-size:11px;color:var(--muted)}
+.commercial-statuses>div>strong{font-size:12px;font-weight:750}
+.commercial-statuses .commercial-bar-track{grid-column:1/-1}
+.commercial-bar-track{height:6px;width:100%;border-radius:10px;background:color-mix(in srgb,var(--muted) 12%,var(--surface));overflow:hidden}
+.commercial-bar-track>span{display:block;height:100%;min-width:0;border-radius:10px;background:var(--primary);transition:width .28s ease}
+.commercial-report-breakdowns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.commercial-report-breakdowns>section{border:1px solid var(--border);background:var(--surface-2);padding:16px;border-radius:11px;min-width:0}
+.commercial-report-breakdowns h3{font-size:13px;display:flex;align-items:center;gap:8px;font-weight:720;margin:0 0 14px}
+.commercial-report-breakdowns h3 svg{color:var(--primary)}
+.commercial-bars{display:grid;gap:14px}
+.commercial-bar-row{display:grid;gap:6px;min-width:0}
+.commercial-bar-label{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;min-width:0}
+.commercial-bar-label span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.commercial-bar-label strong{font-weight:750;flex-shrink:0}
+.commercial-bar-row>small{font-size:10px;color:var(--muted)}
+.commercial-empty{font-size:12px;line-height:1.6;color:var(--muted);margin:0}
+.commercial-report-footer{display:block;color:var(--muted);font-size:10px;line-height:1.6}
+@media(max-width:1050px){.commercial-report-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:700px){.commercial-report-breakdowns{grid-template-columns:minmax(0,1fr)}.commercial-statuses{grid-template-columns:repeat(2,minmax(0,1fr))}.commercial-report-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:460px){.commercial-reports-toolbar{align-items:stretch}.commercial-period-picker{width:100%;justify-content:space-between}.commercial-period-picker button{flex:1 1 0;padding:8px 6px}.commercial-report-kpis>div{min-height:90px;padding:11px}.commercial-report-kpis>div:last-child{grid-column:1/-1}}
+@media(prefers-reduced-motion:reduce){.commercial-bar-track>span{transition:none}}
+
+.commercial-report-jump{display:inline-flex;align-items:center;gap:6px;text-decoration:none;font-size:12px;font-weight:700;color:var(--primary);border-radius:8px;padding:6px}
+.commercial-report-jump:hover,.commercial-report-jump:focus-visible{text-decoration:underline}
+#commercial-reports-title{scroll-margin-top:100px}

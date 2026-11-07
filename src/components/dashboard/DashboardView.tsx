@@ -10,7 +10,8 @@ import {
 } from "lucide-react";
 import type { PersistedLead } from "../../features/leads/remote-leads";
 import type { OpportunityRecord } from "../../features/opportunities/types";
-import { formatCurrency } from "../../features/lead-finance/finance";
+import { formatCurrency, type LeadPayment } from "../../features/lead-finance/finance";
+import { CommercialReports } from "../../features/analytics/CommercialReports";
 import type { NextActionType } from "../../features/next-actions/types";
 import { DailyProspectingQueue } from "../../features/next-actions/DailyProspectingQueue";
 import type { AppView } from "../app-shell/AppShell";
@@ -52,6 +53,7 @@ export function DashboardView({
   financialOverview,
   financeLoaded,
   financeError,
+  payments,
   leads,
   remoteReady,
   remoteError,
@@ -68,6 +70,7 @@ export function DashboardView({
   financialOverview: FinancialOverview;
   financeLoaded: boolean;
   financeError: string;
+  payments: LeadPayment[];
   leads: PersistedLead[];
   remoteReady: boolean;
   remoteError: string;
@@ -127,6 +130,9 @@ export function DashboardView({
               <span>PERFORMANCE COMERCIAL</span>
               <strong>Conversão dos contatos trabalhados</strong>
             </div>
+            <a className="commercial-report-jump" href="#commercial-reports-title">
+              Ver relatórios <ArrowRight size={14} aria-hidden="true" />
+            </a>
           </div>
           <div className="dashboard-conversion">
             <strong>{conversion === null ? "—" : `${conversion}%`}</strong>
@@ -177,6 +183,14 @@ export function DashboardView({
           )}
         </section>
       </div>
+
+      <CommercialReports
+        leads={leads}
+        payments={payments}
+        financeLoaded={financeLoaded}
+        financeError={financeError}
+        onViewLeads={() => onNavigate("leads")}
+      />
 
       <div className="dashboard-columns">
         <section className="dashboard-panel dashboard-updates">

@@ -400,3 +400,28 @@ test("CSV import requires user confirmation and never imports external Google fi
   await expect(page.locator(".desktop-table")).toContainText("Empresa Propria");
   await expect(panel.getByRole("button", { name: /Exportar 1 contato manual/ })).toBeEnabled();
 });
+
+
+test("commercial reports use CRM registration cohorts, explicit status definitions and selectable periods", async ({ page }) => {
+  await loginWithMocks(page, { leads: [
+    { ...WAITING_LEAD },
+    { ...WAITING_LEAD, id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", company: "Cliente Aceito", status: "accepted", created_at: "2025-06-01T12:00:00.000Z", segment: "Restaurante", city: "Belo Horizonte" },
+  ] });
+  const reports = page.getByRole("region", { name: "Relatórios comerciais" });
+  await expect(reports).toBeVisible();
+  await expect(reports.getByRole("group", { name: "Período do relatório" })
+    .getByRole("button", { name: "90 dias" })).toHaveAttribute("aria-pressed", "true");
+
+  await reports.getByRole("group", { name: "Período do relatório" })
+    .getByRole("button", { name: "Tudo" }).click();
+
+  await expect(reports.locator(".commercial-report-kpis")).toContainText("Leads cadastrados");
+  await expect(reports.locator(".commercial-report-kpis")).toContainText("2");
+  await expect(reports.locator(".commercial-report-kpis")).toContainText("50%");
+  await expect(reports.getByRole("region", { name: "Leads por segmento" })).toContainText("Restaurante");
+  await expect(reports.getByRole("region", { name: "Leads por cidade" })).toContainText("Lavras / MG");
+  await expect(reports).toContainText("status exibidos são os atuais");
+  await expect(reports).toContainText("não taxa de vendas fechadas");
+  await reports.getByRole("button", { name: "Ver carteira" }).click();
+  await expect(page.getByRole("heading", { name: "Meus Leads" })).toBeVisible();
+});
