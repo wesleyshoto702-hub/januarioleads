@@ -1,7 +1,7 @@
 -- Fase 2: preflight de leads SEM chamadas pagas.
 -- Apenas backend service_role pode consultar as cotas de outros usuarios.
 -- Em producao, aplicar somente depois de revisao da base SaaS.
-create function public.peek_daily_leads_for_user(p_user_id uuid)
+create or replace function public.peek_daily_leads_for_user(p_user_id uuid)
 returns jsonb
 language plpgsql
 stable security invoker
