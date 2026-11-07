@@ -19,7 +19,7 @@
 .jl-tour-side h3 { max-width: 510px; font: 750 clamp(29px, 3vw, 44px)/1.13 "Space Grotesk", Inter,sans-serif; letter-spacing: -.055em; }
 .jl-tour-side h3 span { color: #fe6983; }
 .jl-tour-side > p:not(.jl-tour-side-overline) { color: #a9b3c0; font-size: 13px; line-height: 1.85; max-width: 480px; }
-.jl-tour-step-indicators { display: grid; gap: 8px; width: 100%; max-width: 450px; margin: 0; padding: 0; list-style: none; }
+.jl-tour-step-buttons { display: grid; gap: 8px; width: 100%; max-width: 450px; margin: 0; padding: 0; list-style: none; }
 .jl-tour-step-indicator {
   display: flex; align-items: center; gap: 12px;
   min-height: 53px; width: 100%; border: 1px solid rgba(169,183,202,.13);
@@ -28,9 +28,8 @@
   font-size: 12px; font-weight: 720; transition: background .2s,border-color .2s,color .2s;
 }
 .jl-tour-step-indicator.active { color: #fff; border-color: rgba(255,107,133,.53); background: linear-gradient(100deg,rgba(229,51,84,.18),#1a1c27 75%); }
-.jl-tour-step-number { color: #e87991; font-size: 10px; font-weight: 800; letter-spacing: .04em; }
 .jl-tour-step-indicator > svg { color: #ff6e89; }
-.jl-tour-step-indicator > span:nth-of-type(2) { flex: 1; }
+.jl-tour-step-indicator > span { flex: 1; }
 .jl-tour-reduced-note { font-size: 11px !important; color: #a3adbd !important; }
 .jl-tour-stage {
   min-width: 0; overflow: hidden;
@@ -216,7 +215,7 @@
 @media (max-width: 930px) {
   .jl-tour-grid { grid-template-columns: 1fr; gap: 38px; }
   .jl-tour-side { max-width: 760px; }
-  .jl-tour-step-indicators { max-width: 100%; grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .jl-tour-step-buttons { max-width: 100%; grid-template-columns: repeat(2,minmax(0,1fr)); }
   .jl-tour-stage { width: 100%; max-width: 760px; margin-inline: auto; }
 }
 @media (max-width: 850px) {
@@ -225,7 +224,7 @@
 @media (max-width: 600px) {
   .jl-tour-grid { margin-top: 26px; }
   .jl-tour-side { gap: 17px; }
-  .jl-tour-step-indicators { grid-template-columns: 1fr; gap: 7px; }
+  .jl-tour-step-buttons { grid-template-columns: 1fr; gap: 7px; }
   .jl-tour-step-indicator { min-height: 46px; padding: 10px 13px; }
   .jl-tour-player-topbar { gap: 8px; padding-inline: 10px; }
   .jl-tour-player-topbar > span:nth-child(2) { font-size: 10px; }
