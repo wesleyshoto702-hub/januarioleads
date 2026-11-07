@@ -1,6 +1,7 @@
 import { useLeadWorkspace, STORAGE } from "../features/leads/use-lead-workspace";
 import { PrivateWorkspace } from "../components/app-shell/PrivateWorkspace";
 import { LeadRow, LeadCard, Select, Modal, EmptyState } from "../features/leads/LeadPresentation";
+import { LeadKanban } from "../features/leads/LeadKanban";
 import {
   enqueueLead,
   flushPendingLeads,
@@ -237,6 +238,7 @@ function LeadFlowApp() {
     financeError,
   } = useLeadWorkspace();
   const [view, setView] = useState<AppView>("dashboard");
+  const [leadLayout, setLeadLayout] = useState<"list" | "kanban">("list");
   const [searchMode, setSearchMode] = useState<SearchMode>("all");
   const [leadModal, setLeadModal] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
@@ -1774,6 +1776,15 @@ function LeadFlowApp() {
               ))}
             </div>
 
+            <div className="lead-layout-switch" role="group" aria-label="Visualização da carteira">
+              <button type="button" aria-pressed={leadLayout === "list"} onClick={() => setLeadLayout("list")}>Lista</button>
+              <button type="button" aria-pressed={leadLayout === "kanban"} onClick={() => { setLeadLayout("kanban"); setStatusFilter("all"); }}>Kanban</button>
+            </div>
+
+            {leadLayout === "kanban" ? (
+              <LeadKanban leads={visibleLeads} onChangeStatus={changeStatus} onOpenLead={openLeadDetails} />
+            ) : (
+              <>
             <div className="desktop-table">
               <div className="table-head">
                 <span>Empresa · Nicho · Localização</span>
@@ -1828,6 +1839,8 @@ function LeadFlowApp() {
                 <EmptyState onNew={openNewLead} hasLeads={leads.length > 0} />
               )}
             </div>
+              </>
+            )}
           </div>
         </section>
       ) : view === "search" ? (
