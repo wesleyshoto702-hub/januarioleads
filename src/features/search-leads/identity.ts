@@ -95,12 +95,18 @@ export function findSavedBusinessMatch(
     );
     if (knownDifferentCities) return false;
 
+    const leadName=normalizeIdentity(lead.company);
+    const namesMatch=Boolean(businessName && leadName===businessName);
+    const addressesMatch=Boolean(businessAddress &&
+      normalizeIdentity(lead.address)===businessAddress);
     const leadPhone=normalizeBrazilianPhone(lead.phone);
-    if (businessPhone && leadPhone && businessPhone===leadPhone) return true;
+    // Shared reception/call-center numbers can serve multiple companies.
+    // A phone match alone must not classify separate businesses as duplicates.
+    if (businessPhone && leadPhone && businessPhone===leadPhone &&
+      (namesMatch || addressesMatch)) return true;
 
-    if (!businessName || normalizeIdentity(lead.company)!==businessName) return false;
-    return (Boolean(businessAddress) && normalizeIdentity(lead.address)===businessAddress) ||
-      closeCoordinates(business,lead);
+    if (!namesMatch) return false;
+    return addressesMatch || closeCoordinates(business,lead);
   }) ?? null;
 }
 
