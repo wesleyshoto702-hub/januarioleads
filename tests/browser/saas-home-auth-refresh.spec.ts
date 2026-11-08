@@ -172,3 +172,39 @@ test("Entrar e Criar conta não exibem seta de avanço no botão principal", asy
   await expect(submit).toContainText("Criar conta");
   await expect(submit.locator("svg.lucide-arrow-right")).toHaveCount(0);
 });
+
+
+for (const width of [320, 360, 390, 430, 620]) {
+  test(`Criar conta permanece visível no cabeçalho mobile a ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 820 });
+    await isolatePublicPage(page, () => {});
+    await page.goto("/");
+    const actions = page.locator(".jl-header-actions");
+    const signup = actions.getByRole("link", { name: "Criar conta" });
+    const login = actions.getByRole("button", { name: "Acessar conta" });
+    await expect(signup).toBeVisible();
+    await expect(login).toBeVisible();
+    await expect(signup).toHaveAttribute("href", "/cadastro");
+
+    const positions = await actions.evaluate((element) => {
+      const signupRect = element.querySelector(".jl-header-signup")?.getBoundingClientRect();
+      const loginRect = element.querySelector(".jl-header-login")?.getBoundingClientRect();
+      return signupRect && loginRect ? {
+        signupRight: signupRect.right,
+        loginLeft: loginRect.left,
+        signupBottom: signupRect.bottom,
+        loginTop: loginRect.top,
+        pageWidth: document.documentElement.scrollWidth,
+        viewportWidth: window.innerWidth,
+      } : null;
+    });
+    expect(positions).not.toBeNull();
+    expect(positions!.signupRight).toBeLessThanOrEqual(positions!.loginLeft);
+    expect(positions!.signupBottom).toBeGreaterThan(positions!.loginTop);
+    expect(positions!.pageWidth).toBeLessThanOrEqual(positions!.viewportWidth);
+
+    await signup.click();
+    await expect(page).toHaveURL(/\\/cadastro$/);
+    await expect(page.getByRole("tab", { name: "Criar conta" })).toHaveAttribute("aria-selected", "true");
+  });
+}
