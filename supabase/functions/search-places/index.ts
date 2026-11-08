@@ -5,6 +5,7 @@ import {
   normalizeBrazilianStateCode,
 } from "../_shared/brazil-locations.ts";
 import { resolveSearchSegment, searchTextForSegment } from "../_shared/niche-catalog.ts";
+import { uniqueVerifiedAliases, type VerifiedPlace } from "../_shared/cross-provider-identity.ts";
 type BusinessSearchResult = {
   placeId: string;
   name: string;
@@ -311,11 +312,11 @@ async function peekSaasQuota(userId: string): Promise<SaasQuota | null> {
   }
 }
 
-async function claimSaasLeads(userId: string, placeIds: string[], source: "search" | "maps"): Promise<SaasClaim | null> {
+async function claimSaasLeads(userId: string, placeIds: string[], source: "search" | "maps", verifiedAliases:Record<string,string>={}): Promise<SaasClaim | null> {
   try {
-    const response = await adminRest("rpc/claim_daily_leads_for_user", {
+    const response = await adminRest("rpc/claim_daily_leads_for_user_with_aliases", {
       method: "POST",
-      body: JSON.stringify({ p_user_id: userId, p_place_ids: placeIds, p_source: source }),
+      body: JSON.stringify({ p_user_id: userId, p_place_ids: placeIds, p_source: source, p_aliases: verifiedAliases }),
     });
     if (!response?.ok) return null;
     const data: unknown = await response.json();
@@ -333,6 +334,33 @@ async function claimSaasLeads(userId: string, placeIds: string[], source: "searc
   } catch {
     return null;
   }
+}
+
+/** The only stored cross-provider business metadata comes from OSM/Geoapify.
+ * Google company names, addresses and coordinates remain transient.
+ */
+async function getDailyOsmAnchors(userId:string):Promise<VerifiedPlace[]> {
+  try {
+    const r=await adminRest("rpc/get_daily_geoapify_anchors_for_user",{
+      method:"POST",body:JSON.stringify({p_user_id:userId}),
+    });
+    if(!r?.ok) return [];
+    const value:unknown=await r.json();
+    if(!Array.isArray(value))return [];
+    return value.flatMap((x):VerifiedPlace[]=>{
+      if(!x||typeof x!=="object")return [];
+      const p=x as Record<string,unknown>;
+      if(typeof p.sourceId!=="string" || typeof p.name!=="string")return [];
+      return [{
+        id:p.sourceId,name:p.name,
+        address:typeof p.address==="string"?p.address:null,
+        city:typeof p.city==="string"?p.city:null,
+        state:typeof p.state==="string"?p.state:null,
+        latitude:typeof p.latitude==="number"?p.latitude:null,
+        longitude:typeof p.longitude==="number"?p.longitude:null,
+      }];
+    });
+  } catch {return [];}
 }
 
 type SaasSearchQuota = {
@@ -1242,7 +1270,15 @@ async function runSegmentSearch(
   }
   // Debit after successfully obtaining real results. DB deduplicates same-day
   // IDs and charges 1 normal or 2 Maps credits, atomically.
-  const claim = await claimSaasLeads(userId,collected.map((b)=>b.placeId),source);
+  const verifiedAliases=uniqueVerifiedAliases(
+    collected.map((item):VerifiedPlace=>({
+      id:item.placeId,name:item.name,address:item.address,
+      city:item.city,state:item.state,
+      latitude:item.latitude,longitude:item.longitude,
+    })),
+    await getDailyOsmAnchors(userId),
+  );
+  const claim = await claimSaasLeads(userId,collected.map((b)=>b.placeId),source,verifiedAliases);
   if (!claim) return failure("REQUEST_FAILED","Não foi possível registrar os créditos.",503);
   const allowed = new Set(claim.allowed_place_ids);
   const free = claim.plan === "free";
