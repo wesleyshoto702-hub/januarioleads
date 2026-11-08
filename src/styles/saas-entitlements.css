@@ -16,6 +16,14 @@
 .saas-plan-status > span { font-weight: 550; }
 .saas-plan-status small { flex-basis: 100%; color: var(--text-secondary,#9da3b3); }
 .saas-plan-status .saas-plan-error { color: #fba6b6; }
+.saas-plan-switch { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 700; }
+.saas-plan-switch select {
+  border: 1px solid rgba(238,75,113,.42); border-radius: 9px;
+  padding: 7px 9px; color: inherit; background: #241820;
+  font: inherit; cursor: pointer;
+}
+.saas-plan-switch select:focus-visible { outline: 2px solid #fc7394; outline-offset: 2px; }
+.saas-plan-switch select:disabled { opacity: .6; cursor: wait; }
 .saas-plan-status a { color: #f98da4; font-weight: 700; text-decoration: underline; }
 .saas-feature-hint {
   margin: 8px 0 22px;
