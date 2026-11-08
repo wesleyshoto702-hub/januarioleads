@@ -527,7 +527,6 @@ export function SearchLeadsView({
     initialSearchSession?.screen ?? "segments",
   );
   const [loading, setLoading] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<{ code: string; message: string } | null>(null);
   const [searchNotice, setSearchNotice] = useState(initialSearchSession?.searchNotice ?? "");
   const [saasUsage, setSaasUsage] = useState<SaasUsage | null>(null);
@@ -884,57 +883,42 @@ export function SearchLeadsView({
     setLeadStatusFilter(preset.leadStatusFilter);
   }
 
-  async function runSearch(
-    segment: string,
-    location: SearchLocation,
-    pageToken?: string,
-    append = false,
-  ) {
-    // A fresh niche search starts with all results. The "Abertos Agora"
-    // filter is offered only after the user sees the fetched companies.
-    // Loading another page retains the selected filter.
-    if (!append) onModeChange("all");
-    // A user-initiated search takes precedence over a pending cache refresh.
+  async function runSearch(segment: string, location: SearchLocation) {
+    // One click returns all results allowed by plan balance and provider quota.
+    onModeChange("all");
     hasActiveSearchRef.current = true;
     const requestId = ++searchRequestIdRef.current;
-    if (append) {
-      setLoadingMore(true);
-    } else {
-      setLoading(true);
-      setLoadingMore(false);
-    }
+    setLoading(true);
     setError(null);
-    if (!append) setSearchNotice("");
+    setSearchNotice("");
 
     const response = await searchBusinesses({
       segment,
       city: location.city,
       state: location.state,
-      ...(pageToken ? { pageToken } : {}),
     });
 
-    // Out-of-order network responses must not overwrite the latest search.
     if (requestId !== searchRequestIdRef.current) return;
-
     if (!response.ok) {
       if (response.quota) setSaasUsage(response.quota);
       if (response.searchQuota) setSearchQuota(response.searchQuota);
       else if (SAAS_STAGING_ACTIVE) {
-        void loadMySearchQuota().then((next) => { if (next) setSearchQuota(next); });
+        void loadMySearchQuota().then((next) => {
+          if (next) setSearchQuota(next);
+        });
       }
-      if (!append && response.code === "QUOTA") {
+      // In staging, a quota failure MUST NOT expose prior cached data without
+      // checking that today's credit wallet paid for each returned company.
+      // Existing production keeps its old fallback until the feature is merged.
+      if (!SAAS_STAGING_ACTIVE && response.code === "QUOTA") {
         const cached = await fetchCachedPlacesSearchSample(
-          location,
-          segment,
+          location,segment,
         ).catch(() => null);
-
         if (requestId !== searchRequestIdRef.current) return;
         if (cached?.results.length) {
-          const checkedAt = new Intl.DateTimeFormat("pt-BR", {
-            dateStyle: "short",
-            timeStyle: "short",
+          const checkedAt = new Intl.DateTimeFormat("pt-BR",{
+            dateStyle:"short",timeStyle:"short",
           }).format(new Date(cached.checkedAt));
-
           setResults(cached.results);
           setResultsLocation(location);
           setResultsSegment(segment);
@@ -945,20 +929,13 @@ export function SearchLeadsView({
           setSearchNotice(
             `O Google Places atingiu o limite temporário. Mostrando ${cached.results.length} resultados salvos da última busca (${checkedAt}).`,
           );
-          setRecentSearches(
-            storeRecentSearch({
-              ...location,
-              segment,
-            }),
-          );
+          setRecentSearches(storeRecentSearch({...location,segment}));
           setLoading(false);
           return;
         }
       }
-
-      setError({ code: response.code, message: response.message });
-      if (append) setLoadingMore(false);
-      else setLoading(false);
+      setError({code:response.code,message:response.message});
+      setLoading(false);
       return;
     }
 
@@ -969,66 +946,35 @@ export function SearchLeadsView({
     if (response.searchQuota) setSearchQuota(response.searchQuota);
     setShowStagingDemo(Boolean(response.demo));
 
-    const combinedResults = append
-      ? [...results, ...response.results]
-      : response.results;
-    // A repeated Places ID on the next page must never erase an Instagram
-    // already confirmed by the automatic or manual discovery.
-    const uniqueByPlace = new Map<string, BusinessSearchResult>();
-    for (const item of combinedResults) {
-      const previous = uniqueByPlace.get(item.placeId);
-      if (previous && hasConfirmedInstagram(previous) && !hasConfirmedInstagram(item)) {
-        uniqueByPlace.set(item.placeId, {
-          ...item,
-          instagram: previous.instagram,
-          instagramConfidence: previous.instagramConfidence,
-          instagramSource: previous.instagramSource,
-          instagramUsername: previous.instagramUsername,
-          instagramDisplayName: previous.instagramDisplayName,
-          instagramCheckedAt: previous.instagramCheckedAt,
-          instagramSearchSignature: previous.instagramSearchSignature,
-          instagramNeedsReview: false,
-        });
-      } else {
-        uniqueByPlace.set(item.placeId, item);
-      }
-    }
+    // Backend already collects permitted pages. The UI must not paginate or
+    // charge for the same place twice within one response.
+    const uniqueByPlace = new Map<string,BusinessSearchResult>();
+    for (const item of response.results) uniqueByPlace.set(item.placeId,item);
     const uniqueResults = [...uniqueByPlace.values()];
-
     setResults(uniqueResults);
     setSearchNotice(response.demo
-      ? "Resultados 100% fictícios para homologar os limites de cada plano. Nenhuma empresa real foi consultada."
-      : response.partial ? "A fonte atingiu um limite durante a busca; mostramos todos os resultados válidos obtidos até então, e a busca já terminou automaticamente."
-      : "");
-    storeRecentBusinessSearch(segment,response.results,{
-      city: location.city,
-      state: location.state,
-      append,
+      ? "Resultados fictícios de homologação; nenhuma empresa real foi consultada."
+      : response.partial
+        ? "Uma fonte atingiu o limite seguro de consultas. Estes são os resultados válidos da pesquisa."
+        : "");
+    storeRecentBusinessSearch(segment,uniqueResults,{
+      city:location.city,state:location.state,append:false,
     });
     void persistPlacesSearchSample({
-      location,
-      segment,
-      results: uniqueResults,
-      nextPageToken: response.nextPageToken,
-      append,
+      location,segment,results:uniqueResults,
+      nextPageToken:null,append:false,
     }).catch(() => {
-      // Opportunity persistence is auxiliary and must not break lead search.
+      // History persistence is auxiliary and may fail independently.
     });
     saveSearchLocation(location);
     setSearchLocation(location);
     setCityInput(location.city);
     setResultsLocation(location);
-    setNextPageToken(response.nextPageToken);
+    setNextPageToken(null);
     setResultsSegment(segment);
     setScreen("results");
-    setRecentSearches(
-      storeRecentSearch({
-        ...location,
-        segment,
-      }),
-    );
-    if (append) setLoadingMore(false);
-    else setLoading(false);
+    setRecentSearches(storeRecentSearch({...location,segment}));
+    setLoading(false);
   }
 
   function startSearch() {
