@@ -258,6 +258,7 @@ export function MapsLeadsView({
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [detailsLoaded, setDetailsLoaded] = useState<string[]>([]);
   const [savedIds, setSavedIds] = useState<string[]>([]);
+  const [googleCrmName, setGoogleCrmName] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [zoomAction, setZoomAction] = useState<MapZoomAction>({ id: 0, delta: 0 });
@@ -315,7 +316,7 @@ export function MapsLeadsView({
     .map((place) => place.sourceId)), [geoResults, existingLeads]);
   const saved = selected ? savedIds.includes(selected.placeId) ||
     crmGoogleIds.has(selected.placeId) : false;
-  const geoSaved = selectedGeo ? crmGeoIds.has(selectedGeo.sourceId) : false;
+  const geoSaved = selectedGeo ? crmGeoIds.has(selectedGeo.sourceId) || savedIds.includes(selectedGeo.sourceId) : false;
   // Search may still work without a browser map key; never expose the server Places key.
   const mapAllowed = Boolean(GOOGLE_BROWSER_KEY) || SAAS_STAGING_ACTIVE;
   const mapPoints = useMemo(() => buildMapPoints(appliedProvider, results, geoResults),
@@ -463,20 +464,59 @@ export function MapsLeadsView({
   }
 
   async function saveLead() {
-    if (!selected || !applied || saving || saved || SAAS_STAGING_ACTIVE || appliedProvider !== "google") return;
+    if (!applied || saving) return;
+    const isGeo=appliedProvider==="geoapify";
+    const selectedPlaceId=isGeo?selectedGeo?.sourceId:selected?.placeId;
+    if (!selectedPlaceId || (isGeo ? geoSaved : saved)) return;
+    let candidate: BusinessSearchResult;
+    if (isGeo) {
+      if (!selectedGeo) return;
+      // Geoapify/OSM data is independently licensed for storage with attribution.
+      candidate = {
+        placeId:selectedGeo.sourceId,
+        name:selectedGeo.name,
+        primaryCategory:selectedGeo.category,
+        categories:[],description:null,
+        address:selectedGeo.address,
+        neighborhood:null,
+        city:selectedGeo.city,state:selectedGeo.state,
+        phone:null,internationalPhone:null,
+        rating:null,reviewCount:null,isOpenNow:null,
+        openingHours:[],currentOpeningHours:null,regularOpeningHours:null,
+        website:null,instagram:null,googleMapsUrl:null,businessStatus:null,
+        latitude:selectedGeo.latitude,longitude:selectedGeo.longitude,
+      };
+    } else {
+      if (!selected) return;
+      const manualName=googleCrmName.trim();
+      if (manualName.length<3 || manualName.length>120) {
+        setError("Digite um nome próprio para identificar este lead no CRM (3 a 120 caracteres).");
+        return;
+      }
+      // Google Places only permits permanently persisting Place IDs, not its
+      // name, coordinates, address or contact fields. This CRM name is typed
+      // by the user and is NEVER copied automatically from the Places response.
+      candidate = {
+        placeId:selected.placeId,name:manualName,primaryCategory:null,
+        categories:[],description:null,address:null,neighborhood:null,
+        city:null,state:null,phone:null,internationalPhone:null,
+        rating:null,reviewCount:null,isOpenNow:null,openingHours:[],
+        currentOpeningHours:null,regularOpeningHours:null,
+        website:null,instagram:null,googleMapsUrl:null,
+        businessStatus:null,latitude:null,longitude:null,
+      };
+    }
     setSaving(true);
     setError("");
     try {
-      const result = await onAddLead(
-        withSearchLocation(selected, { city: applied.city, state: applied.state }),
-        resolveSearchSegment(applied.segment) ?? applied.segment,
-      );
-      if (result.ok) {
-        setSavedIds((ids) => ids.includes(selected.placeId) ? ids : [...ids, selected.placeId]);
-        setMessage("Empresa adicionada ao CRM com sucesso.");
-      } else {
-        setError(result.message);
-      }
+      const result=await onAddLead(candidate,
+        resolveSearchSegment(applied.segment) ?? applied.segment);
+      if(result.ok) {
+        setSavedIds((ids)=>ids.includes(selectedPlaceId)?ids:[...ids,selectedPlaceId]);
+        setMessage(isGeo
+          ? "Lead salvo no CRM com dados Geoapify/OSM e atribuição da fonte."
+          : "Lead salvo no CRM com o nome informado por você e o identificador Google; dados do Google não foram copiados.");
+      } else setError(result.message);
     } catch {
       setError("Não foi possível salvar o lead no CRM agora.");
     } finally {
@@ -493,7 +533,7 @@ export function MapsLeadsView({
     : null;
   const displayGoogleMap = Boolean(GOOGLE_BROWSER_KEY) && mapPoints.length > 0;
   const activeMarkerId = appliedProvider === "geoapify" ? selectedGeoId : selectedId;
-  const preventCrmWrite = appliedProvider === "geoapify" || SAAS_STAGING_ACTIVE;
+
 
   return (
     <section className="bms-root saas-page" aria-labelledby="bms-heading">
@@ -563,8 +603,7 @@ export function MapsLeadsView({
         A chave pública de mapas do Google ainda precisa ser configurada para ativar o mapa real.
       </p>}
       {SAAS_STAGING_ACTIVE && <p className="bms-demo-notice" role="status">
-        Homologação: resultados e coordenadas vêm das consultas reais. Marcadores são posicionados
-        conforme a fonte selecionada automaticamente. Não há importação ao CRM nesta etapa.
+        Homologação: resultados e coordenadas reais. É possível salvar um lead Geoapify/OSM ou o identificador Google com nome fornecido por você.
       </p>}
       {error && <p className="bms-alert" role="alert">{error}</p>}
       {message && <p className="bms-message" role="status">{message}</p>}
@@ -629,13 +668,21 @@ export function MapsLeadsView({
                 {detailsLoading ? "Consultando..." : "Consultar telefone, website e avaliações"}
                 <small>Consulta adicional do Google Places sujeita aos limites de segurança</small>
               </button>}
-            {preventCrmWrite
-              ? <p className="bms-readonly">Visualização apenas: a importação de dados do Google no CRM fica desativada durante a homologação.</p>
-              : <button className="bms-save" type="button" disabled={saving || saved || !mapAllowed}
-                  onClick={() => void saveLead()}>
-                  {saved ? <CheckCircle2 size={17}/> : <BookmarkPlus size={17}/>}
-                  {saved ? "Lead já adicionado" : saving ? "Adicionando..." : "Adicionar ao CRM"}
-                </button>}
+            <div className="bms-crm-save">
+              {!saved && <>
+                <label htmlFor="bms-google-crm-name">Nome que você quer usar no CRM</label>
+                <input id="bms-google-crm-name" type="text" maxLength={120}
+                  value={googleCrmName} onChange={(event)=>setGoogleCrmName(event.target.value)}
+                  placeholder="Digite o nome por conta própria" autoComplete="off"/>
+                <small>O CRM salvará o nome que você digitou e o identificador Google; outros dados ficam somente na consulta.</small>
+              </>}
+              <button className="bms-save" type="button"
+                disabled={saving || saved || !mapAllowed || (!saved && googleCrmName.trim().length<3)}
+                onClick={() => void saveLead()}>
+                {saved ? <CheckCircle2 size={17}/> : <BookmarkPlus size={17}/>}
+                {saved ? "Lead já adicionado" : saving ? "Adicionando..." : "Adicionar ao CRM"}
+              </button>
+            </div>
           </article>}
           {selectedGeo && appliedProvider === "geoapify" &&
             <article className="bms-business-card" aria-label={"Estabelecimento Geoapify: " + selectedGeo.name}>
@@ -658,8 +705,13 @@ export function MapsLeadsView({
                   Ver localização no OpenStreetMap <ArrowUpRight size={13}/>
                 </a>}
               </div>
-              <p className="bms-readonly">Consulta de estabelecimentos baseada em OpenStreetMap.
-                Contatos e importação para o CRM não estão habilitados nessa fonte durante a homologação.</p>
+              <p className="bms-readonly">Dados provenientes do Geoapify e © OpenStreetMap contributors. Contatos não disponíveis poderão ser adicionados depois no CRM.</p>
+              <button className="bms-save" type="button"
+                disabled={saving || geoSaved || !mapAllowed}
+                onClick={() => void saveLead()}>
+                {geoSaved ? <CheckCircle2 size={17}/> : <BookmarkPlus size={17}/>}
+                {geoSaved ? "Lead já adicionado" : saving ? "Adicionando..." : "Adicionar ao CRM"}
+              </button>
             </article>}
 
         </div>
