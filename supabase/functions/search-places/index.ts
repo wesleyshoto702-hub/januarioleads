@@ -1293,8 +1293,15 @@ async function runSegmentSearch(
           regularOpeningHours:null,googleMapsUrl:null,previewOnly:true,
         })
     : collected.filter((business)=>allowed.has(business.placeId));
+  // Only exact equivalences verified on the server; never save Google name or
+  // coordinates in the user's CRM as a side effect of this relationship.
+  const withProviderLink=visible.map((business)=>({
+    ...business,
+    ...(verifiedAliases[business.placeId]
+      ? {equivalentPlaceId:verifiedAliases[business.placeId]} : {}),
+  }));
   return json({
-    ok:true,results:visible,nextPageToken:null,partial,
+    ok:true,results:withProviderLink,nextPageToken:null,partial,
     quota:{
       plan:claim.plan,daily_limit:claim.daily_limit,
       used_today:claim.used_today,remaining_today:claim.remaining_today,
