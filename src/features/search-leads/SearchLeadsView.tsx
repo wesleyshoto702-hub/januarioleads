@@ -1543,9 +1543,10 @@ export function SearchLeadsView({
             updateBusinessPresence(details.placeId, presence);
             if (duplicate?.id) onPresenceDiscovered?.(duplicate.id, presence);
           }}
-          onAdd={details.previewOnly ? undefined : (item) =>
-             onAddLead(withSearchLocation(item, resultsLocation), resultsSegment)
-           }
+          {...(!details.previewOnly ? {
+            onAdd: (item: BusinessSearchResult) =>
+              onAddLead(withSearchLocation(item, resultsLocation), resultsSegment),
+          } : {})}
         />
         );
       })()}
