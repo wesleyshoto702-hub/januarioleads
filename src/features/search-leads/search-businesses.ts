@@ -6,6 +6,8 @@ import type { SearchLocation } from "./search-location";
 type SearchBusinessesInput = SearchLocation & {
   segment: string;
   pageToken?: string;
+  neighborhood?: string;
+  mapMode?: boolean;
 };
 
 import {
@@ -62,6 +64,8 @@ export async function searchBusinesses(
         city: input.city,
         state: input.state,
         ...(input.pageToken ? { pageToken: input.pageToken } : {}),
+        ...(input.neighborhood?.trim() ? { neighborhood: input.neighborhood.trim() } : {}),
+        ...(input.mapMode ? { mapMode: true } : {}),
         ...(SAAS_STAGING_ACTIVE ? { stagingDemo: true } : {}),
       }),
     });
