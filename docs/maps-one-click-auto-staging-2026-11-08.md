@@ -4,7 +4,7 @@ Data: 08/11/2026 · Base: PR #92 (depende do PR #91, #89 e dos limites Google/Ge
 
 ## Experiência do cliente
 
-Um único formulário (segmento, cidade, UF, bairro opcional) e um único botão **Buscar no mapa**. Sem alternador de APIs nem botão Google extra. O cliente vê até 20 empresas por pesquisa, com a fonte devidamente creditada. A empresa e sua localização no Google não são desenhadas sobre um mapa ilustrativo de origem diferente. Em staging, a área do mapa continua ilustrativa, e os dados reais ficam na lista.
+Um único formulário (segmento, cidade, UF, bairro opcional) e um único botão **Buscar no mapa**. Sem alternador de APIs nem botão Google extra. O cliente vê até 20 empresas por pesquisa, com a fonte devidamente creditada. Na versão atual, o mapa ilustrativo foi removido. Com a chave pública restrita da Maps JavaScript API configurada no ambiente Vercel Preview, o cliente vê um **Google Maps real**, com pins numerados nas coordenadas do provedor que respondeu. Ao selecionar o pin a lista rola até o local e o card traz detalhes. Ao selecionar um item da lista, o mapa centraliza. Se faltar a chave de navegador, aparece um aviso de configuração sem desenhar marcadores inventados. A lista de empresas reais continua disponível.
 
 ## Orquestração / segurança
 
@@ -33,12 +33,14 @@ O banco de staging mantém Geoapify em modo piloto (5/dia para geocoding e 5/dia
 - `src/features/maps-leads/MapsLeadsView.tsx`
 - `src/features/maps-leads/geoapify-client.ts`
 - `src/features/maps-leads/maps-leads.css`
+- `src/features/maps-leads/map-points.ts`
+- `src/features/maps-leads/map-points.test.ts`
 - `tests/browser/maps-leads-pro-advanced.spec.ts`
 
 ## Verificação / lançamento
 
 - Confirmar que `GEOAPIFY_API_KEY`, `GEOAPIFY_HYBRID_ENABLED=true`, `GOOGLE_PLACES_API_KEY` e guardrails existem **no staging**. Os nomes/estado de Secrets podem ser conferidos, mas seus valores não devem ir ao GitHub, Vercel público ou chat.
-- Executar `npm run typecheck`, `deno test supabase/functions/_shared/maps-auto-google.test.ts supabase/functions/_shared/geoapify-adapter.test.ts` e `npm run test:browser -- tests/browser/maps-leads-pro-advanced.spec.ts` com preview de staging e mocks, além de uma consulta real autenticada sob orçamento.
+- Executar `npm run typecheck`, `deno test src/features/maps-leads/map-points.test.ts supabase/functions/_shared/maps-auto-google.test.ts supabase/functions/_shared/geoapify-adapter.test.ts` e `npm run test:browser -- tests/browser/maps-leads-pro-advanced.spec.ts` com preview de staging e mocks, além de uma consulta real autenticada sob orçamento.
 - Verificar origem Vercel em CORS, o bundle staging isolado e permissões Free/Pro/Advanced. Google Places sem credencial/billing não pode fornecer cobertura real; mostrar erro controlado.
 - Não mesclar em `main` nem publicar em Lovable/produção antes de validar E2E, conta paga de testes, billing e licenciamento do Google.
 - Google Maps Places: usar logo ou atribuição textual Google Maps legível quando conteúdo exibido fora de Google Maps. Não desenhar pontos Google sobre mapa de outro provedor. Não fazer cache de conteúdo Google salvo exceções documentadas. Exigir Termos de Uso e Política de Privacidade antes do rollout.
@@ -65,3 +67,19 @@ No Google Cloud Console do projeto correto:
 3. Salvar **apenas em Supabase staging → Edge Functions → Secrets**, sob o nome exato `GOOGLE_PLACES_API_KEY`, sem prefixo `VITE_`. Não enviar chave no chat/GitHub.
 4. Testar com conta Pro/Advanced de staging, confirmar resultados reais em Lavras e que **uma única ação do usuário** resulta em até uma busca Google, além das chamadas Geo admitidas pelo orçamento.
 5. Não publicar produção ou Lovable antes da validação E2E e de revisar os termos Google Maps de apresentação/cache/armazenamento.
+
+
+## Visualização cartográfica real — configuração externa pendente
+
+- O segredo do Supabase `GOOGLE_PLACES_API_KEY` é **somente para chamadas no servidor** à Places API (New). **Não exponha essa chave no Vercel/VITE_ nem use a mesma chave no navegador.**
+- No Google Cloud, projeto `januario-leads`, habilitar separadamente **Maps JavaScript API** (`maps-backend.googleapis.com`). Confirmar faturamento, preços e cota de *Dynamic Maps* (cobrança separada de Places Text Search).
+- Criar chave de navegador **distinta** com:
+  - nome sugerido `Januario Leads - Staging - Maps JS Browser`;
+  - restrição de API: **Maps JavaScript API** e nenhuma outra;
+  - restrição de aplicativo: **Websites / HTTP referrers**. Incluir apenas a origem estável da branch de preview ou os domínios de homologação realmente usados: `https://januarioleads-git-feature-maps-one-c-0a4489-wesley-s-projects16.vercel.app/*` (confirmar no Vercel após publicar).
+- No Vercel, projeto `januarioleads`, criar variável **somente no ambiente Preview e na branch** `feature/maps-one-click-auto-staging-20261108`: `VITE_GOOGLE_MAPS_BROWSER_KEY`. Como é uma chave de navegador, seu valor aparecerá publicamente no bundle, sendo indispensáveis as duas restrições Google acima.
+- **Redeploy Preview** da branch após a variável ser criada: variáveis VITE_ são embutidas durante o build. Nunca usar `--prod` nem compartilhar o segredo servidor Places.
+- O mapa Google só é carregado depois de haver resultados com coordenadas válidas. Isso evita faturamento de Dynamic Maps em simples visitas à tela sem pesquisa. Não há pins simulados.
+- Mostrar atribuição da fonte na lista e manter logos/créditos nativos do Google Maps visíveis. Geoapify/OSM permanecem creditados quando sua fonte é utilizada.
+- O teste real do servidor Google Places em Lavras retornou 20 empresas em 08/11/2026. Isso **não prova** que o mapa browser já funciona sem configurar Maps JavaScript API e a chave apropriada; são serviços com quotas diferentes.
+- Antes de produção, checar política de uso Google Places, detalhamento no CRM (desativado na homologação), métricas de custo por carregamento do mapa e controles de uso no navegador.
