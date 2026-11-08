@@ -686,7 +686,7 @@ export function BusinessDetailsModal({
                   className="secondary-button added-button"
                   disabled
                 >
-                  Já adicionado
+                  Lead já adicionado
                 </button>
                 <span
                   className={`status-badge commercial-status-badge ${commercialLead.status}`}
