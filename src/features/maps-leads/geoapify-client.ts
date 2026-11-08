@@ -1,7 +1,8 @@
 import { getAccessToken } from "../../lib/auth";
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "../../lib/supabase-config";
+import type { BusinessSearchResult } from "../search-leads/types";
 
-/** Kept separate from Google Place IDs and CRM lead writes. Not called by the UI yet. */
+/** One authenticated search: backend decides the provider without another user click. */
 export type GeoapifyPreview = {
   source: "geoapify";
   sourceId: string;
@@ -28,13 +29,16 @@ export type GeoapifySearchResponse =
         alternativeSource: "google_places_manual" | null;
       };
       attribution: { provider: string; providerUrl: string; data: string; dataUrl: string } }
+  | { ok: true; provider: "google"; results: BusinessSearchResult[];
+      limit: 20; nextPageToken: null; sourceSelection: "google_direct" | "google_fallback";
+      attribution: { provider: string }; note: string }
   | { ok: false; code: string; message: string };
 
-export async function searchGeoapifyPlaces(input: {
+export async function searchAutomaticMaps(input: {
   segment: string;
   city: string;
   state: string;
-  mapMode?: boolean;
+  neighborhood?: string;
 }): Promise<GeoapifySearchResponse> {
   const accessToken = await getAccessToken();
   if (!accessToken) return {
@@ -56,7 +60,8 @@ export async function searchGeoapifyPlaces(input: {
           city: input.city,
           state: input.state,
           segment: input.segment,
-          ...(input.mapMode ? { mapMode: true } : {}),
+          mapMode: true,
+          ...(input.neighborhood?.trim() ? { neighborhood: input.neighborhood.trim() } : {}),
         }),
       },
     );
@@ -71,8 +76,13 @@ export async function searchGeoapifyPlaces(input: {
         message: typeof error.message === "string" ? error.message : "Busca indisponível.",
       };
     }
-    if ((payload as { ok: unknown }).ok !== true || !("places" in payload) ||
-        !Array.isArray(payload.places)) {
+    if ((payload as { ok: unknown }).ok !== true ||
+        !(("provider" in payload) && (
+          (payload.provider === "geoapify" && "places" in payload &&
+            Array.isArray(payload.places)) ||
+          (payload.provider === "google" && "results" in payload &&
+            Array.isArray(payload.results))
+        ))) {
       return { ok: false, code: "INVALID_RESPONSE", message: "Resposta Geoapify inválida." };
     }
     return payload as GeoapifySearchResponse;
