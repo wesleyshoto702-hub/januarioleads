@@ -557,8 +557,8 @@ export function MapsLeadsView({
         A chave pública de mapas do Google ainda precisa ser configurada para ativar o mapa real.
       </p>}
       {SAAS_STAGING_ACTIVE && <p className="bms-demo-notice" role="status">
-        Homologação: as consultas Geoapify e Google Places são reais e controladas por orçamento.
-        O desenho ao fundo é ilustrativo, sem marcadores geográficos; use os links oficiais para localizar empresas.
+        Modo de testes: as empresas exibidas vêm de consultas reais, sem dados fictícios.
+        O mapa de fundo é ilustrativo, sem marcadores geográficos; abra o link da fonte para ver a localização.
       </p>}
       {error && <p className="bms-alert" role="alert">{error}</p>}
       {message && <p className="bms-message" role="status">{message}</p>}
