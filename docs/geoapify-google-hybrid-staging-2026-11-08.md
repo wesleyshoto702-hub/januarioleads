@@ -87,3 +87,19 @@ O backend permanece impedido de chamar Geoapify se `GEOAPIFY_HYBRID_ENABLED` nã
 A função `geoapify-places` foi atualizada em staging para v4 com retorno de status (`action: status`) exclusivamente para usuários autenticados autorizados. O status informa `keyConfigured` e `featureFlagEnabled` como booleans, sem retornar material da chave. **Nenhum teste de credencial real contra Geoapify foi executado**, porque a função exige autenticação de uma sessão staging, que as ferramentas da conexão não fornecem.
 
 Próximo passo humano: cadastrar `GEOAPIFY_HYBRID_ENABLED=true` em Edge Functions → Secrets do mesmo projeto staging. Depois validar, com sessão legítima de usuário autorizado, `action: status` e uma única consulta real (por exemplo, Barbearia em Lavras/MG). Conferir os indicadores de consumo e desativar os budgets após a homologação, se apropriado. Não criar esse segredo na produção e não enviar a API key pelo chat.
+
+
+## Teste real da API realizado em 08/11/2026
+
+O usuário confirmou `GEOAPIFY_API_KEY` e `GEOAPIFY_HYBRID_ENABLED=true` no Supabase de staging. Foi executado **um teste real, no servidor**, com requisição fixa `Barbearia em Lavras, MG`, sem copiar a chave, sem chamar o Google e sem importar contatos.
+
+**Resultado medido:**
+- Geoapify Geocoding API: HTTP 200, cidade `Lavras / MG` encontrada e ID de cidade compatível.
+- Geoapify Places API: HTTP 200 para `service.beauty.hairdresser` com `filter=place:<id>`, mas **zero estabelecimentos retornados pelo normalizador**.
+- Tabelas de proteção confirmam exatamente **1 crédito reservado de geocoding e 1 de Places** para o dia 08/11/2026. Limites de staging permanecem 5/dia por operação, 100/mês por operação, 4 requests/s.
+- Não houve consulta a Google Places, importação ao CRM ou alteração em produção.
+- A função temporária `geoapify-credential-smoke` foi desativada (HTTP 410) após o teste; a extensão transitória `pg_net` foi removida após uso.
+
+**Conclusão:** a chave e a conectividade dos dois endpoints estão válidas. A **utilidade da busca de empresas ainda não está homologada**: é necessário separar `features` brutas de dados filtrados pelo normalizador e comparar filtro por cidade com raio geográfico usando uma conta autenticada de staging. Os valores 200 não implicam presença de empresas em Lavras. Não liberar Geoapify na interface da Lovable antes da correção/validação da cobertura.
+
+A tentativa de implantar uma segunda variante de diagnóstico foi bloqueada; não houve mais chamadas à API nessa etapa.
