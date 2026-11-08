@@ -16,6 +16,15 @@ async function mockWorkspace(
   await page.route("**/*", (route) => {
     const url = new URL(route.request().url());
     if (["127.0.0.1", "localhost"].includes(url.hostname)) return route.continue();
+    if (url.hostname === "servicodados.ibge.gov.br") {
+      const uf = url.pathname.match(/\/estados\/(\d+)\/municipios/)?.[1];
+      const cities: Record<string,string[]> = {
+        "31":["Lavras","Belo Horizonte"],"35":["São Paulo"],
+        "13":["Manaus"],"41":["Curitiba"],
+      };
+      return route.fulfill({status:200,contentType:"application/json",
+        body:JSON.stringify((cities[uf??""]??["Lavras"]).map(nome=>({nome})))});
+    }
     if (url.hostname !== "prlrxjothrslhswpkoza.supabase.co") return route.abort();
     let payload: unknown = [];
     let status = 200;
@@ -129,7 +138,8 @@ for (const plan of ["pro","advanced"] as const) {
     await expect(page.getByRole("button",{name:"Adicionar ao CRM"})).toHaveCount(0);
     await expect(page.locator(".bms-staging-google-detail")).toBeVisible();
     await expect(page.locator(".bms-staging-google-detail")).toContainText("Barbearia Google 1");
-    await expect(page.locator(".bms-map-frame .bms-business-card")).toHaveCount(0);
+    await expect(page.locator(".bms-map-frame .bms-business-card")).toHaveCount(1);
+    await expect(page.locator(".bms-map-frame .bms-business-card")).toContainText("Barbearia Google 1");
     await expect(page.getByText(/sem importação ao CRM/)).toBeVisible();
     await expect(page.locator(".bms-results-count")).toHaveText("2");
     expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1)).toBe(false);
