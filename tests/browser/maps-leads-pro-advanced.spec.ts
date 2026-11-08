@@ -135,12 +135,16 @@ for (const plan of ["advanced"] as const) {
     expect(calls.unified).toHaveLength(1);
     expect(calls.googleSeparate).toBe(0);
     await expect(page.locator(".bms-results .bms-provider-attribution")).toContainText("Google Maps");
-    await expect(page.getByRole("button",{name:"Adicionar ao CRM"})).toHaveCount(0);
+    const addToCrm=page.getByRole("button",{name:"Adicionar ao CRM"});
+    await expect(addToCrm).toBeDisabled();
+    await expect(page.getByLabel("Nome que você quer usar no CRM")).toBeVisible();
+    await page.getByLabel("Nome que você quer usar no CRM").fill("Contato informado pelo cliente");
+    await expect(addToCrm).toBeEnabled();
     await expect(page.locator(".bms-staging-google-detail")).toBeVisible();
     await expect(page.locator(".bms-staging-google-detail")).toContainText("Barbearia Google 1");
     await expect(page.locator(".bms-map-frame .bms-business-card")).toHaveCount(1);
     await expect(page.locator(".bms-map-frame .bms-business-card")).toContainText("Barbearia Google 1");
-    await expect(page.getByText(/sem importação ao CRM/)).toBeVisible();
+    await expect(page.getByText(/outros dados ficam somente na consulta/)).toBeVisible();
     await expect(page.locator(".bms-results-count")).toHaveText("2");
     await expect(page.getByText("2 créditos por lead").first()).toBeVisible();
     await expect(page.getByRole("button",{name:"Carregar mais empresas"})).toHaveCount(0);
@@ -153,6 +157,8 @@ test("Geoapify com empresas exibe somente sua fonte e não faz consulta Google s
  await openMaps(page);
  await page.getByRole("button",{name:"Buscar no mapa"}).click();
  await expect(page.getByRole("article",{name:"Estabelecimento Geoapify: Barbearia OSM"})).toBeVisible();
+ await expect(page.getByRole("article",{name:"Estabelecimento Geoapify: Barbearia OSM"})
+   .getByRole("button",{name:"Adicionar ao CRM"})).toBeEnabled();
  await expect(page.locator(".bms-results .bms-provider-attribution")).toContainText("Powered by Geoapify");
  await expect(page.getByRole("link",{name:/OpenStreetMap/}).first()).toBeVisible();
  expect(calls.unified).toHaveLength(1);
