@@ -1,6 +1,7 @@
 import {
   classifyGeoapifyCoverage,
   geoapifyCategoryForSegment,
+  filterGeoapifyForNiche,
   geoapifyFeatureCount,
   normalizeGeoapifyPlaces,
   resolveGeoapifyCityId,
@@ -86,4 +87,23 @@ Deno.test("resultado zero não vira empresa fictícia nem erro de API", () => {
     throw new Error("unverified radius must not be labeled no coverage");
   if (classifyGeoapifyCoverage(2, true) !== "matches")
     throw new Error("real nearby matches must be preserved");
+});
+
+Deno.test("Barbearia não apresenta salão genérico ou esmalteria como barbearia", () => {
+  const names = ["Salão de Cabelo", "Barbearia Central", "Barber Shop", "Esmalteria"];
+  const previews = names.map((name, i) => ({
+    source: "geoapify" as const,
+    sourceId: "geoapify:" + i,
+    name, category: "service.beauty.hairdresser",
+    address: null, city: "Lavras",state: "MG",
+    latitude: -21.2, longitude: -45,
+  }));
+  const filtered = filterGeoapifyForNiche(previews, "Barbearia");
+  if (filtered.length !== 2 || filtered[0]?.name !== "Barbearia Central" ||
+      filtered[1]?.name !== "Barber Shop") {
+    throw new Error("Geoapify overly broad category leaked unrelated services");
+  }
+  if(filterGeoapifyForNiche(previews,"Salão de Beleza").length !== 4) {
+    throw new Error("Unrelated niches should preserve provider categories");
+  }
 });
