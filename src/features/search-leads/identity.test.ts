@@ -80,3 +80,50 @@ Deno.test("Mesmo telefone de central não deve juntar duas empresas diferentes",
   if(findSavedBusinessMatch(another,[original]))
     throw new Error("Telefone compartilhado gerou uma duplicata falsa");
 });
+
+Deno.test("Different stores sharing a phone and one building must not be merged", () => {
+  const saved={...lead,phone:"(35) 98888-1111"};
+  const neighbor={...osm,name:"Salão da Maria",phone:"(35) 98888-1111",
+    address:saved.address,latitude:-21.245500,longitude:-44.998200};
+  if(findSavedBusinessMatch(neighbor,[saved]))
+    throw new Error("Shared reception and address caused a false duplicate");
+});
+
+Deno.test("Same chain name and central phone at a distant branch is not a duplicate", () => {
+  const saved={...lead,phone:"(35) 98888-1111"};
+  const other={...osm,phone:"(35) 98888-1111",
+    address:"Rua da Matriz, 300",latitude:-21.253,longitude:-44.985};
+  if(findSavedBusinessMatch(other,[saved]))
+    throw new Error("Distant chain branch matched just by name/phone");
+});
+
+Deno.test("Far apart valid coordinates take precedence over identical address text", () => {
+  const other={...osm,address:lead.address,latitude:-21.260,longitude:-44.985};
+  if(findSavedBusinessMatch(other,[lead]))
+    throw new Error("Generic building address hid contradictory coordinates");
+});
+
+Deno.test("Ambiguous same-name neighbors are not silently matched to the first CRM lead", () => {
+  const second={...lead,id:"crm-lead-2",placeId:"geoapify:other-02",
+    latitude:-21.245515,longitude:-44.998215};
+  if(findSavedBusinessMatch(osm,[lead,second]))
+    throw new Error("Ambiguous fuzzy identity selected the wrong lead");
+});
+
+Deno.test("Verified provider alias recognizes a Google lead with user-entered CRM name", () => {
+  const manuallyNamed={...lead,company:"Minha conta preferida",
+    address:undefined,city:undefined,state:undefined,
+    latitude:undefined,longitude:undefined};
+  const geo={...osm,equivalentPlaceId:"google-main-456"};
+  if(findSavedBusinessMatch(geo,[manuallyNamed])?.id!==lead.id)
+    throw new Error("Server-verified provider alias was ignored");
+});
+
+Deno.test("Phone and business name without physical evidence are not sufficient", () => {
+  const saved={...lead,phone:"(35) 98888-1111",placeId:"google-other",
+    address:undefined,latitude:undefined,longitude:undefined};
+  const candidate={...osm,phone:"(35) 98888-1111",address:null,
+    latitude:null,longitude:null};
+  if(findSavedBusinessMatch(candidate,[saved]))
+    throw new Error("No geographic evidence: potential chain branch was conflated");
+});
