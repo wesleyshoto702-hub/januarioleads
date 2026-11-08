@@ -517,9 +517,11 @@ export function MapsLeadsView({
         resolveSearchSegment(applied.segment) ?? applied.segment);
       if(result.ok) {
         setSavedIds((ids)=>ids.includes(selectedPlaceId)?ids:[...ids,selectedPlaceId]);
-        setMessage(isGeo
-          ? "Lead salvo no CRM com dados Geoapify/OSM e atribuição da fonte."
-          : "Lead salvo no CRM com o nome informado por você e o identificador Google; dados do Google não foram copiados.");
+        setMessage(result.alreadyExisted
+          ? "Lead já adicionado ao CRM. Nenhum novo cadastro foi criado."
+          : isGeo
+            ? "Lead salvo no CRM com dados Geoapify/OSM e atribuição da fonte."
+            : "Lead salvo no CRM com o nome informado por você e o identificador Google; dados do Google não foram copiados.");
       } else setError(result.message);
     } catch {
       setError("Não foi possível salvar o lead no CRM agora.");
