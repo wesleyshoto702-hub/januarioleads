@@ -1642,9 +1642,15 @@ function LeadFlowApp() {
 
   useEffect(() => {
     if (view === "finance" && !canUse("finance")) setView("dashboard");
+    if (view === "opportunities" && !canUse("followup_center")) setView("dashboard");
   }, [view, saasRights]);
 
   function navigateTo(nextView: AppView) {
+    if (nextView === "opportunities" && !canUse("followup_center")) {
+      setSaasAccessError("Oportunidades comerciais disponíveis a partir do plano Pro.");
+      setView("dashboard");
+      return;
+    }
     if (nextView === "finance" && !canUse("finance")) {
       setSaasAccessError("Financeiro disponível a partir do plano Pro.");
       setView("dashboard");
@@ -1658,7 +1664,7 @@ function LeadFlowApp() {
 
   return (
     <AppShell
-      hiddenViews={canUse("finance") ? [] : ["finance"]}
+      hiddenViews={[...(!canUse("finance") ? ["finance" as const] : []), ...(!canUse("followup_center") ? ["opportunities" as const] : [])]}
       planLabel={SAAS_STAGING_ACTIVE ? (saasRights?.plan ?? "Verificando") : undefined}
       activeView={view}
       theme={theme}
@@ -1727,6 +1733,7 @@ function LeadFlowApp() {
           showPriority={canUse("advanced_lead_prioritization")}
           showFollowUpCenter={canUse("followup_center")}
           showFinance={canUse("finance")}
+          showOpportunityInsights={canUse("followup_center")}
           showReports={canUse("finance")}
           showAdvancedReports={canUse("advanced_reports")}
           advancedPanel={canUse("internal_automations") ?
@@ -2014,7 +2021,7 @@ function LeadFlowApp() {
             setMessageLead(target);
           }}
         />
-      ) : view === "opportunities" ? (
+      ) : view === "opportunities" && canUse("followup_center") ? (
         <OpportunityView
           existingLeads={leads}
           onAddLead={addFoundLeadConfirmed}
