@@ -762,7 +762,7 @@ export function BusinessDetailsModal({
                 onClick={() => void addToLeads()}
               >
                 {alreadyAdded
-                  ? "Já está nos seus leads"
+                  ? "Lead já adicionado"
                   : addingLead
                     ? "Adicionando..."
                     : "Adicionar aos meus leads"}
