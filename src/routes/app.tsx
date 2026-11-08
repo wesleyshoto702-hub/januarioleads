@@ -3,6 +3,9 @@ import { useLeadWorkspace, STORAGE } from "../features/leads/use-lead-workspace"
 import { PrivateWorkspace } from "../components/app-shell/PrivateWorkspace";
 import { LeadRow, LeadCard, Select, Modal, EmptyState } from "../features/leads/LeadPresentation";
 import { LeadKanban } from "../features/leads/LeadKanban";
+import { AdvancedWorkbench } from "../features/saas/AdvancedWorkbench";
+import { canUseSaasFeature, fetchMySaasEntitlements, type SaasEntitlements } from "../features/saas/entitlements";
+import { SAAS_STAGING_ACTIVE } from "../features/search-leads/saas-usage";
 import { ManualLeadTransfer } from "../features/leads/ManualLeadTransfer";
 import { leadIdentity, type ManualLeadCsvRow } from "../features/leads/manual-leads-csv";
 import {
@@ -264,6 +267,26 @@ function LeadFlowApp() {
     financeError,
   } = useLeadWorkspace();
   const [view, setView] = useState<AppView>("dashboard");
+  const [saasRights, setSaasRights] = useState<SaasEntitlements | null>(null);
+  const [saasRightsLoading, setSaasRightsLoading] = useState(SAAS_STAGING_ACTIVE);
+  const [saasAccessError, setSaasAccessError] = useState("");
+  const canUse = (key: Parameters<typeof canUseSaasFeature>[1]) =>
+    canUseSaasFeature(saasRights, key);
+
+  useEffect(() => {
+    if (!SAAS_STAGING_ACTIVE) return;
+    let active = true;
+    async function refreshPlan() {
+      const rights = await fetchMySaasEntitlements();
+      if (!active) return;
+      setSaasRights(rights);
+      setSaasRightsLoading(false);
+      setSaasAccessError(rights ? "" : "Não foi possível verificar os recursos do seu plano. Recursos pagos estão bloqueados por segurança.");
+    }
+    void refreshPlan();
+    window.addEventListener("focus", refreshPlan);
+    return () => { active = false; window.removeEventListener("focus", refreshPlan); };
+  }, []);
   const [leadLayout, setLeadLayout] = useState<"list" | "kanban">("list");
   const [renderLimit, setRenderLimit] = useState(40);
   const [searchMode, setSearchMode] = useState<SearchMode>("all");
@@ -1617,6 +1640,11 @@ function LeadFlowApp() {
   }
 
   function navigateTo(nextView: AppView) {
+    if (nextView === "finance" && !canUse("finance")) {
+      setSaasAccessError("Financeiro disponível a partir do plano Pro.");
+      setView("dashboard");
+      return;
+    }
     // Abertos Agora is an internal mode of Buscar Leads, not a separate page.
     // Selecting Buscar Leads from the Workspace always opens the default mode.
     if (nextView === "search") setSearchMode("all");
@@ -1625,6 +1653,8 @@ function LeadFlowApp() {
 
   return (
     <AppShell
+      hiddenViews={canUse("finance") ? [] : ["finance"]}
+      planLabel={SAAS_STAGING_ACTIVE ? (saasRights?.plan ?? "Verificando") : undefined}
       activeView={view}
       theme={theme}
       onNavigate={navigateTo}
@@ -1638,6 +1668,13 @@ function LeadFlowApp() {
         }
       }}
     >
+      {SAAS_STAGING_ACTIVE && <div className="saas-plan-status" role="status">
+        <strong>{saasRightsLoading ? "Consultando plano..." : "Plano " + (saasRights?.plan ?? "indisponível").toUpperCase()}</strong>
+        {saasRights && <span>{saasRights.used_today} de {saasRights.daily_limit} leads utilizados hoje
+          · {saasRights.remaining_today} restantes · renova à meia-noite (Brasília)</span>}
+        {saasAccessError && <span className="saas-plan-error">{saasAccessError}</span>}
+        <small>Homologação sem pagamentos — funcionalidades controladas no Supabase Staging.</small>
+      </div>}
       <Suspense fallback={<div className="page-wrap" role="status" aria-live="polite">Carregando seção...</div>}>
       {view === "dashboard" ? (
         <DashboardView
@@ -1660,6 +1697,13 @@ function LeadFlowApp() {
           }}
           onScheduleAction={(id, type, date) => saveNextAction(id, { nextActionType: type, nextActionDate: date, nextActionNotes: undefined })}
           onCompleteAction={completeNextAction}
+          showPriority={canUse("advanced_lead_prioritization")}
+          showFollowUpCenter={canUse("followup_center")}
+          showFinance={canUse("finance")}
+          showReports={canUse("finance")}
+          showAdvancedReports={canUse("advanced_reports")}
+          advancedPanel={canUse("internal_automations") ?
+            <AdvancedWorkbench leads={leads} onOpenLead={openLeadDetails} /> : null}
         />
       ) : view === "leads" ? (
         <section className="page-wrap">
@@ -1694,7 +1738,7 @@ function LeadFlowApp() {
             <Stat label="Recusados" value={counts.rejected} tone="rejected" />
           </div>
 
-          {financeLoaded && (
+          {canUse("finance") && financeLoaded && (
             <section className="finance-summary-strip" aria-label="Resumo financeiro">
               <FinanceStat
                 label="Recebido no mês"
@@ -1714,7 +1758,7 @@ function LeadFlowApp() {
             </section>
           )}
 
-          {financeError && (
+          {canUse("finance") && financeError && (
             <p className="activity-inline-error finance-load-error" role="status">
               {financeError}
             </p>
@@ -1827,7 +1871,7 @@ function LeadFlowApp() {
               ))}
             </div>
 
-            <div className="filter-row financial-filter-row">
+            {canUse("finance") && <div className="filter-row financial-filter-row">
               <span className="filter-row-label">Financeiro</span>
               {(
                 [
@@ -1848,13 +1892,13 @@ function LeadFlowApp() {
               ))}
             </div>
 
-            <div className="lead-layout-switch" role="group" aria-label="Visualização da carteira">
+            {canUse("kanban") && <div className="lead-layout-switch" role="group" aria-label="Visualização da carteira">
               <button type="button" aria-pressed={leadLayout === "list"} onClick={() => setLeadLayout("list")}>Lista</button>
               <button type="button" aria-pressed={leadLayout === "kanban"} onClick={() => { setLeadLayout("kanban"); setStatusFilter("all"); }}>Kanban</button>
             </div>
 
             {leadLayout === "kanban" ? (
-              <LeadKanban leads={renderedLeads} onChangeStatus={changeStatus} onOpenLead={openLeadDetails} />
+              {canUse("kanban") && <LeadKanban leads={renderedLeads} onChangeStatus={changeStatus} onOpenLead={openLeadDetails} />}
             ) : (
               <>
             <div className="desktop-table">
@@ -1954,7 +1998,7 @@ function LeadFlowApp() {
           }}
           onGoSearch={() => navigateTo("search")}
         />
-      ) : view === "finance" ? (
+      ) : view === "finance" && canUse("finance") ? (
         <FinanceView
           leads={leads}
           financeByLead={financeByLead}
@@ -1964,7 +2008,7 @@ function LeadFlowApp() {
           onOpenLead={openLeadDetails}
         />
       ) : (
-        <MessagesView messages={messages} onCommit={saveMessages} savedNotice={savedNotice} />
+        <MessagesView messages={messages} onCommit={canUse("custom_messages") ? saveMessages : () => {}} savedNotice={savedNotice} allowCustom={canUse("custom_messages")} />
       )}
       </Suspense>
 
@@ -2256,7 +2300,7 @@ function LeadFlowApp() {
                 setMessageLead(lead);
               }}
               onPresenceUpdate={(presence) => applyPresenceToLead(lead.id, presence)}
-              financeLead={financeLoaded ? lead : null}
+              financeLead={canUse("finance") && financeLoaded ? lead : null}
               financePayments={paymentsByLead.get(lead.id) ?? []}
               followUpLead={lead}
               onNextActionSave={(patch) => saveNextAction(lead.id, patch)}
@@ -2272,7 +2316,7 @@ function LeadFlowApp() {
           );
         })()}
 
-      {enrichmentLead && (
+      {canUse("lead_enrichment") && enrichmentLead && (
         <LeadEnrichmentModal
           lead={enrichmentLead}
           existingLeads={leads}
