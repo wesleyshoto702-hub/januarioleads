@@ -1037,6 +1037,33 @@ async function placeDetails(googleApiKey: string, placeId: string, userId?: stri
   return { ok: true as const, business: parsed };
 }
 
+// Consulta explícita de detalhes do Maps: apenas IDs já desbloqueados ao usuário.
+// Não debita novo lead; debita apenas o orçamento de Place Details.
+async function runMapPlaceDetails(
+  googleApiKey: string, body: Record<string, unknown>, userId: string,
+) {
+  const placeId = body.placeId;
+  if (typeof placeId !== "string" || placeId.trim().length < 4 ||
+      placeId.length > 255 || !/^[a-zA-Z0-9_-]+$/.test(placeId.trim())) {
+    return failure("INVALID_REQUEST", "Identificador de empresa inválido.", 400);
+  }
+  const unlocked = await adminRest(
+    "saas_lead_unlocks?select=place_id&user_id=eq." +
+    encodeURIComponent(userId) + "&place_id=eq." +
+    encodeURIComponent(placeId.trim()) + "&limit=1"
+  );
+  if (!unlocked?.ok) {
+    return failure("REQUEST_FAILED", "Falha ao conferir liberação da empresa.", 503);
+  }
+  const rows: unknown = await unlocked.json();
+  if (!Array.isArray(rows) || rows.length < 1) {
+    return failure("FORBIDDEN", "Este lead ainda não foi liberado para sua conta.", 403);
+  }
+  const details = await placeDetails(googleApiKey, placeId.trim(), userId);
+  if (!details.ok) return details.response;
+  return json({ ok: true, mode: "place-details", business: details.business });
+}
+
 // Synthetic pagination for no-cost staging tests. It never runs in production,
 // and callers must still pass Auth, private_access, API and SaaS quota checks.
 function stagingDemoSearch(
@@ -2886,7 +2913,9 @@ async function handleRequest(request: Request) {
 
   const requestBody = body as Record<string, unknown>;
   const mode =
-    requestBody.mode === "lead-enrichment"
+    requestBody.mode === "place-details"
+      ? "place-details"
+      : requestBody.mode === "lead-enrichment"
       ? "lead-enrichment"
       : requestBody.mode === "presence-discovery"
         ? "presence-discovery"
@@ -2894,8 +2923,8 @@ async function handleRequest(request: Request) {
 
   // Map requests must be authorized by the *backend*, not just by the menu.
   // Reuses the same Google Places search, per-user API budget and daily lead quota.
-  if (requestBody.mapMode === true) {
-    if (mode !== "segment-search" || !saasQuotasEnabled()) {
+  if (requestBody.mapMode === true || mode === "place-details") {
+    if (!["segment-search", "place-details"].includes(mode) || !saasQuotasEnabled()) {
       return failure("FEATURE_NOT_AVAILABLE", "Buscar via Maps está disponível nos planos Pro e Advanced.", 403);
     }
     try {
@@ -2994,6 +3023,9 @@ async function handleRequest(request: Request) {
 
     if (mode === "lead-enrichment") {
       return await runLeadEnrichment(googleApiKey, requestBody, userId);
+    }
+    if (mode === "place-details") {
+      return await runMapPlaceDetails(googleApiKey, requestBody, userId);
     }
 
     return await runSegmentSearch(googleApiKey ?? "", requestBody, userId, demoMode);
