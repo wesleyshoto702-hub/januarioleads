@@ -21,6 +21,7 @@ import { findBusinessDuplicate } from "../search-leads/identity";
 import { searchBusinesses } from "../search-leads/search-businesses";
 import { searchAutomaticMaps, type GeoapifyPreview } from "./geoapify-client";
 import { loadMapPlaceDetails } from "./map-place-details";
+import { buildMapPoints, type RealMapPoint } from "./map-points";
 import {
   DEFAULT_SEARCH_LOCATION,
   loadSearchLocation,
@@ -112,7 +113,7 @@ function hasCoordinates(value: BusinessSearchResult): value is BusinessSearchRes
     Math.abs(value.latitude) <= 90 && Math.abs(value.longitude) <= 180;
 }
 
-type MapDisplayPoint = GeoPoint & { id: string; name: string };
+type MapDisplayPoint = RealMapPoint;
 type MapZoomAction = { id: number; delta: number };
 
 function markerIcon(google: GoogleMapsApi, active: boolean) {
@@ -277,18 +278,8 @@ export function MapsLeadsView({
     Boolean(findBusinessDuplicate(selected, existingLeads)) : false;
   // Search may still work without a browser map key; never expose the server Places key.
   const mapAllowed = Boolean(GOOGLE_BROWSER_KEY) || SAAS_STAGING_ACTIVE;
-  const mapPoints = useMemo<MapDisplayPoint[]>(() => {
-    if (appliedProvider === "geoapify") {
-      return geoResults.filter((p) => Number.isFinite(p.latitude) && Number.isFinite(p.longitude) &&
-        Math.abs(p.latitude) <= 90 && Math.abs(p.longitude) <= 180)
-        .map((p) => ({ id: p.sourceId, name: p.name, lat: p.latitude, lng: p.longitude }));
-    }
-    if (appliedProvider === "google") {
-      return results.filter(hasCoordinates)
-        .map((p) => ({ id: p.placeId, name: p.name, lat: p.latitude, lng: p.longitude }));
-    }
-    return [];
-  }, [appliedProvider, geoResults, results]);
+  const mapPoints = useMemo(() => buildMapPoints(appliedProvider, results, geoResults),
+    [appliedProvider, geoResults, results]);
 
   const choose = useCallback((id: string) => {
     if (appliedProvider === "geoapify") setSelectedGeoId(id);
