@@ -4,6 +4,23 @@
  */
 const STAGING = "https://prlrxjothrslhswpkoza.supabase.co";
 
+function getAdminKey(): { key: string; bearer: boolean } | null {
+  // Modern Edge Functions receive named secret keys, not necessarily a legacy JWT.
+  const raw = Deno.env.get("SUPABASE_SECRET_KEYS");
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
+      const key = typeof parsed.default === "string" ? parsed.default.trim() :
+        Object.values(parsed).find((value) => typeof value === "string" && value.startsWith("sb_secret_"));
+      if (typeof key === "string" && key.startsWith("sb_secret_")) {
+        return { key, bearer: false };
+      }
+    } catch { /* Fall back to legacy service role if available. */ }
+  }
+  const legacy = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
+  return legacy ? { key: legacy, bearer: true } : null;
+}
+
 function allowedOrigin(value: string): boolean {
   if (!value) return true;
   try {
@@ -38,8 +55,8 @@ Deno.serve(async (request) => {
   const auth = request.headers.get("authorization") ?? "";
   const publishable = Deno.env.get("SUPABASE_ANON_KEY")?.trim() ||
     Deno.env.get("SUPABASE_PUBLISHABLE_KEY")?.trim();
-  const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
-  if (!/^Bearer\s+\S+$/i.test(auth) || !publishable || !service) {
+  const admin = getAdminKey();
+  if (!/^Bearer\s+\S+$/i.test(auth) || !publishable || !admin) {
     return reply(request, { ok: false, code: "AUTH_REQUIRED" }, 401);
   }
   let plan: string;
@@ -74,11 +91,11 @@ Deno.serve(async (request) => {
       return reply(request, { ok: false, code: "FORBIDDEN" }, 403);
     }
 
-    const adminHeaders = {
-      apikey: service,
-      Authorization: "Bearer " + service,
+    const adminHeaders: Record<string, string> = {
+      apikey: admin.key,
       "Content-Type": "application/json",
     };
+    if (admin.bearer) adminHeaders.Authorization = "Bearer " + admin.key;
     const target = STAGING + "/rest/v1/saas_subscriptions";
     const result = plan === "free"
       ? await fetch(target + "?user_id=eq." + encodeURIComponent(id), {
