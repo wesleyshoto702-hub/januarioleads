@@ -1,4 +1,5 @@
 import {
+  classifyGeoapifyCoverage,
   geoapifyCategoryForSegment,
   geoapifyFeatureCount,
   normalizeGeoapifyPlaces,
@@ -76,4 +77,13 @@ Deno.test("usa coordenadas e município reais quando presentes no Geoapify", () 
       places[0]?.state !== "MG" || places[0]?.latitude !== -21.2) {
     throw new Error("lost source locality or coordinates");
   }
+});
+
+Deno.test("resultado zero não vira empresa fictícia nem erro de API", () => {
+  if (classifyGeoapifyCoverage(0, true) !== "no_osm_category_matches")
+    throw new Error("known lack of categorized OSM data must be reported");
+  if (classifyGeoapifyCoverage(0, false) !== "unconfirmed_nearby")
+    throw new Error("unverified radius must not be labeled no coverage");
+  if (classifyGeoapifyCoverage(2, true) !== "matches")
+    throw new Error("real nearby matches must be preserved");
 });
