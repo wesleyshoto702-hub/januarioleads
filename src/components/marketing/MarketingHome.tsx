@@ -94,7 +94,7 @@ const pricingPlans = [
     code: "pro",
     name: "Pro",
     summary: "Mais contatos e organização para quem prospecta todos os dias.",
-    price: "R$ 14,90",
+    price: "R$ 19,90",
     highlights: [
       "25 novos leads por dia",
       "CRM completo com Kanban",
