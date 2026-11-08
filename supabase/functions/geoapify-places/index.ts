@@ -1,6 +1,7 @@
 import { isAllowedBrowserOrigin } from "../_shared/allowed-browser-origins.ts";
 import { findBrazilianState } from "../_shared/brazil-locations.ts";
 import {
+  classifyGeoapifyCoverage,
   geoapifyCategoryForSegment,
   geoapifyFeatureCount,
   normalizeGeoapifyPlaces,
@@ -348,11 +349,7 @@ async function handle(request: Request): Promise<Response> {
 
     const empty = matches.length === 0;
     const searchArea = boundaryRawCount === 0 && radiusChecked ? "nearby-10km" : "city";
-    const coverageStatus = empty
-      ? radiusChecked
-        ? "no_osm_category_matches"
-        : "unconfirmed_nearby"
-      : "matches";
+    const coverageStatus = classifyGeoapifyCoverage(matches.length, radiusChecked);
 
     return reply(request, {
       ok: true,
