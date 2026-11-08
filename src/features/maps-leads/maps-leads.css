@@ -208,6 +208,25 @@
 .bms-business-details .bms-site { color:#ff8aa5; }
 .bms-business-details .bms-site.yes { color:#aee0bc; }
 .bms-business-details a:hover { border-color:#fa7091; color:white; }
+.bms-enrich {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  width: 100%;
+  padding: 10px 12px;
+  margin-top: 14px;
+  border: 1px solid rgba(250,118,150,.42);
+  border-radius: 10px;
+  background: rgba(240,74,109,.10);
+  color: #ffe8ee;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 750;
+}
+.bms-enrich small { font-size: 10px; color: #d4aeba; font-weight: 500; }
+.bms-enrich:hover:not(:disabled) { background: rgba(235,75,110,.18); }
+.bms-enrich:disabled { opacity: .6; cursor: wait; }
+.bms-enrich:focus-visible { outline: 3px solid #ffabc0; outline-offset: 3px; }
 .bms-save {
   display:flex; align-items:center; justify-content:center; gap:8px;
   width:100%; min-height:44px; margin-top:15px;
