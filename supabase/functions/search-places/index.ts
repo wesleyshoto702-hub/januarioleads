@@ -90,21 +90,35 @@ type EnrichmentCandidate = {
   phoneConflict: boolean;
 };
 
+// Etapa 1: pesquisa inicial cobra somente Text Search Pro (sem campos Enterprise).
+// Website, telefone e avaliações só são consultados sob demanda em enriquecimento.
+// Docs: https://developers.google.com/maps/documentation/places/web-service/data-fields
 const TEXT_FIELD_MASK = [
   "places.id",
   "places.displayName",
   "places.primaryTypeDisplayName",
   "places.types",
-  "places.editorialSummary",
+  "places.formattedAddress",
+  "places.addressComponents",
+  "places.businessStatus",
+  "places.googleMapsUri",
+  "places.location",
+  "nextPageToken",
+].join(",");
+
+// Consultas explícitas de enriquecimento continuam obtendo contatos/avaliações,
+// mas sem editorialSummary: teto de SKU Enterprise (não Atmosphere).
+const ENRICHMENT_TEXT_FIELD_MASK = [
+  "places.id",
+  "places.displayName",
+  "places.primaryTypeDisplayName",
+  "places.types",
   "places.formattedAddress",
   "places.addressComponents",
   "places.nationalPhoneNumber",
   "places.internationalPhoneNumber",
   "places.rating",
   "places.userRatingCount",
-  "places.businessStatus",
-  "places.currentOpeningHours",
-  "places.regularOpeningHours",
   "places.websiteUri",
   "places.googleMapsUri",
   "places.location",
@@ -112,23 +126,11 @@ const TEXT_FIELD_MASK = [
 ].join(",");
 
 const DETAILS_FIELD_MASK = [
-  "id",
-  "displayName",
-  "primaryTypeDisplayName",
-  "types",
-  "editorialSummary",
-  "formattedAddress",
-  "addressComponents",
-  "nationalPhoneNumber",
-  "internationalPhoneNumber",
-  "rating",
-  "userRatingCount",
-  "businessStatus",
-  "currentOpeningHours",
-  "regularOpeningHours",
-  "websiteUri",
-  "googleMapsUri",
-  "location",
+  "id", "displayName", "primaryTypeDisplayName", "types",
+  "formattedAddress", "addressComponents", "nationalPhoneNumber",
+  "internationalPhoneNumber", "rating", "userRatingCount",
+  "businessStatus", "currentOpeningHours", "regularOpeningHours",
+  "websiteUri", "googleMapsUri", "location",
 ].join(",");
 
 const corsHeaders = {
@@ -881,6 +883,7 @@ async function textSearch(
   textQuery: string,
   pageSize = 10,
   pageToken?: string,
+  includeContact = false,
 ) {
   const body: Record<string, unknown> = {
     textQuery,
@@ -898,7 +901,7 @@ async function textSearch(
       headers: {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": googleApiKey,
-        "X-Goog-FieldMask": TEXT_FIELD_MASK,
+        "X-Goog-FieldMask": includeContact ? ENRICHMENT_TEXT_FIELD_MASK : TEXT_FIELD_MASK,
       },
       body: JSON.stringify(body),
     },
@@ -1227,7 +1230,7 @@ async function runLeadEnrichment(
 
   if (phoneQuery) {
     attemptedLayers.push("phone");
-    const searched = await textSearch(googleApiKey, phoneQuery, 10);
+    const searched = await textSearch(googleApiKey, phoneQuery, 10, undefined, true);
     if (!searched.ok) return searched.response;
 
     for (const business of searched.results.filter((business) =>
@@ -1260,7 +1263,7 @@ async function runLeadEnrichment(
   const byName = await textSearch(
     googleApiKey,
     `${normalizedLead.company} em ${normalizedLead.city}, ${stateName(normalizedLead.state)}, Brasil`,
-    10,
+    10, undefined, true,
   );
   if (!byName.ok) return byName.response;
 
@@ -1293,7 +1296,7 @@ async function runLeadEnrichment(
   const bySegment = await textSearch(
     googleApiKey,
     `${normalizedLead.company} ${normalizedLead.segment} em ${normalizedLead.city}, ${stateName(normalizedLead.state)}, Brasil`,
-    10,
+    10, undefined, true,
   );
   if (!bySegment.ok) return bySegment.response;
 
