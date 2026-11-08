@@ -7,6 +7,7 @@ import type { SaasUsage } from "../search-leads/saas-usage";
 export type GeoapifyPreview = {
   source: "geoapify";
   sourceId: string;
+  equivalentPlaceId?: string;
   name: string;
   category: string | null;
   address: string | null;
