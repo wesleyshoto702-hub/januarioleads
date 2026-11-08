@@ -45,3 +45,23 @@ O banco de staging mantém Geoapify em modo piloto (5/dia para geocoding e 5/dia
 - Geoapify/OSM: preservar suas atribuições e condições para exibição/uso dos dados.
 
 Políticas: https://developers.google.com/maps/documentation/places/web-service/policies
+
+
+## Verificações executadas nesta etapa (08/11/2026)
+
+- Código e testes foram registrados no PR #94 (draft).
+- Edge Function `geoapify-places` foi implantada apenas em staging (v8, `ACTIVE`, `verify_jwt=true`), com roteamento automático.
+- Foi executado um **smoke test autenticado de infraestrutura**, por uma função temporária privada no mesmo Supabase, que inspecionou **somente a presença das variáveis de ambiente**: `GEOAPIFY_API_KEY` presente, `GEOAPIFY_HYBRID_ENABLED=true` e `GOOGLE_PLACES_API_KEY` **ausente**. Resultado `GOOGLE_KEY_MISSING`; **nenhuma chamada Google foi executada ou cobrada**.
+- A função temporária `google-places-staging-smoke` foi substituída por HTTP 410 e o pg_net auxiliar foi removido. A busca Geoapify permanece com sua chave ativa.
+- Variáveis de preview Vercel de staging (quatro variáveis `VITE_*` vinculadas à branch) foram configuradas, sem quaisquer secrets Google no frontend.
+- A tentativa manual de deploy Vercel da branch retornou **402** `api-deployments-free-per-day`, `retryAfter=86400` (franquia diária mais de 100 deployments). Portanto, o frontend atualizado **não foi publicado nem validado em browser**. Não associar URLs de previews antigos a esta versão.
+- Testes Deno e Playwright foram escritos, **ainda não executados**. A busca Google em Lavras/MG só poderá ser testada após configurar a key Google no **Supabase staging**.
+
+### Ação obrigatória antes de homologar
+
+No Google Cloud Console do projeto correto:
+1. Ativar a **Places API (New)**; verificar faturamento e limites/alertas de consumo.
+2. Gerar uma chave de API exclusiva para o backend de staging, com restrição de API à Places API (New). Não fixar um IP arbitrário de saída para Edge Functions; considerar egress fixo gerenciado se for restringir IP de origem.
+3. Salvar **apenas em Supabase staging → Edge Functions → Secrets**, sob o nome exato `GOOGLE_PLACES_API_KEY`, sem prefixo `VITE_`. Não enviar chave no chat/GitHub.
+4. Testar com conta Pro/Advanced de staging, confirmar resultados reais em Lavras e que **uma única ação do usuário** resulta em até uma busca Google, além das chamadas Geo admitidas pelo orçamento.
+5. Não publicar produção ou Lovable antes da validação E2E e de revisar os termos Google Maps de apresentação/cache/armazenamento.
