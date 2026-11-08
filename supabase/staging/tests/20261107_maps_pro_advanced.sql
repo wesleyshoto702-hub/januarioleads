@@ -42,7 +42,8 @@ ROLLBACK;
 BEGIN;
 INSERT INTO public.saas_subscriptions(user_id, plan_code, status, period_start, period_end)
 SELECT user_id,'advanced','active',now(),now()+interval '30 days'
-FROM public.private_access LIMIT 1;
+FROM public.private_access LIMIT 1
+ON CONFLICT (user_id) DO UPDATE SET plan_code=excluded.plan_code,status='active',period_end=excluded.period_end;
 SELECT set_config('request.jwt.claim.sub', (SELECT user_id::text FROM public.private_access LIMIT 1), true);
 SET LOCAL ROLE authenticated;
 DO $$
