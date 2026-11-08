@@ -513,7 +513,7 @@ export function MapsLeadsView({
   const osmLink = selectedGeo
     ? `https://www.openstreetmap.org/?mlat=${selectedGeo.latitude}&mlon=${selectedGeo.longitude}#map=16/${selectedGeo.latitude}/${selectedGeo.longitude}`
     : null;
-  const displayGoogleMap = appliedProvider !== "geoapify" && !!GOOGLE_BROWSER_KEY;
+  const displayGoogleMap = appliedProvider !== "geoapify" && !!GOOGLE_BROWSER_KEY && !SAAS_STAGING_ACTIVE;
   const preventCrmWrite = appliedProvider === "geoapify" || SAAS_STAGING_ACTIVE;
 
   return (
@@ -526,6 +526,22 @@ export function MapsLeadsView({
         </div>
         <div className="bms-plan-chip"><ShieldCheck size={15} /> Disponível no Pro e Advanced</div>
       </div>
+
+      {SAAS_STAGING_ACTIVE && <div className="bms-provider-group">
+        <div className="bms-provider-switch" role="group" aria-label="Fonte de estabelecimentos">
+          <button type="button" className={provider === "geoapify" ? "selected" : ""}
+            aria-pressed={provider === "geoapify"} disabled={loading}
+            onClick={() => switchProvider("geoapify")}>
+            <Layers3 size={15}/> Geoapify · OpenStreetMap
+          </button>
+          <button type="button" className={provider === "google" ? "selected" : ""}
+            aria-pressed={provider === "google"} disabled={loading}
+            onClick={() => switchProvider("google")}>
+            <MapPin size={15}/> Google Places · busca real
+          </button>
+        </div>
+        <p>Uma fonte por pesquisa. Trocar a fonte não consulta a API; clique em Buscar no mapa para iniciar uma nova busca sujeita às cotas.</p>
+      </div>}
 
       <form className="bms-searchbar" onSubmit={onSubmit}>
         <div className="bms-field bms-field--segment">
@@ -550,19 +566,22 @@ export function MapsLeadsView({
             {BRAZIL_STATES.map((item) => <option key={item.code} value={item.code}>{item.code}</option>)}
           </select>
         </div>
-        <div className="bms-field bms-field--neighborhood">
+        {provider === "google" && <div className="bms-field bms-field--neighborhood">
           <label htmlFor="bms-neighborhood">BAIRRO <span>(OPCIONAL)</span></label>
           <input id="bms-neighborhood" maxLength={80} value={neighborhood}
             onChange={(e) => setNeighborhood(e.target.value)} placeholder="Ex.: Centro" />
-        </div>
-        <button className="bms-submit" type="submit" disabled={loading || !mapAllowed || usage?.remaining_today === 0}>
+        </div>}
+        <button className="bms-submit" type="submit"
+          disabled={loading || !mapAllowed || (provider === "google" && usage?.remaining_today === 0)}>
           {loading ? <LoaderCircle className="bms-spin" size={17} /> : <Search size={17}/>}
           {loading ? "Buscando..." : "Buscar no mapa"}
         </button>
       </form>
 
       <div className="bms-meta">
-        <span><Layers3 size={15}/> {applied ? results.length + " empresas no mapa" : "Escolha um segmento e uma região"}</span>
+        <span><Layers3 size={15}/> {applied
+          ? `${resultCount} empresas encontradas · ${appliedProvider === "geoapify" ? "Geoapify" : "Google Places"}`
+          : "Escolha uma fonte, um segmento e uma região"}</span>
         <span>{usage
           ? `Plano ${usage.plan.toUpperCase()} · ${usage.remaining_today} de ${usage.daily_limit} leads disponíveis hoje`
           : "Busca protegida por cota diária"}
@@ -573,34 +592,49 @@ export function MapsLeadsView({
         A chave pública de mapas do Google ainda precisa ser configurada para ativar o mapa real.
       </p>}
       {SAAS_STAGING_ACTIVE && <p className="bms-demo-notice" role="status">
-        Modo demonstração: empresas, posições e ruas são fictícias. Nenhuma busca paga ao Google é realizada.
+        Homologação: as consultas Geoapify e Google Places são reais e controladas por orçamento.
+        O desenho ao fundo é ilustrativo, sem marcadores geográficos; use os links oficiais para localizar empresas.
       </p>}
       {error && <p className="bms-alert" role="alert">{error}</p>}
       {message && <p className="bms-message" role="status">{message}</p>}
+      {SAAS_STAGING_ACTIVE && appliedProvider === "geoapify" && coverage?.alternativeSource === "google_places_manual" && applied && (
+        <div className="bms-provider-fallback" role="status">
+          <div>
+            <strong>Não encontrou empresas no Geoapify?</strong>
+            <p>Você pode tentar a mesma região e categoria no Google Places com uma nova consulta.</p>
+          </div>
+          <button type="button" disabled={loading || usage?.remaining_today === 0}
+            onClick={searchGoogleAsAlternative}>
+            <Search size={16}/> Buscar no Google Places
+          </button>
+          <small>Essa segunda consulta poderá consumir sua cota de leads e a franquia do Google.
+            A troca nunca ocorre automaticamente.</small>
+        </div>
+      )}
 
       <div className="bms-layout">
         <div className="bms-map-frame">
-          {GOOGLE_BROWSER_KEY && !SAAS_STAGING_ACTIVE
+          {displayGoogleMap
             ? <GoogleLeadsMap businesses={results} selectedId={selectedId}
                 onSelect={choose} zoomDirection={zoomTick} />
-            : <StagingIllustrativeMap businesses={SAAS_STAGING_ACTIVE ? results : []}
-                selectedId={selectedId} onSelect={choose} zoom={zoom} />}
+            : <StagingIllustrativeMap businesses={[]}
+                selectedId={null} onSelect={choose} zoom={zoom} />}
           <div className="bms-coverage">
             <div className="bms-coverage-kicker"><span className="bms-dot"/> COBERTURA TERRITORIAL</div>
             <div className="bms-coverage-place">{displayedCity}</div>
             <p>{applied
-              ? `${applied.neighborhood ? applied.neighborhood + " · " : ""}${results.length} empresas encontradas`
+              ? `${applied.neighborhood ? applied.neighborhood + " · " : ""}${resultCount} empresas encontradas`
               : "Selecione um nicho e pesquise para explorar"}</p>
           </div>
 
           <div className="bms-map-controls" aria-label="Controles do mapa">
             <button type="button" aria-label="Ampliar mapa" onClick={() => {
-              if (GOOGLE_BROWSER_KEY && !SAAS_STAGING_ACTIVE) setZoomTick((n) => n + 1);
+              if (displayGoogleMap) setZoomTick((n) => n + 1);
               else setZoom((n) => Math.min(1.8, +(n + .15).toFixed(2)));
             }}><Plus size={20}/></button>
             <span>ZOOM</span>
             <button type="button" aria-label="Reduzir mapa" onClick={() => {
-              if (GOOGLE_BROWSER_KEY && !SAAS_STAGING_ACTIVE) setZoomTick((n) => n - 1);
+              if (displayGoogleMap) setZoomTick((n) => n - 1);
               else setZoom((n) => Math.max(1, +(n - .15).toFixed(2)));
             }}><Minus size={20}/></button>
           </div>
