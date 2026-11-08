@@ -11,6 +11,8 @@ import type {
 
 export type BusinessSearchResult = {
   placeId: string;
+  /** Server-verified same-day equivalent ID from another provider. Never stored as Google content. */
+  equivalentPlaceId?: string | null;
   previewOnly?: boolean;
   name: string;
   primaryCategory: string | null;
