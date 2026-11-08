@@ -17,7 +17,7 @@ import { BRAZIL_STATES } from "../../lib/brazil-locations";
 import { safeExternalHref } from "../../lib/safe-external-url";
 import type { PersistedLead } from "../leads/remote-leads";
 import type { BusinessAddResult } from "../search-leads/BusinessDetailsModal";
-import { findBusinessDuplicate } from "../search-leads/identity";
+import { findBusinessDuplicate, findSavedBusinessMatch } from "../search-leads/identity";
 import { searchBusinesses } from "../search-leads/search-businesses";
 import { searchAutomaticMaps, type GeoapifyPreview } from "./geoapify-client";
 import { loadMapPlaceDetails } from "./map-place-details";
@@ -297,8 +297,25 @@ export function MapsLeadsView({
     () => geoResults.find((item) => item.sourceId === selectedGeoId) ?? null,
     [geoResults, selectedGeoId],
   );
+  // The CRM is shared across both entry points. Google and Geoapify do not
+  // share Place IDs, so Geoapify also compares strict identity + geo proximity.
+  const crmGoogleIds = useMemo(() => new Set(results
+    .filter((place) => Boolean(findBusinessDuplicate(place, existingLeads)))
+    .map((place) => place.placeId)), [results, existingLeads]);
+  const crmGeoIds = useMemo(() => new Set(geoResults
+    .filter((place) => Boolean(findSavedBusinessMatch({
+      placeId: place.sourceId,
+      name: place.name,
+      address: place.address,
+      city: place.city,
+      state: place.state,
+      latitude: place.latitude,
+      longitude: place.longitude,
+    }, existingLeads)))
+    .map((place) => place.sourceId)), [geoResults, existingLeads]);
   const saved = selected ? savedIds.includes(selected.placeId) ||
-    Boolean(findBusinessDuplicate(selected, existingLeads)) : false;
+    crmGoogleIds.has(selected.placeId) : false;
+  const geoSaved = selectedGeo ? crmGeoIds.has(selectedGeo.sourceId) : false;
   // Search may still work without a browser map key; never expose the server Places key.
   const mapAllowed = Boolean(GOOGLE_BROWSER_KEY) || SAAS_STAGING_ACTIVE;
   const mapPoints = useMemo(() => buildMapPoints(appliedProvider, results, geoResults),
@@ -593,6 +610,7 @@ export function MapsLeadsView({
               <span className="bms-business-counter">#{results.findIndex((b) => b.placeId === selectedId) + 1}</span>
             </div>
             <p className="bms-business-address"><MapPin size={15} /> {selected.address || displayedCity}</p>
+            {saved && <span className="bms-saved-label">Lead já adicionado</span>}
             <div className="bms-business-details">
               {selected.rating != null && <span><Star size={15} fill="#ffbc58" stroke="#ffbc58" />
                 {selected.rating.toFixed(1)} {selected.reviewCount != null ? `(${selected.reviewCount})` : ""}</span>}
@@ -634,6 +652,7 @@ export function MapsLeadsView({
               <p className="bms-business-address"><MapPin size={15}/>
                 {selectedGeo.address || `${selectedGeo.city} · ${selectedGeo.state}`}
               </p>
+              {geoSaved && <span className="bms-saved-label">Lead já adicionado</span>}
               <div className="bms-business-details">
                 {osmLink && <a href={osmLink} target="_blank" rel="noopener noreferrer">
                   Ver localização no OpenStreetMap <ArrowUpRight size={13}/>
@@ -683,6 +702,8 @@ export function MapsLeadsView({
                         <span className="bms-result-text">
                           <strong>{business.name}</strong>
                           <small>{business.address || `${business.city} · ${business.state}`}</small>
+                          {crmGeoIds.has(business.sourceId) &&
+                            <span className="bms-saved-inline">Lead já adicionado</span>}
                           <em>Geoapify · sem dados de contato</em>
                         </span>
                       </button>
@@ -700,6 +721,8 @@ export function MapsLeadsView({
                         <span className="bms-result-text">
                           <strong>{business.name}</strong>
                           <small>{business.neighborhood || business.address || displayedCity}</small>
+                          {(crmGoogleIds.has(business.placeId) || savedIds.includes(business.placeId)) &&
+                            <span className="bms-saved-inline">Lead já adicionado</span>}
                           <em>Google Maps · {business.website ? "Website identificado"
                             : detailsLoaded.includes(business.placeId) ? "Sem website identificado"
                             : "Website não consultado"}</em>
