@@ -82,6 +82,12 @@ export function resolveGeoapifyCityId(
   return resolveGeoapifyCityLocation(geocodingGeoJson, city, stateCode)?.placeId ?? null;
 }
 
+/** Distinguish genuine Geoapify zero matches from an unexpected response schema. */
+export function geoapifyFeatureCount(data: unknown): number | null {
+  const payload = record(data);
+  return Array.isArray(payload?.features) ? payload.features.length : null;
+}
+
 export type GeoapifyPlacePreview = {
   source: "geoapify";
   sourceId: string;
