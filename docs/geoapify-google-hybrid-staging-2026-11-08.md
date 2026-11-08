@@ -71,3 +71,19 @@ set enabled = false, updated_at = now();
 - https://apidocs.geoapify.com/docs/geocoding/forward-geocoding/
 - https://www.geoapify.com/pricing/
 - https://developers.google.com/maps/documentation/places/web-service/policies
+
+## Homologação após cadastro da API key — 08/11/2026
+
+O usuário informou ter configurado `GEOAPIFY_API_KEY` em Secrets do Supabase staging. **O valor e a validade da chave não foram acessados ou confirmados pela conexão de ferramentas.**
+
+Para reduzir risco na etapa inicial, os limites **atuais do banco staging** foram ajustados por SQL (não são os defaults da migration):
+- geocode: `enabled=true`, até 5/dia no projeto, 100/mês, 5/dia por usuário;
+- places: `enabled=true`, até 5/dia no projeto, 100/mês, 5/dia por usuário;
+- tráfego total: 4 req/s permanece;
+- zero consumos registrados depois do ajuste.
+
+O backend permanece impedido de chamar Geoapify se `GEOAPIFY_HYBRID_ENABLED` não estiver literalmente `true` **ou** a chave não estiver presente; somente staging com JWT + `private_access` pode chegar à rota.
+
+A função `geoapify-places` foi atualizada em staging para v4 com retorno de status (`action: status`) exclusivamente para usuários autenticados autorizados. O status informa `keyConfigured` e `featureFlagEnabled` como booleans, sem retornar material da chave. **Nenhum teste de credencial real contra Geoapify foi executado**, porque a função exige autenticação de uma sessão staging, que as ferramentas da conexão não fornecem.
+
+Próximo passo humano: cadastrar `GEOAPIFY_HYBRID_ENABLED=true` em Edge Functions → Secrets do mesmo projeto staging. Depois validar, com sessão legítima de usuário autorizado, `action: status` e uma única consulta real (por exemplo, Barbearia em Lavras/MG). Conferir os indicadores de consumo e desativar os budgets após a homologação, se apropriado. Não criar esse segredo na produção e não enviar a API key pelo chat.
