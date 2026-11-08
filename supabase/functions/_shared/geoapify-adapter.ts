@@ -163,6 +163,7 @@ export function filterGeoapifyForNiche(
 export function normalizeGeoapifyPlaces(
   data: unknown,
   location: { city: string; state: string },
+  maxResults = 20,
 ): GeoapifyPlacePreview[] {
   const envelope = record(data);
   const features = Array.isArray(envelope?.features) ? envelope.features : [];
@@ -206,7 +207,7 @@ export function normalizeGeoapifyPlaces(
       latitude: lat,
       longitude: lon,
     });
-    if (output.length >= 20) break;
+    if (output.length >= Math.min(35,Math.max(1,maxResults))) break;
   }
   return output;
 }
