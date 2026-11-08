@@ -5,7 +5,7 @@
 const STAGING = "https://prlrxjothrslhswpkoza.supabase.co";
 
 export function saasFeatureGatesEnabled(): boolean {
-  const url = Deno.env.get("SUPABASE_URL")?.replace(/\\/$/, "") ?? "";
+  const url = Deno.env.get("SUPABASE_URL")?.replace(/\/$/, "") ?? "";
   return url === STAGING || Deno.env.get("SAAS_DAILY_QUOTAS_ENABLED") === "true";
 }
 
@@ -14,12 +14,12 @@ export async function saasAllowsFeature(
   feature: string,
 ): Promise<boolean> {
   if (!saasFeatureGatesEnabled()) return true;
-  const url = Deno.env.get("SUPABASE_URL")?.replace(/\\/$/, "") ?? "";
+  const url = Deno.env.get("SUPABASE_URL")?.replace(/\/$/, "") ?? "";
   const apiKey = Deno.env.get("SUPABASE_ANON_KEY")?.trim()
     || Deno.env.get("SUPABASE_PUBLISHABLE_KEY")?.trim()
     || request.headers.get("apikey")?.trim();
   const authorization = request.headers.get("authorization")?.trim();
-  if (!url || !apiKey || !authorization || !/^Bearer\\s+\\S+$/i.test(authorization)) {
+  if (!url || !apiKey || !authorization || !/^Bearer\s+\S+$/i.test(authorization)) {
     return false;
   }
   try {
