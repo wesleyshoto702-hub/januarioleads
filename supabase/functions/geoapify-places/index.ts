@@ -624,7 +624,7 @@ async function handle(request: Request): Promise<Response> {
       quota:debit.quota,creditCost:2,creditsSpent:debit.quota.credits_spent,partial,
       sourceSelection:routingReason(geoAttempted,false),
       attribution:{provider:"Google Maps"},
-      note:"Resultados para consulta nesta homologação; contatos e importação ao CRM indisponíveis.",
+      note:"Empresas do Google podem ser salvas por Place ID e nome fornecido pelo usuário; dados do Google não são armazenados automaticamente no CRM.",
     });
   } catch {
     return fail(request, "PROVIDER_ERROR",
