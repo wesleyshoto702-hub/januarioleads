@@ -83,3 +83,16 @@ No Google Cloud Console do projeto correto:
 - Mostrar atribuição da fonte na lista e manter logos/créditos nativos do Google Maps visíveis. Geoapify/OSM permanecem creditados quando sua fonte é utilizada.
 - O teste real do servidor Google Places em Lavras retornou 20 empresas em 08/11/2026. Isso **não prova** que o mapa browser já funciona sem configurar Maps JavaScript API e a chave apropriada; são serviços com quotas diferentes.
 - Antes de produção, checar política de uso Google Places, detalhamento no CRM (desativado na homologação), métricas de custo por carregamento do mapa e controles de uso no navegador.
+
+## Cobertura nacional sob demanda (staging)
+
+- Catálogo existente: 196 nichos distribuídos em 16 grupos, todos com busca Google Places (New) suportada.
+- 27 UFs, incluindo Distrito Federal. O frontend consulta apenas a lista de municípios do IBGE da UF escolhida, com cache de 30 dias e entrada manual caso o IBGE esteja indisponível.
+- Ao mudar a UF, cidade e bairro são limpos; a busca normaliza município oficial e salva a localidade após sucesso.
+- Geoapify expandido de 7 para 37 categorias exatas e revisadas; os outros 159 nichos vão ao Google Places diretamente. A fonte escolhida não aparece como uma seleção técnica para o cliente.
+- Google valida país, UF e município. Brasília/DF reconhece regiões administrativas como Taguatinga, Gama e Ceilândia dentro do DF.
+- Geoapify não rotula estabelecimentos de outro país ou outra UF como resultados da cidade pesquisada; municípios vizinhos da mesma UF podem aparecer apenas nas proximidades com seu município real.
+- Não existe coleta em lote dos mais de 5 mil municípios: busca é sob demanda por nicho + município + UF + bairro opcional, com limites por usuário e por API. Uma consulta retorna até 20 lugares, não é uma listagem exaustiva.
+- A Edge Function geoapify-places foi atualizada na instância staging para a versão 10, preservando JWT, lista de autorização, plano e cotas. Nenhuma mudança em produção.
+- Testes Deno de 27 UFs e 196 nichos foram incluídos; build de frontend na Vercel e testes manuais nacionais ainda devem ser verificados antes de publicar em produção.
+- Documentação de categorias: https://apidocs.geoapify.com/docs/places/places/ ; Google Places Text Search: https://developers.google.com/maps/documentation/places/web-service/text-search
