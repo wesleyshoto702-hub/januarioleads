@@ -42,10 +42,12 @@ export function MessagesView({
   messages,
   onCommit,
   savedNotice,
+  allowCustom = true,
 }: {
   messages: MessageTemplate[];
   onCommit: (nextMessages: MessageTemplate[]) => void;
   savedNotice: boolean;
+  allowCustom?: boolean;
 }) {
   const [kind, setKind] = useState<MessageKind>("initial");
   const [editor, setEditor] = useState<MessageTemplate | null>(null);
@@ -55,7 +57,8 @@ export function MessagesView({
   const [trash, setTrash] = useState<DeletedMessage[]>(loadTrash);
   const [feedback, setFeedback] = useState("");
 
-  const visibleMessages = messagesForKind(messages, kind);
+  const viewMessages = allowCustom ? messages : [...DEFAULT_MESSAGE_TEMPLATES, ...DEFAULT_FOLLOW_UP_TEMPLATES];
+  const visibleMessages = messagesForKind(viewMessages, kind);
   const visibleTrash = trash.filter((entry) => templateKind(entry.template) === kind);
   const originalTemplates = kind === "follow_up"
     ? DEFAULT_FOLLOW_UP_TEMPLATES
@@ -84,6 +87,7 @@ export function MessagesView({
     setEditingId(null);
     setValidation("");
     setFeedback("");
+    if (!allowCustom) return;
     setEditor({
       id: crypto.randomUUID(),
       title: kind === "follow_up"
@@ -96,6 +100,7 @@ export function MessagesView({
   }
 
   function startEdit(message: MessageTemplate) {
+    if (!allowCustom) return;
     setKind(templateKind(message));
     setEditingId(message.id);
     setValidation("");
@@ -105,6 +110,7 @@ export function MessagesView({
 
   function saveDraft(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!allowCustom) return;
     if (!editor) return;
     const title = editor.title.trim();
     const text = editor.text.trim();
@@ -231,12 +237,16 @@ export function MessagesView({
             para inserir o nome do lead; suas favoritas ficam em primeiro lugar em cada categoria.
           </p>
         </div>
-        <div className="messages-page-actions">
+        {allowCustom && <div className="messages-page-actions">
           <button className="primary-button" onClick={startNew} type="button">
             <Plus size={17} /> {kind === "follow_up" ? "Adicionar follow-up" : "Adicionar mensagem"}
           </button>
-        </div>
+        </div>}
       </div>
+
+      {!allowCustom && <p className="saas-feature-hint">
+        Plano Free: modelos essenciais prontos para consulta. Criação e personalização disponíveis a partir do Pro.
+      </p>}
 
       <div className="message-kind-tabs" role="tablist" aria-label="Tipo de mensagem">
         <button
@@ -249,7 +259,7 @@ export function MessagesView({
           onClick={() => switchKind("initial")}
         >
           Mensagem inicial
-          <span>{messagesForKind(messages, "initial").length}</span>
+          <span>{messagesForKind(viewMessages, "initial").length}</span>
         </button>
         <button
           id="messages-tab-follow-up"
@@ -261,7 +271,7 @@ export function MessagesView({
           onClick={() => switchKind("follow_up")}
         >
           Follow-up
-          <span>{messagesForKind(messages, "follow_up").length}</span>
+          <span>{messagesForKind(viewMessages, "follow_up").length}</span>
         </button>
       </div>
 
@@ -292,7 +302,7 @@ export function MessagesView({
                 <strong>{message.title.trim() || "Mensagem sem título"}</strong>
                 {message.favorite && <span className="message-summary-pinned"><Star size={13} fill="currentColor" /> Favorita</span>}
               </div>
-              <div className="message-editor-actions">
+              {allowCustom && <div className="message-editor-actions">
                 <button
                   type="button"
                   className="message-favorite-button"
@@ -313,18 +323,18 @@ export function MessagesView({
                 >
                   <Trash2 size={16} />
                 </button>
-              </div>
+              </div>}
             </div>
             <p className="message-summary-text">{message.text || "Mensagem sem conteúdo"}</p>
             <div className="message-summary-footer">
               <span>{message.text.length} caracteres</span>
-              <button type="button" onClick={() => startEdit(message)}>Abrir editor</button>
+              {allowCustom && <button type="button" onClick={() => startEdit(message)}>Abrir editor</button>}
             </div>
           </article>
         ))}
       </div>
 
-      {(missingDefaults.length > 0 || visibleTrash.length > 0) && (
+      {allowCustom && (missingDefaults.length > 0 || visibleTrash.length > 0) && (
         <div className="message-recovery-section">
           <div>
             <h2>Recuperação de mensagens</h2>
