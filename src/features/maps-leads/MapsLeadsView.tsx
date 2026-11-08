@@ -306,6 +306,7 @@ export function MapsLeadsView({
   const crmGeoIds = useMemo(() => new Set(geoResults
     .filter((place) => Boolean(findSavedBusinessMatch({
       placeId: place.sourceId,
+      equivalentPlaceId:place.equivalentPlaceId,
       name: place.name,
       address: place.address,
       city: place.city,
@@ -475,6 +476,7 @@ export function MapsLeadsView({
       // Geoapify/OSM data is independently licensed for storage with attribution.
       candidate = {
         placeId:selectedGeo.sourceId,
+        equivalentPlaceId:selectedGeo.equivalentPlaceId??null,
         name:selectedGeo.name,
         primaryCategory:selectedGeo.category,
         categories:[],description:null,
@@ -498,7 +500,8 @@ export function MapsLeadsView({
       // name, coordinates, address or contact fields. This CRM name is typed
       // by the user and is NEVER copied automatically from the Places response.
       candidate = {
-        placeId:selected.placeId,name:manualName,primaryCategory:null,
+        placeId:selected.placeId,equivalentPlaceId:selected.equivalentPlaceId??null,
+        name:manualName,primaryCategory:null,
         categories:[],description:null,address:null,neighborhood:null,
         city:null,state:null,phone:null,internationalPhone:null,
         rating:null,reviewCount:null,isOpenNow:null,openingHours:[],
