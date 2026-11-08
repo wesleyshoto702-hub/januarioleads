@@ -1608,7 +1608,7 @@ function LeadFlowApp() {
   ): Promise<BusinessAddResult> {
     const duplicate = findBusinessDuplicate(business, leads);
     if (duplicate?.id) {
-      return { ok: true, leadId: duplicate.id };
+      return { ok: true, leadId: duplicate.id, alreadyExisted: true };
     }
 
     if (!remoteReady) {
