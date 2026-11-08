@@ -883,7 +883,7 @@ async function textSearch(
   textQuery: string,
   pageSize = 10,
   pageToken?: string,
-  includeContact = false,
+  includeContact = true,
 ) {
   const body: Record<string, unknown> = {
     textQuery,
@@ -1082,6 +1082,9 @@ async function runSegmentSearch(
     `${searchTextForSegment(segment.trim()) ?? segment.trim()} em ${typeof neighborhood === "string" && neighborhood.trim() ? neighborhood.trim() + ", " : ""}${location.city}, ${stateName(location.state)}, Brasil`,
     20,
     typeof pageToken === "string" ? pageToken.trim() : undefined,
+    // Maps carrega primeiro somente os campos Pro; website, telefone e
+    // avaliações são consultados quando a empresa é selecionada explicitamente.
+    body.mapMode !== true,
   );
 
   if (!searched) return failure("INVALID_REQUEST", "Página de demonstração inválida.", 400);
