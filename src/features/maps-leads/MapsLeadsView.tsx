@@ -19,6 +19,7 @@ import type { PersistedLead } from "../leads/remote-leads";
 import type { BusinessAddResult } from "../search-leads/BusinessDetailsModal";
 import { findBusinessDuplicate } from "../search-leads/identity";
 import { searchBusinesses } from "../search-leads/search-businesses";
+import { loadMapPlaceDetails } from "./map-place-details";
 import {
   DEFAULT_SEARCH_LOCATION,
   loadSearchLocation,
@@ -293,6 +294,8 @@ export function MapsLeadsView({
   const [usage, setUsage] = useState<SaasUsage | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [detailsLoaded, setDetailsLoaded] = useState<string[]>([]);
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -348,6 +351,7 @@ export function MapsLeadsView({
       if (response.quota) setUsage(response.quota);
       setApplied(wanted);
       setPageToken(response.nextPageToken);
+      if (!append) setDetailsLoaded([]);
       setResults((previous) => {
         const next = append ? previous : [];
         const known = new Set(next.map((item) => item.placeId));
@@ -373,6 +377,27 @@ export function MapsLeadsView({
     event.preventDefault();
     if (!mapAllowed) return;
     void search(false, { city: city.trim(), state, neighborhood: neighborhood.trim(), segment: segment.trim() });
+  }
+
+  async function consultExtraDetails() {
+    const placeId = selected?.placeId;
+    if (!placeId || SAAS_STAGING_ACTIVE || detailsLoading ||
+        detailsLoaded.includes(placeId)) return;
+    setDetailsLoading(true);
+    setError("");
+    try {
+      const response = await loadMapPlaceDetails(placeId);
+      if (!response.ok) {
+        setError(response.message);
+        return;
+      }
+      setResults((items) => items.map((item) =>
+        item.placeId === placeId ? { ...item, ...response.business } : item));
+      setDetailsLoaded((ids) => ids.includes(placeId) ? ids : [...ids, placeId]);
+      setMessage("Detalhes adicionais consultados. Esta consulta usa o orçamento separado de detalhes.");
+    } finally {
+      setDetailsLoading(false);
+    }
   }
 
   async function saveLead() {
@@ -505,11 +530,20 @@ export function MapsLeadsView({
               {selected.rating != null && <span><Star size={15} fill="#ffbc58" stroke="#ffbc58" />
                 {selected.rating.toFixed(1)} {selected.reviewCount != null ? `(${selected.reviewCount})` : ""}</span>}
               <span className={selected.website ? "bms-site yes" : "bms-site"}>
-                {selected.website ? "Com website" : "Sem website identificado"}
+                {selected.website ? "Com website" : detailsLoaded.includes(selected.placeId)
+                  ? "Sem website identificado" : "Website não consultado"}
               </span>
+              {selected.phone && <span>Telefone: {selected.phone}</span>}
               {mapsLink && <a href={mapsLink} target="_blank" rel="noopener noreferrer">Google Maps <ArrowUpRight size={13}/></a>}
               {businessSite && <a href={businessSite} target="_blank" rel="noopener noreferrer">Site <ArrowUpRight size={13}/></a>}
             </div>
+            {!SAAS_STAGING_ACTIVE && !detailsLoaded.includes(selected.placeId) &&
+              <button className="bms-enrich" type="button"
+                disabled={detailsLoading || saving}
+                onClick={() => void consultExtraDetails()}>
+                {detailsLoading ? "Consultando..." : "Consultar telefone, website e avaliações"}
+                <small>Consulta adicional do Google Places sujeita aos limites de segurança</small>
+              </button>}
             <button className="bms-save" type="button" disabled={saving || saved || !mapAllowed}
               onClick={() => void saveLead()}>
               {saved ? <CheckCircle2 size={17}/> : <BookmarkPlus size={17}/>}
@@ -542,7 +576,9 @@ export function MapsLeadsView({
                       <span className="bms-result-text">
                         <strong>{business.name}</strong>
                         <small>{business.neighborhood || business.address || displayedCity}</small>
-                        <em>{business.website ? "Website identificado" : "Sem site identificado"}</em>
+                        <em>{business.website ? "Website identificado"
+                          : detailsLoaded.includes(business.placeId) ? "Sem website identificado"
+                          : "Website não consultado"}</em>
                       </span>
                     </button>
                   </li>
