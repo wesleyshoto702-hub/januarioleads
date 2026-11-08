@@ -8,6 +8,8 @@ type SearchBusinessesInput = SearchLocation & {
   pageToken?: string;
   neighborhood?: string;
   mapMode?: boolean;
+  /** Explicit Google query: never substitute synthetic staging fixtures. */
+  liveGoogle?: boolean;
 };
 
 import {
@@ -66,7 +68,7 @@ export async function searchBusinesses(
         ...(input.pageToken ? { pageToken: input.pageToken } : {}),
         ...(input.neighborhood?.trim() ? { neighborhood: input.neighborhood.trim() } : {}),
         ...(input.mapMode ? { mapMode: true } : {}),
-        ...(SAAS_STAGING_ACTIVE ? { stagingDemo: true } : {}),
+        ...(SAAS_STAGING_ACTIVE && !input.liveGoogle ? { stagingDemo: true } : {}),
       }),
     });
 
