@@ -311,11 +311,11 @@ async function peekSaasQuota(userId: string): Promise<SaasQuota | null> {
   }
 }
 
-async function claimSaasLeads(userId: string, placeIds: string[]): Promise<SaasClaim | null> {
+async function claimSaasLeads(userId: string, placeIds: string[], source: "search" | "maps"): Promise<SaasClaim | null> {
   try {
     const response = await adminRest("rpc/claim_daily_leads_for_user", {
       method: "POST",
-      body: JSON.stringify({ p_user_id: userId, p_place_ids: placeIds }),
+      body: JSON.stringify({ p_user_id: userId, p_place_ids: placeIds, p_source: source }),
     });
     if (!response?.ok) return null;
     const data: unknown = await response.json();
@@ -1186,62 +1186,85 @@ async function runSegmentSearch(
     );
   }
 
-  const searched = demoMode
-    ? stagingDemoSearch(
-        segment.trim(), location.city, location.state,
-        typeof pageToken === "string" ? pageToken.trim() : undefined,
-      )
-    : await textSearch(
-    googleApiKey,
-    `${searchTextForSegment(segment.trim()) ?? segment.trim()} em ${typeof neighborhood === "string" && neighborhood.trim() ? neighborhood.trim() + ", " : ""}${location.city}, ${stateName(location.state)}, Brasil`,
-    20,
-    typeof pageToken === "string" ? pageToken.trim() : undefined,
-    // Maps carrega primeiro somente os campos Pro; website, telefone e
-    // avaliações são consultados quando a empresa é selecionada explicitamente.
-    body.mapMode !== true,
-    userId,
-  );
+  const quotaBefore = saasQuotasEnabled() ? await peekSaasQuota(userId) : null;
+  if (saasQuotasEnabled() && !quotaBefore) {
+    return failure("REQUEST_FAILED", "Não foi possível verificar o saldo diário.", 503);
+  }
+  const source = body.mapMode === true ? "maps" : "search";
+  const creditCost = source === "maps" ? 2 : 1;
+  // One click: fetch provider pages automatically within the daily balance.
+  // At most 4 pages of 20, each behind its own Google billing guard.
+  const resultCap = !saasQuotasEnabled() ? 20
+    : quotaBefore!.plan === "free" ? 20
+    : Math.max(1,Math.min(
+      quotaBefore!.daily_limit,
+      Math.floor(quotaBefore!.remaining_today / creditCost) + 20,
+    ));
+  const pageBudget = saasQuotasEnabled() ? Math.min(4,Math.ceil(resultCap/20)) : 1;
+  const seenIds = new Set<string>();
+  const collected: BusinessSearchResult[] = [];
+  const seenTokens = new Set<string>();
+  let token = typeof pageToken === "string" ? pageToken.trim() : undefined;
+  let partial = false;
 
-  if (!searched) return failure("INVALID_REQUEST", "Página de demonstração inválida.", 400);
-  if (!searched.ok) return searched.response;
+  for (let page = 0; page < pageBudget; page++) {
+    const searched = demoMode
+      ? stagingDemoSearch(segment.trim(),location.city,location.state,token)
+      : await textSearch(
+          googleApiKey,
+          `${searchTextForSegment(segment.trim()) ?? segment.trim()} em ${typeof neighborhood === "string" && neighborhood.trim() ? neighborhood.trim() + ", " : ""}${location.city}, ${stateName(location.state)}, Brasil`,
+          20, token,
+          // Traditional search includes fields needed for immediate prospecting.
+          source !== "maps",userId,
+        );
+    if (!searched) return failure("INVALID_REQUEST","Página de demonstração inválida.",400);
+    if (!searched.ok) {
+      if (collected.length===0) return searched.response;
+      partial = true;
+      break;
+    }
+    for (const business of searched.results) {
+      if (seenIds.has(business.placeId) ||
+          !locationMatches(business,location.city,location.state)) continue;
+      seenIds.add(business.placeId);
+      collected.push(business);
+      if (collected.length >= resultCap) break;
+    }
+    if (collected.length >= resultCap || !searched.nextPageToken) break;
+    if (seenTokens.has(searched.nextPageToken)) { partial=true;break; }
+    seenTokens.add(searched.nextPageToken);
+    token = searched.nextPageToken;
+  }
 
-  const matchedResults = searched.results.filter((business) =>
-    locationMatches(business, location.city, location.state)
-  );
-
-  const cappedResults = matchedResults.slice(0, 20);
   if (!saasQuotasEnabled()) {
-    return json({ ok: true, results: cappedResults, nextPageToken: searched.nextPageToken });
+    return json({ok:true,results:collected,nextPageToken:null,partial});
   }
-
-  // Up to 20 businesses per Free search; contact unlocks remain separately capped.
-  const claim = await claimSaasLeads(userId, cappedResults.map((business) => business.placeId));
-  if (!claim) {
-    return failure("REQUEST_FAILED", "Não foi possível registrar os leads na sua cota diária.", 503);
-  }
+  // Debit after successfully obtaining real results. DB deduplicates same-day
+  // IDs and charges 1 normal or 2 Maps credits, atomically.
+  const claim = await claimSaasLeads(userId,collected.map((b)=>b.placeId),source);
+  if (!claim) return failure("REQUEST_FAILED","Não foi possível registrar os créditos.",503);
   const allowed = new Set(claim.allowed_place_ids);
   const free = claim.plan === "free";
   const visible = free
-    ? cappedResults.map((business) => allowed.has(business.placeId)
+    ? collected.map((business) => allowed.has(business.placeId)
       ? business
       : {
           ...business,
-          description: null, phone: null, internationalPhone: null,
-          website: null, instagram: null, rating: null, reviewCount: null,
-          isOpenNow: null, openingHours: [], currentOpeningHours: null,
-          regularOpeningHours: null, googleMapsUrl: null, previewOnly: true,
+          description:null,phone:null,internationalPhone:null,
+          website:null,instagram:null,rating:null,reviewCount:null,
+          isOpenNow:null,openingHours:[],currentOpeningHours:null,
+          regularOpeningHours:null,googleMapsUrl:null,previewOnly:true,
         })
-    : cappedResults.filter((business) => allowed.has(business.placeId));
+    : collected.filter((business)=>allowed.has(business.placeId));
   return json({
-    ok: true, results: visible,
-    nextPageToken: !free && claim.remaining_today > 0 ? searched.nextPageToken : null,
-    quota: {
-      plan: claim.plan, daily_limit: claim.daily_limit,
-      used_today: claim.used_today, remaining_today: claim.remaining_today,
-      usage_date: claim.usage_date,
+    ok:true,results:visible,nextPageToken:null,partial,
+    quota:{
+      plan:claim.plan,daily_limit:claim.daily_limit,
+      used_today:claim.used_today,remaining_today:claim.remaining_today,
+      usage_date:claim.usage_date,
     },
-    searchQuota,
-    demo: demoMode,
+    creditCost,creditsSpent:claim.credits_spent,
+    searchQuota,demo:demoMode,
   });
 }
 
@@ -2979,7 +3002,7 @@ async function handleRequest(request: Request) {
   // Reuses the same Google Places search, per-user API budget and daily lead quota.
   if (requestBody.mapMode === true || mode === "place-details") {
     if (!["segment-search", "place-details"].includes(mode) || !saasQuotasEnabled()) {
-      return failure("FEATURE_NOT_AVAILABLE", "Buscar via Maps está disponível nos planos Pro e Advanced.", 403);
+      return failure("FEATURE_NOT_AVAILABLE", "Buscar via Maps é exclusivo do plano Advanced.", 403);
     }
     try {
       const allowedResponse = await fetch(
@@ -2991,7 +3014,7 @@ async function handleRequest(request: Request) {
         },
       );
       if (!allowedResponse.ok || await allowedResponse.json() !== true) {
-        return failure("FEATURE_NOT_AVAILABLE", "Buscar via Maps está disponível nos planos Pro e Advanced.", 403);
+        return failure("FEATURE_NOT_AVAILABLE", "Buscar via Maps é exclusivo do plano Advanced.", 403);
       }
     } catch {
       return failure("REQUEST_FAILED", "Não foi possível validar seu acesso ao mapa.", 503);
@@ -3028,6 +3051,10 @@ async function handleRequest(request: Request) {
     }
     const allowance = await readSaasSearchQuota(userId, false);
     if (!allowance) return failure("REQUEST_FAILED", "Não foi possível conferir sua cota diária de pesquisas.", 503);
+    if (pageToken !== undefined && saasQuotasEnabled()) {
+      return failure("INVALID_REQUEST",
+        "As páginas agora são reunidas automaticamente. Faça uma nova pesquisa.",400);
+    }
     if (allowance.plan === "free" && pageToken !== undefined) {
       return json({ ok: false, code: "FREE_PAGE_LIMIT",
         message: "O Free mostra até 20 estabelecimentos por pesquisa, sem páginas adicionais.",
