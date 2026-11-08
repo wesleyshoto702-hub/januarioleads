@@ -1,6 +1,9 @@
 import { isAllowedBrowserOrigin } from "../_shared/allowed-browser-origins.ts";
 import { findBrazilianState } from "../_shared/brazil-locations.ts";
 import {
+  mapsSearchTerm, normalizeGooglePreview, routingReason, shouldTryGeoapify,
+} from "../_shared/maps-auto-google.ts";
+import {
   classifyGeoapifyCoverage,
   geoapifyCategoryForSegment,
   geoapifyFeatureCount,
@@ -22,7 +25,7 @@ function reply(request: Request, data: unknown, status = 200): Response {
   headers.set("Cache-Control", "no-store");
   headers.set("X-Content-Type-Options", "nosniff");
   const origin = request.headers.get("origin");
-  if (origin && isAllowedBrowserOrigin(origin, Deno.env.get("APP_ALLOWED_ORIGINS") ?? "")) {
+  if (origin && allowedOrigin(origin)) {
     headers.set("Access-Control-Allow-Origin", origin);
     headers.set("Vary", "Origin");
   }
@@ -129,9 +132,20 @@ async function checkAuthorization(request: Request): Promise<
   }
 }
 
+function allowedOrigin(origin: string): boolean {
+  if (isAllowedBrowserOrigin(origin, Deno.env.get("APP_ALLOWED_ORIGINS") ?? "")) return true;
+  // Scope preview hostname handling to the isolated staging Supabase only.
+  if (Deno.env.get("SUPABASE_URL")?.replace(/\/$/, "") !== STAGING_URL) return false;
+  try {
+    const u = new URL(origin);
+    return u.origin === origin && u.protocol === "https:" && u.port === "" &&
+      /^januarioleads-[a-z0-9-]+-wesley-s-projects16\.vercel\.app$/.test(u.hostname.toLowerCase());
+  } catch { return false; }
+}
+
 async function handle(request: Request): Promise<Response> {
   const origin = request.headers.get("origin");
-  if (origin && !isAllowedBrowserOrigin(origin, Deno.env.get("APP_ALLOWED_ORIGINS") ?? "")) {
+  if (origin && !allowedOrigin(origin)) {
     return fail(request, "FORBIDDEN", "Origem não autorizada.", 403);
   }
   if (request.method === "OPTIONS") return new Response(null, {
@@ -177,19 +191,21 @@ async function handle(request: Request): Promise<Response> {
   }
 
   if (fields.action !== "search") return fail(request, "INVALID_REQUEST", "Ação não suportada.", 400);
-  if (!configured) return fail(request, "NOT_ENABLED", "Geoapify ainda não foi ativado neste ambiente.", 503);
 
   const segment = typeof fields.segment === "string" ? fields.segment.trim() : "";
   const city = typeof fields.city === "string" ? fields.city.trim() : "";
+  const neighborhood = typeof fields.neighborhood === "string" ? fields.neighborhood.trim() : "";
   const state = typeof fields.state === "string" ? findBrazilianState(fields.state) : null;
   const category = geoapifyCategoryForSegment(segment);
-  if (!category || city.length < 2 || city.length > 80 ||
+  if (!mapsSearchTerm(segment) || city.length < 2 || city.length > 80 ||
       !/^[\p{L}\p{M}\p{N}\s.'-]+$/u.test(city) || !state ||
-      fields.pageToken !== undefined || fields.offset !== undefined) {
+      neighborhood.length > 80 || !/^[\p{L}\p{M}\p{N}\s.,'()\/-]*$/u.test(neighborhood) ||
+      fields.pageToken !== undefined || fields.offset !== undefined ||
+      fields.mapMode !== true) {
     return fail(request, "INVALID_REQUEST",
-      "Informe um nicho suportado, cidade e UF válidos, sem paginação.", 400);
+      "Informe segmento, cidade e UF válidos para Buscar via Maps.", 400);
   }
-  if (fields.mapMode === true) {
+  {
     const url = STAGING_URL + "/rest/v1/rpc/saas_my_feature_enabled";
     try {
       const permission = await fetch(url, {
@@ -204,187 +220,183 @@ async function handle(request: Request): Promise<Response> {
     } catch { return fail(request, "REQUEST_FAILED", "Falha ao verificar plano.", 503); }
   }
 
-  // Preflight before quotas and network calls. A search is only one provider's
-  // operation: no automatic Google fallback that charges the customer twice.
+  // A single search action claims user quotas ONCE. Individual provider
+  // calls reserve independent monetary budgets and never cause a second plan claim.
   const peek = await callPrivilegedRpc("saas_free_search_quota", {
     p_user_id: auth.userId, p_claim: false,
   }) as { plan?: string; allowed?: boolean } | null;
-  if (!peek) return fail(request, "REQUEST_FAILED", "Não foi possível verificar o limite de buscas.", 503);
-  if (peek.plan === "free" && peek.allowed !== true) {
-    return fail(request, "DAILY_SEARCH_LIMIT", "Você já usou as 3 pesquisas gratuitas de hoje.", 429);
+  if (!peek) return fail(request, "REQUEST_FAILED", "Não foi possível verificar o limite de pesquisas.", 503);
+  if (peek.plan === "free" && !peek.allowed) {
+    return fail(request, "DAILY_SEARCH_LIMIT", "Suas 3 pesquisas gratuitas de hoje terminaram.", 429);
   }
+
   const rate = await callPrivilegedRpc("claim_api_request_for_user", {
     p_user_id: auth.userId, p_bucket: "places_search",
   });
-  if (rate !== true) return fail(request, "QUOTA", "Muitas consultas. Tente novamente mais tarde.", 429);
+  if (rate !== true) return fail(request, "QUOTA", "Muitas pesquisas. Tente novamente mais tarde.", 429);
 
   const claim = await callPrivilegedRpc("saas_free_search_quota", {
     p_user_id: auth.userId, p_claim: true,
   }) as { plan?: string; allowed?: boolean; remaining_today?: number } | null;
   if (!claim) return fail(request, "REQUEST_FAILED", "Falha ao registrar sua pesquisa.", 503);
-  if (claim.plan === "free" && claim.allowed !== true) {
-    return fail(request, "DAILY_SEARCH_LIMIT", "Você já usou as 3 pesquisas gratuitas de hoje.", 429);
+  if (claim.plan === "free" && !claim.allowed) {
+    return fail(request, "DAILY_SEARCH_LIMIT", "Suas 3 pesquisas gratuitas de hoje terminaram.", 429);
   }
 
-  const geocodeBudget = await callPrivilegedRpc("claim_saas_geoapify_api_budget", {
-    p_user_id: auth.userId, p_operation: "geocode",
-  });
-  if (geocodeBudget !== true) {
-    return fail(request, "PROVIDER_BUDGET", "Limite seguro do Geoapify atingido ou desativado.", 429);
-  }
+  const geoKey = Deno.env.get("GEOAPIFY_API_KEY")?.trim() ?? "";
+  let geoAttempted = false;
 
-  const firstSlot = await callPrivilegedRpc("claim_saas_geoapify_request_slot", {
-    p_user_id: auth.userId,
-  });
-  if (firstSlot !== true) {
-    return fail(request, "PROVIDER_THROTTLE", "Geoapify está ocupado. Tente novamente em instantes.", 429);
-  }
-
-  const key = Deno.env.get("GEOAPIFY_API_KEY")!.trim();
-  try {
-    const geocode = new URL("https://api.geoapify.com/v1/geocode/search");
-    geocode.searchParams.set("text", city + ", " + state.name + ", Brasil");
-    geocode.searchParams.set("filter", "countrycode:br");
-    geocode.searchParams.set("type", "city");
-    geocode.searchParams.set("lang", "pt");
-    geocode.searchParams.set("limit", "5");
-    geocode.searchParams.set("format", "geojson");
-    geocode.searchParams.set("apiKey", key);
-
-    const cityResponse = await fetch(geocode, { signal: AbortSignal.timeout(7000) });
-    if (!cityResponse.ok) return fail(request, "PROVIDER_ERROR", "Geoapify indisponível para localizar a cidade.", 502);
-    const cityData: unknown = await cityResponse.json();
-    const cityLocation = resolveGeoapifyCityLocation(cityData, city, state.code);
-    if (!cityLocation) return fail(request, "LOCATION_NOT_FOUND", "Cidade não encontrada no estado indicado.", 404);
-
-    const placesBudget = await callPrivilegedRpc("claim_saas_geoapify_api_budget", {
-      p_user_id: auth.userId, p_operation: "places",
-    });
-    if (placesBudget !== true) {
-      return fail(request, "PROVIDER_BUDGET", "Limite seguro da busca Geoapify atingido.", 429);
-    }
-
-    const secondSlot = await callPrivilegedRpc("claim_saas_geoapify_request_slot", {
-      p_user_id: auth.userId,
-    });
-    if (secondSlot !== true) {
-      return fail(request, "PROVIDER_THROTTLE", "Geoapify está ocupado. Tente novamente em instantes.", 429);
-    }
-
-    const places = new URL("https://api.geoapify.com/v2/places");
-    places.searchParams.set("categories", category);
-    places.searchParams.set("filter", "place:" + cityLocation.placeId);
-    places.searchParams.set("limit", "20");
-    places.searchParams.set("lang", "pt");
-    places.searchParams.set("apiKey", key);
-    const response = await fetch(places, { signal: AbortSignal.timeout(7000) });
-    if (!response.ok) return fail(request, "PROVIDER_ERROR", "Busca Geoapify temporariamente indisponível.", 502);
-    const data: unknown = await response.json();
-    const boundaryRawCount = geoapifyFeatureCount(data);
-    if (boundaryRawCount === null) {
-      return fail(request, "PROVIDER_RESPONSE_INVALID", "Geoapify respondeu fora do formato esperado.", 502);
-    }
-    let matches = normalizeGeoapifyPlaces(data, { city, state: state.code });
-    if (boundaryRawCount > 0 && matches.length === 0) {
-      return fail(request, "PROVIDER_RESPONSE_INVALID",
-        "Geoapify retornou registros sem dados utilizáveis. Não serão mostrados resultados falsos.", 502);
-    }
-
-    // A municipal boundary may be too restrictive, but widening the area
-    // must NOT widen the requested niche into unrelated businesses. This is
-    // only attempted when the exact category returned zero raw features.
-    // Every additional request reserves its own independent provider credit.
-    let radiusChecked = false;
-    let radiusSkipped: "budget" | "throttle" | "provider" | null = null;
-    if (boundaryRawCount === 0) {
-      const fallbackBudget = await callPrivilegedRpc("claim_saas_geoapify_api_budget", {
-        p_user_id: auth.userId, p_operation: "places",
+  if (shouldTryGeoapify(segment, neighborhood, configured) && category && geoKey) {
+    geoAttempted = true;
+    // Each outbound provider request requires a credit AND an aggregate RPS slot.
+    const reserveGeo = async (operation: "geocode" | "places"): Promise<boolean> => {
+      const budget = await callPrivilegedRpc("claim_saas_geoapify_api_budget", {
+        p_user_id: auth.userId, p_operation: operation,
       });
-      if (fallbackBudget !== true) {
-        radiusSkipped = "budget";
-      } else {
-        const fallbackSlot = await callPrivilegedRpc("claim_saas_geoapify_request_slot", {
-          p_user_id: auth.userId,
-        });
-        if (fallbackSlot !== true) {
-          radiusSkipped = "throttle";
-        } else {
-          const nearby = new URL("https://api.geoapify.com/v2/places");
-          nearby.searchParams.set("categories", category);
-          nearby.searchParams.set(
-            "filter", "circle:" + cityLocation.lon + "," + cityLocation.lat + ",10000",
-          );
-          nearby.searchParams.set(
-            "bias", "proximity:" + cityLocation.lon + "," + cityLocation.lat,
-          );
-          nearby.searchParams.set("limit", "20");
-          nearby.searchParams.set("lang", "pt");
-          nearby.searchParams.set("apiKey", key);
-          try {
-            const nearbyResponse = await fetch(nearby, {
-              signal: AbortSignal.timeout(7000),
-            });
-            if (!nearbyResponse.ok) {
-              radiusSkipped = "provider";
-            } else {
-              const nearbyData: unknown = await nearbyResponse.json();
-              const rawNearby = geoapifyFeatureCount(nearbyData);
-              if (rawNearby === null) {
-                return fail(request, "PROVIDER_RESPONSE_INVALID",
-                  "Geoapify respondeu fora do formato esperado na busca por raio.", 502);
+      if (budget !== true) return false;
+      const slot = await callPrivilegedRpc("claim_saas_geoapify_request_slot", {
+        p_user_id: auth.userId,
+      });
+      return slot === true;
+    };
+
+    try {
+      if (await reserveGeo("geocode")) {
+        const geocode = new URL("https://api.geoapify.com/v1/geocode/search");
+        geocode.searchParams.set("text", city + ", " + state.name + ", Brasil");
+        geocode.searchParams.set("filter", "countrycode:br");
+        geocode.searchParams.set("type", "city");
+        geocode.searchParams.set("lang", "pt");
+        geocode.searchParams.set("limit", "5");
+        geocode.searchParams.set("format", "geojson");
+        geocode.searchParams.set("apiKey", geoKey);
+        const geoResponse = await fetch(geocode, { signal: AbortSignal.timeout(7000) });
+        if (geoResponse.ok) {
+          const cityData: unknown = await geoResponse.json();
+          const cityLocation = resolveGeoapifyCityLocation(cityData, city, state.code);
+          if (cityLocation && await reserveGeo("places")) {
+            const placesUrl = new URL("https://api.geoapify.com/v2/places");
+            placesUrl.searchParams.set("categories", category);
+            placesUrl.searchParams.set("filter", "place:" + cityLocation.placeId);
+            placesUrl.searchParams.set("limit", "20");
+            placesUrl.searchParams.set("lang", "pt");
+            placesUrl.searchParams.set("apiKey", geoKey);
+            const placesResponse = await fetch(placesUrl, { signal: AbortSignal.timeout(7000) });
+            if (placesResponse.ok) {
+              const placesData: unknown = await placesResponse.json();
+              const count = geoapifyFeatureCount(placesData);
+              if (count !== null) {
+                let matches = normalizeGeoapifyPlaces(placesData, {city, state: state.code});
+                let sourceArea: "city" | "nearby-10km" = "city";
+                if (count === 0 && await reserveGeo("places")) {
+                  const nearby = new URL("https://api.geoapify.com/v2/places");
+                  nearby.searchParams.set("categories", category);
+                  nearby.searchParams.set("filter",
+                    "circle:" + cityLocation.lon + "," + cityLocation.lat + ",10000");
+                  nearby.searchParams.set("bias",
+                    "proximity:" + cityLocation.lon + "," + cityLocation.lat);
+                  nearby.searchParams.set("limit","20");
+                  nearby.searchParams.set("lang","pt");
+                  nearby.searchParams.set("apiKey",geoKey);
+                  const radiusResponse = await fetch(nearby, {
+                    signal: AbortSignal.timeout(7000),
+                  });
+                  if(radiusResponse.ok) {
+                    const nearbyData: unknown = await radiusResponse.json();
+                    if (geoapifyFeatureCount(nearbyData) !== null) {
+                      matches = normalizeGeoapifyPlaces(nearbyData, {city,state:state.code});
+                      sourceArea = "nearby-10km";
+                    }
+                  }
+                }
+
+                if (matches.length > 0) {
+                  return reply(request,{
+                    ok:true,provider:"geoapify",places:matches,limit:20,
+                    nextPageToken:null, searchQuota:claim,
+                    coverage:{
+                      status:classifyGeoapifyCoverage(matches.length,sourceArea==="nearby-10km"),
+                      searchArea:sourceArea,
+                      message:sourceArea==="nearby-10km"
+                        ? "Empresas encontradas nas proximidades. Confira o município indicado."
+                        : null,
+                    },
+                    attribution:{
+                      provider:"Powered by Geoapify",
+                      providerUrl:"https://www.geoapify.com/",
+                      data:"© OpenStreetMap contributors",
+                      dataUrl:"https://www.openstreetmap.org/copyright",
+                    },
+                    note:"Dados de estabelecimentos para consulta, sem importação automática.",
+                  });
+                }
               }
-              matches = normalizeGeoapifyPlaces(nearbyData, { city, state: state.code });
-              if (rawNearby > 0 && matches.length === 0) {
-                return fail(request, "PROVIDER_RESPONSE_INVALID",
-                  "Geoapify retornou registros sem dados utilizáveis na busca por raio.", 502);
-              }
-              radiusChecked = true;
             }
-          } catch {
-            radiusSkipped = "provider";
           }
         }
       }
+    } catch {
+      // Provider unavailable, malformed or slow: proceed to Google automatically.
+      // Never use a broad OSM category to invent matching businesses.
     }
+  }
 
-    const empty = matches.length === 0;
-    const searchArea = boundaryRawCount === 0 && radiusChecked ? "nearby-10km" : "city";
-    const coverageStatus = classifyGeoapifyCoverage(matches.length, radiusChecked);
+  // Geoapify had no useful businesses (or was unavailable). ONE Google request,
+  // only after the server-side budget gate; never repeat the plan search claim.
+  const googleKey = Deno.env.get("GOOGLE_PLACES_API_KEY")?.trim();
+  if (!googleKey) {
+    return fail(request, "NOT_CONFIGURED",
+      "Busca temporariamente indisponível: a fonte complementar precisa ser configurada.", 503);
+  }
+  const googleBudget = await callPrivilegedRpc("claim_saas_google_api_budget", {
+    p_user_id: auth.userId, p_operation: "text_search_pro",
+  });
+  if (googleBudget !== true) {
+    return fail(request, "QUOTA",
+      "Limite seguro de buscas atingido. Tente novamente após a renovação do orçamento.", 429);
+  }
 
-    return reply(request, {
-      ok: true,
-      provider: "geoapify",
-      places: matches,
-      limit: 20, nextPageToken: null,
-      quota: claim,
-      coverage: {
-        status: coverageStatus,
-        searchArea,
-        cityBoundaryChecked: true,
-        nearbyRadiusMeters: radiusChecked ? 10000 : null,
-        nearbyRadiusChecked: radiusChecked,
-        nearbySkippedReason: radiusSkipped,
-        message: empty
-          ? radiusChecked
-            ? "Geoapify não possui empresas dessa categoria catalogadas nesta área. Isso não significa que elas não existam."
-            : "Nenhuma empresa dessa categoria foi encontrada no município. A ampliação da área não foi concluída."
-          : searchArea === "nearby-10km"
-            ? "Empresas encontradas a até 10 km do centro; confira a cidade de cada resultado."
-            : null,
-        // The existing Google Places integration may be used by the UI
-        // only after an explicit second user action and licensing checks.
-        alternativeSource: empty ? "google_places_manual" : null,
+  const googleBody = {
+    textQuery: mapsSearchTerm(segment) + " em " +
+      (neighborhood ? neighborhood + ", " : "") + city + ", " + state.name + ", Brasil",
+    pageSize:20,languageCode:"pt-BR",regionCode:"BR",
+  };
+  try {
+    const response = await fetch("https://places.googleapis.com/v1/places:searchText",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "X-Goog-Api-Key":googleKey,
+        "X-Goog-FieldMask":[
+          "places.id","places.displayName","places.primaryTypeDisplayName",
+          "places.types","places.formattedAddress","places.addressComponents",
+          "places.businessStatus","places.googleMapsUri","places.location",
+        ].join(","),
       },
-      attribution: {
-        provider: "Powered by Geoapify",
-        providerUrl: "https://www.geoapify.com/",
-        data: "© OpenStreetMap contributors",
-        dataUrl: "https://www.openstreetmap.org/copyright",
-      },
-      note: "Somente descoberta de estabelecimentos; contatos não são exportados nem liberados.",
+      body:JSON.stringify(googleBody),
+      signal:AbortSignal.timeout(8000),
+    });
+    if (!response.ok) {
+      // No credentials, billing or Google debug details in the browser response.
+      return fail(request, "PROVIDER_ERROR",
+        "O serviço de estabelecimentos não está disponível agora.", 502);
+    }
+    const responseData: unknown = await response.json();
+    const googleResults = normalizeGooglePreview(responseData,city,state.code);
+    if (googleResults === null) {
+      return fail(request, "PROVIDER_RESPONSE_INVALID",
+        "O serviço retornou dados inesperados. Tente novamente.", 502);
+    }
+    return reply(request,{
+      ok:true,provider:"google",results:googleResults,
+      limit:20,nextPageToken:null,searchQuota:claim,
+      sourceSelection:routingReason(geoAttempted,false),
+      attribution:{provider:"Google Maps"},
+      note:"Resultados para consulta nesta homologação; contatos e importação ao CRM indisponíveis.",
     });
   } catch {
-    return fail(request, "PROVIDER_ERROR", "Não foi possível consultar o Geoapify agora.", 502);
+    return fail(request, "PROVIDER_ERROR",
+      "Não foi possível concluir sua pesquisa. Tente novamente mais tarde.", 502);
   }
 }
 
