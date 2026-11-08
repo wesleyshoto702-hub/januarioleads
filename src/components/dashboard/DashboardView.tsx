@@ -70,6 +70,7 @@ export function DashboardView({
   showPriority = true,
   showFollowUpCenter = true,
   showFinance = true,
+  showOpportunityInsights = true,
   showReports = true,
   showAdvancedReports = true,
   advancedPanel,
@@ -93,6 +94,7 @@ export function DashboardView({
   showPriority?: boolean;
   showFollowUpCenter?: boolean;
   showFinance?: boolean;
+  showOpportunityInsights?: boolean;
   showReports?: boolean;
   showAdvancedReports?: boolean;
   advancedPanel?: ReactNode;
@@ -243,7 +245,7 @@ export function DashboardView({
           )}
         </section>
 
-        <section className="dashboard-panel dashboard-opportunities">
+        {showOpportunityInsights && <section className="dashboard-panel dashboard-opportunities">
           <div className="dashboard-panel-heading">
             <div>
               <span>OPORTUNIDADES</span>
@@ -286,7 +288,7 @@ export function DashboardView({
               ))}
             </div>
           )}
-        </section>
+        </section>}
       </div>
 
       {showFinance && financeLoaded && financialOverview.receivedThisMonth > 0 && (
