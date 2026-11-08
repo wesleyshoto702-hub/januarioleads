@@ -145,6 +145,30 @@ function allowedOrigin(origin: string): boolean {
   } catch { return false; }
 }
 
+type CreditClaim = {
+  plan: string; daily_limit: number; used_today: number;
+  remaining_today: number; usage_date: string;
+  allowed_place_ids: string[]; credits_spent: number; credit_cost: number;
+};
+
+/** Debit only the real returned place IDs. No points are charged on failure. */
+async function chargeMapsPlaces(
+  request: Request,userId: string,ids: string[],
+): Promise<{ ok: true; allowed: Set<string>; quota: CreditClaim } |
+  {ok:false; response:Response}> {
+  const quota = await callPrivilegedRpc("claim_daily_leads_for_user",{
+    p_user_id:userId,p_place_ids:ids,p_source:"maps",
+  }) as CreditClaim | null;
+  if(!quota || quota.plan!=="advanced" || quota.credit_cost!==2 ||
+    !Array.isArray(quota.allowed_place_ids) ||
+    !quota.allowed_place_ids.every((id)=>typeof id==="string") ||
+    !Number.isInteger(quota.remaining_today) || !Number.isInteger(quota.credits_spent)) {
+    return {ok:false,response:fail(request,"REQUEST_FAILED",
+      "Não foi possível registrar os créditos desta busca.",503)};
+  }
+  return {ok:true,allowed:new Set(quota.allowed_place_ids),quota};
+}
+
 async function handle(request: Request): Promise<Response> {
   const origin = request.headers.get("origin");
   if (origin && !allowedOrigin(origin)) {
@@ -218,7 +242,7 @@ async function handle(request: Request): Promise<Response> {
       });
       if (!permission.ok) return fail(request, "REQUEST_FAILED", "Falha ao verificar plano.", 503);
       if (await permission.json() !== true) {
-        return fail(request, "FEATURE_NOT_AVAILABLE", "Maps está disponível apenas no Pro e Advanced.", 403);
+        return fail(request, "FEATURE_NOT_AVAILABLE", "Buscar via Maps é exclusivo do plano Advanced.", 403);
       }
     } catch { return fail(request, "REQUEST_FAILED", "Falha ao verificar plano.", 503); }
   }
@@ -235,8 +259,20 @@ async function handle(request: Request): Promise<Response> {
     p_user_id: auth.userId, p_claim: false,
   }) as { plan?: string; allowed?: boolean } | null;
   if (!peek) return fail(request, "REQUEST_FAILED", "Não foi possível verificar o limite de pesquisas.", 503);
-  if (peek.plan === "free" && !peek.allowed) {
-    return fail(request, "DAILY_SEARCH_LIMIT", "Suas 3 pesquisas gratuitas de hoje terminaram.", 429);
+  if (peek.plan !== "advanced") {
+    return fail(request, "FEATURE_NOT_AVAILABLE",
+      "Buscar via Maps é exclusivo do plano Advanced.",403);
+  }
+  const balance = await callPrivilegedRpc("peek_daily_leads_for_user", {
+    p_user_id:auth.userId,
+  }) as {plan?:string;remaining_today?:number} | null;
+  if(!balance || balance.plan!=="advanced" ||
+     !Number.isInteger(balance.remaining_today)) {
+    return fail(request,"REQUEST_FAILED","Não foi possível consultar o saldo.",503);
+  }
+  if(balance.remaining_today! < 2) {
+    return fail(request,"DAILY_LEAD_LIMIT",
+      "Saldo insuficiente: cada lead via Maps custa 2 créditos.",429);
   }
 
   const rate = await callPrivilegedRpc("claim_api_request_for_user", {
@@ -287,7 +323,7 @@ async function handle(request: Request): Promise<Response> {
             const placesUrl = new URL("https://api.geoapify.com/v2/places");
             placesUrl.searchParams.set("categories", category);
             placesUrl.searchParams.set("filter", "place:" + cityLocation.placeId);
-            placesUrl.searchParams.set("limit", "20");
+            placesUrl.searchParams.set("limit", "35");
             placesUrl.searchParams.set("lang", "pt");
             placesUrl.searchParams.set("apiKey", geoKey);
             const placesResponse = await fetch(placesUrl, { signal: AbortSignal.timeout(7000) });
@@ -296,7 +332,7 @@ async function handle(request: Request): Promise<Response> {
               const count = geoapifyFeatureCount(placesData);
               if (count !== null) {
                 let matches = filterGeoapifyForNiche(
-                  normalizeGeoapifyPlaces(placesData, {city, state: state.code}), segment,
+                  normalizeGeoapifyPlaces(placesData, {city, state: state.code},35), segment,
                 );
                 let sourceArea: "city" | "nearby-10km" = "city";
                 if (count === 0 && await reserveGeo("places")) {
@@ -306,7 +342,7 @@ async function handle(request: Request): Promise<Response> {
                     "circle:" + cityLocation.lon + "," + cityLocation.lat + ",10000");
                   nearby.searchParams.set("bias",
                     "proximity:" + cityLocation.lon + "," + cityLocation.lat);
-                  nearby.searchParams.set("limit","20");
+                  nearby.searchParams.set("limit","35");
                   nearby.searchParams.set("lang","pt");
                   nearby.searchParams.set("apiKey",geoKey);
                   const radiusResponse = await fetch(nearby, {
@@ -316,7 +352,7 @@ async function handle(request: Request): Promise<Response> {
                     const nearbyData: unknown = await radiusResponse.json();
                     if (geoapifyFeatureCount(nearbyData) !== null) {
                       matches = filterGeoapifyForNiche(
-                        normalizeGeoapifyPlaces(nearbyData, {city,state:state.code}), segment,
+                        normalizeGeoapifyPlaces(nearbyData, {city,state:state.code},35), segment,
                       );
                       sourceArea = "nearby-10km";
                     }
@@ -324,9 +360,14 @@ async function handle(request: Request): Promise<Response> {
                 }
 
                 if (matches.length > 0) {
+                  const debit = await chargeMapsPlaces(request,auth.userId,
+                    matches.map((item)=>item.sourceId));
+                  if(!debit.ok) return debit.response;
+                  const delivered = matches.filter((item)=>debit.allowed.has(item.sourceId));
                   return reply(request,{
-                    ok:true,provider:"geoapify",places:matches,limit:20,
+                    ok:true,provider:"geoapify",places:delivered,limit:35,
                     nextPageToken:null, searchQuota:claim,
+                    quota:debit.quota,creditCost:2,creditsSpent:debit.quota.credits_spent,
                     coverage:{
                       status:classifyGeoapifyCoverage(matches.length,sourceArea==="nearby-10km"),
                       searchArea:sourceArea,
@@ -354,8 +395,8 @@ async function handle(request: Request): Promise<Response> {
     }
   }
 
-  // Geoapify had no useful businesses (or was unavailable). ONE Google request,
-  // only after the server-side budget gate; never repeat the plan search claim.
+  // No matching Geoapify businesses: Google fallback with at most two
+  // separately budgeted 20-result pages in the same user click.
   const googleKey = Deno.env.get("GOOGLE_PLACES_API_KEY")?.trim();
   if (!googleKey) {
     return fail(request, "NOT_CONFIGURED",
@@ -384,6 +425,7 @@ async function handle(request: Request): Promise<Response> {
           "places.id","places.displayName","places.primaryTypeDisplayName",
           "places.types","places.formattedAddress","places.addressComponents",
           "places.businessStatus","places.googleMapsUri","places.location",
+          "nextPageToken",
         ].join(","),
       },
       body:JSON.stringify(googleBody),
@@ -400,9 +442,60 @@ async function handle(request: Request): Promise<Response> {
       return fail(request, "PROVIDER_RESPONSE_INVALID",
         "O serviço retornou dados inesperados. Tente novamente.", 502);
     }
+    const assembled = [...googleResults];
+    let partial = false;
+    const nextToken = responseData && typeof responseData === "object" &&
+      "nextPageToken" in responseData &&
+      typeof responseData.nextPageToken === "string" ? responseData.nextPageToken : null;
+    if(nextToken && assembled.length < 35) {
+      const secondBudget = await callPrivilegedRpc("claim_saas_google_api_budget",{
+        p_user_id:auth.userId,p_operation:"text_search_pro",
+      });
+      if(secondBudget === true) {
+        try {
+          const next = await fetch("https://places.googleapis.com/v1/places:searchText",{
+            method:"POST",
+            headers:{
+              "Content-Type":"application/json",
+              "X-Goog-Api-Key":googleKey,
+              "X-Goog-FieldMask":[
+                "places.id","places.displayName","places.primaryTypeDisplayName",
+                "places.types","places.formattedAddress","places.addressComponents",
+                "places.businessStatus","places.googleMapsUri","places.location",
+                "nextPageToken",
+              ].join(","),
+            },
+            body:JSON.stringify({...googleBody,pageToken:nextToken}),
+            signal:AbortSignal.timeout(8000),
+          });
+          if(!next.ok) partial=true;
+          else {
+            const parsed: unknown = await next.json();
+            const more = normalizeGooglePreview(parsed,city,state.code);
+            if(more === null) partial=true;
+            else {
+              const seen = new Set(assembled.map((item)=>item.placeId));
+              for(const place of more) {
+                if(!seen.has(place.placeId)) {
+                  assembled.push(place);
+                  seen.add(place.placeId);
+                }
+                if(assembled.length >= 35) break;
+              }
+            }
+          }
+        } catch { partial=true; }
+      } else partial=true;
+    }
+    const candidates = assembled.slice(0,35);
+    const debit = await chargeMapsPlaces(request,auth.userId,
+      candidates.map((item)=>item.placeId));
+    if(!debit.ok) return debit.response;
+    const delivered = candidates.filter((item)=>debit.allowed.has(item.placeId));
     return reply(request,{
-      ok:true,provider:"google",results:googleResults,
-      limit:20,nextPageToken:null,searchQuota:claim,
+      ok:true,provider:"google",results:delivered,
+      limit:35,nextPageToken:null,searchQuota:claim,
+      quota:debit.quota,creditCost:2,creditsSpent:debit.quota.credits_spent,partial,
       sourceSelection:routingReason(geoAttempted,false),
       attribution:{provider:"Google Maps"},
       note:"Resultados para consulta nesta homologação; contatos e importação ao CRM indisponíveis.",
