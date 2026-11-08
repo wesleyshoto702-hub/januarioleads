@@ -49,6 +49,8 @@ export function AppShell({
   onNavigate,
   onToggleTheme,
   onLogout,
+  hiddenViews = [],
+  planLabel,
   children,
 }: {
   activeView: AppView;
@@ -56,6 +58,8 @@ export function AppShell({
   onNavigate: (view: AppView) => void;
   onToggleTheme: () => void;
   onLogout: () => void | Promise<void>;
+  hiddenViews?: AppView[];
+  planLabel?: string;
   children: ReactNode;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -122,7 +126,7 @@ export function AppShell({
   const navigation = (
     <>
       <nav className="saas-nav" aria-label="Navegação principal">
-        {NAV_ITEMS.map((item) => {
+        {NAV_ITEMS.filter((item) => !hiddenViews.includes(item.view)).map((item) => {
           const Icon = item.icon;
           const active = activeView === item.view;
           return (
@@ -179,7 +183,7 @@ export function AppShell({
           </span>
         </button>
 
-        <div className="saas-sidebar-label">Workspace</div>
+        <div className="saas-sidebar-label">Workspace {planLabel && <span aria-label={"Plano " + planLabel}>· {planLabel}</span>}</div>
         {navigation}
       </aside>
 
@@ -242,7 +246,7 @@ export function AppShell({
                 <X size={19} />
               </button>
             </div>
-            <div className="saas-sidebar-label">Workspace</div>
+            <div className="saas-sidebar-label">Workspace {planLabel && <span aria-label={"Plano " + planLabel}>· {planLabel}</span>}</div>
             {navigation}
           </aside>
         </div>

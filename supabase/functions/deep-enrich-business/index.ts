@@ -1,3 +1,4 @@
+import { saasAllowsFeature } from "../_shared/saas-feature-gate.ts";
 import { isAllowedBrowserOrigin as isTrustedBrowserOrigin } from "../_shared/allowed-browser-origins.ts";
 import {
   buildContentAvailabilityMatrix,
@@ -1343,6 +1344,9 @@ async function handleRequest(request: Request) {
   if (request.method !== "POST") return failure("INVALID_REQUEST","Este serviço aceita somente POST.",405);
   const authorized = await requireAuthorizedUser(request);
   if (!authorized.ok) return authorized.response;
+  if (!await saasAllowsFeature(request, "lead_enrichment")) {
+    return failure("FEATURE_NOT_AVAILABLE", "O enriquecimento está disponível nos planos Pro e Advanced.", 403);
+  }
 
   const parsedBody = await readJsonBody(request);
   if (!parsedBody.ok) {

@@ -1,0 +1,91 @@
+/* Plan-scoped UI, loaded only in the private workspace. */
+.saas-plan-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 13px 17px;
+  margin: 0 0 22px;
+  border: 1px solid rgba(238,75,113,.25);
+  border-radius: 14px;
+  background: linear-gradient(120deg, rgba(240,65,99,.1), rgba(20,24,34,.36));
+  color: var(--text-primary, inherit);
+  font-size: 12px;
+}
+.saas-plan-status strong { color: #fc6585; font-weight: 750; }
+.saas-plan-status > span { font-weight: 550; }
+.saas-plan-status small { flex-basis: 100%; color: var(--text-secondary,#9da3b3); }
+.saas-plan-status .saas-plan-error { color: #fba6b6; }
+.saas-plan-switch { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 700; }
+.saas-plan-switch select {
+  border: 1px solid rgba(238,75,113,.42); border-radius: 9px;
+  padding: 7px 9px; color: inherit; background: #241820;
+  font: inherit; cursor: pointer;
+}
+.saas-plan-switch select:focus-visible { outline: 2px solid #fc7394; outline-offset: 2px; }
+.saas-plan-switch select:disabled { opacity: .6; cursor: wait; }
+.saas-plan-status a { color: #f98da4; font-weight: 700; text-decoration: underline; }
+.saas-feature-hint {
+  margin: 8px 0 22px;
+  padding: 12px 15px;
+  color: #f9becb;
+  border-radius: 12px;
+  background: rgba(239,75,109,.08);
+  border: 1px solid rgba(239,75,109,.18);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.saas-advanced-workbench { margin-block: 22px 24px; }
+.saas-advanced-workbench .dashboard-panel-heading strong {
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.saas-advanced-tag {
+  border: 1px solid rgba(255,119,148,.38);
+  background: rgba(251,78,119,.12);
+  border-radius: 999px; color: #fd9cb4; font-size: 11px;
+  padding: 6px 10px; font-weight: 750;
+}
+.saas-advanced-explainer {
+  font-size: 12px; color: var(--text-secondary,#b4bac5); line-height: 1.7; margin: 11px 0 19px;
+}
+.saas-advanced-layout {
+  display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px;
+}
+.saas-advanced-panel {
+  min-width: 0; padding: 19px;
+  border: 1px solid rgba(229,92,124,.20);
+  border-radius: 14px; background: rgba(13,19,30,.34);
+}
+.saas-advanced-panel h3 { display:flex; align-items:center; gap:7px; font-weight:760; font-size:14px; }
+.saas-advanced-panel > p { font-size:12px; margin:13px 0; line-height:1.65; color:var(--text-secondary,#b4bac5); }
+.saas-advanced-switch { display:flex; gap:9px; align-items:center; margin:16px 0; font-size:12px; cursor:pointer; }
+.saas-advanced-switch input { accent-color:#ed466b; width:16px; height:16px; }
+.saas-advanced-days { display:flex; align-items:center; gap:10px; font-size:12px; }
+.saas-advanced-days select {
+  color: inherit; background: rgba(19,24,34,.9); border: 1px solid rgba(250,135,160,.35);
+  border-radius:8px; padding:9px 13px; cursor:pointer;
+}
+.saas-advanced-days select option { background:#171923; }
+.saas-advanced-feedback { color:#ffadc0 !important; }
+.saas-advanced-ranked,.saas-advanced-segments ul { padding:0; margin:14px 0 0; list-style:none; }
+.saas-advanced-ranked li + li,.saas-advanced-segments li + li { border-top:1px solid rgba(250,130,160,.12); }
+.saas-advanced-ranked button {
+  display:flex; width:100%; align-items:center; justify-content:space-between;
+  text-align:left; gap:12px; padding:10px 0; cursor:pointer;
+}
+.saas-advanced-ranked button:focus-visible { outline:2px solid #fd7898; outline-offset:2px; }
+.saas-advanced-ranked button > span { display:grid; min-width:0; gap:3px; }
+.saas-advanced-ranked small { color:var(--text-secondary,#a9aeb8); font-size:11px; }
+.saas-advanced-ranked b { flex:none; color:#fb8ba3; }
+.saas-advanced-segments { grid-column: 1 / -1; }
+.saas-advanced-segments li { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:11px 0; font-size:12px; }
+.saas-advanced-segments li small { color:var(--text-secondary,#abb3c1); }
+.saas-advanced-segments li > strong { color:#ff8ba6; font-size:15px; }
+@media (max-width: 780px) {
+  .saas-advanced-layout { grid-template-columns:1fr; }
+  .saas-advanced-segments { grid-column:auto; }
+  .saas-advanced-panel { padding:16px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .saas-advanced-workbench * { scroll-behavior:auto; transition:none!important; }
+}

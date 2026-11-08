@@ -112,9 +112,9 @@ const pricingPlans = [
     highlights: [
       "70 novos leads por dia",
       "Todos os recursos do Pro",
-      "Priorização inteligente de leads",
+      "Priorização de leads por critérios",
       "Relatórios comerciais avançados",
-      "Automações internas de acompanhamento",
+      "Follow-ups automáticos configuráveis",
     ],
     action: "Solicitar acesso Advanced",
   },
