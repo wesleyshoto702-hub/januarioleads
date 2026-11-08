@@ -339,14 +339,14 @@ async function claimSaasLeads(userId: string, placeIds: string[], source: "searc
 /** The only stored cross-provider business metadata comes from OSM/Geoapify.
  * Google company names, addresses and coordinates remain transient.
  */
-async function getDailyOsmAnchors(userId:string):Promise<VerifiedPlace[]> {
+async function getDailyOsmAnchors(userId:string):Promise<VerifiedPlace[]|null> {
   try {
     const r=await adminRest("rpc/get_daily_geoapify_anchors_for_user",{
       method:"POST",body:JSON.stringify({p_user_id:userId}),
     });
-    if(!r?.ok) return [];
+    if(!r?.ok) return null;
     const value:unknown=await r.json();
-    if(!Array.isArray(value))return [];
+    if(!Array.isArray(value))return null;
     return value.flatMap((x):VerifiedPlace[]=>{
       if(!x||typeof x!=="object")return [];
       const p=x as Record<string,unknown>;
@@ -360,7 +360,7 @@ async function getDailyOsmAnchors(userId:string):Promise<VerifiedPlace[]> {
         longitude:typeof p.longitude==="number"?p.longitude:null,
       }];
     });
-  } catch {return [];}
+  } catch {return null;}
 }
 
 type SaasSearchQuota = {
@@ -1270,13 +1270,18 @@ async function runSegmentSearch(
   }
   // Debit after successfully obtaining real results. DB deduplicates same-day
   // IDs and charges 1 normal or 2 Maps credits, atomically.
+  const osmAnchors=await getDailyOsmAnchors(userId);
+  if(osmAnchors===null) {
+    return failure("REQUEST_FAILED",
+      "Não foi possível conferir empresas já cobradas. Nenhum crédito de lead foi descontado.",503);
+  }
   const verifiedAliases=uniqueVerifiedAliases(
     collected.map((item):VerifiedPlace=>({
       id:item.placeId,name:item.name,address:item.address,
       city:item.city,state:item.state,
       latitude:item.latitude,longitude:item.longitude,
     })),
-    await getDailyOsmAnchors(userId),
+    osmAnchors,
   );
   const claim = await claimSaasLeads(userId,collected.map((b)=>b.placeId),source,verifiedAliases);
   if (!claim) return failure("REQUEST_FAILED","Não foi possível registrar os créditos.",503);
