@@ -107,3 +107,54 @@ Deno.test("Barbearia não apresenta salão genérico ou esmalteria como barbeari
     throw new Error("Unrelated niches should preserve provider categories");
   }
 });
+
+
+Deno.test("Reviewed Geoapify mappings cover diverse Brazilian businesses", () => {
+  const examples: Array<[string,string]> = [
+    ["Padaria","commercial.food_and_drink.bakery"],
+    ["Açougue","commercial.food_and_drink.butcher"],
+    ["Hortifruti","commercial.food_and_drink.fruit_and_vegetable"],
+    ["Floricultura","commercial.florist"],
+    ["Loja de Roupas","commercial.clothing.clothes"],
+    ["Loja de Calçados","commercial.clothing.shoes"],
+    ["Pet Shop","pet.shop"],
+    ["Clínica Veterinária","pet.veterinary"],
+    ["Hotel","accommodation.hotel"],
+    ["Hostel","accommodation.hostel"],
+    ["Estacionamento","parking.cars"],
+    ["Cartório / Serviços Notariais","office.notary"],
+    ["Escritório de Advocacia","office.lawyer"],
+    ["Agência de Viagens","office.travel_agent"],
+    ["Transportadora","office.logistics"],
+  ];
+  for(const [name,category] of examples) {
+    if(geoapifyCategoryForSegment(name)!==category) {
+      throw new Error("Unexpected Geoapify mapping for " + name);
+    }
+  }
+  for(const name of ["Funilaria","Psiquiatra","Restaurante Fine Dining"]) {
+    if(geoapifyCategoryForSegment(name)!==null) {
+      throw new Error("Ambiguous niche cannot trigger unrelated OSM category: " + name);
+    }
+  }
+});
+
+Deno.test("Nearby OSM results may include adjacent towns but never another UF/country", () => {
+  const point=(id:string,city:string,state:string,country="br")=>({
+    properties:{
+      place_id:id,name:"Empresa "+id,city,state,country_code:country,
+      formatted:city+", "+state,
+    },
+    geometry:{coordinates:[-45.0,-21.3]},
+  });
+  const items=normalizeGeoapifyPlaces({features:[
+    point("lavras","Lavras","Minas Gerais"),
+    point("nearby","Ribeirão Vermelho","Minas Gerais"),
+    point("otherstate","Lavras","São Paulo"),
+    point("foreign","Lavras","Minas Gerais","ar"),
+  ]},{city:"Lavras",state:"MG"});
+  if(items.length!==2 || items[0]?.sourceId!=="geoapify:lavras" ||
+      items[1]?.city!=="Ribeirão Vermelho") {
+    throw new Error("Cross-border filtering incorrectly modified valid nearby results");
+  }
+});
