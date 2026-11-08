@@ -4,7 +4,7 @@ import { PrivateWorkspace } from "../components/app-shell/PrivateWorkspace";
 import { LeadRow, LeadCard, Select, Modal, EmptyState } from "../features/leads/LeadPresentation";
 import { LeadKanban } from "../features/leads/LeadKanban";
 import { AdvancedWorkbench } from "../features/saas/AdvancedWorkbench";
-import { canUseSaasFeature, fetchMySaasEntitlements, type SaasEntitlements } from "../features/saas/entitlements";
+import { canUseSaasFeature, fetchMySaasEntitlements, switchStagingDemoPlan, type SaasEntitlements } from "../features/saas/entitlements";
 import { SAAS_STAGING_ACTIVE } from "../features/search-leads/saas-usage";
 import { ManualLeadTransfer } from "../features/leads/ManualLeadTransfer";
 import { leadIdentity, type ManualLeadCsvRow } from "../features/leads/manual-leads-csv";
@@ -269,6 +269,7 @@ function LeadFlowApp() {
   const [view, setView] = useState<AppView>("dashboard");
   const [saasRights, setSaasRights] = useState<SaasEntitlements | null>(null);
   const [saasRightsLoading, setSaasRightsLoading] = useState(SAAS_STAGING_ACTIVE);
+  const [switchingDemoPlan, setSwitchingDemoPlan] = useState(false);
   const [saasAccessError, setSaasAccessError] = useState("");
   const canUse = (key: Parameters<typeof canUseSaasFeature>[1]) =>
     canUseSaasFeature(saasRights, key);
@@ -1676,8 +1677,30 @@ function LeadFlowApp() {
         <strong>{saasRightsLoading ? "Consultando plano..." : "Plano " + (saasRights?.plan ?? "indisponível").toUpperCase()}</strong>
         {saasRights && <span>{saasRights.used_today} de {saasRights.daily_limit} leads utilizados hoje
           · {saasRights.remaining_today} restantes · renova à meia-noite (Brasília)</span>}
+        {saasRights && <label className="saas-plan-switch">
+          Simular plano
+          <select
+            aria-label="Simular plano no Staging"
+            value={saasRights.plan}
+            disabled={switchingDemoPlan}
+            onChange={(event) => {
+              const selected = event.target.value as "free" | "pro" | "advanced";
+              setSwitchingDemoPlan(true);
+              void switchStagingDemoPlan(selected)
+                .then(() => window.location.reload())
+                .catch((error: unknown) => {
+                  setSaasAccessError(error instanceof Error ? error.message : "Falha na simulação.");
+                  setSwitchingDemoPlan(false);
+                });
+            }}
+          >
+            <option value="free">Free — 5/dia</option>
+            <option value="pro">Pro — 25/dia</option>
+            <option value="advanced">Advanced — 70/dia</option>
+          </select>
+        </label>}
         {saasAccessError && <span className="saas-plan-error">{saasAccessError}</span>}
-        <small>Homologação sem pagamentos — funcionalidades controladas no Supabase Staging.</small>
+        <small>Simulação exclusiva de Staging; nenhuma cobrança ou contratação é realizada.</small>
       </div>}
       <Suspense fallback={<div className="page-wrap" role="status" aria-live="polite">Carregando seção...</div>}>
       {view === "dashboard" ? (
