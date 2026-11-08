@@ -1,6 +1,7 @@
 -- STAGING ONLY. Verify gate while impersonating an authenticated user.
 -- No actual Places calls, all subscription fixtures are rolled back.
 BEGIN;
+DELETE FROM public.saas_subscriptions WHERE user_id=(SELECT user_id FROM public.private_access LIMIT 1);
 SELECT set_config('request.jwt.claim.sub', (SELECT user_id::text FROM public.private_access LIMIT 1), true);
 SET LOCAL ROLE authenticated;
 DO $$
@@ -20,20 +21,21 @@ ROLLBACK;
 BEGIN;
 INSERT INTO public.saas_subscriptions(user_id, plan_code, status, period_start, period_end)
 SELECT user_id,'pro','active',now(),now()+interval '30 days'
-FROM public.private_access LIMIT 1;
+FROM public.private_access LIMIT 1
+ON CONFLICT (user_id) DO UPDATE SET plan_code=excluded.plan_code,status='active',period_end=excluded.period_end;
 SELECT set_config('request.jwt.claim.sub', (SELECT user_id::text FROM public.private_access LIMIT 1), true);
 SET LOCAL ROLE authenticated;
 DO $$
 DECLARE ent jsonb;
 BEGIN
-  IF NOT public.saas_my_feature_enabled('maps_search') THEN
-    RAISE EXCEPTION 'Pro map denied';
+  IF public.saas_my_feature_enabled('maps_search') THEN
+    RAISE EXCEPTION 'Pro Maps should be blocked';
   END IF;
   ent := public.get_my_saas_entitlements();
-  IF (ent->>'daily_limit')::integer <> 25 OR (ent->'features'->>'maps_search')::boolean IS DISTINCT FROM true THEN
+  IF (ent->>'daily_limit')::integer <> 25 OR (ent->'features'->>'maps_search')::boolean IS DISTINCT FROM false THEN
     RAISE EXCEPTION 'Pro entitlements wrong: %',ent;
   END IF;
-  RAISE NOTICE 'PASS Pro maps and 25 leads';
+  RAISE NOTICE 'PASS Pro: 25 credits, no Maps';
 END $$;
 ROLLBACK;
 
