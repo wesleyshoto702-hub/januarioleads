@@ -1653,7 +1653,7 @@ function LeadFlowApp() {
 
   function navigateTo(nextView: AppView) {
     if (nextView === "maps" && (!SAAS_STAGING_ACTIVE || !canUse("maps_search"))) {
-      setSaasAccessError("Buscar via Maps está disponível a partir do plano Pro.");
+      setSaasAccessError("Buscar via Maps é exclusivo do plano Advanced.");
       setView("dashboard");
       return;
     }
@@ -1696,7 +1696,7 @@ function LeadFlowApp() {
     >
       {SAAS_STAGING_ACTIVE && <div className="saas-plan-status" role="status">
         <strong>{saasRightsLoading ? "Consultando plano..." : "Plano " + (saasRights?.plan ?? "indisponível").toUpperCase()}</strong>
-        {saasRights && <span>{saasRights.used_today} de {saasRights.daily_limit} leads utilizados hoje
+        {saasRights && <span>{saasRights.used_today} de {saasRights.daily_limit} créditos utilizados hoje
           · {saasRights.remaining_today} restantes · renova à meia-noite (Brasília)</span>}
         {saasRights && <label className="saas-plan-switch">
           Simular plano
@@ -1716,8 +1716,8 @@ function LeadFlowApp() {
             }}
           >
             <option value="free">Free — 5/dia</option>
-            <option value="pro">Pro — 25/dia</option>
-            <option value="advanced">Advanced — 70/dia</option>
+            <option value="pro">Pro — 25 créditos/dia</option>
+            <option value="advanced">Advanced — 70 créditos/dia</option>
           </select>
         </label>}
         {saasAccessError && <span className="saas-plan-error">{saasAccessError}</span>}
