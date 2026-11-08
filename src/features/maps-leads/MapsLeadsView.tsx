@@ -19,6 +19,7 @@ import type { PersistedLead } from "../leads/remote-leads";
 import type { BusinessAddResult } from "../search-leads/BusinessDetailsModal";
 import { findBusinessDuplicate } from "../search-leads/identity";
 import { searchBusinesses } from "../search-leads/search-businesses";
+import { searchGeoapifyPlaces, type GeoapifyPreview, type GeoapifySearchResponse } from "./geoapify-client";
 import { loadMapPlaceDetails } from "./map-place-details";
 import {
   DEFAULT_SEARCH_LOCATION,
@@ -37,6 +38,8 @@ import type { BusinessSearchResult } from "../search-leads/types";
 const GOOGLE_BROWSER_KEY = (import.meta.env["VITE_GOOGLE_MAPS_BROWSER_KEY"] as string | undefined)?.trim() ?? "";
 
 type SearchValues = SearchLocation & { segment: string; neighborhood: string };
+type MapsProvider = "geoapify" | "google";
+type GeoapifyCoverage = Extract<GeoapifySearchResponse, { ok: true }>["coverage"];
 type GeoPoint = { lat: number; lng: number };
 
 type GoogleMapInstance = {
@@ -291,6 +294,11 @@ export function MapsLeadsView({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [applied, setApplied] = useState<SearchValues | null>(null);
   const [pageToken, setPageToken] = useState<string | null>(null);
+  const [provider, setProvider] = useState<MapsProvider>(SAAS_STAGING_ACTIVE ? "geoapify" : "google");
+  const [appliedProvider, setAppliedProvider] = useState<MapsProvider | null>(null);
+  const [geoResults, setGeoResults] = useState<GeoapifyPreview[]>([]);
+  const [selectedGeoId, setSelectedGeoId] = useState<string | null>(null);
+  const [coverage, setCoverage] = useState<GeoapifyCoverage | null>(null);
   const [usage, setUsage] = useState<SaasUsage | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -313,16 +321,40 @@ export function MapsLeadsView({
     () => results.find((item) => item.placeId === selectedId) ?? null,
     [results, selectedId],
   );
+  const selectedGeo = useMemo(
+    () => geoResults.find((item) => item.sourceId === selectedGeoId) ?? null,
+    [geoResults, selectedGeoId],
+  );
   const saved = selected ? savedIds.includes(selected.placeId) ||
     Boolean(findBusinessDuplicate(selected, existingLeads)) : false;
   const mapAllowed = Boolean(GOOGLE_BROWSER_KEY) || SAAS_STAGING_ACTIVE;
 
   const choose = useCallback((id: string) => setSelectedId(id), []);
 
-  async function search(append: boolean, input?: SearchValues) {
+  function switchProvider(next: MapsProvider) {
+    if (busy.current || next === provider) return;
+    setProvider(next);
+    setResults([]);
+    setGeoResults([]);
+    setSelectedId(null);
+    setSelectedGeoId(null);
+    setApplied(null);
+    setAppliedProvider(null);
+    setPageToken(null);
+    setCoverage(null);
+    setDetailsLoaded([]);
+    setError("");
+    setMessage("");
+    if (next === "geoapify") setNeighborhood("");
+  }
+
+  async function search(
+    append: boolean, input?: SearchValues, sourceOverride?: MapsProvider,
+  ) {
     if (busy.current) return;
     const wanted = append ? applied : input;
-    if (!wanted) return;
+    const source = sourceOverride ?? provider;
+    if (!wanted || (append && source !== "google")) return;
     if (!append && !resolveSearchSegment(wanted.segment)) {
       setError("Selecione um segmento válido da lista, como Barbearia ou Academia.");
       return;
@@ -332,15 +364,50 @@ export function MapsLeadsView({
       return;
     }
     if (append && !pageToken) return;
+    if (source === "geoapify" && wanted.neighborhood.trim()) {
+      setError("A busca por bairro está disponível na fonte Google Places. Remova o bairro ou selecione Google Places.");
+      return;
+    }
     busy.current = true;
     setLoading(true);
     setError("");
     setMessage("");
     try {
+      if (source === "geoapify") {
+        const response = await searchGeoapifyPlaces({
+          city: wanted.city,
+          state: wanted.state,
+          segment: resolveSearchSegment(wanted.segment) ?? wanted.segment,
+          mapMode: true,
+        });
+        if (!response.ok) {
+          setError(response.message);
+          return;
+        }
+        setApplied(wanted);
+        setAppliedProvider("geoapify");
+        setResults([]);
+        setSelectedId(null);
+        setGeoResults(response.places);
+        setSelectedGeoId(response.places[0]?.sourceId ?? null);
+        setCoverage(response.coverage);
+        setPageToken(null);
+        setDetailsLoaded([]);
+        if (response.coverage.message) {
+          setMessage(response.coverage.message);
+        } else if (!response.places.length) {
+          setMessage("Nenhuma empresa catalogada nessa categoria pelo Geoapify.");
+        }
+        return;
+      }
+
+      // A deliberate Google selection ALWAYS uses a real query in staging.
+      // Do not silently show the synthetic staging demo results.
       const response = await searchBusinesses({
         ...wanted,
         segment: resolveSearchSegment(wanted.segment) ?? wanted.segment,
         mapMode: true,
+        liveGoogle: SAAS_STAGING_ACTIVE,
         ...(append && pageToken ? { pageToken } : {}),
       });
       if (!response.ok) {
@@ -350,6 +417,10 @@ export function MapsLeadsView({
       }
       if (response.quota) setUsage(response.quota);
       setApplied(wanted);
+      setAppliedProvider("google");
+      setCoverage(null);
+      setGeoResults([]);
+      setSelectedGeoId(null);
       setPageToken(response.nextPageToken);
       if (!append) setDetailsLoaded([]);
       setResults((previous) => {
@@ -365,7 +436,7 @@ export function MapsLeadsView({
       });
       if (!append) setSelectedId(response.results[0]?.placeId ?? null);
       if (response.results.length === 0) {
-        setMessage("Nenhuma empresa encontrada para esta busca. Experimente outra região ou segmento.");
+        setMessage("Nenhuma empresa encontrada pelo Google Places. Experimente outra região ou segmento.");
       }
     } finally {
       busy.current = false;
@@ -376,7 +447,18 @@ export function MapsLeadsView({
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!mapAllowed) return;
-    void search(false, { city: city.trim(), state, neighborhood: neighborhood.trim(), segment: segment.trim() });
+    void search(false, {
+      city: city.trim(), state,
+      neighborhood: provider === "geoapify" ? "" : neighborhood.trim(),
+      segment: segment.trim(),
+    }, provider);
+  }
+
+  function searchGoogleAsAlternative() {
+    if (!applied || loading || appliedProvider !== "geoapify") return;
+    // Only this explicit click triggers a second provider request.
+    setProvider("google");
+    void search(false, applied, "google");
   }
 
   async function consultExtraDetails() {
@@ -422,10 +504,17 @@ export function MapsLeadsView({
     }
   }
 
-  const canLoadMore = !!pageToken && !loading && (usage?.remaining_today ?? 1) > 0;
+  const canLoadMore = appliedProvider === "google" && !!pageToken &&
+    !loading && (usage?.remaining_today ?? 1) > 0;
   const mapsLink = safeExternalHref(selected?.googleMapsUrl);
   const businessSite = safeExternalHref(selected?.website);
   const displayedCity = applied ? `${applied.city} · ${applied.state}` : `${city} · ${state}`;
+  const resultCount = appliedProvider === "geoapify" ? geoResults.length : results.length;
+  const osmLink = selectedGeo
+    ? `https://www.openstreetmap.org/?mlat=${selectedGeo.latitude}&mlon=${selectedGeo.longitude}#map=16/${selectedGeo.latitude}/${selectedGeo.longitude}`
+    : null;
+  const displayGoogleMap = appliedProvider !== "geoapify" && !!GOOGLE_BROWSER_KEY;
+  const preventCrmWrite = appliedProvider === "geoapify" || SAAS_STAGING_ACTIVE;
 
   return (
     <section className="bms-root saas-page" aria-labelledby="bms-heading">
