@@ -65,10 +65,6 @@ function closeCoordinates(a: BusinessMatchCandidate, b: ExistingLeadIdentity) {
   return 6371000*2*Math.atan2(Math.sqrt(h),Math.sqrt(Math.max(0,1-h)))<=80;
 }
 
-/** Match by stable place ID; otherwise phone, or name+address/name+nearby GPS.
- * Different known municipalities/UFs are never conflated.
- * Cross-provider matching does not depend on Google and Geoapify sharing IDs.
- */
 /** Compare both providers conservatively: identifiers win, but fuzzy matches
  * require ONE unambiguous business with the same name and physical location.
  * Shared phone numbers and generic building addresses are not unique IDs.
