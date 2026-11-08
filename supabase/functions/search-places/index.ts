@@ -258,7 +258,7 @@ type SaasQuota = {
   usage_date: string;
   lead_enrichment?: boolean;
 };
-type SaasClaim = SaasQuota & { allowed_place_ids: string[]; newly_unlocked: number };
+type SaasClaim = SaasQuota & { allowed_place_ids: string[]; newly_unlocked: number; credits_spent: number; credit_cost: number };
 const SAAS_STAGING_URL = "https://prlrxjothrslhswpkoza.supabase.co";
 
 function saasQuotasEnabled(): boolean {
@@ -324,6 +324,7 @@ async function claimSaasLeads(userId: string, placeIds: string[], source: "searc
     if (!["free", "pro", "advanced"].includes(item.plan ?? "") ||
         !Number.isInteger(item.daily_limit) || !Number.isInteger(item.used_today) ||
         !Number.isInteger(item.remaining_today) || !Number.isInteger(item.newly_unlocked) ||
+        !Number.isInteger(item.credits_spent) || !Number.isInteger(item.credit_cost) ||
         !Array.isArray(item.allowed_place_ids) ||
         !item.allowed_place_ids.every((id) => typeof id === "string")) {
       return null;
