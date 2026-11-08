@@ -126,6 +126,10 @@ export function normalizeGeoapifyPlaces(
         seen.has(placeId)) continue;
     const address = stringField(props.formatted) ?? stringField(props.address_line1);
     seen.add(placeId);
+    const reportedCity = stringField(props.city);
+    const reportedState = findBrazilianState(
+      stringField(props.state_code) ?? stringField(props.state),
+    );
     output.push({
       source: "geoapify",
       sourceId: "geoapify:" + placeId,
@@ -133,8 +137,8 @@ export function normalizeGeoapifyPlaces(
       category: Array.isArray(props.categories) &&
         typeof props.categories[0] === "string" ? props.categories[0] : null,
       address,
-      city: location.city,
-      state: location.state,
+      city: reportedCity ?? location.city,
+      state: reportedState?.code ?? location.state,
       latitude: lat,
       longitude: lon,
     });
