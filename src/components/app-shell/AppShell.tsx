@@ -1,5 +1,6 @@
 import {
   LayoutDashboard,
+  MapPinned,
   LogOut,
   Menu,
   MessageCircle,
@@ -17,6 +18,7 @@ export type AppView =
   | "dashboard"
   | "leads"
   | "search"
+  | "maps"
   | "opportunities"
   | "messages"
   | "finance";
@@ -29,6 +31,7 @@ const NAV_ITEMS: Array<{
   { view: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { view: "leads", label: "Meus Leads", icon: Users },
   { view: "search", label: "Buscar Leads", icon: Search },
+  { view: "maps", label: "Buscar via Maps", icon: MapPinned },
   { view: "opportunities", label: "Oportunidades", icon: Target },
   { view: "messages", label: "Mensagens", icon: MessageCircle },
   { view: "finance", label: "Financeiro", icon: WalletCards },
@@ -38,6 +41,7 @@ const VIEW_TITLES: Record<AppView, string> = {
   dashboard: "Dashboard",
   leads: "Meus Leads",
   search: "Buscar Leads",
+  maps: "Buscar via Maps",
   opportunities: "Oportunidades",
   messages: "Mensagens",
   finance: "Financeiro",
