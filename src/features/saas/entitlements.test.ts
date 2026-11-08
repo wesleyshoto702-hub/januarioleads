@@ -15,6 +15,7 @@ const free: SaasEntitlements = {
     kanban: false,
     finance: false,
     internal_automations: false,
+    maps_search: false,
   },
 };
 
@@ -30,14 +31,14 @@ Deno.test("flags retornam valores booleanos sem confiar em preços locais", () =
   if (free.features.crm !== true || free.features.finance !== false) throw new Error("free flags wrong");
   const pro: SaasEntitlements = {
     ...free, plan: "pro", price_cents: 1990, daily_limit: 25, remaining_today: 25,
-    features: { ...free.features, finance: true, kanban: true, custom_messages: true, internal_automations: false },
+    features: { ...free.features, finance: true, kanban: true, custom_messages: true, internal_automations: false, maps_search: false },
   };
   const advanced: SaasEntitlements = {
     ...pro, plan: "advanced", price_cents: 2990, daily_limit: 70, remaining_today: 70,
-    features: { ...pro.features, internal_automations: true, advanced_reports: true, advanced_lead_prioritization: true },
+    features: { ...pro.features, internal_automations: true, advanced_reports: true, advanced_lead_prioritization: true, maps_search: true },
   };
-  if (pro.features.internal_automations || !pro.features.kanban) throw new Error("Pro gating wrong");
-  if (!advanced.features.internal_automations || !advanced.features.advanced_reports) {
+  if (pro.features.internal_automations || !pro.features.kanban || pro.features.maps_search) throw new Error("Pro gating wrong");
+  if (!advanced.features.internal_automations || !advanced.features.advanced_reports || !advanced.features.maps_search) {
     throw new Error("Advanced gating wrong");
   }
   // Feature checking in production is deliberate legacy fallback; for staging,
