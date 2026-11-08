@@ -226,6 +226,13 @@ async function handle(request: Request): Promise<Response> {
     return fail(request, "PROVIDER_BUDGET", "Limite seguro do Geoapify atingido ou desativado.", 429);
   }
 
+  const firstSlot = await callPrivilegedRpc("claim_saas_geoapify_request_slot", {
+    p_user_id: auth.userId,
+  });
+  if (firstSlot !== true) {
+    return fail(request, "PROVIDER_THROTTLE", "Geoapify está ocupado. Tente novamente em instantes.", 429);
+  }
+
   const key = Deno.env.get("GEOAPIFY_API_KEY")!.trim();
   try {
     const geocode = new URL("https://api.geoapify.com/v1/geocode/search");
@@ -248,6 +255,13 @@ async function handle(request: Request): Promise<Response> {
     });
     if (placesBudget !== true) {
       return fail(request, "PROVIDER_BUDGET", "Limite seguro da busca Geoapify atingido.", 429);
+    }
+
+    const secondSlot = await callPrivilegedRpc("claim_saas_geoapify_request_slot", {
+      p_user_id: auth.userId,
+    });
+    if (secondSlot !== true) {
+      return fail(request, "PROVIDER_THROTTLE", "Geoapify está ocupado. Tente novamente em instantes.", 429);
     }
 
     const places = new URL("https://api.geoapify.com/v2/places");
