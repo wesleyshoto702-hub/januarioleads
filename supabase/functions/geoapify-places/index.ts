@@ -7,6 +7,7 @@ import {
   classifyGeoapifyCoverage,
   geoapifyCategoryForSegment,
   geoapifyFeatureCount,
+  filterGeoapifyForNiche,
   normalizeGeoapifyPlaces,
   resolveGeoapifyCityLocation,
 } from "../_shared/geoapify-adapter.ts";
@@ -220,6 +221,12 @@ async function handle(request: Request): Promise<Response> {
     } catch { return fail(request, "REQUEST_FAILED", "Falha ao verificar plano.", 503); }
   }
 
+  // Make sure at least one real source is ready before consuming a search.
+  if (!configured && !Deno.env.get("GOOGLE_PLACES_API_KEY")?.trim()) {
+    return fail(request, "NOT_CONFIGURED",
+      "Serviço de pesquisa temporariamente indisponível. Tente novamente mais tarde.", 503);
+  }
+
   // A single search action claims user quotas ONCE. Individual provider
   // calls reserve independent monetary budgets and never cause a second plan claim.
   const peek = await callPrivilegedRpc("saas_free_search_quota", {
@@ -286,7 +293,9 @@ async function handle(request: Request): Promise<Response> {
               const placesData: unknown = await placesResponse.json();
               const count = geoapifyFeatureCount(placesData);
               if (count !== null) {
-                let matches = normalizeGeoapifyPlaces(placesData, {city, state: state.code});
+                let matches = filterGeoapifyForNiche(
+                  normalizeGeoapifyPlaces(placesData, {city, state: state.code}), segment,
+                );
                 let sourceArea: "city" | "nearby-10km" = "city";
                 if (count === 0 && await reserveGeo("places")) {
                   const nearby = new URL("https://api.geoapify.com/v2/places");
@@ -304,7 +313,9 @@ async function handle(request: Request): Promise<Response> {
                   if(radiusResponse.ok) {
                     const nearbyData: unknown = await radiusResponse.json();
                     if (geoapifyFeatureCount(nearbyData) !== null) {
-                      matches = normalizeGeoapifyPlaces(nearbyData, {city,state:state.code});
+                      matches = filterGeoapifyForNiche(
+                        normalizeGeoapifyPlaces(nearbyData, {city,state:state.code}), segment,
+                      );
                       sourceArea = "nearby-10km";
                     }
                   }
