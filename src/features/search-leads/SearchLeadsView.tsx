@@ -1596,6 +1596,7 @@ function BusinessCard({
             <div className="business-name-line">
               <h2>{business.name}</h2>
               {business.previewOnly && <span className="status-badge">Prévia sem contato · Pro</span>}
+              {existingLead && <span className="status-badge already-added-badge">Lead já adicionado</span>}
               {existingLead?.status && (
                 <span
                   className={`status-badge ${existingLead.status}`}
@@ -1607,7 +1608,6 @@ function BusinessCard({
               <ChanceBadge chance={chance} />
             </div>
             {business.primaryCategory && <span>{business.primaryCategory}</span>}
-            {existingLead && <span>Nos seus leads</span>}
           </div>
           {business.isOpenNow !== null && (
             <span className={business.isOpenNow ? "open-status open" : "open-status closed"}>
