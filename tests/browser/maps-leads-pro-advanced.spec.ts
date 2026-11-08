@@ -7,12 +7,12 @@ test.skip(process.env["VITE_SUPABASE_URL"] !== STAGING,
 const userId = "11111111-1111-1111-1111-111111111111";
 type Plan = "free" | "pro" | "advanced";
 type Scenario = "google-fallback" | "geo-found" | "provider-unavailable";
-type Requests = { unified: Record<string,unknown>[]; googleSeparate: number; };
+type Requests = { unified: Record<string,unknown>[]; googleSeparate: number; crmSaves: Record<string,unknown>[]; };
 
 async function mockWorkspace(
   page: Page, plan: Plan, scenario: Scenario = "google-fallback",
 ): Promise<Requests> {
-  const calls: Requests = {unified:[],googleSeparate:0};
+  const calls: Requests = {unified:[],googleSeparate:0,crmSaves:[]};
   await page.route("**/*", (route) => {
     const url = new URL(route.request().url());
     if (["127.0.0.1", "localhost"].includes(url.hostname)) return route.continue();
@@ -49,6 +49,11 @@ async function mockWorkspace(
           advanced_lead_prioritization:plan==="advanced",
         },
       };
+    } else if (url.pathname === "/rest/v1/leads" && route.request().method()==="POST") {
+      const value=JSON.parse(route.request().postData()??"{}") as Record<string,unknown>;
+      calls.crmSaves.push(value);
+      status=201;
+      payload=[];
     } else if (url.pathname === "/functions/v1/geoapify-places") {
       const body = JSON.parse(route.request().postData() ?? "{}") as Record<string,unknown>;
       expect(body.action).toBe("search");
@@ -191,4 +196,41 @@ test("Pro: Buscar via Maps é exclusivo do Advanced", async({page})=>{
  await mockWorkspace(page,"pro");
  await page.goto("/app");
  await expect(page.getByRole("button",{name:"Buscar via Maps"})).toHaveCount(0);
+});
+
+
+test("Maps Google: CRM salva só Place ID e nome escolhido pelo usuário",async({page})=>{
+  const calls=await mockWorkspace(page,"advanced");
+  await openMaps(page);
+  await page.getByRole("button",{name:"Buscar no mapa"}).click();
+  await expect(page.getByRole("article",{name:/Empresa selecionada: Barbearia Google 1/})).toBeVisible();
+  const manualName="Cliente cadastrado manualmente";
+  await page.getByLabel("Nome que você quer usar no CRM").fill(manualName);
+  await page.getByRole("button",{name:"Adicionar ao CRM"}).click();
+  await expect.poll(()=>calls.crmSaves.length).toBe(1);
+  const saved=calls.crmSaves[0]!;
+  expect(saved["company"]).toBe(manualName);
+  expect(saved["place_id"]).toBe("google-real-1");
+  for(const key of ["address","city","state","latitude","longitude","google_maps_url","website"]) {
+    expect(saved[key]??null,"Should not persist provider content: "+key).toBeNull();
+  }
+  await expect(page.getByRole("button",{name:"Lead já adicionado"})).toBeDisabled();
+  expect(calls.crmSaves).toHaveLength(1);
+});
+
+test("Maps Geoapify: dados OSM, atribuição e ID são salvos no CRM",async({page})=>{
+  const calls=await mockWorkspace(page,"advanced","geo-found");
+  await openMaps(page);
+  await page.getByRole("button",{name:"Buscar no mapa"}).click();
+  await expect(page.getByRole("article",{name:/Estabelecimento Geoapify: Barbearia OSM/})).toBeVisible();
+  await page.getByRole("article",{name:/Estabelecimento Geoapify: Barbearia OSM/})
+    .getByRole("button",{name:"Adicionar ao CRM"}).click();
+  await expect.poll(()=>calls.crmSaves.length).toBe(1);
+  const saved=calls.crmSaves[0]!;
+  expect(saved["place_id"]).toBe("geoapify:abc1");
+  expect(saved["company"]).toBe("Barbearia OSM");
+  expect(saved["notes"]).toContain("© OpenStreetMap contributors");
+  await expect(page.getByRole("article",{name:/Estabelecimento Geoapify: Barbearia OSM/})
+    .getByRole("button",{name:"Lead já adicionado"})).toBeDisabled();
+  expect(calls.crmSaves).toHaveLength(1);
 });
