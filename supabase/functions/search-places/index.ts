@@ -29,6 +29,7 @@ type BusinessSearchResult = {
   businessStatus: string | null;
   latitude: number | null;
   longitude: number | null;
+  previewOnly?: boolean;
 };
 
 type GoogleText = { text?: string };
@@ -333,6 +334,38 @@ async function claimSaasLeads(userId: string, placeIds: string[]): Promise<SaasC
   }
 }
 
+type SaasSearchQuota = {
+  plan: "free" | "pro" | "advanced";
+  daily_limit: number | null;
+  used_today: number | null;
+  remaining_today: number | null;
+  usage_date: string;
+  max_results: number;
+  allowed: boolean;
+  reset_at: string | null;
+};
+
+async function readSaasSearchQuota(userId: string, claim: boolean): Promise<SaasSearchQuota | null> {
+  try {
+    const response = await adminRest("rpc/saas_free_search_quota", {
+      method: "POST",
+      body: JSON.stringify({ p_user_id: userId, p_claim: claim }),
+    });
+    if (!response?.ok) return null;
+    const value: unknown = await response.json();
+    if (!value || typeof value !== "object") return null;
+    const quota = value as Partial<SaasSearchQuota>;
+    if (!["free", "pro", "advanced"].includes(quota.plan ?? "") ||
+      typeof quota.allowed !== "boolean" || quota.max_results !== 20 ||
+      typeof quota.usage_date !== "string") return null;
+    if (quota.plan === "free" && (quota.daily_limit !== 3 ||
+      !Number.isInteger(quota.used_today) || !Number.isInteger(quota.remaining_today))) return null;
+    return quota as SaasSearchQuota;
+  } catch {
+    return null;
+  }
+}
+
 function failure(
   code:
     | "NOT_CONFIGURED"
@@ -344,6 +377,8 @@ function failure(
     | "INVALID_REQUEST"
     | "QUOTA"
     | "DAILY_LEAD_LIMIT"
+    | "DAILY_SEARCH_LIMIT"
+    | "FREE_PAGE_LIMIT"
     | "FEATURE_NOT_AVAILABLE"
     | "REQUEST_FAILED",
   message: string,
@@ -1105,6 +1140,7 @@ async function runSegmentSearch(
   body: Record<string, unknown>,
   userId: string,
   demoMode = false,
+  searchQuota: SaasSearchQuota | null = null,
 ) {
   const segment = body.segment;
   const pageToken = body.pageToken;
@@ -1173,30 +1209,38 @@ async function runSegmentSearch(
     locationMatches(business, location.city, location.state)
   );
 
+  const cappedResults = matchedResults.slice(0, 20);
   if (!saasQuotasEnabled()) {
-    return json({
-      ok: true, results: matchedResults,
-      nextPageToken: searched.nextPageToken,
-    });
+    return json({ ok: true, results: cappedResults, nextPageToken: searched.nextPageToken });
   }
 
-  // Never return a Google business not authorized by the server's atomic quota.
-  const claim = await claimSaasLeads(userId, matchedResults.map((business) => business.placeId));
+  // Up to 20 businesses per Free search; contact unlocks remain separately capped.
+  const claim = await claimSaasLeads(userId, cappedResults.map((business) => business.placeId));
   if (!claim) {
     return failure("REQUEST_FAILED", "Não foi possível registrar os leads na sua cota diária.", 503);
   }
   const allowed = new Set(claim.allowed_place_ids);
+  const free = claim.plan === "free";
+  const visible = free
+    ? cappedResults.map((business) => allowed.has(business.placeId)
+      ? business
+      : {
+          ...business,
+          description: null, phone: null, internationalPhone: null,
+          website: null, instagram: null, rating: null, reviewCount: null,
+          isOpenNow: null, openingHours: [], currentOpeningHours: null,
+          regularOpeningHours: null, googleMapsUrl: null, previewOnly: true,
+        })
+    : cappedResults.filter((business) => allowed.has(business.placeId));
   return json({
-    ok: true,
-    results: matchedResults.filter((business) => allowed.has(business.placeId)),
-    nextPageToken: claim.remaining_today > 0 ? searched.nextPageToken : null,
+    ok: true, results: visible,
+    nextPageToken: !free && claim.remaining_today > 0 ? searched.nextPageToken : null,
     quota: {
-      plan: claim.plan,
-      daily_limit: claim.daily_limit,
-      used_today: claim.used_today,
-      remaining_today: claim.remaining_today,
+      plan: claim.plan, daily_limit: claim.daily_limit,
+      used_today: claim.used_today, remaining_today: claim.remaining_today,
       usage_date: claim.usage_date,
     },
+    searchQuota,
     demo: demoMode,
   });
 }
@@ -2913,13 +2957,23 @@ async function handleRequest(request: Request) {
 
   const requestBody = body as Record<string, unknown>;
   const mode =
-    requestBody.mode === "place-details"
+    requestBody.mode === "search-quota"
+      ? "search-quota"
+      : requestBody.mode === "place-details"
       ? "place-details"
       : requestBody.mode === "lead-enrichment"
       ? "lead-enrichment"
       : requestBody.mode === "presence-discovery"
         ? "presence-discovery"
         : "segment-search";
+
+  // Read-only quota status, authenticated and behind the private-access check.
+  if (mode === "search-quota") {
+    if (!saasQuotasEnabled()) return failure("NOT_CONFIGURED", "Cotas indisponíveis.", 503);
+    const quota = await readSaasSearchQuota(userId, false);
+    if (!quota) return failure("REQUEST_FAILED", "Não foi possível verificar suas pesquisas restantes.", 503);
+    return json({ ok: true, searchQuota: quota });
+  }
 
   // Map requests must be authorized by the *backend*, not just by the menu.
   // Reuses the same Google Places search, per-user API budget and daily lead quota.
@@ -2957,14 +3011,42 @@ async function handleRequest(request: Request) {
     );
   }
 
-  // Refuse quota-exhausted requests before charging the external API budget
-  // or issuing paid Google Places requests.
+  // Invalid requests and extra Free pages must not consume a search.
+  if (saasQuotasEnabled() && mode === "segment-search") {
+    const segment = requestBody.segment;
+    const pageToken = requestBody.pageToken;
+    const neighborhood = requestBody.neighborhood;
+    if (typeof segment !== "string" || segment.trim().length < 2 ||
+        segment.trim().length > 120 || !validSearchSegment(segment) ||
+        !requiredSearchLocation(requestBody) ||
+        (pageToken !== undefined && (typeof pageToken !== "string" ||
+          !pageToken.trim() || pageToken.length > 4096)) ||
+        (neighborhood !== undefined && (typeof neighborhood !== "string" ||
+          neighborhood.trim().length > 80 ||
+          !/^[\\p{L}\\p{N}\\s.,'()\\/-]*$/u.test(neighborhood)))) {
+      return failure("INVALID_REQUEST", "Informe segmento, cidade e estado válidos.", 400);
+    }
+    const allowance = await readSaasSearchQuota(userId, false);
+    if (!allowance) return failure("REQUEST_FAILED", "Não foi possível conferir sua cota diária de pesquisas.", 503);
+    if (allowance.plan === "free" && pageToken !== undefined) {
+      return json({ ok: false, code: "FREE_PAGE_LIMIT",
+        message: "O Free mostra até 20 estabelecimentos por pesquisa, sem páginas adicionais.",
+        searchQuota: allowance }, 403);
+    }
+    if (allowance.plan === "free" && !allowance.allowed) {
+      return json({ ok: false, code: "DAILY_SEARCH_LIMIT",
+        message: "Você usou as 3 pesquisas gratuitas de hoje. Renova à meia-noite (Brasília).",
+        searchQuota: allowance }, 429);
+    }
+  }
+
+  // Preserve the existing Pro / Advanced lead-unlock preflight.
   if (saasQuotasEnabled() && mode === "segment-search") {
     const quota = await peekSaasQuota(userId);
     if (!quota) {
       return failure("REQUEST_FAILED", "Não foi possível verificar seu saldo diário.", 503);
     }
-    if (quota.remaining_today <= 0) {
+    if (quota.plan !== "free" && quota.remaining_today <= 0) {
       return json({
         ok: false,
         code: "DAILY_LEAD_LIMIT",
@@ -3016,6 +3098,18 @@ async function handleRequest(request: Request) {
     );
   }
 
+  // Serialize concurrent Free claims in Postgres before contacting the provider.
+  let searchAllowance: SaasSearchQuota | null = null;
+  if (saasQuotasEnabled() && mode === "segment-search") {
+    searchAllowance = await readSaasSearchQuota(userId, requestBody.pageToken === undefined);
+    if (!searchAllowance) return failure("REQUEST_FAILED", "Não foi possível registrar sua pesquisa.", 503);
+    if (searchAllowance.plan === "free" && !searchAllowance.allowed) {
+      return json({ ok: false, code: "DAILY_SEARCH_LIMIT",
+        message: "Você usou as 3 pesquisas gratuitas de hoje. Tente novamente amanhã.",
+        searchQuota: searchAllowance }, 429);
+    }
+  }
+
   try {
     if (mode === "presence-discovery") {
       return await runPresenceDiscovery(requestBody);
@@ -3028,7 +3122,7 @@ async function handleRequest(request: Request) {
       return await runMapPlaceDetails(googleApiKey, requestBody, userId);
     }
 
-    return await runSegmentSearch(googleApiKey ?? "", requestBody, userId, demoMode);
+    return await runSegmentSearch(googleApiKey ?? "", requestBody, userId, demoMode, searchAllowance);
   } catch {
     return failure(
       "REQUEST_FAILED",

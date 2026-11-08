@@ -11,6 +11,7 @@ import type {
 
 export type BusinessSearchResult = {
   placeId: string;
+  previewOnly?: boolean;
   name: string;
   primaryCategory: string | null;
   categories: string[];
@@ -52,11 +53,23 @@ export type BusinessSearchResult = {
   deepEnrichmentCheckedAt?: string | null | undefined;
 };
 
+export type SaasSearchQuota = {
+  plan: "free" | "pro" | "advanced";
+  daily_limit: number | null;
+  used_today: number | null;
+  remaining_today: number | null;
+  usage_date: string;
+  max_results: number;
+  allowed: boolean;
+  reset_at: string | null;
+};
+
 export type BusinessSearchSuccess = {
   ok: true;
   results: BusinessSearchResult[];
   nextPageToken: string | null;
   quota?: SaasUsage;
+  searchQuota?: SaasSearchQuota;
   demo?: boolean;
 };
 
@@ -72,10 +85,13 @@ export type BusinessSearchFailure = {
     | "INVALID_REQUEST"
     | "QUOTA"
     | "DAILY_LEAD_LIMIT"
+    | "DAILY_SEARCH_LIMIT"
+    | "FREE_PAGE_LIMIT"
     | "FEATURE_NOT_AVAILABLE"
     | "REQUEST_FAILED";
   message: string;
   quota?: SaasUsage;
+  searchQuota?: SaasSearchQuota;
 };
 
 export type BusinessSearchResponse = BusinessSearchSuccess | BusinessSearchFailure;

@@ -32,7 +32,7 @@ import {
   normalizeBrazilianPhone,
   type ExistingLeadIdentity,
 } from "./identity";
-import { searchBusinesses } from "./search-businesses";
+import { loadMySearchQuota, searchBusinesses } from "./search-businesses";
 import {
   SAAS_STAGING_ACTIVE,
   loadMySaasUsage,
@@ -55,7 +55,7 @@ import {
   normalizeBrazilianStateCode,
 } from "../../lib/brazil-locations";
 import { normalizeSearchText, resolveSearchSegment, searchSegmentMatchesQuery, SEGMENT_GROUPS } from "./segments";
-import type { BusinessSearchResult } from "./types";
+import type { BusinessSearchResult, SaasSearchQuota } from "./types";
 import { storeRecentBusinessSearch } from "../open-now-niches/local-cache";
 import {
   fetchCachedPlacesSearchSample,
@@ -532,6 +532,7 @@ export function SearchLeadsView({
   const [searchNotice, setSearchNotice] = useState(initialSearchSession?.searchNotice ?? "");
   const [saasUsage, setSaasUsage] = useState<SaasUsage | null>(null);
   const [saasUsageError, setSaasUsageError] = useState(false);
+  const [searchQuota, setSearchQuota] = useState<SaasSearchQuota | null>(null);
   const [showStagingDemo, setShowStagingDemo] = useState(
     initialSearchSession?.results.some((business) => business.placeId.startsWith("staging-demo-")) ?? false,
   );
@@ -551,7 +552,10 @@ export function SearchLeadsView({
     if (!SAAS_STAGING_ACTIVE) return;
     let active = true;
     async function refreshUsage() {
-      const usage = await loadMySaasUsage();
+      const [usage, searches] = await Promise.all([
+        loadMySaasUsage(),
+        loadMySearchQuota(),
+      ]);
       if (!active) return;
       if (usage) {
         setSaasUsage(usage);
@@ -559,6 +563,7 @@ export function SearchLeadsView({
       } else {
         setSaasUsageError(true);
       }
+      if (searches) setSearchQuota(searches);
     }
     const onVisible = () => {
       if (document.visibilityState === "visible") void refreshUsage();
@@ -913,6 +918,10 @@ export function SearchLeadsView({
 
     if (!response.ok) {
       if (response.quota) setSaasUsage(response.quota);
+      if (response.searchQuota) setSearchQuota(response.searchQuota);
+      else if (SAAS_STAGING_ACTIVE) {
+        void loadMySearchQuota().then((next) => { if (next) setSearchQuota(next); });
+      }
       if (!append && response.code === "QUOTA") {
         const cached = await fetchCachedPlacesSearchSample(
           location,
@@ -957,6 +966,7 @@ export function SearchLeadsView({
       setSaasUsage(response.quota);
       setSaasUsageError(false);
     }
+    if (response.searchQuota) setSearchQuota(response.searchQuota);
     setShowStagingDemo(Boolean(response.demo));
 
     const combinedResults = append
@@ -1111,22 +1121,22 @@ export function SearchLeadsView({
   const saasUsagePanel = SAAS_STAGING_ACTIVE ? (
     <div className="search-cache-notice" role="status" aria-live="polite">
       <strong>
-        {saasUsage
-          ? "Plano " + saasUsage.plan.toUpperCase() + " — " +
-            saasUsage.remaining_today + " de " + saasUsage.daily_limit +
-            " leads disponíveis hoje"
-          : "Plano e limite de leads"}
+        {searchQuota?.plan === "free"
+          ? `Plano FREE — ${searchQuota.remaining_today} de 3 pesquisas restantes hoje`
+          : saasUsage?.plan === "free"
+            ? "Plano FREE — 3 pesquisas por dia"
+            : saasUsage
+              ? `Plano ${saasUsage.plan.toUpperCase()} — ${saasUsage.remaining_today} de ${saasUsage.daily_limit} leads disponíveis hoje`
+              : "Plano e limites da conta"}
       </strong>
       <span>
-        {saasUsage
-          ? saasUsage.used_today +
-            " leads utilizados hoje. O limite renova à meia-noite, horário de Brasília." +
-            (saasUsage.remaining_today === 0
-              ? " Você atingiu o limite. Volte amanhã para fazer novas buscas."
-              : "")
-          : saasUsageError
-            ? "Não foi possível consultar seu saldo agora. O servidor continua protegendo os limites."
-            : "Consultando seu saldo diário..."}
+        {searchQuota?.plan === "free"
+          ? `Até 20 empresas por pesquisa, sem páginas extras. ${saasUsage?.remaining_today ?? "—"} de ${saasUsage?.daily_limit ?? 5} contatos disponíveis hoje; as demais empresas aparecem como prévia. Renova à meia-noite (Brasília).`
+          : saasUsage
+            ? `${saasUsage.used_today} leads utilizados hoje. O saldo renova à meia-noite (Brasília).`
+            : saasUsageError
+              ? "Não foi possível consultar o saldo. O servidor continua protegendo os limites."
+              : "Consultando o saldo diário..."}
       </span>
     </div>
   ) : null;
@@ -1298,7 +1308,9 @@ export function SearchLeadsView({
               !selectedCity ||
               loading ||
               municipalitiesLoading ||
-              (SAAS_STAGING_ACTIVE && saasUsage?.remaining_today === 0)
+              (SAAS_STAGING_ACTIVE &&
+                 ((searchQuota?.plan === "free" && searchQuota.remaining_today === 0) ||
+                  (saasUsage?.plan !== "free" && saasUsage?.remaining_today === 0)))
             }
             onClick={startSearch}
           >
@@ -1482,7 +1494,7 @@ export function SearchLeadsView({
         </div>
       )}
 
-      {nextPageToken && !error && (
+      {nextPageToken && searchQuota?.plan !== "free" && !error && (
         <div className="load-more-wrap">
           <button
             type="button"
@@ -1531,7 +1543,10 @@ export function SearchLeadsView({
             updateBusinessPresence(details.placeId, presence);
             if (duplicate?.id) onPresenceDiscovered?.(duplicate.id, presence);
           }}
-          onAdd={(item) => onAddLead(withSearchLocation(item, resultsLocation), resultsSegment)}
+          {...(!details.previewOnly ? {
+            onAdd: (item: BusinessSearchResult) =>
+              onAddLead(withSearchLocation(item, resultsLocation), resultsSegment),
+          } : {})}
         />
         );
       })()}
@@ -1647,6 +1662,7 @@ function BusinessCard({
           <div>
             <div className="business-name-line">
               <h2>{business.name}</h2>
+              {business.previewOnly && <span className="status-badge">Prévia sem contato · Pro</span>}
               {existingLead?.status && (
                 <span
                   className={`status-badge ${existingLead.status}`}
@@ -1756,7 +1772,7 @@ function BusinessCard({
               : "Mandar mensagem"}
           </button>
         )}
-        {!existingLead && (
+        {!existingLead && !business.previewOnly && (
           <button
             type="button"
             className="primary-button compact-button"
@@ -1779,6 +1795,10 @@ function SearchError({ error }: { error: { code: string; message: string } }) {
       ? "Integração de busca indisponível"
       : error.code === "QUOTA"
         ? "Limite da API atingido"
+        : error.code === "DAILY_SEARCH_LIMIT"
+          ? "3 pesquisas gratuitas utilizadas"
+        : error.code === "FREE_PAGE_LIMIT"
+          ? "Limite de resultados do Free"
         : error.code === "DAILY_LEAD_LIMIT"
           ? "Limite diário de leads atingido"
           : error.code === "FEATURE_NOT_AVAILABLE"

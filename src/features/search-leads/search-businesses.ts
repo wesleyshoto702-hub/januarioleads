@@ -1,4 +1,4 @@
-import type { BusinessSearchResponse } from "./types";
+import type { BusinessSearchResponse, SaasSearchQuota } from "./types";
 import { getAccessToken } from "../../lib/auth";
 import { SAAS_STAGING_ACTIVE } from "./saas-usage";
 import type { SearchLocation } from "./search-location";
@@ -110,5 +110,40 @@ export async function searchBusinesses(
       code: "REQUEST_FAILED",
       message: "Não foi possível conectar ao serviço de busca. Tente novamente.",
     };
+  }
+}
+
+/** Refreshes the Free search counter without consuming a search. */
+export async function loadMySearchQuota(): Promise<SaasSearchQuota | null> {
+  if (!SAAS_STAGING_ACTIVE) return null;
+  const token = await getAccessToken();
+  if (!token) return null;
+  const config = getSupabaseConfig();
+  try {
+    const response = await fetch(config.functionUrl, {
+      method: "POST",
+      cache: "no-store",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: config.publishableKey,
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ mode: "search-quota" }),
+    });
+    if (!response.ok) return null;
+    const payload: unknown = await response.json();
+    if (!payload || typeof payload !== "object" ||
+        !("searchQuota" in payload)) return null;
+    const quota = (payload as { searchQuota?: unknown }).searchQuota;
+    if (!quota || typeof quota !== "object") return null;
+    const item = quota as Partial<SaasSearchQuota>;
+    if (!["free", "pro", "advanced"].includes(item.plan ?? "") ||
+        typeof item.allowed !== "boolean" ||
+        item.max_results !== 20 ||
+        (item.plan === "free" && (item.daily_limit !== 3 ||
+          !Number.isInteger(item.remaining_today)))) return null;
+    return item as SaasSearchQuota;
+  } catch {
+    return null;
   }
 }
