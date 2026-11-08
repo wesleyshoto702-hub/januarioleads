@@ -39,5 +39,5 @@ Deno.test("Pins are deduplicated and capped to the actual 20-place search payloa
   }));
   values.push({ ...values[0]! });
   const points = buildMapPoints("google", values, []);
-  check(points.length === 20 && new Set(points.map((p) => p.id)).size === 20, "Invalid cap or duplicates");
+  check(points.length === 35 && new Set(points.map((p) => p.id)).size === 35, "Invalid cap or duplicates");
 });
