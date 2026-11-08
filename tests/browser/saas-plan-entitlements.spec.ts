@@ -23,7 +23,7 @@ function rights(plan: Plan) {
     for (const key of ["advanced_reports","internal_automations","advanced_lead_prioritization"]) f[key] = true;
   }
   return {
-    plan, price_cents: { free:0,pro:1490,advanced:2990 }[plan],
+    plan, price_cents: { free:0,pro:1990,advanced:2990 }[plan],
     daily_limit: { free:5,pro:25,advanced:70 }[plan],
     used_today:0,remaining_today:{ free:5,pro:25,advanced:70 }[plan],
     usage_date:"2026-11-07", currency:"BRL", features:f,
