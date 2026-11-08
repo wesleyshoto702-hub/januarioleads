@@ -68,6 +68,10 @@ export type BusinessSearchSuccess = {
   ok: true;
   results: BusinessSearchResult[];
   nextPageToken: string | null;
+  /** Automatic provider pagination may stop early on API budget exhaustion. */
+  partial?: boolean;
+  creditCost?: number;
+  creditsSpent?: number;
   quota?: SaasUsage;
   searchQuota?: SaasSearchQuota;
   demo?: boolean;
