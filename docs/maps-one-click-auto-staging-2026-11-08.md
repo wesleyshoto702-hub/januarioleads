@@ -93,6 +93,6 @@ No Google Cloud Console do projeto correto:
 - Google valida país, UF e município. Brasília/DF reconhece regiões administrativas como Taguatinga, Gama e Ceilândia dentro do DF.
 - Geoapify não rotula estabelecimentos de outro país ou outra UF como resultados da cidade pesquisada; municípios vizinhos da mesma UF podem aparecer apenas nas proximidades com seu município real.
 - Não existe coleta em lote dos mais de 5 mil municípios: busca é sob demanda por nicho + município + UF + bairro opcional, com limites por usuário e por API. Uma consulta retorna até 20 lugares, não é uma listagem exaustiva.
-- A Edge Function geoapify-places foi atualizada na instância staging para a versão 10, preservando JWT, lista de autorização, plano e cotas. Nenhuma mudança em produção.
+- A Edge Function geoapify-places foi atualizada na instância staging para a versão 11, preservando JWT, lista de autorização, plano e cotas. Nenhuma mudança em produção.
 - Testes Deno de 27 UFs e 196 nichos foram incluídos; build de frontend na Vercel e testes manuais nacionais ainda devem ser verificados antes de publicar em produção.
 - Documentação de categorias: https://apidocs.geoapify.com/docs/places/places/ ; Google Places Text Search: https://developers.google.com/maps/documentation/places/web-service/text-search
