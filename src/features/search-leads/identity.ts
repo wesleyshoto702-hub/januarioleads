@@ -69,45 +69,57 @@ function closeCoordinates(a: BusinessMatchCandidate, b: ExistingLeadIdentity) {
  * Different known municipalities/UFs are never conflated.
  * Cross-provider matching does not depend on Google and Geoapify sharing IDs.
  */
+/** Compare both providers conservatively: identifiers win, but fuzzy matches
+ * require ONE unambiguous business with the same name and physical location.
+ * Shared phone numbers and generic building addresses are not unique IDs.
+ */
 export function findSavedBusinessMatch(
   business: BusinessMatchCandidate,
   leads: ExistingLeadIdentity[],
   excludeId?: string,
 ): ExistingLeadIdentity | null {
-  const businessPhone =
-    normalizeBrazilianPhone(business.phone) || normalizeBrazilianPhone(business.internationalPhone);
-  const businessName = normalizeIdentity(business.name);
-  const businessAddress = normalizeIdentity(business.address);
-  return leads.find((lead) => {
-    if (excludeId && lead.id === excludeId) return false;
+  const available = leads.filter((lead) => !excludeId || lead.id !== excludeId);
+  // A provider ID or a server-verified cross-provider alias is authoritative.
+  const byId = available.find((lead) => Boolean(lead.placeId) && (
+    (Boolean(business.placeId) && business.placeId === lead.placeId) ||
+    (Boolean(business.equivalentPlaceId) && business.equivalentPlaceId === lead.placeId)
+  ));
+  if (byId) return byId;
 
-    if (lead.placeId && (
-      (business.placeId && business.placeId===lead.placeId) ||
-      (business.equivalentPlaceId && business.equivalentPlaceId===lead.placeId)
-    )) return true;
-    const knownDifferentCities = Boolean(
+  const name = normalizeIdentity(business.name);
+  if (!name) return null;
+  const address = normalizeIdentity(business.address);
+  const hasCoordinates = (place: {
+    latitude?: number | null | undefined;
+    longitude?: number | null | undefined;
+  }) => typeof place.latitude === "number" && typeof place.longitude === "number" &&
+    Number.isFinite(place.latitude) && Number.isFinite(place.longitude) &&
+    Math.abs(place.latitude) <= 90 && Math.abs(place.longitude) <= 180;
+
+  const matches = available.filter((lead) => {
+    if (normalizeIdentity(lead.company) !== name) return false;
+    if (business.city?.trim() && business.state?.trim() &&
+        lead.city?.trim() && lead.state?.trim() &&
+        !sameLocation({ city: business.city, state: business.state },
+          { city: lead.city, state: lead.state })) return false;
+
+    // If both providers know a valid GPS pin, a distant location disproves
+    // equivalence even when phone/address match (chain branches, shared malls).
+    if (hasCoordinates(business) && hasCoordinates(lead)) {
+      return closeCoordinates(business, lead);
+    }
+
+    // Without two GPS pins, require a specific normalized street address
+    // AND independently known matching municipality/UF. Phone alone is never
+    // sufficient because receptions can serve several businesses.
+    return Boolean(address && normalizeIdentity(lead.address) === address &&
       business.city?.trim() && business.state?.trim() &&
       lead.city?.trim() && lead.state?.trim() &&
-      !sameLocation(
-        { city:business.city ?? "", state:business.state ?? "" },
-        { city:lead.city ?? "", state:lead.state ?? "" },
-      ),
-    );
-    if (knownDifferentCities) return false;
-
-    const leadName=normalizeIdentity(lead.company);
-    const namesMatch=Boolean(businessName && leadName===businessName);
-    const addressesMatch=Boolean(businessAddress &&
-      normalizeIdentity(lead.address)===businessAddress);
-    const leadPhone=normalizeBrazilianPhone(lead.phone);
-    // Shared reception/call-center numbers can serve multiple companies.
-    // A phone match alone must not classify separate businesses as duplicates.
-    if (businessPhone && leadPhone && businessPhone===leadPhone &&
-      (namesMatch || addressesMatch)) return true;
-
-    if (!namesMatch) return false;
-    return addressesMatch || closeCoordinates(business,lead);
-  }) ?? null;
+      sameLocation({ city: business.city, state: business.state },
+        { city: lead.city, state: lead.state }));
+  });
+  // Two plausible records are ambiguous; do not silently choose the first.
+  return matches.length === 1 ? matches[0]! : null;
 }
 
 export function findBusinessDuplicate(
