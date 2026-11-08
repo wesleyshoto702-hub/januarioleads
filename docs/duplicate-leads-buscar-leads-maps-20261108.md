@@ -22,7 +22,7 @@ Geoapify pode ter `sourceId` diferente do Google Places. Por isso, endereço/loc
 ## Segurança, limites e status
 
 - O aviso é apenas visual e usa os dados de CRM já acessíveis ao usuário da sessão. Não é necessário alterar tabelas ou funções Supabase.
-- Detectar duplicidade visual **não equivale** a reconciliar IDs entre fontes nas regras de cobrança de créditos. A regra anterior de não cobrar novamente vale para o mesmo identificador de estabelecimento e dia; IDs Google/Geoapify diferentes podem exigir uma etapa futura de conciliação também no backend.
-- Importação de empresas **via Maps** para o CRM continua desabilitada na prévia de homologação por precaução com os termos dos provedores. A identificação inversa já está implementada para registros que existam no CRM, mas não libera essa importação.
+- Créditos agora usam correspondência verificada **também no backend**; aliases Google/Geoapify comprovados na mesma data têm custo incremental zero. Nomes parecidos ou dados insuficientes não recebem isenção automática.
+- Importação via Maps habilitada no staging para Geoapify/OSM, com atribuição, e para Google por Place ID + nome cadastrado manualmente pelo usuário; detalhes da API Google não são persistidos. Veja `docs/maps-crm-import-cross-provider-credits-staging-20261108.md`.
 - Mudanças feitas somente na branch de testes `feature/maps-one-click-auto-staging-20261108`; produção não alterada.
 - Os testes `src/features/search-leads/identity.test.ts` cobrem nove casos, incluindo sentido inverso, filial diferente, nome igual sem prova, cidade/UF distinta e match Google/Geoapify. Devem ser executados pela pipeline Deno. Verificar prévia Vercel por SHA antes de homologar no navegador.
