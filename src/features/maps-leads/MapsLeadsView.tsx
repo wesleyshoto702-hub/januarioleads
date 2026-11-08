@@ -483,7 +483,7 @@ export function MapsLeadsView({
   }
 
   async function saveLead() {
-    if (!selected || !applied || saving || saved) return;
+    if (!selected || !applied || saving || saved || SAAS_STAGING_ACTIVE || appliedProvider !== "google") return;
     setSaving(true);
     setError("");
     try {
@@ -667,52 +667,111 @@ export function MapsLeadsView({
                 {detailsLoading ? "Consultando..." : "Consultar telefone, website e avaliações"}
                 <small>Consulta adicional do Google Places sujeita aos limites de segurança</small>
               </button>}
-            <button className="bms-save" type="button" disabled={saving || saved || !mapAllowed}
-              onClick={() => void saveLead()}>
-              {saved ? <CheckCircle2 size={17}/> : <BookmarkPlus size={17}/>}
-              {saved ? "Já está no CRM" : saving ? "Adicionando..." : "Adicionar ao CRM"}
-            </button>
+            {preventCrmWrite
+              ? <p className="bms-readonly">Visualização apenas: a importação de dados do Google no CRM fica desativada durante a homologação.</p>
+              : <button className="bms-save" type="button" disabled={saving || saved || !mapAllowed}
+                  onClick={() => void saveLead()}>
+                  {saved ? <CheckCircle2 size={17}/> : <BookmarkPlus size={17}/>}
+                  {saved ? "Já está no CRM" : saving ? "Adicionando..." : "Adicionar ao CRM"}
+                </button>}
           </article>}
+          {selectedGeo && appliedProvider === "geoapify" &&
+            <article className="bms-business-card" aria-label={"Estabelecimento Geoapify: " + selectedGeo.name}>
+              <div className="bms-business-top">
+                <span className="bms-business-icon"><MapPin size={23}/></span>
+                <div className="bms-business-title">
+                  <span>GEOAPIFY · OPENSTREETMAP</span>
+                  <h2>{selectedGeo.name}</h2>
+                </div>
+                <span className="bms-business-counter">
+                  #{geoResults.findIndex((b) => b.sourceId === selectedGeoId) + 1}
+                </span>
+              </div>
+              <p className="bms-business-address"><MapPin size={15}/>
+                {selectedGeo.address || `${selectedGeo.city} · ${selectedGeo.state}`}
+              </p>
+              <div className="bms-business-details">
+                {osmLink && <a href={osmLink} target="_blank" rel="noopener noreferrer">
+                  Ver localização no OpenStreetMap <ArrowUpRight size={13}/>
+                </a>}
+              </div>
+              <p className="bms-readonly">Consulta de estabelecimentos baseada em OpenStreetMap.
+                Contatos e importação para o CRM não estão habilitados nessa fonte durante a homologação.</p>
+            </article>}
           {SAAS_STAGING_ACTIVE && <span className="bms-map-footnote">
-            Visualização ilustrativa · dados fictícios
+            Desenho ilustrativo · sem marcadores geográficos reais
           </span>}
         </div>
 
         <aside className="bms-results" aria-label="Empresas encontradas no mapa">
           <div className="bms-results-head">
             <div><span>RESULTADOS</span><h2>Empresas encontradas</h2></div>
-            <span className="bms-results-count">{results.length}</span>
+            <span className="bms-results-count">{resultCount}</span>
           </div>
-          {results.length === 0
+          {appliedProvider === "geoapify" &&
+            <p className="bms-provider-attribution">
+              Fonte: <a href="https://www.geoapify.com/" target="_blank" rel="noopener noreferrer">
+                Powered by Geoapify</a> · <a href="https://www.openstreetmap.org/copyright"
+                  target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a>
+            </p>}
+          {appliedProvider === "google" &&
+            <p className="bms-provider-attribution">
+              Fonte: <a href="https://www.google.com/maps" target="_blank" rel="noopener noreferrer">
+                Google Maps</a>. Consulta independente, sem mesclar dados do Geoapify.
+            </p>}
+          {resultCount === 0
             ? <div className="bms-no-results">
                 <MapPin size={32}/>
-                <strong>Seu próximo cliente pode estar aqui</strong>
-                <p>Busque por Barbearia, Academia, Restaurante ou outro segmento.</p>
+                <strong>{applied && appliedProvider === "geoapify"
+                  ? "Nenhum negócio dessa categoria cadastrado na fonte"
+                  : applied ? "Nenhuma empresa encontrada" : "Seu próximo cliente pode estar aqui"}</strong>
+                <p>{appliedProvider === "geoapify"
+                  ? coverage?.message ?? "Tente uma região ou categoria diferente."
+                  : "Busque por Barbearia, Academia, Restaurante ou outro segmento."}</p>
               </div>
-            : <ol className="bms-results-list">
-                {results.map((business, i) => (
-                  <li key={business.placeId}>
-                    <button type="button"
-                      className={selectedId === business.placeId ? "bms-result selected" : "bms-result"}
-                      onClick={() => setSelectedId(business.placeId)}>
-                      <span className="bms-result-index">{i + 1}</span>
-                      <span className="bms-result-text">
-                        <strong>{business.name}</strong>
-                        <small>{business.neighborhood || business.address || displayedCity}</small>
-                        <em>{business.website ? "Website identificado"
-                          : detailsLoaded.includes(business.placeId) ? "Sem website identificado"
-                          : "Website não consultado"}</em>
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ol>}
+            : appliedProvider === "geoapify"
+              ? <ol className="bms-results-list">
+                  {geoResults.map((business, i) => (
+                    <li key={business.sourceId}>
+                      <button type="button"
+                        className={selectedGeoId === business.sourceId ? "bms-result selected" : "bms-result"}
+                        onClick={() => setSelectedGeoId(business.sourceId)}>
+                        <span className="bms-result-index">{i + 1}</span>
+                        <span className="bms-result-text">
+                          <strong>{business.name}</strong>
+                          <small>{business.address || `${business.city} · ${business.state}`}</small>
+                          <em>Geoapify · sem dados de contato</em>
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+              : <ol className="bms-results-list">
+                  {results.map((business, i) => (
+                    <li key={business.placeId}>
+                      <button type="button"
+                        className={selectedId === business.placeId ? "bms-result selected" : "bms-result"}
+                        onClick={() => setSelectedId(business.placeId)}>
+                        <span className="bms-result-index">{i + 1}</span>
+                        <span className="bms-result-text">
+                          <strong>{business.name}</strong>
+                          <small>{business.neighborhood || business.address || displayedCity}</small>
+                          <em>Google Maps · {business.website ? "Website identificado"
+                            : detailsLoaded.includes(business.placeId) ? "Sem website identificado"
+                            : "Website não consultado"}</em>
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ol>}
           {canLoadMore && <button className="bms-more" type="button"
             onClick={() => void search(true)} disabled={loading}>
             {loading ? "Carregando..." : "Carregar mais empresas"}
           </button>}
           <p className="bms-results-footnote">
-            <ShieldCheck size={13}/> Cada novo lead liberado usa a mesma cota do Buscar Leads.
+            <ShieldCheck size={13}/> {SAAS_STAGING_ACTIVE
+              ? "Resultados somente para consulta nesta homologação; uma nova fonte exige nova busca."
+              : "Cada novo lead liberado usa a mesma cota do Buscar Leads."}
           </p>
         </aside>
       </div>
