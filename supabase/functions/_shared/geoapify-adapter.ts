@@ -183,12 +183,17 @@ export function normalizeGeoapifyPlaces(
         !Number.isFinite(lat) || !Number.isFinite(lon) ||
         Math.abs(lat) > 90 || Math.abs(lon) > 180 ||
         seen.has(placeId)) continue;
-    const address = stringField(props.formatted) ?? stringField(props.address_line1);
-    seen.add(placeId);
+    // Radius searches near borders can include businesses beyond the chosen UF.
+    // Keep valid nearby towns in the selected state, but not another state/country.
+    const country = stringField(props.country_code);
+    if (country && country.toLowerCase() !== "br") continue;
     const reportedCity = stringField(props.city);
     const reportedState =
       findBrazilianState(stringField(props.state_code)?.replace(/^BR-/i, "")) ??
       findBrazilianState(stringField(props.state));
+    if (reportedState && reportedState.code !== location.state) continue;
+    const address = stringField(props.formatted) ?? stringField(props.address_line1);
+    seen.add(placeId);
     output.push({
       source: "geoapify",
       sourceId: "geoapify:" + placeId,
