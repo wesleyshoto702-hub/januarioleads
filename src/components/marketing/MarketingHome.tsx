@@ -83,7 +83,8 @@ const pricingPlans = [
     summary: "O primeiro passo para encontrar e organizar oportunidades.",
     price: "R$ 0,00",
     highlights: [
-      "5 novos leads por dia",
+      "3 pesquisas gratuitas por dia",
+      "Até 5 contatos completos por dia",
       "Busca por cidade e segmento",
       "CRM básico para seus contatos",
       "Modelos de mensagens essenciais",
