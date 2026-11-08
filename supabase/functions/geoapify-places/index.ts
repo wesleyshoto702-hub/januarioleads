@@ -1,6 +1,7 @@
 import { isAllowedBrowserOrigin } from "../_shared/allowed-browser-origins.ts";
 import { findBrazilianState } from "../_shared/brazil-locations.ts";
 import { ALL_SEARCH_SEGMENTS } from "../_shared/niche-catalog.ts";
+import { uniqueVerifiedAliases, type VerifiedPlace } from "../_shared/cross-provider-identity.ts";
 import {
   mapsSearchTerm, normalizeGooglePreview, routingReason, shouldTryGeoapify,
 } from "../_shared/maps-auto-google.ts";
@@ -152,17 +153,126 @@ type CreditClaim = {
 };
 
 /** Debit only the real returned place IDs. No points are charged on failure. */
-async function chargeMapsPlaces(
-  request: Request,userId: string,ids: string[],
-): Promise<{ ok: true; allowed: Set<string>; quota: CreditClaim } |
+function toVerifiedGoogle(item:{
+  placeId:string; name:string;address:string|null;city:string|null;
+  state:string|null;latitude:number|null;longitude:number|null;
+}):VerifiedPlace {
+  return {id:item.placeId,name:item.name,address:item.address,
+    city:item.city,state:item.state,latitude:item.latitude,longitude:item.longitude};
+}
+function toVerifiedOsm(item:{
+  sourceId:string;name:string;address:string|null;city:string;state:string;
+  latitude:number;longitude:number;
+}):VerifiedPlace {
+  return {id:item.sourceId,name:item.name,address:item.address,
+    city:item.city,state:item.state,latitude:item.latitude,longitude:item.longitude};
+}
+function cleanCreditedIds(value:unknown):string[]|null {
+  if(!Array.isArray(value))return null;
+  return value.filter((id):id is string=>typeof id==="string" &&
+    id.length>=4 && id.length<=255);
+}
+async function getDailyOsmPlaces(userId:string):Promise<VerifiedPlace[]|null> {
+  const response=await callPrivilegedRpc("get_daily_geoapify_anchors_for_user",
+    {p_user_id:userId});
+  if(!Array.isArray(response))return null;
+  return response.flatMap((item):VerifiedPlace[]=>{
+    if(!item||typeof item!=="object")return [];
+    const p=item as Record<string,unknown>;
+    if(typeof p.sourceId!=="string"||typeof p.name!=="string")return [];
+    return [{id:p.sourceId,name:p.name,
+      address:typeof p.address==="string"?p.address:null,
+      city:typeof p.city==="string"?p.city:null,
+      state:typeof p.state==="string"?p.state:null,
+      latitude:typeof p.latitude==="number"?p.latitude:null,
+      longitude:typeof p.longitude==="number"?p.longitude:null}];
+  });
+}
+
+/** Cross-provider deduplication for a Geoapify-first result.
+ * If the user was already charged for Google IDs today, search transiently
+ * for those IDs and verify exact company identity+location. No Google content
+ * is persisted. The API request has its own monetary budget reservation.
+ */
+async function findPaidGoogleMatches(
+  request:Request,userId:string,
+  places:Array<{sourceId:string;name:string;address:string|null;
+    city:string;state:string;latitude:number;longitude:number}>,
+  segment:string,city:string,state:string,neighborhood:string,
+):Promise<{ok:true; aliases:Record<string,string>} |
   {ok:false; response:Response}> {
-  const quota = await callPrivilegedRpc("claim_daily_leads_for_user",{
-    p_user_id:userId,p_place_ids:ids,p_source:"maps",
-  }) as CreditClaim | null;
-  if(!quota || quota.plan!=="advanced" || quota.credit_cost!==2 ||
-    !Array.isArray(quota.allowed_place_ids) ||
-    !quota.allowed_place_ids.every((id)=>typeof id==="string") ||
-    !Number.isInteger(quota.remaining_today) || !Number.isInteger(quota.credits_spent)) {
+  const ids=cleanCreditedIds(await callPrivilegedRpc(
+    "get_daily_google_credit_ids_for_user",{p_user_id:userId},
+  ));
+  if(ids===null)return {ok:false,response:fail(request,"REQUEST_FAILED",
+    "Falha ao verificar créditos já utilizados nesta conta.",503)};
+  if(ids.length===0)return {ok:true,aliases:{}};
+  const apiKey=Deno.env.get("GOOGLE_PLACES_API_KEY")?.trim();
+  if(!apiKey)return {ok:false,response:fail(request,"NOT_CONFIGURED",
+    "Não é possível conferir duplicatas com o Google agora.",503)};
+  const allGoogle:VerifiedPlace[]=[];
+  let nextToken:string|null=null;
+  const seenTokens=new Set<string>();
+  for(let page=0;page<2;page++) {
+    const allowed=await callPrivilegedRpc("claim_saas_google_api_budget",{
+      p_user_id:userId,p_operation:"text_search_pro",
+    });
+    if(allowed!==true)return {ok:false,response:fail(request,"QUOTA",
+      "Sem orçamento para verificar duplicatas entre as fontes. Nenhum lead foi cobrado.",429)};
+    const body:Record<string,unknown>={
+      textQuery:mapsSearchTerm(segment)+" em "+
+        (neighborhood?neighborhood+", ":"")+city+", "+state+", Brasil",
+      pageSize:20,languageCode:"pt-BR",regionCode:"BR",
+    };
+    if(nextToken)body.pageToken=nextToken;
+    try {
+      const response=await fetch("https://places.googleapis.com/v1/places:searchText",{
+        method:"POST",headers:{
+          "Content-Type":"application/json","X-Goog-Api-Key":apiKey,
+          "X-Goog-FieldMask":[
+            "places.id","places.displayName","places.types",
+            "places.formattedAddress","places.addressComponents",
+            "places.location","nextPageToken",
+          ].join(","),
+        },body:JSON.stringify(body),signal:AbortSignal.timeout(8000),
+      });
+      if(!response.ok)throw new Error("Google check unavailable");
+      const data:unknown=await response.json();
+      const normalized=normalizeGooglePreview(data,city,state);
+      if(normalized===null)throw new Error("Google response invalid");
+      for(const p of normalized)if(ids.includes(p.placeId))
+        allGoogle.push(toVerifiedGoogle(p));
+      const envelope=data as {nextPageToken?:unknown};
+      const following=typeof envelope?.nextPageToken==="string"?
+        envelope.nextPageToken:null;
+      if(!following||seenTokens.has(following))break;
+      seenTokens.add(following);
+      nextToken=following;
+    } catch {
+      return {ok:false,response:fail(request,"PROVIDER_ERROR",
+        "Não foi possível conferir os leads já cobrados. Nenhum lead foi cobrado.",503)};
+    }
+  }
+  return {ok:true,aliases:uniqueVerifiedAliases(
+    places.map(toVerifiedOsm),allGoogle)};
+}
+
+/** Credit + OSM registration are ONE database transaction. */
+async function chargeMapsPlaces(
+  request:Request,userId:string,ids:string[],
+  aliases:Record<string,string>={},
+  osmPlaces:Array<{sourceId:string;name:string;address:string|null;
+    city:string;state:string;latitude:number;longitude:number}>=[],
+):Promise<{ok:true;allowed:Set<string>;quota:CreditClaim}|
+  {ok:false;response:Response}> {
+  const quota=await callPrivilegedRpc("claim_daily_maps_with_osm_anchors",{
+    p_user_id:userId,p_place_ids:ids,
+    p_verified_aliases:aliases,p_osm_places:osmPlaces,
+  }) as CreditClaim|null;
+  if(!quota||quota.plan!=="advanced"||quota.credit_cost!==2||
+    !Array.isArray(quota.allowed_place_ids)||
+    !quota.allowed_place_ids.every((id)=>typeof id==="string")||
+    !Number.isInteger(quota.remaining_today)||!Number.isInteger(quota.credits_spent)) {
     return {ok:false,response:fail(request,"REQUEST_FAILED",
       "Não foi possível registrar os créditos desta busca.",503)};
   }
@@ -360,8 +470,11 @@ async function handle(request: Request): Promise<Response> {
                 }
 
                 if (matches.length > 0) {
+                  const verification=await findPaidGoogleMatches(
+                    request,auth.userId,matches,segment,city,state.code,neighborhood);
+                  if(!verification.ok)return verification.response;
                   const debit = await chargeMapsPlaces(request,auth.userId,
-                    matches.map((item)=>item.sourceId));
+                    matches.map((item)=>item.sourceId),verification.aliases,matches);
                   if(!debit.ok) return debit.response;
                   const delivered = matches.filter((item)=>debit.allowed.has(item.sourceId));
                   return reply(request,{
@@ -488,8 +601,12 @@ async function handle(request: Request): Promise<Response> {
       } else partial=true;
     }
     const candidates = assembled.slice(0,35);
+    const anchors=await getDailyOsmPlaces(auth.userId);
+    if(anchors===null)return fail(request,"REQUEST_FAILED",
+      "Falha ao conferir os leads já consultados. Nenhum crédito foi descontado.",503);
+    const aliases=uniqueVerifiedAliases(candidates.map(toVerifiedGoogle),anchors);
     const debit = await chargeMapsPlaces(request,auth.userId,
-      candidates.map((item)=>item.placeId));
+      candidates.map((item)=>item.placeId),aliases);
     if(!debit.ok) return debit.response;
     const delivered = candidates.filter((item)=>debit.allowed.has(item.placeId));
     return reply(request,{
