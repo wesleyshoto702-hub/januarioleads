@@ -249,7 +249,6 @@ export function MapsLeadsView({
   const [results, setResults] = useState<BusinessSearchResult[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [applied, setApplied] = useState<SearchValues | null>(null);
-  const [pageToken, setPageToken] = useState<string | null>(null);
   const [appliedProvider, setAppliedProvider] = useState<MapsProvider | null>(null);
   const [geoResults, setGeoResults] = useState<GeoapifyPreview[]>([]);
   const [selectedGeoId, setSelectedGeoId] = useState<string | null>(null);
@@ -313,9 +312,9 @@ export function MapsLeadsView({
     item?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [appliedProvider]);
 
-  async function search(append: boolean, input?: SearchValues) {
+  async function search(input: SearchValues) {
     if (busy.current) return;
-    const wanted = append ? applied : input;
+    const wanted = input;
     if (!wanted) return;
     if (!resolveSearchSegment(wanted.segment)) {
       setError("Selecione um segmento válido da lista, como Barbearia ou Academia.");
@@ -325,7 +324,7 @@ export function MapsLeadsView({
       setError("Informe uma cidade válida para a busca.");
       return;
     }
-    if (!append && municipalitiesState === wanted.state && municipalities.length) {
+    if (municipalitiesState === wanted.state && municipalities.length) {
       const canonicalCity = resolveMunicipality(wanted.city, municipalities);
       if (!canonicalCity) {
         setError("Escolha um município válido na lista do IBGE para a UF selecionada.");
@@ -333,7 +332,6 @@ export function MapsLeadsView({
       }
       wanted.city = canonicalCity;
     }
-    if (append && (!pageToken || SAAS_STAGING_ACTIVE)) return;
     busy.current = true;
     setLoading(true);
     setError("");
@@ -355,14 +353,13 @@ export function MapsLeadsView({
           setSelectedGeoId(null);
           setApplied(null);
           setAppliedProvider(null);
-          setPageToken(null);
           setError(response.message);
           return;
         }
         setApplied(wanted);
         saveSearchLocation({ city: wanted.city, state: wanted.state });
-        setPageToken(null);
         setDetailsLoaded([]);
+        if (response.quota) setUsage(response.quota);
         if (response.provider === "geoapify") {
           setAppliedProvider("geoapify");
           setResults([]);
@@ -370,6 +367,7 @@ export function MapsLeadsView({
           setGeoResults(response.places);
           setSelectedGeoId(response.places[0]?.sourceId ?? null);
           if (response.coverage.message) setMessage(response.coverage.message);
+          else if (!response.places.length) setMessage("Nenhum estabelecimento coube no saldo diário disponível.");
         } else {
           setAppliedProvider("google");
           setGeoResults([]);
@@ -377,18 +375,19 @@ export function MapsLeadsView({
           setResults(response.results);
           setSelectedId(response.results[0]?.placeId ?? null);
           if (!response.results.length) {
-            setMessage("Nenhuma empresa encontrada nesta região e segmento. Tente outra combinação.");
+            setMessage("Nenhum estabelecimento foi encontrado ou coube no saldo diário disponível.");
+          } else if (response.partial) {
+            setMessage("A fonte atingiu um limite durante a busca. Estes são os resultados válidos disponíveis.");
           }
         }
         return;
       }
 
-      // Production remains on the existing Google route until reviewed rollout.
+      // Production stays on its legacy route until reviewed rollout.
       const response = await searchBusinesses({
         ...wanted,
         segment: resolveSearchSegment(wanted.segment) ?? wanted.segment,
         mapMode: true,
-        ...(append && pageToken ? { pageToken } : {}),
       });
       if (!response.ok) {
         if (response.quota) setUsage(response.quota);
@@ -401,20 +400,9 @@ export function MapsLeadsView({
       setAppliedProvider("google");
       setGeoResults([]);
       setSelectedGeoId(null);
-      setPageToken(response.nextPageToken);
-      if (!append) setDetailsLoaded([]);
-      setResults((previous) => {
-        const next = append ? previous : [];
-        const known = new Set(next.map((item) => item.placeId));
-        for (const item of response.results) {
-          if (!known.has(item.placeId)) {
-            next.push(item);
-            known.add(item.placeId);
-          }
-        }
-        return [...next];
-      });
-      if (!append) setSelectedId(response.results[0]?.placeId ?? null);
+      setDetailsLoaded([]);
+      setResults(response.results);
+      setSelectedId(response.results[0]?.placeId ?? null);
       if (!response.results.length) {
         setMessage("Nenhuma empresa encontrada nesta região e segmento.");
       }
@@ -429,7 +417,7 @@ export function MapsLeadsView({
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!mapAllowed) return;
-    void search(false, {
+    void search({
       city: city.trim(), state,
       neighborhood: neighborhood.trim(),
       segment: segment.trim(),
@@ -479,9 +467,6 @@ export function MapsLeadsView({
     }
   }
 
-  const canLoadMore = !SAAS_STAGING_ACTIVE &&
-    appliedProvider === "google" && !!pageToken &&
-    !loading && (usage?.remaining_today ?? 1) > 0;
   const mapsLink = safeExternalHref(selected?.googleMapsUrl);
   const businessSite = safeExternalHref(selected?.website);
   const displayedCity = applied ? `${applied.city} · ${applied.state}` : `${city} · ${state}`;
@@ -501,7 +486,7 @@ export function MapsLeadsView({
           <h1 id="bms-heading">Buscar <span>via Maps</span></h1>
           <p>Pesquise empresas reais em municípios de todas as 27 UFs do Brasil, por segmento e bairro, com seleção automática da fonte.</p>
         </div>
-        <div className="bms-plan-chip"><ShieldCheck size={15} /> Disponível no Pro e Advanced</div>
+        <div className="bms-plan-chip"><ShieldCheck size={15} /> Advanced · 2 créditos por lead</div>
       </div>
 
       <form className="bms-searchbar" onSubmit={onSubmit}>
@@ -541,7 +526,7 @@ export function MapsLeadsView({
             onChange={(e) => setNeighborhood(e.target.value)} placeholder="Ex.: Centro" />
         </div>
         <button className="bms-submit" type="submit"
-          disabled={loading || !mapAllowed || (!SAAS_STAGING_ACTIVE && usage?.remaining_today === 0)}>
+          disabled={loading || !mapAllowed || (usage != null && usage.remaining_today < 2)}>
           {loading ? <LoaderCircle className="bms-spin" size={17} /> : <Search size={17}/>}
           {loading ? "Buscando empresas..." : "Buscar no mapa"}
         </button>
@@ -732,14 +717,10 @@ export function MapsLeadsView({
               </a>}
               <small>Dados reais do Google Maps para consulta, sem importação ao CRM.</small>
             </div>}
-          {canLoadMore && <button className="bms-more" type="button"
-            onClick={() => void search(true)} disabled={loading}>
-            {loading ? "Carregando..." : "Carregar mais empresas"}
-          </button>}
           <p className="bms-results-footnote">
             <ShieldCheck size={13}/> {SAAS_STAGING_ACTIVE
               ? "Resultados para consulta nesta homologação. A busca usa automaticamente a fonte disponível."
-              : "Cada novo lead liberado usa a mesma cota do Buscar Leads."}
+              : "Buscar via Maps debita 2 créditos por lead entregue, no saldo diário compartilhado."}
           </p>
         </aside>
       </div>
