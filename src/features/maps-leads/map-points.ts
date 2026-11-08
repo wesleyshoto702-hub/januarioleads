@@ -24,7 +24,7 @@ export function buildMapPoints(
     if (!item.id || !item.name || seen.has(item.id) || !validLocation(item.lat, item.lng)) continue;
     seen.add(item.id);
     points.push({ id: item.id, name: item.name, lat: item.lat!, lng: item.lng! });
-    if (points.length >= 20) break;
+    if (points.length >= 35) break;
   }
   return points;
 }
