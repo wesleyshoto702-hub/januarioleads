@@ -204,7 +204,7 @@ for (const width of [320, 360, 390, 430, 620]) {
     expect(positions!.pageWidth).toBeLessThanOrEqual(positions!.viewportWidth);
 
     await signup.click();
-    await expect(page).toHaveURL(/\\/cadastro$/);
+    await expect(page).toHaveURL(/\/cadastro$/);
     await expect(page.getByRole("tab", { name: "Criar conta" })).toHaveAttribute("aria-selected", "true");
   });
 }
