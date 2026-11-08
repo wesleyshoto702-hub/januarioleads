@@ -40,7 +40,7 @@ async function mockWorkspace(
         usage_date:"2026-11-08",
         features:{
           crm:true,basic_messages:true,manual_followup:true,
-          maps_search:plan!=="free",
+          maps_search:plan==="advanced",
           kanban:plan!=="free",custom_messages:plan!=="free",
           finance:plan!=="free",followup_center:plan!=="free",
           lead_enrichment:plan!=="free",
@@ -62,7 +62,7 @@ async function mockWorkspace(
         payload = {ok:false,code:"QUOTA",message:"Limite seguro de buscas atingido."};
       } else if (scenario === "geo-found") {
         payload = {
-          ok:true,provider:"geoapify",limit:20,nextPageToken:null,
+          ok:true,provider:"geoapify",limit:35,nextPageToken:null,
           places:[{
             source:"geoapify",sourceId:"geoapify:abc1",name:"Barbearia OSM",
             category:"service.beauty.hairdresser",
@@ -75,7 +75,7 @@ async function mockWorkspace(
         };
       } else {
         payload = {
-          ok:true,provider:"google",limit:20,nextPageToken:null,
+          ok:true,provider:"google",limit:35,nextPageToken:null,
           sourceSelection:"google_fallback",
           attribution:{provider:"Google Maps"},
           results:[1,2].map(n=>({
@@ -124,7 +124,7 @@ test("Free: Buscar via Maps continua indisponível", async({page})=>{
   await expect(page.getByRole("button",{name:"Buscar via Maps"})).toHaveCount(0);
 });
 
-for (const plan of ["pro","advanced"] as const) {
+for (const plan of ["advanced"] as const) {
   test(plan+": um clique exibe resultados Google após fallback automático",async({page})=>{
     const calls=await mockWorkspace(page,plan);
     await openMaps(page);
@@ -142,12 +142,14 @@ for (const plan of ["pro","advanced"] as const) {
     await expect(page.locator(".bms-map-frame .bms-business-card")).toContainText("Barbearia Google 1");
     await expect(page.getByText(/sem importação ao CRM/)).toBeVisible();
     await expect(page.locator(".bms-results-count")).toHaveText("2");
+    await expect(page.getByText("2 créditos por lead").first()).toBeVisible();
+    await expect(page.getByRole("button",{name:"Carregar mais empresas"})).toHaveCount(0);
     expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1)).toBe(false);
   });
 }
 
 test("Geoapify com empresas exibe somente sua fonte e não faz consulta Google separada",async({page})=>{
- const calls=await mockWorkspace(page,"pro","geo-found");
+ const calls=await mockWorkspace(page,"advanced","geo-found");
  await openMaps(page);
  await page.getByRole("button",{name:"Buscar no mapa"}).click();
  await expect(page.getByRole("article",{name:"Estabelecimento Geoapify: Barbearia OSM"})).toBeVisible();
@@ -158,7 +160,7 @@ test("Geoapify com empresas exibe somente sua fonte e não faz consulta Google s
 });
 
 test("limite de orçamento mostra erro, sem empresas fictícias nem segunda busca",async({page})=>{
- const calls=await mockWorkspace(page,"pro","provider-unavailable");
+ const calls=await mockWorkspace(page,"advanced","provider-unavailable");
  await openMaps(page);
  await page.getByRole("button",{name:"Buscar no mapa"}).click();
  await expect(page.getByRole("alert")).toContainText("Limite seguro de buscas");
@@ -169,11 +171,18 @@ test("limite de orçamento mostra erro, sem empresas fictícias nem segunda busc
 });
 
 test("bairro continua disponível sem oferecer escolha técnica de provedor",async({page})=>{
- const calls=await mockWorkspace(page,"pro");
+ const calls=await mockWorkspace(page,"advanced");
  await openMaps(page);
  await page.locator("#bms-neighborhood").fill("Centro");
  await page.getByRole("button",{name:"Buscar no mapa"}).click();
  await expect(page.getByText("Barbearia Google 1").first()).toBeVisible();
  expect(calls.unified[0]?.neighborhood).toBe("Centro");
  expect(calls.unified).toHaveLength(1);
+});
+
+
+test("Pro: Buscar via Maps é exclusivo do Advanced", async({page})=>{
+ await mockWorkspace(page,"pro");
+ await page.goto("/app");
+ await expect(page.getByRole("button",{name:"Buscar via Maps"})).toHaveCount(0);
 });
