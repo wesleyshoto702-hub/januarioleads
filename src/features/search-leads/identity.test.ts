@@ -72,3 +72,11 @@ Deno.test("Traditional card uses the same match logic after saving from Maps", (
   if(findBusinessDuplicate(business,[{...lead,placeId:"geoapify:osm123"}])?.id!==lead.id)
     throw new Error("Traditional result did not reuse cross-provider matching");
 });
+
+Deno.test("Mesmo telefone de central não deve juntar duas empresas diferentes", () => {
+  const original={...lead,phone:"(35) 98888-1111"};
+  const another={...osm,phone:"(35) 98888-1111",
+    name:"Barbearia do Pedro",address:"Rua da Matriz 100"};
+  if(findSavedBusinessMatch(another,[original]))
+    throw new Error("Telefone compartilhado gerou uma duplicata falsa");
+});
