@@ -1127,7 +1127,7 @@ export function SearchLeadsView({
           : saasUsage?.plan === "free"
             ? "Plano FREE — 3 pesquisas por dia"
             : saasUsage
-              ? `Plano ${saasUsage.plan.toUpperCase()} — ${saasUsage.remaining_today} de ${saasUsage.daily_limit} leads disponíveis hoje`
+              ? `Plano ${saasUsage.plan.toUpperCase()} — ${saasUsage.remaining_today} de ${saasUsage.daily_limit} créditos restantes hoje`
               : "Plano e limites da conta"}
       </strong>
       <span>
