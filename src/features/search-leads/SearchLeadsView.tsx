@@ -998,6 +998,7 @@ export function SearchLeadsView({
     setResults(uniqueResults);
     setSearchNotice(response.demo
       ? "Resultados 100% fictícios para homologar os limites de cada plano. Nenhuma empresa real foi consultada."
+      : response.partial ? "A fonte atingiu um limite durante a busca; mostramos todos os resultados válidos obtidos até então, sem necessidade de clicar em Ver mais."
       : "");
     storeRecentBusinessSearch(segment,response.results,{
       city: location.city,
@@ -1133,7 +1134,7 @@ export function SearchLeadsView({
         {searchQuota?.plan === "free"
           ? `Até 20 empresas por pesquisa, sem páginas extras. ${saasUsage?.remaining_today ?? "—"} de ${saasUsage?.daily_limit ?? 5} contatos disponíveis hoje; as demais empresas aparecem como prévia. Renova à meia-noite (Brasília).`
           : saasUsage
-            ? `${saasUsage.used_today} leads utilizados hoje. O saldo renova à meia-noite (Brasília).`
+            ? `${saasUsage.used_today} créditos utilizados hoje. Buscar Leads custa 1 crédito por empresa; Maps Advanced custa 2. Renova à meia-noite (Brasília).`
             : saasUsageError
               ? "Não foi possível consultar o saldo. O servidor continua protegendo os limites."
               : "Consultando o saldo diário..."}
@@ -1494,20 +1495,6 @@ export function SearchLeadsView({
         </div>
       )}
 
-      {nextPageToken && searchQuota?.plan !== "free" && !error && (
-        <div className="load-more-wrap">
-          <button
-            type="button"
-            className="secondary-button"
-            disabled={loadingMore}
-            onClick={() =>
-              void runSearch(resultsSegment, resultsLocation, nextPageToken, true)
-            }
-          >
-            {loadingMore ? "Buscando mais..." : "Carregar mais"}
-          </button>
-        </div>
-      )}
 
       {details && (() => {
         const duplicate = findBusinessDuplicate(details, existingLeads);
