@@ -6,11 +6,11 @@ test.skip(process.env["VITE_SUPABASE_URL"] !== STAGING,
 const userId = "11111111-1111-1111-1111-111111111111";
 type Plan = "free" | "pro" | "advanced";
 
-type RequestLog = { geoapify: number; google: number; googlePayloads: Record<string, unknown>[] };
+type RequestLog = { geoapify: number; google: number; googlePayloads: Record<string, unknown>[]; order: string[] };
 type Scenario = "geoapify-empty" | "geoapify-two" | "google-not-configured" | "geoapify-failure" | "geoapify-denied";
 
 async function mockWorkspace(page: Page, plan: Plan, scenario: Scenario = "geoapify-empty"): Promise<RequestLog> {
-  const calls: RequestLog = { geoapify: 0, google: 0, googlePayloads: [] };
+  const calls: RequestLog = { geoapify: 0, google: 0, googlePayloads: [], order: [] };
   await page.route("**/*", (route) => {
     const url = new URL(route.request().url());
     if (["127.0.0.1", "localhost"].includes(url.hostname)) return route.continue();
@@ -40,6 +40,7 @@ async function mockWorkspace(page: Page, plan: Plan, scenario: Scenario = "geoap
       };
     else if (url.pathname === "/functions/v1/geoapify-places") {
       calls.geoapify++;
+      calls.order.push("geoapify");
       const request = JSON.parse(route.request().postData() || "{}") as Record<string, unknown>;
       expect(request.action).toBe("search");
       expect(request.mapMode).toBe(true);
@@ -83,6 +84,7 @@ async function mockWorkspace(page: Page, plan: Plan, scenario: Scenario = "geoap
         }};
       } else {
         calls.google++;
+        calls.order.push("google");
         calls.googlePayloads.push(req);
         expect(req.mapMode).toBe(true);
         expect(req.stagingDemo).not.toBe(true);
@@ -143,6 +145,7 @@ for (const plan of ["pro", "advanced"] as const) {
     expect(calls.geoapify).toBe(1);
     expect(calls.google).toBe(1);
     expect(calls.googlePayloads[0]?.stagingDemo).not.toBe(true);
+    expect(calls.order).toEqual(["geoapify", "google"]);
     await expect(page.getByRole("button",{name:"Adicionar ao CRM"})).toHaveCount(0);
     await expect(page.locator(".bms-results .bms-provider-attribution")).toContainText("Google Maps");
     await expect(page.getByText(/Desenho ilustrativo · sem marcadores geográficos reais/)).toBeVisible();
@@ -187,6 +190,7 @@ test("Bairro informado consulta somente Google, sem Geoapify desnecessário", as
   await expect(page.getByText("Barbearia Google 1").first()).toBeVisible();
   expect(calls.geoapify).toBe(0);
   expect(calls.google).toBe(1);
+  expect(calls.order).toEqual(["google"]);
   expect(calls.googlePayloads[0]?.neighborhood).toBe("Centro");
 });
 
