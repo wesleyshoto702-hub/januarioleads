@@ -50,6 +50,8 @@ type GoogleMapInstance = {
 type GoogleMarker = {
   setMap: (map: GoogleMapInstance | null) => void;
   addListener: (event: string, callback: () => void) => void;
+  setIcon: (options: Record<string, unknown>) => void;
+  setZIndex: (value: number) => void;
 };
 type GoogleBounds = { extend: (value: GeoPoint) => void };
 type GoogleMapsApi = {
@@ -110,18 +112,33 @@ function hasCoordinates(value: BusinessSearchResult): value is BusinessSearchRes
     Math.abs(value.latitude) <= 90 && Math.abs(value.longitude) <= 180;
 }
 
+type MapDisplayPoint = GeoPoint & { id: string; name: string };
+type MapZoomAction = { id: number; delta: number };
+
+function markerIcon(google: GoogleMapsApi, active: boolean) {
+  return {
+    path: google.maps.SymbolPath.CIRCLE,
+    scale: active ? 20 : 15,
+    fillColor: active ? "#ff174c" : "#e52d57",
+    fillOpacity: 1,
+    strokeColor: active ? "#ffffff" : "#f7dce4",
+    strokeWeight: active ? 3 : 2,
+  };
+}
+
+/** Only verified provider coordinates appear on the live Google map; never simulated pins. */
 function GoogleLeadsMap({
-  businesses, selectedId, onSelect, zoomDirection,
+  points, selectedId, onSelect, zoomAction,
 }: {
-  businesses: BusinessSearchResult[];
+  points: MapDisplayPoint[];
   selectedId: string | null;
   onSelect: (id: string) => void;
-  zoomDirection: number;
+  zoomAction: MapZoomAction;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<GoogleMapInstance | null>(null);
   const sdk = useRef<GoogleMapsApi | null>(null);
-  const markers = useRef<GoogleMarker[]>([]);
+  const markers = useRef<Array<{ id: string; marker: GoogleMarker }>>([]);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
 
@@ -133,10 +150,11 @@ function GoogleLeadsMap({
       map.current = new google.maps.Map(container.current, {
         center: { lat: -21.245, lng: -44.999 },
         zoom: 12,
+        maxZoom: 18,
         styles: DARK_GOOGLE_STYLE,
         disableDefaultUI: true,
         clickableIcons: false,
-        gestureHandling: "greedy",
+        gestureHandling: "cooperative",
         backgroundColor: "#121017",
       });
       setReady(true);
@@ -145,134 +163,67 @@ function GoogleLeadsMap({
     });
     return () => {
       alive = false;
-      for (const marker of markers.current) marker.setMap(null);
+      for (const item of markers.current) item.marker.setMap(null);
       markers.current = [];
       map.current = null;
     };
   }, []);
 
   useEffect(() => {
-    const g = sdk.current;
+    const google = sdk.current;
     const instance = map.current;
-    if (!ready || !g || !instance) return;
-    markers.current.forEach((marker) => marker.setMap(null));
+    if (!ready || !google || !instance) return;
+    markers.current.forEach((item) => item.marker.setMap(null));
     markers.current = [];
-    const bounds = new g.maps.LatLngBounds();
-    const valid = businesses.filter(hasCoordinates);
-    valid.forEach((business, i) => {
-      const position = { lat: business.latitude, lng: business.longitude };
+    const bounds = new google.maps.LatLngBounds();
+    for (const [index, point] of points.entries()) {
+      const position = { lat: point.lat, lng: point.lng };
       bounds.extend(position);
-      const marker = new g.maps.Marker({
-        map: instance,
-        position,
-        title: business.name,
-        label: { text: String(i + 1), color: "#fff", fontSize: "11px", fontWeight: "700" },
-        icon: {
-          path: g.maps.SymbolPath.CIRCLE,
-          scale: 16,
-          fillColor: "#ed2f57",
-          fillOpacity: 1,
-          strokeColor: "#fff0f2",
-          strokeWeight: 2,
-        },
+      const marker = new google.maps.Marker({
+        map: instance, position, title: point.name,
+        label: { text: String(index + 1), color: "#ffffff", fontSize: "11px", fontWeight: "800" },
+        icon: markerIcon(google, selectedId === point.id),
+        zIndex: selectedId === point.id ? 1000 : index + 1,
       });
-      marker.addListener("click", () => onSelect(business.placeId));
-      markers.current.push(marker);
-    });
-    if (valid.length) {
+      marker.addListener("click", () => onSelect(point.id));
+      markers.current.push({ id: point.id, marker });
+    }
+    if (points.length) {
       instance.fitBounds(bounds);
-      // Google may initially zoom too far for a single company.
-      if (valid.length === 1) instance.setZoom(14);
+      if (points.length === 1) instance.setZoom(15);
     }
     return () => {
-      markers.current.forEach((marker) => marker.setMap(null));
+      markers.current.forEach((item) => item.marker.setMap(null));
       markers.current = [];
     };
-  }, [businesses, ready, onSelect]);
+    // Selected marker styling is updated below without refitting the viewport.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [points, ready, onSelect]);
 
   useEffect(() => {
-    const target = businesses.find((b) => b.placeId === selectedId);
-    if (target && hasCoordinates(target)) map.current?.panTo({ lat: target.latitude, lng: target.longitude });
-  }, [businesses, selectedId]);
+    const google = sdk.current;
+    if (!ready || !google) return;
+    for (const item of markers.current) {
+      const active = item.id === selectedId;
+      item.marker.setIcon(markerIcon(google, active));
+      item.marker.setZIndex(active ? 1000 : 1);
+    }
+    const target = points.find((point) => point.id === selectedId);
+    if (target) map.current?.panTo({ lat: target.lat, lng: target.lng });
+  }, [points, selectedId, ready]);
 
   useEffect(() => {
-    if (!zoomDirection || !map.current) return;
+    if (!zoomAction.id || !map.current) return;
     const zoom = map.current.getZoom() ?? 12;
-    map.current.setZoom(Math.min(18, Math.max(5, zoom + Math.sign(zoomDirection))));
-  }, [zoomDirection]);
+    map.current.setZoom(Math.min(18, Math.max(5, zoom + zoomAction.delta)));
+  }, [zoomAction]);
 
   return (
-    <div className="bms-google-map" ref={container} aria-label="Mapa Google com as empresas encontradas">
+    <div className="bms-google-map" ref={container}
+      role="region" aria-label="Google Maps real com marcadores dos estabelecimentos encontrados">
       {!ready && <div className="bms-map-loading" role="status">
-        {error || "Carregando mapa do Google..."}
+        {error || "Carregando Google Maps..."}
       </div>}
-    </div>
-  );
-}
-
-function markerPosition(index: number) {
-  // Fictional placements for STAGING ONLY, not a geographic representation.
-  const x = 17 + ((index * 31 + index * index * 7) % 66);
-  const y = 20 + ((index * 23 + index * index * 5) % 56);
-  return { left: x + "%", top: y + "%" };
-}
-
-function StagingIllustrativeMap({
-  businesses, selectedId, onSelect, zoom,
-}: {
-  businesses: BusinessSearchResult[];
-  selectedId: string | null;
-  onSelect: (id: string) => void;
-  zoom: number;
-}) {
-  return (
-    <div className="bms-illustrative-map" aria-label="Mapa ilustrativo da simulação, sem dados cartográficos reais">
-      <div className="bms-illustrative-transform" style={{ transform: `scale(${zoom})` }}>
-        <svg viewBox="0 0 1000 640" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-          <rect width="1000" height="640" fill="#101014" />
-          <g stroke="#272530" strokeWidth="2" fill="none" opacity=".92">
-            <path d="M-50 80L280 120L430 55L710 100L1100 64M-30 202L370 222L610 188L1080 236M-30 365L290 306L525 388L760 354L1050 402M0 532L265 454L525 528L840 488L1100 562" />
-            <path d="M100 -60L165 720M276 -60L332 740M466 -60L524 730M647 -90L713 720M846 -45L886 712" />
-            <path d="M-20 28L720 635M480 -70L1000 500M-80 530L650 -50M230 720L1000 -80" />
-          </g>
-          <g stroke="#403843" strokeWidth="5" fill="none" opacity=".82">
-            <path d="M-65 303Q145 267 253 343T532 331T1050 295" />
-            <path d="M362 -70Q315 165 420 263T516 710" />
-            <path d="M698 -80Q622 153 743 273T768 700" />
-          </g>
-          <g stroke="#5c4555" strokeWidth="2" fill="none" opacity=".46">
-            <path d="M-100 324Q145 286 253 362T532 350T1060 315" />
-            <path d="M381 -70Q334 165 439 263T535 710" />
-          </g>
-          <g stroke="#222b36" strokeWidth="38" opacity=".43" fill="none">
-            <path d="M1050 -20Q726 160 860 315T971 680" />
-          </g>
-          <g stroke="#394b60" strokeWidth="2" opacity=".62" fill="none">
-            <path d="M1050 -20Q726 160 860 315T971 680" />
-          </g>
-          <g fill="#362e37" opacity=".82">
-            <rect x="82" y="235" width="48" height="34" rx="3" transform="rotate(-8 82 235)" />
-            <rect x="527" y="151" width="79" height="49" rx="5" />
-            <rect x="540" y="445" width="58" height="76" rx="4" />
-            <rect x="793" y="407" width="67" height="36" rx="4" />
-            <rect x="198" y="485" width="88" height="40" rx="4" />
-          </g>
-        </svg>
-        {businesses.slice(0, 30).map((business, index) => (
-          <button
-            className={business.placeId === selectedId ? "bms-pin selected" : "bms-pin"}
-            key={business.placeId}
-            style={markerPosition(index)}
-            aria-label={"Selecionar " + business.name}
-            aria-pressed={business.placeId === selectedId}
-            type="button"
-            onClick={() => onSelect(business.placeId)}
-          >
-            {index + 1}
-          </button>
-        ))}
-      </div>
-      <div className="bms-map-watermark">MAPA ILUSTRATIVO · HOMOLOGAÇÃO</div>
     </div>
   );
 }
@@ -304,8 +255,8 @@ export function MapsLeadsView({
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [zoom, setZoom] = useState(1);
-  const [zoomTick, setZoomTick] = useState(0);
+  const [zoomAction, setZoomAction] = useState<MapZoomAction>({ id: 0, delta: 0 });
+  const resultList = useRef<HTMLOListElement>(null);
   const busy = useRef(false);
 
   useEffect(() => {
@@ -324,9 +275,28 @@ export function MapsLeadsView({
   );
   const saved = selected ? savedIds.includes(selected.placeId) ||
     Boolean(findBusinessDuplicate(selected, existingLeads)) : false;
+  // Search may still work without a browser map key; never expose the server Places key.
   const mapAllowed = Boolean(GOOGLE_BROWSER_KEY) || SAAS_STAGING_ACTIVE;
+  const mapPoints = useMemo<MapDisplayPoint[]>(() => {
+    if (appliedProvider === "geoapify") {
+      return geoResults.filter((p) => Number.isFinite(p.latitude) && Number.isFinite(p.longitude) &&
+        Math.abs(p.latitude) <= 90 && Math.abs(p.longitude) <= 180)
+        .map((p) => ({ id: p.sourceId, name: p.name, lat: p.latitude, lng: p.longitude }));
+    }
+    if (appliedProvider === "google") {
+      return results.filter(hasCoordinates)
+        .map((p) => ({ id: p.placeId, name: p.name, lat: p.latitude, lng: p.longitude }));
+    }
+    return [];
+  }, [appliedProvider, geoResults, results]);
 
-  const choose = useCallback((id: string) => setSelectedId(id), []);
+  const choose = useCallback((id: string) => {
+    if (appliedProvider === "geoapify") setSelectedGeoId(id);
+    else setSelectedId(id);
+    const nodes = resultList.current?.querySelectorAll<HTMLButtonElement>("[data-marker-id]");
+    const item = nodes && Array.from(nodes).find((button) => button.dataset.markerId === id);
+    item?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [appliedProvider]);
 
   async function search(append: boolean, input?: SearchValues) {
     if (busy.current) return;
@@ -494,7 +464,8 @@ export function MapsLeadsView({
   const osmLink = selectedGeo
     ? `https://www.openstreetmap.org/?mlat=${selectedGeo.latitude}&mlon=${selectedGeo.longitude}#map=16/${selectedGeo.latitude}/${selectedGeo.longitude}`
     : null;
-  const displayGoogleMap = appliedProvider !== "geoapify" && !!GOOGLE_BROWSER_KEY && !SAAS_STAGING_ACTIVE;
+  const displayGoogleMap = Boolean(GOOGLE_BROWSER_KEY) && mapPoints.length > 0;
+  const activeMarkerId = appliedProvider === "geoapify" ? selectedGeoId : selectedId;
   const preventCrmWrite = appliedProvider === "geoapify" || SAAS_STAGING_ACTIVE;
 
   return (
@@ -557,18 +528,25 @@ export function MapsLeadsView({
         A chave pública de mapas do Google ainda precisa ser configurada para ativar o mapa real.
       </p>}
       {SAAS_STAGING_ACTIVE && <p className="bms-demo-notice" role="status">
-        Modo de testes: as empresas exibidas vêm de consultas reais, sem dados fictícios.
-        O mapa de fundo é ilustrativo, sem marcadores geográficos; abra o link da fonte para ver a localização.
+        Homologação: resultados e coordenadas vêm das consultas reais. Marcadores são posicionados
+        conforme a fonte selecionada automaticamente. Não há importação ao CRM nesta etapa.
       </p>}
       {error && <p className="bms-alert" role="alert">{error}</p>}
       {message && <p className="bms-message" role="status">{message}</p>}
       <div className="bms-layout">
         <div className="bms-map-frame">
           {displayGoogleMap
-            ? <GoogleLeadsMap businesses={results} selectedId={selectedId}
-                onSelect={choose} zoomDirection={zoomTick} />
-            : <StagingIllustrativeMap businesses={[]}
-                selectedId={null} onSelect={choose} zoom={zoom} />}
+            ? <GoogleLeadsMap points={mapPoints} selectedId={activeMarkerId}
+                onSelect={choose} zoomAction={zoomAction} />
+            : <div className="bms-map-placeholder" role="status">
+                <MapPin size={34}/>
+                <strong>{!GOOGLE_BROWSER_KEY ? "Google Maps aguardando configuração" :
+                  resultCount ? "Nenhum local com coordenadas válidas" : "Explore empresas reais no mapa"}</strong>
+                <p>{!GOOGLE_BROWSER_KEY
+                  ? "A busca de estabelecimentos funciona, mas o mapa real precisa de uma chave pública exclusiva para Maps JavaScript API."
+                  : resultCount ? "Consulte a lista de resultados para abrir cada localização."
+                  : "Escolha o segmento e a cidade e clique em Buscar no mapa."}</p>
+              </div>}
           <div className="bms-coverage">
             <div className="bms-coverage-kicker"><span className="bms-dot"/> COBERTURA TERRITORIAL</div>
             <div className="bms-coverage-place">{displayedCity}</div>
@@ -577,19 +555,17 @@ export function MapsLeadsView({
               : "Selecione um nicho e pesquise para explorar"}</p>
           </div>
 
-          <div className="bms-map-controls" aria-label="Controles do mapa">
+          {displayGoogleMap && <div className="bms-map-controls" aria-label="Controles do mapa">
             <button type="button" aria-label="Ampliar mapa" onClick={() => {
-              if (displayGoogleMap) setZoomTick((n) => n + 1);
-              else setZoom((n) => Math.min(1.8, +(n + .15).toFixed(2)));
+              setZoomAction((prev) => ({ id: prev.id + 1, delta: 1 }));
             }}><Plus size={20}/></button>
             <span>ZOOM</span>
             <button type="button" aria-label="Reduzir mapa" onClick={() => {
-              if (displayGoogleMap) setZoomTick((n) => n - 1);
-              else setZoom((n) => Math.max(1, +(n - .15).toFixed(2)));
+              setZoomAction((prev) => ({ id: prev.id + 1, delta: -1 }));
             }}><Minus size={20}/></button>
-          </div>
+          </div>}
 
-          {selected && !SAAS_STAGING_ACTIVE && <article className="bms-business-card" aria-label={"Empresa selecionada: " + selected.name}>
+          {selected && <article className="bms-business-card" aria-label={"Empresa selecionada: " + selected.name}>
             <div className="bms-business-top">
               <span className="bms-business-icon"><MapPin size={23} /></span>
               <div className="bms-business-title">
@@ -630,7 +606,7 @@ export function MapsLeadsView({
               <div className="bms-business-top">
                 <span className="bms-business-icon"><MapPin size={23}/></span>
                 <div className="bms-business-title">
-                  <span>GEOAPIFY · OPENSTREETMAP</span>
+                  <span>{selectedGeo.category ?? "ESTABELECIMENTO"} · GEOAPIFY/OSM</span>
                   <h2>{selectedGeo.name}</h2>
                 </div>
                 <span className="bms-business-counter">
@@ -648,9 +624,7 @@ export function MapsLeadsView({
               <p className="bms-readonly">Consulta de estabelecimentos baseada em OpenStreetMap.
                 Contatos e importação para o CRM não estão habilitados nessa fonte durante a homologação.</p>
             </article>}
-          {SAAS_STAGING_ACTIVE && <span className="bms-map-footnote">
-            Desenho ilustrativo · sem marcadores geográficos reais
-          </span>}
+
         </div>
 
         <aside className="bms-results" aria-label="Empresas encontradas no mapa">
@@ -680,12 +654,13 @@ export function MapsLeadsView({
                   : "Busque por Barbearia, Academia, Restaurante ou outro segmento."}</p>
               </div>
             : appliedProvider === "geoapify"
-              ? <ol className="bms-results-list">
+              ? <ol className="bms-results-list" ref={resultList}>
                   {geoResults.map((business, i) => (
                     <li key={business.sourceId}>
                       <button type="button"
                         className={selectedGeoId === business.sourceId ? "bms-result selected" : "bms-result"}
-                        onClick={() => setSelectedGeoId(business.sourceId)}>
+                        data-marker-id={business.sourceId}
+                        onClick={() => choose(business.sourceId)}>
                         <span className="bms-result-index">{i + 1}</span>
                         <span className="bms-result-text">
                           <strong>{business.name}</strong>
@@ -696,12 +671,13 @@ export function MapsLeadsView({
                     </li>
                   ))}
                 </ol>
-              : <ol className="bms-results-list">
+              : <ol className="bms-results-list" ref={resultList}>
                   {results.map((business, i) => (
                     <li key={business.placeId}>
                       <button type="button"
                         className={selectedId === business.placeId ? "bms-result selected" : "bms-result"}
-                        onClick={() => setSelectedId(business.placeId)}>
+                        data-marker-id={business.placeId}
+                        onClick={() => choose(business.placeId)}>
                         <span className="bms-result-index">{i + 1}</span>
                         <span className="bms-result-text">
                           <strong>{business.name}</strong>
@@ -721,7 +697,7 @@ export function MapsLeadsView({
               {mapsLink && <a href={mapsLink} target="_blank" rel="noopener noreferrer">
                 Ver no Google Maps <ArrowUpRight size={13}/>
               </a>}
-              <small>Resultados do Google Maps para consulta, sem importação ao CRM.</small>
+              <small>Dados reais do Google Maps para consulta, sem importação ao CRM.</small>
             </div>}
           {canLoadMore && <button className="bms-more" type="button"
             onClick={() => void search(true)} disabled={loading}>
