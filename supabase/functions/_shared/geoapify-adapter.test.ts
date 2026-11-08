@@ -1,3 +1,4 @@
+import { ALL_SEARCH_SEGMENTS } from "./niche-catalog.ts";
 import {
   classifyGeoapifyCoverage,
   geoapifyCategoryForSegment,
@@ -156,5 +157,12 @@ Deno.test("Nearby OSM results may include adjacent towns but never another UF/co
   if(items.length!==2 || items[0]?.sourceId!=="geoapify:lavras" ||
       items[1]?.city!=="Ribeirão Vermelho") {
     throw new Error("Cross-border filtering incorrectly modified valid nearby results");
+  }
+});
+
+Deno.test("all reviewed Geoapify mappings are selectable SaaS niches", () => {
+  const mapped = ALL_SEARCH_SEGMENTS.filter((name) => geoapifyCategoryForSegment(name) !== null);
+  if (mapped.length !== 37) {
+    throw new Error("Expected 37 reviewed niche routes; got " + mapped.length);
   }
 });
