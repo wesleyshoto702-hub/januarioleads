@@ -29,7 +29,7 @@ Deno.test("somente objetos completos e planos conhecidos são entitlements váli
 Deno.test("flags retornam valores booleanos sem confiar em preços locais", () => {
   if (free.features.crm !== true || free.features.finance !== false) throw new Error("free flags wrong");
   const pro: SaasEntitlements = {
-    ...free, plan: "pro", price_cents: 1490, daily_limit: 25, remaining_today: 25,
+    ...free, plan: "pro", price_cents: 1990, daily_limit: 25, remaining_today: 25,
     features: { ...free.features, finance: true, kanban: true, custom_messages: true, internal_automations: false },
   };
   const advanced: SaasEntitlements = {
