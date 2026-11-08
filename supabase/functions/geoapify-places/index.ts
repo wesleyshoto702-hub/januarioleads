@@ -145,8 +145,9 @@ async function handle(request: Request): Promise<Response> {
   const auth = await checkAuthorization(request);
   if (!auth.ok) return fail(request, auth.code, auth.message, auth.status);
 
-  const configured = Deno.env.get("GEOAPIFY_HYBRID_ENABLED") === "true" &&
-    Boolean(Deno.env.get("GEOAPIFY_API_KEY")?.trim());
+  const keyConfigured = Boolean(Deno.env.get("GEOAPIFY_API_KEY")?.trim());
+  const featureFlagEnabled = Deno.env.get("GEOAPIFY_HYBRID_ENABLED") === "true";
+  const configured = featureFlagEnabled && keyConfigured;
   const raw = await request.text();
   if (new TextEncoder().encode(raw).length > 8192) {
     return fail(request, "INVALID_REQUEST", "Requisição muito grande.", 413);
@@ -163,6 +164,10 @@ async function handle(request: Request): Promise<Response> {
   if (fields.action === "status") {
     return reply(request, {
       ok: true, provider: "geoapify", enabled: configured,
+      // Report only non-secret readiness bits for the authenticated staging owner.
+      // Never return the API key or provider headers.
+      keyConfigured,
+      featureFlagEnabled,
       description: configured ? "Disponível somente em staging." : "Desativado por segurança.",
       supportedSegments: ["Barbearia", "Salão de Beleza", "Academia", "Restaurante", "Cafeteria", "Pizzaria", "Spa"],
       googlePlacesUnaffected: true,
