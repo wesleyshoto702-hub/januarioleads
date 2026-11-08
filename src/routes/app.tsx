@@ -1520,6 +1520,13 @@ function LeadFlowApp() {
       business.website ? `Site: ${business.website}` : "",
       business.instagram ? `Instagram: ${business.instagram}` : "",
       business.googleMapsUrl ? `Google Maps: ${business.googleMapsUrl}` : "",
+      business.placeId?.startsWith("geoapify:")
+        ? "Fonte de dados: Geoapify · © OpenStreetMap contributors · https://www.openstreetmap.org/copyright"
+        : "",
+      business.placeId && !business.placeId.startsWith("geoapify:") &&
+        business.address === null && business.city === null
+        ? "Cadastro manual: nome informado pelo usuário; identificador Google armazenado para consulta atualizada."
+        : "",
     ].filter(Boolean);
 
     const discoveredPresence = presenceFromBusiness(business);
