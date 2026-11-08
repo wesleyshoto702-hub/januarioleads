@@ -267,6 +267,28 @@ function saasQuotasEnabled(): boolean {
     Deno.env.get("SAAS_DAILY_QUOTAS_ENABLED") === "true";
 }
 
+type GoogleBillableOperation =
+  | "text_search_pro"
+  | "text_search_enterprise"
+  | "place_details_enterprise";
+
+/** Reserva transacional antes de cada chamada faturável ao Google. */
+async function claimGoogleSpendGuard(userId: string, operation: GoogleBillableOperation):
+  Promise<boolean | null> {
+  if (!saasQuotasEnabled()) return true;
+  try {
+    const response = await adminRest("rpc/claim_saas_google_api_budget", {
+      method: "POST",
+      body: JSON.stringify({ p_user_id: userId, p_operation: operation }),
+    });
+    if (!response?.ok) return null;
+    const value: unknown = await response.json();
+    return typeof value === "boolean" ? value : null;
+  } catch {
+    return null;
+  }
+}
+
 async function peekSaasQuota(userId: string): Promise<SaasQuota | null> {
   try {
     const response = await adminRest("rpc/peek_daily_leads_for_user", {
@@ -884,7 +906,23 @@ async function textSearch(
   pageSize = 10,
   pageToken?: string,
   includeContact = true,
+  userId?: string,
 ) {
+  if (saasQuotasEnabled()) {
+    const reserved = userId
+      ? await claimGoogleSpendGuard(
+          userId, includeContact ? "text_search_enterprise" : "text_search_pro",
+        )
+      : null;
+    if (reserved === null) {
+      return { ok: false as const, response: failure(
+        "REQUEST_FAILED", "Não foi possível conferir o orçamento da busca.", 503) };
+    }
+    if (!reserved) {
+      return { ok: false as const, response: failure(
+        "QUOTA", "O limite de segurança da API Google foi atingido. Tente novamente mais tarde.", 429) };
+    }
+  }
   const body: Record<string, unknown> = {
     textQuery,
     pageSize,
@@ -937,7 +975,20 @@ async function textSearch(
   };
 }
 
-async function placeDetails(googleApiKey: string, placeId: string) {
+async function placeDetails(googleApiKey: string, placeId: string, userId?: string) {
+  if (saasQuotasEnabled()) {
+    const reserved = userId
+      ? await claimGoogleSpendGuard(userId, "place_details_enterprise")
+      : null;
+    if (reserved === null) {
+      return { ok: false as const, response: failure(
+        "REQUEST_FAILED", "Não foi possível conferir o orçamento dos detalhes.", 503) };
+    }
+    if (!reserved) {
+      return { ok: false as const, response: failure(
+        "QUOTA", "O limite seguro de consultas de detalhes foi atingido.", 429) };
+    }
+  }
   const response = await fetch(
     `https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}`,
     {
@@ -1085,6 +1136,7 @@ async function runSegmentSearch(
     // Maps carrega primeiro somente os campos Pro; website, telefone e
     // avaliações são consultados quando a empresa é selecionada explicitamente.
     body.mapMode !== true,
+    userId,
   );
 
   if (!searched) return failure("INVALID_REQUEST", "Página de demonstração inválida.", 400);
@@ -1125,6 +1177,7 @@ async function runSegmentSearch(
 async function runLeadEnrichment(
   googleApiKey: string,
   body: Record<string, unknown>,
+  userId: string,
 ) {
   const leadValue = body.lead;
   if (!leadValue || typeof leadValue !== "object") {
@@ -1206,7 +1259,7 @@ async function runLeadEnrichment(
 
   if (typeof lead.placeId === "string" && lead.placeId.trim()) {
     attemptedLayers.push("placeId");
-    const details = await placeDetails(googleApiKey, lead.placeId.trim());
+    const details = await placeDetails(googleApiKey, lead.placeId.trim(), userId);
     if (!details.ok) return details.response;
 
     return json({
@@ -1233,7 +1286,7 @@ async function runLeadEnrichment(
 
   if (phoneQuery) {
     attemptedLayers.push("phone");
-    const searched = await textSearch(googleApiKey, phoneQuery, 10, undefined, true);
+    const searched = await textSearch(googleApiKey, phoneQuery, 10, undefined, true, userId);
     if (!searched.ok) return searched.response;
 
     for (const business of searched.results.filter((business) =>
@@ -1266,7 +1319,7 @@ async function runLeadEnrichment(
   const byName = await textSearch(
     googleApiKey,
     `${normalizedLead.company} em ${normalizedLead.city}, ${stateName(normalizedLead.state)}, Brasil`,
-    10, undefined, true,
+    10, undefined, true, userId,
   );
   if (!byName.ok) return byName.response;
 
@@ -1299,7 +1352,7 @@ async function runLeadEnrichment(
   const bySegment = await textSearch(
     googleApiKey,
     `${normalizedLead.company} ${normalizedLead.segment} em ${normalizedLead.city}, ${stateName(normalizedLead.state)}, Brasil`,
-    10, undefined, true,
+    10, undefined, true, userId,
   );
   if (!bySegment.ok) return bySegment.response;
 
@@ -2940,7 +2993,7 @@ async function handleRequest(request: Request) {
     }
 
     if (mode === "lead-enrichment") {
-      return await runLeadEnrichment(googleApiKey, requestBody);
+      return await runLeadEnrichment(googleApiKey, requestBody, userId);
     }
 
     return await runSegmentSearch(googleApiKey ?? "", requestBody, userId, demoMode);
