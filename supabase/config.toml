@@ -6,3 +6,8 @@ verify_jwt = false
 
 [functions.open-now-niches]
 verify_jwt = true
+
+# Geoapify adapter is disabled by default; requires GEOAPIFY_HYBRID_ENABLED=true
+# AND GEOAPIFY_API_KEY plus database limits enabled in staging.
+[functions.geoapify-places]
+verify_jwt = true
