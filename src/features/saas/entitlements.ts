@@ -6,7 +6,7 @@ export type PlanFeature =
   | "crm" | "basic_messages" | "manual_followup" | "kanban"
   | "custom_messages" | "followup_center" | "finance"
   | "lead_enrichment" | "advanced_reports"
-  | "internal_automations" | "advanced_lead_prioritization";
+  | "internal_automations" | "advanced_lead_prioritization" | "maps_search";
 
 export type SaasEntitlements = SaasUsage & {
   features: Partial<Record<PlanFeature, boolean>>;

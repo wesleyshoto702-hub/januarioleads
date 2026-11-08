@@ -111,6 +111,11 @@ const SearchLeadsView = lazy(() =>
     default: module.SearchLeadsView,
   })),
 );
+const MapsLeadsView = lazy(() =>
+  import("../features/maps-leads/MapsLeadsView").then((module) => ({
+    default: module.MapsLeadsView,
+  })),
+);
 const OpportunityView = lazy(() =>
   import("../features/opportunities/OpportunityView").then((module) => ({
     default: module.OpportunityView,
@@ -1642,10 +1647,16 @@ function LeadFlowApp() {
 
   useEffect(() => {
     if (view === "finance" && !canUse("finance")) setView("dashboard");
+    if (view === "maps" && (!SAAS_STAGING_ACTIVE || !canUse("maps_search"))) setView("dashboard");
     if (view === "opportunities" && !canUse("followup_center")) setView("dashboard");
   }, [view, saasRights]);
 
   function navigateTo(nextView: AppView) {
+    if (nextView === "maps" && (!SAAS_STAGING_ACTIVE || !canUse("maps_search"))) {
+      setSaasAccessError("Buscar via Maps está disponível a partir do plano Pro.");
+      setView("dashboard");
+      return;
+    }
     if (nextView === "opportunities" && !canUse("followup_center")) {
       setSaasAccessError("Oportunidades comerciais disponíveis a partir do plano Pro.");
       setView("dashboard");
@@ -1664,7 +1675,11 @@ function LeadFlowApp() {
 
   return (
     <AppShell
-      hiddenViews={[...(!canUse("finance") ? ["finance" as const] : []), ...(!canUse("followup_center") ? ["opportunities" as const] : [])]}
+      hiddenViews={[
+        ...(!canUse("finance") ? ["finance" as const] : []),
+        ...(!canUse("followup_center") ? ["opportunities" as const] : []),
+        ...(!SAAS_STAGING_ACTIVE || !canUse("maps_search") ? ["maps" as const] : []),
+      ]}
       planLabel={SAAS_STAGING_ACTIVE ? (saasRights?.plan ?? "Verificando") : undefined}
       activeView={view}
       theme={theme}
@@ -2021,6 +2036,8 @@ function LeadFlowApp() {
             setMessageLead(target);
           }}
         />
+      ) : view === "maps" && SAAS_STAGING_ACTIVE && canUse("maps_search") ? (
+        <MapsLeadsView existingLeads={leads} onAddLead={addFoundLeadConfirmed} />
       ) : view === "opportunities" && canUse("followup_center") ? (
         <OpportunityView
           existingLeads={leads}
