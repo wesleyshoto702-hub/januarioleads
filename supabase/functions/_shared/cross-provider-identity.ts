@@ -35,7 +35,9 @@ function coordinateDistanceMeters(a:VerifiedPlace,b:VerifiedPlace):number|null {
 export function sameVerifiedBusiness(a:VerifiedPlace,b:VerifiedPlace):boolean {
   if(!fold(a.name)||fold(a.name)!==fold(b.name)||!locationAgrees(a,b)) return false;
   const distance=coordinateDistanceMeters(a,b);
-  if(distance!==null&&distance<=80)return true;
+  // If both providers have coordinates, the distance check wins even when
+  // they happen to use the same generic street address (shopping centers).
+  if(distance!==null)return distance<=80;
   const addressA=fold(a.address),addressB=fold(b.address);
   return Boolean(addressA && addressB && addressA===addressB &&
     a.state && b.state && a.city && b.city);
