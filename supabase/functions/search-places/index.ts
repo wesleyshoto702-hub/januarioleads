@@ -1027,6 +1027,7 @@ async function runSegmentSearch(
 ) {
   const segment = body.segment;
   const pageToken = body.pageToken;
+  const neighborhood = body.neighborhood;
   const location = requiredSearchLocation(body);
 
   if (
@@ -1050,6 +1051,11 @@ async function runSegmentSearch(
     );
   }
 
+  if (neighborhood !== undefined && (typeof neighborhood !== "string" ||
+      neighborhood.trim().length > 80 || !/^[\\p{L}\\p{N}\\s.,'()\\/-]*$/u.test(neighborhood))) {
+    return failure("INVALID_REQUEST", "O bairro informado é inválido.", 400);
+  }
+
   if (
     pageToken !== undefined &&
     (typeof pageToken !== "string" ||
@@ -1070,7 +1076,7 @@ async function runSegmentSearch(
       )
     : await textSearch(
     googleApiKey,
-    `${searchTextForSegment(segment.trim()) ?? segment.trim()} em ${location.city}, ${stateName(location.state)}, Brasil`,
+    `${searchTextForSegment(segment.trim()) ?? segment.trim()} em ${typeof neighborhood === "string" && neighborhood.trim() ? neighborhood.trim() + ", " : ""}${location.city}, ${stateName(location.state)}, Brasil`,
     20,
     typeof pageToken === "string" ? pageToken.trim() : undefined,
   );
