@@ -38,6 +38,7 @@ function normalizeIdentity(value: string | null | undefined) {
 /** Provider-neutral identity fields used by both lead search and Maps. */
 export type BusinessMatchCandidate = {
   placeId?: string | null | undefined;
+  equivalentPlaceId?: string | null | undefined;
   name: string;
   phone?: string | null | undefined;
   internationalPhone?: string | null | undefined;
@@ -80,9 +81,10 @@ export function findSavedBusinessMatch(
   return leads.find((lead) => {
     if (excludeId && lead.id === excludeId) return false;
 
-    if (business.placeId && lead.placeId && business.placeId === lead.placeId) {
-      return true;
-    }
+    if (lead.placeId && (
+      (business.placeId && business.placeId===lead.placeId) ||
+      (business.equivalentPlaceId && business.equivalentPlaceId===lead.placeId)
+    )) return true;
     const knownDifferentCities = Boolean(
       business.city?.trim() && business.state?.trim() &&
       lead.city?.trim() && lead.state?.trim() &&
