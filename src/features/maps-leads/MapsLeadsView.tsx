@@ -794,7 +794,7 @@ export function MapsLeadsView({
               {mapsLink && <a href={mapsLink} target="_blank" rel="noopener noreferrer">
                 Ver no Google Maps <ArrowUpRight size={13}/>
               </a>}
-              <small>Dados reais do Google Maps para consulta, sem importação ao CRM.</small>
+              <small>Dados do Google para consulta; ao adicionar ao CRM, salvamos apenas o Place ID e o nome informado por você.</small>
             </div>}
           <p className="bms-results-footnote">
             <ShieldCheck size={13}/> {SAAS_STAGING_ACTIVE
