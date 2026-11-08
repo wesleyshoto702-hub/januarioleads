@@ -257,6 +257,15 @@
 .bms-result-text strong { font-size:12px; line-height:1.4; overflow-wrap:anywhere; }
 .bms-result-text small { color:#ab98a4; font-size:10px; line-height:1.45; }
 .bms-result-text em { font-style:normal; color:#f38ba3; font-size:10px; }
+.bms-crm-save { display:grid; gap:8px; margin-top:12px; }
+.bms-crm-save label { color:#f7c3d1; font-size:11px; font-weight:750; }
+.bms-crm-save input {
+  width:100%; min-height:40px; padding:9px 11px; border-radius:9px;
+  border:1px solid rgba(244,144,169,.4);
+  background:rgba(16,12,17,.9); color:#fff8fa; font:inherit; font-size:12px;
+}
+.bms-crm-save input:focus-visible { outline:2px solid #fa88aa; outline-offset:1px; }
+.bms-crm-save small { color:#b8a5b1; font-size:10px; line-height:1.5; }
 /* A CRM match is visible in the map list and in each selected place card. */
 .bms-saved-inline,.bms-saved-label {
   display:inline-flex; align-items:center; width:fit-content;
