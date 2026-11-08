@@ -25,6 +25,9 @@ import { buildMapPoints, type RealMapPoint } from "./map-points";
 import {
   DEFAULT_SEARCH_LOCATION,
   loadSearchLocation,
+  loadBrazilianMunicipalities,
+  resolveMunicipality,
+  saveSearchLocation,
   withSearchLocation,
   type SearchLocation,
 } from "../search-leads/search-location";
@@ -239,6 +242,8 @@ export function MapsLeadsView({
   const [location] = useState(() => typeof window === "undefined" ? DEFAULT_SEARCH_LOCATION : loadSearchLocation());
   const [city, setCity] = useState(location.city);
   const [state, setState] = useState(location.state);
+  const [municipalities, setMunicipalities] = useState<string[]>([]);
+  const [municipalitiesState, setMunicipalitiesState] = useState("");
   const [neighborhood, setNeighborhood] = useState("");
   const [segment, setSegment] = useState("Barbearia");
   const [results, setResults] = useState<BusinessSearchResult[]>([]);
@@ -259,6 +264,25 @@ export function MapsLeadsView({
   const [zoomAction, setZoomAction] = useState<MapZoomAction>({ id: 0, delta: 0 });
   const resultList = useRef<HTMLOListElement>(null);
   const busy = useRef(false);
+
+  // IBGE municipality suggestions are loaded for the selected UF only. If
+  // the official service is unavailable, manual city entry still works.
+  useEffect(() => {
+    const controller = new AbortController();
+    setMunicipalities([]);
+    setMunicipalitiesState("");
+    void loadBrazilianMunicipalities(state, controller.signal).then((items) => {
+      if (controller.signal.aborted) return;
+      setMunicipalities(items);
+      setMunicipalitiesState(state);
+    }).catch(() => {
+      if (!controller.signal.aborted) {
+        setMunicipalities([]);
+        setMunicipalitiesState("");
+      }
+    });
+    return () => controller.abort();
+  }, [state]);
 
   useEffect(() => {
     let live = true;
@@ -301,6 +325,14 @@ export function MapsLeadsView({
       setError("Informe uma cidade válida para a busca.");
       return;
     }
+    if (!append && municipalitiesState === wanted.state && municipalities.length) {
+      const canonicalCity = resolveMunicipality(wanted.city, municipalities);
+      if (!canonicalCity) {
+        setError("Escolha um município válido na lista do IBGE para a UF selecionada.");
+        return;
+      }
+      wanted.city = canonicalCity;
+    }
     if (append && (!pageToken || SAAS_STAGING_ACTIVE)) return;
     busy.current = true;
     setLoading(true);
@@ -328,6 +360,7 @@ export function MapsLeadsView({
           return;
         }
         setApplied(wanted);
+        saveSearchLocation({ city: wanted.city, state: wanted.state });
         setPageToken(null);
         setDetailsLoaded([]);
         if (response.provider === "geoapify") {
@@ -364,6 +397,7 @@ export function MapsLeadsView({
       }
       if (response.quota) setUsage(response.quota);
       setApplied(wanted);
+      saveSearchLocation({ city: wanted.city, state: wanted.state });
       setAppliedProvider("google");
       setGeoResults([]);
       setSelectedGeoId(null);
@@ -465,7 +499,7 @@ export function MapsLeadsView({
         <div>
           <div className="bms-eyebrow"><Compass size={14} /> EXPLORAÇÃO GEOGRÁFICA</div>
           <h1 id="bms-heading">Buscar <span>via Maps</span></h1>
-          <p>Encontre empresas por segmento, cidade e bairro em uma única pesquisa, com cobertura automática de fontes.</p>
+          <p>Pesquise empresas reais em municípios de todas as 27 UFs do Brasil, por segmento e bairro, com seleção automática da fonte.</p>
         </div>
         <div className="bms-plan-chip"><ShieldCheck size={15} /> Disponível no Pro e Advanced</div>
       </div>
@@ -483,13 +517,21 @@ export function MapsLeadsView({
         <div className="bms-field bms-field--city">
           <label htmlFor="bms-city">CIDADE</label>
           <div className="bms-field-entry"><MapPin size={17}/><input
-            id="bms-city" maxLength={120} value={city} required
-            onChange={(e) => setCity(e.target.value)} placeholder="Ex.: Lavras"
+            id="bms-city" list="bms-brazil-cities" maxLength={80} value={city} required
+            onChange={(e) => setCity(e.target.value)}
+            placeholder="Ex.: Lavras" autoComplete="off"
+            title="Digite ou selecione o município da UF escolhida"
           /></div>
+          <datalist id="bms-brazil-cities">
+            {(municipalitiesState === state ? municipalities : []).map((item) =>
+              <option value={item} key={item}/>)}
+          </datalist>
         </div>
         <div className="bms-field bms-field--state">
           <label htmlFor="bms-state">UF</label>
-          <select id="bms-state" value={state} onChange={(e) => setState(e.target.value)}>
+          <select id="bms-state" value={state} onChange={(e) => {
+            setState(e.target.value); setCity(""); setNeighborhood("");
+          }}>
             {BRAZIL_STATES.map((item) => <option key={item.code} value={item.code}>{item.code}</option>)}
           </select>
         </div>
