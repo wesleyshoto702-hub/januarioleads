@@ -1,3 +1,4 @@
+import { saasAllowsFeature } from "../_shared/saas-feature-gate.ts";
 import { isAllowedBrowserOrigin as isTrustedBrowserOrigin } from "../_shared/allowed-browser-origins.ts";
 import {
   evaluateOpenNow,
@@ -948,6 +949,9 @@ async function handleRequest(request: Request) {
     return failure(auth.code, auth.message, auth.status);
   }
   const userId = auth.userId;
+  if (!await saasAllowsFeature(request, "lead_enrichment")) {
+    return failure("FEATURE_NOT_AVAILABLE", "A consulta Abertos Agora está disponível nos planos Pro e Advanced.", 403);
+  }
 
   const parsedBody = await readJsonBody(request);
   if (!parsedBody.ok) {
