@@ -476,7 +476,12 @@ async function handle(request: Request): Promise<Response> {
                   const debit = await chargeMapsPlaces(request,auth.userId,
                     matches.map((item)=>item.sourceId),verification.aliases,matches);
                   if(!debit.ok) return debit.response;
-                  const delivered = matches.filter((item)=>debit.allowed.has(item.sourceId));
+                  const delivered = matches.filter((item)=>debit.allowed.has(item.sourceId))
+                    .map((item)=>({
+                      ...item,
+                      ...(verification.aliases[item.sourceId]
+                        ? {equivalentPlaceId:verification.aliases[item.sourceId]} : {}),
+                    }));
                   return reply(request,{
                     ok:true,provider:"geoapify",places:delivered,limit:35,
                     nextPageToken:null, searchQuota:claim,
@@ -608,7 +613,11 @@ async function handle(request: Request): Promise<Response> {
     const debit = await chargeMapsPlaces(request,auth.userId,
       candidates.map((item)=>item.placeId),aliases);
     if(!debit.ok) return debit.response;
-    const delivered = candidates.filter((item)=>debit.allowed.has(item.placeId));
+    const delivered = candidates.filter((item)=>debit.allowed.has(item.placeId))
+      .map((item)=>({
+        ...item,
+        ...(aliases[item.placeId] ? {equivalentPlaceId:aliases[item.placeId]} : {}),
+      }));
     return reply(request,{
       ok:true,provider:"google",results:delivered,
       limit:35,nextPageToken:null,searchQuota:claim,
