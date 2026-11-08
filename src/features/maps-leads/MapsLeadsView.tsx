@@ -324,7 +324,7 @@ export function MapsLeadsView({
 
   const choose = useCallback((id: string) => {
     if (appliedProvider === "geoapify") setSelectedGeoId(id);
-    else setSelectedId(id);
+    else { setSelectedId(id); setGoogleCrmName(""); }
     const nodes = resultList.current?.querySelectorAll<HTMLButtonElement>("[data-marker-id]");
     const item = nodes && Array.from(nodes).find((button) => button.dataset.markerId === id);
     item?.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -354,6 +354,7 @@ export function MapsLeadsView({
     setLoading(true);
     setError("");
     setMessage("");
+    setGoogleCrmName("");
     try {
       if (SAAS_STAGING_ACTIVE) {
         // All routing is server-side. One user action; at most one Google request.
