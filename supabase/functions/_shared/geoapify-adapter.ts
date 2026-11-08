@@ -88,6 +88,20 @@ export function geoapifyFeatureCount(data: unknown): number | null {
   return Array.isArray(payload?.features) ? payload.features.length : null;
 }
 
+export type GeoapifyCoverageStatus =
+  | "matches"
+  | "no_osm_category_matches"
+  | "unconfirmed_nearby";
+
+/** A provider returning zero records must not be conflated with an API failure. */
+export function classifyGeoapifyCoverage(
+  resultCount: number,
+  nearbyChecked: boolean,
+): GeoapifyCoverageStatus {
+  if (resultCount > 0) return "matches";
+  return nearbyChecked ? "no_osm_category_matches" : "unconfirmed_nearby";
+}
+
 export type GeoapifyPlacePreview = {
   source: "geoapify";
   sourceId: string;
