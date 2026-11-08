@@ -516,10 +516,9 @@ export function MapsLeadsView({
               {saved ? "Já está no CRM" : saving ? "Adicionando..." : "Adicionar ao CRM"}
             </button>
           </article>}
-          <span className="bms-map-footnote">{SAAS_STAGING_ACTIVE
-            ? "Visualização ilustrativa · dados fictícios"
-            : "Dados de empresas: Google Maps Platform · Google Maps mantém suas atribuições"}
-          </span>
+          {SAAS_STAGING_ACTIVE && <span className="bms-map-footnote">
+            Visualização ilustrativa · dados fictícios
+          </span>}
         </div>
 
         <aside className="bms-results" aria-label="Empresas encontradas no mapa">
