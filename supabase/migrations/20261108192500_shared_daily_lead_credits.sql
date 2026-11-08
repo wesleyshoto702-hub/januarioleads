@@ -102,8 +102,8 @@ begin
 
   -- Keep the existing lifetime-unlocked metadata for compatibility.
   insert into public.saas_lead_unlocks(user_id,place_id,unlocked_on)
-  select p_user_id,v_id,v_day
-  from unnest(v_allowed) as v_id
+  select p_user_id,item.place_key,v_day
+  from unnest(v_allowed) as item(place_key)
   on conflict(user_id,place_id) do nothing;
 
   return jsonb_build_object(
