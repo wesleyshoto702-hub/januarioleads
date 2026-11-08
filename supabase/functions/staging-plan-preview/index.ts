@@ -24,7 +24,7 @@ function reply(request: Request, body: unknown, status = 200): Response {
     "Vary": "Origin",
   });
   if (origin && allowedOrigin(origin)) headers.set("Access-Control-Allow-Origin", origin);
-  return new Response(JSON.stringify(body), { status, headers });
+  return new Response(status === 204 ? null : JSON.stringify(body), { status, headers });
 }
 
 Deno.serve(async (request) => {
