@@ -30,11 +30,14 @@ function stringField(value: unknown): string | null {
 }
 
 /** Avoid querying a homonymous city in another country or Brazilian state. */
-export function resolveGeoapifyCityId(
+export type GeoapifyCityLocation = { placeId: string; lon: number; lat: number };
+
+/** Coordinates and boundary must come from the *same* validated city result. */
+export function resolveGeoapifyCityLocation(
   geocodingGeoJson: unknown,
   city: string,
   stateCode: string,
-): string | null {
+): GeoapifyCityLocation | null {
   const envelope = record(geocodingGeoJson);
   const features = Array.isArray(envelope?.features) ? envelope.features : [];
   const state = findBrazilianState(stateCode);
@@ -56,9 +59,27 @@ export function resolveGeoapifyCityId(
     if (country?.toLowerCase() !== "br" || !actualCity ||
         normalize(actualCity) !== normalize(city) || !matchesState ||
         !id || !/^[a-zA-Z0-9]+$/.test(id)) continue;
-    return id;
+    const geometry = record(record(feature)?.geometry);
+    const coordinates = geometry?.coordinates;
+    const lon = typeof props.lon === "number" ? props.lon
+      : Array.isArray(coordinates) ? coordinates[0] : null;
+    const lat = typeof props.lat === "number" ? props.lat
+      : Array.isArray(coordinates) ? coordinates[1] : null;
+    if (typeof lon !== "number" || typeof lat !== "number" ||
+        !Number.isFinite(lon) || !Number.isFinite(lat) ||
+        Math.abs(lon) > 180 || Math.abs(lat) > 90) continue;
+    return { placeId: id, lon, lat };
   }
   return null;
+}
+
+/** Compatibility for consumers that only need the municipal boundary ID. */
+export function resolveGeoapifyCityId(
+  geocodingGeoJson: unknown,
+  city: string,
+  stateCode: string,
+): string | null {
+  return resolveGeoapifyCityLocation(geocodingGeoJson, city, stateCode)?.placeId ?? null;
 }
 
 export type GeoapifyPlacePreview = {
@@ -87,11 +108,11 @@ export function normalizeGeoapifyPlaces(
     const props = record(item?.properties);
     const geometry = record(item?.geometry);
     const coordinates = geometry?.coordinates;
-    if (!props || !Array.isArray(coordinates) || coordinates.length < 2) continue;
+    if (!props) continue;
     const name = stringField(props.name);
     const placeId = stringField(props.place_id);
-    const lon = coordinates[0];
-    const lat = coordinates[1];
+    const lon = Array.isArray(coordinates) ? coordinates[0] : props.lon;
+    const lat = Array.isArray(coordinates) ? coordinates[1] : props.lat;
     if (!name || !placeId || !/^[a-zA-Z0-9]+$/.test(placeId) ||
         typeof lat !== "number" || typeof lon !== "number" ||
         !Number.isFinite(lat) || !Number.isFinite(lon) ||
