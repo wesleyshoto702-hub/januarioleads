@@ -1,6 +1,7 @@
 import { getAccessToken } from "../../lib/auth";
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "../../lib/supabase-config";
 import type { BusinessSearchResult } from "../search-leads/types";
+import type { SaasUsage } from "../search-leads/saas-usage";
 
 /** One authenticated search: backend decides the provider without another user click. */
 export type GeoapifyPreview = {
@@ -17,7 +18,7 @@ export type GeoapifyPreview = {
 
 export type MapsAutoSearchResponse =
   | { ok: true; provider: "geoapify"; places: GeoapifyPreview[];
-      limit: 20; nextPageToken: null;
+      limit: 35; nextPageToken: null; quota?: SaasUsage; creditCost?: 2; creditsSpent?: number;
       coverage: {
         status: "matches";
         searchArea: "city" | "nearby-10km";
@@ -25,7 +26,7 @@ export type MapsAutoSearchResponse =
       };
       attribution: { provider: string; providerUrl: string; data: string; dataUrl: string } }
   | { ok: true; provider: "google"; results: BusinessSearchResult[];
-      limit: 20; nextPageToken: null; sourceSelection: "google_direct" | "google_fallback";
+      limit: 35; nextPageToken: null; quota?: SaasUsage; creditCost?: 2; creditsSpent?: number; partial?: boolean; sourceSelection: "google_direct" | "google_fallback";
       attribution: { provider: string }; note: string }
   | { ok: false; code: string; message: string };
 
