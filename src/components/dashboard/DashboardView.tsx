@@ -8,6 +8,7 @@ import {
   Target,
   UsersRound,
 } from "lucide-react";
+import type { ReactNode } from "react";
 import type { PersistedLead } from "../../features/leads/remote-leads";
 import type { OpportunityRecord } from "../../features/opportunities/types";
 import { formatCurrency, type LeadPayment } from "../../features/lead-finance/finance";
@@ -66,6 +67,12 @@ export function DashboardView({
   onShowTodayActions,
   onScheduleAction,
   onCompleteAction,
+  showPriority = true,
+  showFollowUpCenter = true,
+  showFinance = true,
+  showReports = true,
+  showAdvancedReports = true,
+  advancedPanel,
 }: {
   counts: Counts;
   financialOverview: FinancialOverview;
@@ -83,6 +90,12 @@ export function DashboardView({
   onShowTodayActions: () => void;
   onScheduleAction: (id: string, type: NextActionType, date: string) => void;
   onCompleteAction: (id: string) => void;
+  showPriority?: boolean;
+  showFollowUpCenter?: boolean;
+  showFinance?: boolean;
+  showReports?: boolean;
+  showAdvancedReports?: boolean;
+  advancedPanel?: ReactNode;
 }) {
   const workedContacts = counts.waiting + counts.accepted + counts.rejected;
   const conversion =
@@ -120,9 +133,10 @@ export function DashboardView({
         <MetricCard label="Recusados" value={counts.rejected} tone="rejected" icon={<Ban size={17} />} />
       </div>
 
-      <IdealCustomerPanel leads={leads} onOpenLead={onOpenLead} />
+      {showPriority && <IdealCustomerPanel leads={leads} onOpenLead={onOpenLead} />}
 
-      <DailyProspectingQueue leads={leads} onOpenLead={onOpenLead} onShowAll={onShowTodayActions} onSchedule={onScheduleAction} onComplete={onCompleteAction}/>
+      {showFollowUpCenter && <DailyProspectingQueue leads={leads} onOpenLead={onOpenLead} onShowAll={onShowTodayActions} onSchedule={onScheduleAction} onComplete={onCompleteAction}/>}
+      {advancedPanel}
 
       <div className="dashboard-secondary-grid">
         <section className="dashboard-panel dashboard-performance">
@@ -131,9 +145,9 @@ export function DashboardView({
               <span>PERFORMANCE COMERCIAL</span>
               <strong>Conversão dos contatos trabalhados</strong>
             </div>
-            <a className="commercial-report-jump" href="#commercial-reports-title">
+            {showReports && <a className="commercial-report-jump" href="#commercial-reports-title">
               Ver relatórios <ArrowRight size={14} aria-hidden="true" />
-            </a>
+            </a>}
           </div>
           <div className="dashboard-conversion">
             <strong>{conversion === null ? "—" : `${conversion}%`}</strong>
@@ -148,7 +162,7 @@ export function DashboardView({
           </small>
         </section>
 
-        <section className="dashboard-panel dashboard-financial">
+        {showFinance && <section className="dashboard-panel dashboard-financial">
           <div className="dashboard-panel-heading">
             <div>
               <span>FINANCEIRO</span>
@@ -182,18 +196,18 @@ export function DashboardView({
               {financeError || "Carregando dados financeiros..."}
             </p>
           )}
-        </section>
+        </section>}
       </div>
 
-      <ProspectingInsights leads={leads} onViewLeads={() => onNavigate("leads")} />
+      {showAdvancedReports && <ProspectingInsights leads={leads} onViewLeads={() => onNavigate("leads")} />}
 
-      <CommercialReports
+      {showReports && <CommercialReports
         leads={leads}
-        payments={payments}
-        financeLoaded={financeLoaded}
-        financeError={financeError}
+        payments={showFinance ? payments : []}
+        financeLoaded={showFinance && financeLoaded}
+        financeError={showFinance ? financeError : "Financeiro disponível a partir do Pro."}
         onViewLeads={() => onNavigate("leads")}
-      />
+      />}
 
       <div className="dashboard-columns">
         <section className="dashboard-panel dashboard-updates">
@@ -275,7 +289,7 @@ export function DashboardView({
         </section>
       </div>
 
-      {financeLoaded && financialOverview.receivedThisMonth > 0 && (
+      {showFinance && financeLoaded && financialOverview.receivedThisMonth > 0 && (
         <div className="dashboard-bottom-note">
           <CircleDollarSign size={15} />
           <span>
