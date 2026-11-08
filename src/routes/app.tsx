@@ -1639,6 +1639,10 @@ function LeadFlowApp() {
     return { ok: true, leadId: newLead.id };
   }
 
+  useEffect(() => {
+    if (view === "finance" && !canUse("finance")) setView("dashboard");
+  }, [view, saasRights]);
+
   function navigateTo(nextView: AppView) {
     if (nextView === "finance" && !canUse("finance")) {
       setSaasAccessError("Financeiro disponível a partir do plano Pro.");
@@ -1890,15 +1894,15 @@ function LeadFlowApp() {
                   {label} <span>{count}</span>
                 </button>
               ))}
-            </div>
+            </div>}
 
             {canUse("kanban") && <div className="lead-layout-switch" role="group" aria-label="Visualização da carteira">
               <button type="button" aria-pressed={leadLayout === "list"} onClick={() => setLeadLayout("list")}>Lista</button>
               <button type="button" aria-pressed={leadLayout === "kanban"} onClick={() => { setLeadLayout("kanban"); setStatusFilter("all"); }}>Kanban</button>
-            </div>
+            </div>}
 
-            {leadLayout === "kanban" ? (
-              {canUse("kanban") && <LeadKanban leads={renderedLeads} onChangeStatus={changeStatus} onOpenLead={openLeadDetails} />}
+            {leadLayout === "kanban" && canUse("kanban") ? (
+              <LeadKanban leads={renderedLeads} onChangeStatus={changeStatus} onOpenLead={openLeadDetails} />
             ) : (
               <>
             <div className="desktop-table">
@@ -1914,7 +1918,7 @@ function LeadFlowApp() {
                   <LeadRow
                     key={lead.id}
                     lead={lead}
-                    finance={financeByLead.get(lead.id) ?? null}
+                    finance={canUse("finance") ? financeByLead.get(lead.id) ?? null : null}
                     onStatus={changeStatus}
                     onMessage={(item) => {
                       setSelectedMessage(null);
@@ -1938,7 +1942,7 @@ function LeadFlowApp() {
                   <LeadCard
                     key={lead.id}
                     lead={lead}
-                    finance={financeByLead.get(lead.id) ?? null}
+                    finance={canUse("finance") ? financeByLead.get(lead.id) ?? null : null}
                     onStatus={changeStatus}
                     onMessage={(item) => {
                       setSelectedMessage(null);
