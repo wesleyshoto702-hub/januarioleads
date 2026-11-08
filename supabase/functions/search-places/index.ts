@@ -2827,6 +2827,29 @@ async function handleRequest(request: Request) {
         ? "presence-discovery"
         : "segment-search";
 
+  // Map requests must be authorized by the *backend*, not just by the menu.
+  // Reuses the same Google Places search, per-user API budget and daily lead quota.
+  if (requestBody.mapMode === true) {
+    if (mode !== "segment-search" || !saasQuotasEnabled()) {
+      return failure("FEATURE_NOT_AVAILABLE", "Buscar via Maps está disponível nos planos Pro e Advanced.", 403);
+    }
+    try {
+      const allowedResponse = await fetch(
+        `${supabaseUrl}/rest/v1/rpc/saas_my_feature_enabled`,
+        {
+          method: "POST",
+          headers: { ...authHeaders, "Content-Type": "application/json" },
+          body: JSON.stringify({ p_feature_key: "maps_search" }),
+        },
+      );
+      if (!allowedResponse.ok || await allowedResponse.json() !== true) {
+        return failure("FEATURE_NOT_AVAILABLE", "Buscar via Maps está disponível nos planos Pro e Advanced.", 403);
+      }
+    } catch {
+      return failure("REQUEST_FAILED", "Não foi possível validar seu acesso ao mapa.", 503);
+    }
+  }
+
   // Fixture mode is allowed only by the real Staging project, AFTER JWT and
   // private_access validation. Requests never reach Google Places in this mode.
   const demoMode = Deno.env.get("SUPABASE_URL")?.replace(/\/$/, "") === SAAS_STAGING_URL &&
