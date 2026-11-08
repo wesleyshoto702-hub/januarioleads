@@ -589,7 +589,7 @@ export function MapsLeadsView({
             }}><Minus size={20}/></button>
           </div>
 
-          {selected && <article className="bms-business-card" aria-label={"Empresa selecionada: " + selected.name}>
+          {selected && !SAAS_STAGING_ACTIVE && <article className="bms-business-card" aria-label={"Empresa selecionada: " + selected.name}>
             <div className="bms-business-top">
               <span className="bms-business-icon"><MapPin size={23} /></span>
               <div className="bms-business-title">
@@ -714,6 +714,15 @@ export function MapsLeadsView({
                     </li>
                   ))}
                 </ol>}
+          {SAAS_STAGING_ACTIVE && appliedProvider === "google" && selected &&
+            <div className="bms-staging-google-detail" aria-label={"Detalhes da empresa " + selected.name}>
+              <strong>{selected.name}</strong>
+              <p>{selected.address ?? displayedCity}</p>
+              {mapsLink && <a href={mapsLink} target="_blank" rel="noopener noreferrer">
+                Ver no Google Maps <ArrowUpRight size={13}/>
+              </a>}
+              <small>Resultados do Google Maps para consulta, sem importação ao CRM.</small>
+            </div>}
           {canLoadMore && <button className="bms-more" type="button"
             onClick={() => void search(true)} disabled={loading}>
             {loading ? "Carregando..." : "Carregar mais empresas"}
