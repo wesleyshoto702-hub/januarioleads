@@ -103,3 +103,28 @@ O usuário confirmou `GEOAPIFY_API_KEY` e `GEOAPIFY_HYBRID_ENABLED=true` no Supa
 **Conclusão:** a chave e a conectividade dos dois endpoints estão válidas. A **utilidade da busca de empresas ainda não está homologada**: é necessário separar `features` brutas de dados filtrados pelo normalizador e comparar filtro por cidade com raio geográfico usando uma conta autenticada de staging. Os valores 200 não implicam presença de empresas em Lavras. Não liberar Geoapify na interface da Lovable antes da correção/validação da cobertura.
 
 A tentativa de implantar uma segunda variante de diagnóstico foi bloqueada; não houve mais chamadas à API nessa etapa.
+
+
+## Investigação e correção da busca vazia de barbearias em Lavras — 08/11/2026
+
+**Diagnóstico confirmado com a API real do Geoapify**, usando a chave do Supabase staging, sem expô-la:
+- Geocoding localizou Lavras/MG corretamente em aproximadamente `lat=-21.2425512`, `lon=-44.9991978`.
+- `categories=service.beauty.hairdresser&filter=place:<cidade>`: HTTP 200, **0 features brutas**.
+- Mesma categoria com `filter=circle:<lon>,<lat>,10000`: HTTP 200, **0 features brutas**.
+- `categories=service.beauty` com raio de 10km: HTTP 200, **2 features válidas**, porém não eram barbearias (esmalteria e outro negócio de beleza).
+- `categories=commercial,service.beauty&name=Barbearia` com raio de 10km: HTTP 200, **0 features**.
+- O normalizador não estava descartando barbearias válidas nesse teste: **o próprio Geoapify devolveu zero registros brutos** para a categoria específica e busca pelo nome. Isso é uma lacuna da cobertura OSM/Geoapify para essa categoria/localidade, não falha de autenticação, filtro inválido ou serialização.
+
+**Correção implementada em código do PR #91 e implantada somente no Supabase staging:**
+1. Geocoder valida cidade + estado + país e extrai coordenadas do mesmo resultado, sem assumir localização por nome.
+2. Se o filtro por fronteira da cidade retornar zero features, o backend tenta **somente mais uma vez** com a **mesma categoria** em um raio máximo de 10km, reservando crédito próprio do Geoapify e slot global de 4 requisições/s. Não amplia categoria para apresentar estabelecimentos irrelevantes.
+3. Quando os dois recortes retornam zero, o backend entrega `places: []` e `coverage.status=no_osm_category_matches`, mais uma mensagem transparente e sugestão de usar o Google Places **apenas mediante ação explícita do usuário**. Não há fallback automático para o Google nem dupla cobrança entre provedores.
+4. Quando o limite do fornecedor bloqueia a segunda consulta ou a consulta falha, devolve `coverage.status=unconfirmed_nearby`, sem afirmar incorretamente que a região não tem negócios.
+5. Se o fornecedor retornar `features` não vazias mas o normalizador não conseguir interpretar nenhum registro, responde erro de formato (502), em vez de exibir silenciosamente zero empresas.
+6. Normalizador tem fallback para coordenadas das propriedades e conserva a cidade/UF informadas pelo fornecedor em resultados próximos.
+
+**Consumo medido após diagnóstico:** 2 chamadas de geocodificação e 5 chamadas de Places reservadas em 08/11/2026, exatamente o teto diário piloto de Places (5/dia). Mais testes reais dependem da renovação da quota de staging à meia-noite de Brasília; não elevar o limite somente para forçar um resultado.
+
+**Segurança/limpeza:** funções temporárias de diagnóstico foram substituídas por respostas HTTP 410; extensão `pg_net` temporária removida; Google Places e produção não modificados. Testes unitários adicionados no GitHub, mas sua execução automatizada permanece pendente de CI. A implantação do endpoint revisado no staging não muda Lovable/Vercel até integração de frontend.
+
+**Implicação de produto:** Geoapify/OSM pode não ter determinadas categorias em cidades brasileiras. Para entregar barbearias de Lavras, pode ser necessário oferecer busca independente no Google Places, observando limites, custos, atribuição e termos de uso. Não atribuir ao Geoapify negócios que ele não retornou.
