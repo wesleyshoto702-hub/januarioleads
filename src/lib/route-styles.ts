@@ -6,6 +6,7 @@
 import appShellCss from "../styles/app-shell.css?url";
 import saasVisualRefreshCss from "../styles/saas-visual-refresh.css?url";
 import saasEntitlementsCss from "../styles/saas-entitlements.css?url";
+import mapsLeadsCss from "../features/maps-leads/maps-leads.css?url";
 import marketingHomeCss from "../styles/marketing-home.css?url";
 import animatedTourCss from "../styles/animated-product-tour.css?url";
 import heroSearchCss from "../styles/hero-search.css?url";
@@ -17,7 +18,7 @@ import signupCrimsonCss from "../styles/signup-crimson.css?url";
 
 const stylesheet = (href: string) => ({ rel: "stylesheet" as const, href });
 
-export const APP_STYLES = [stylesheet(appShellCss), stylesheet(saasVisualRefreshCss), stylesheet(saasEntitlementsCss)];
+export const APP_STYLES = [stylesheet(appShellCss), stylesheet(saasVisualRefreshCss), stylesheet(saasEntitlementsCss), stylesheet(mapsLeadsCss)];
 
 export const MARKETING_STYLES = [
   stylesheet(marketingHomeCss),
