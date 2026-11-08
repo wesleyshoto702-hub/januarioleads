@@ -7,7 +7,7 @@ const userId = "11111111-1111-1111-1111-111111111111";
 type Plan = "free" | "pro" | "advanced";
 
 type RequestLog = { geoapify: number; google: number; googlePayloads: Record<string, unknown>[] };
-type Scenario = "geoapify-empty" | "geoapify-two" | "google-not-configured";
+type Scenario = "geoapify-empty" | "geoapify-two" | "google-not-configured" | "geoapify-failure" | "geoapify-denied";
 
 async function mockWorkspace(page: Page, plan: Plan, scenario: Scenario = "geoapify-empty"): Promise<RequestLog> {
   const calls: RequestLog = { geoapify: 0, google: 0, googlePayloads: [] };
@@ -66,6 +66,14 @@ async function mockWorkspace(page: Page, plan: Plan, scenario: Scenario = "geoap
         attribution:{provider:"Powered by Geoapify",providerUrl:"https://www.geoapify.com/",
           data:"© OpenStreetMap contributors",dataUrl:"https://www.openstreetmap.org/copyright"},
       };
+      if (scenario === "geoapify-failure") {
+        status = 429;
+        payload = {ok:false,code:"PROVIDER_BUDGET",message:"Limite do Geoapify atingido."};
+      }
+      if (scenario === "geoapify-denied") {
+        status = 403;
+        payload = {ok:false,code:"FEATURE_NOT_AVAILABLE",message:"Recurso não disponível."};
+      }
     } else if (url.pathname === "/functions/v1/search-places") {
       const req = JSON.parse(route.request().postData() || "{}") as Record<string, unknown>;
       if (req.mode === "search-quota") {
@@ -124,52 +132,70 @@ test("Free: Buscar via Maps não aparece no menu", async ({page}) => {
   await expect(page.getByRole("button",{name:"Buscar via Maps"})).toHaveCount(0);
 });
 
-for (const plan of ["pro","advanced"] as const) {
-  test(plan+" só consulta Google depois do clique explícito de alternativa", async ({page}) => {
+for (const plan of ["pro", "advanced"] as const) {
+  test(plan + ": uma busca com Geoapify vazio consulta Google automaticamente", async ({page}) => {
     const calls = await mockWorkspace(page,plan);
     await goToMaps(page);
-    await expect(page.getByRole("group",{name:"Fonte de estabelecimentos"})).toBeVisible();
-    await expect(page.getByRole("button",{name:/Geoapify · OpenStreetMap/})).toHaveAttribute("aria-pressed","true");
+    await expect(page.getByRole("group",{name:"Fonte de estabelecimentos"})).toHaveCount(0);
+    await expect(page.getByRole("button",{name:/Google Places/})).toHaveCount(0);
     await page.getByRole("button",{name:"Buscar no mapa"}).click();
-    await expect(page.getByText(/Geoapify não possui empresas dessa categoria/).first()).toBeVisible();
-    expect(calls.geoapify).toBe(1);
-    expect(calls.google).toBe(0);
-    await page.getByRole("button",{name:"Buscar no Google Places"}).click();
     await expect(page.getByText("Barbearia Google 1").first()).toBeVisible();
     expect(calls.geoapify).toBe(1);
     expect(calls.google).toBe(1);
+    expect(calls.googlePayloads[0]?.stagingDemo).not.toBe(true);
     await expect(page.getByRole("button",{name:"Adicionar ao CRM"})).toHaveCount(0);
-    await expect(page.getByText(/importação de dados do Google no CRM fica desativada/)).toBeVisible();
     await expect(page.locator(".bms-results .bms-provider-attribution")).toContainText("Google Maps");
     await expect(page.getByText(/Desenho ilustrativo · sem marcadores geográficos reais/)).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)).toBe(false);
   });
 }
 
-test("Geoapify com empresas apresenta somente OSM e não chama Google", async ({page}) => {
+test("Geoapify com resultados reais para a categoria não consulta Google", async ({page}) => {
   const calls = await mockWorkspace(page,"pro","geoapify-two");
   await goToMaps(page);
   await page.getByRole("button",{name:"Buscar no mapa"}).click();
   await expect(page.getByText("Barbearia OSM 1").first()).toBeVisible();
   await expect(page.getByRole("article",{name:"Estabelecimento Geoapify: Barbearia OSM 1"})).toBeVisible();
-  await expect(page.getByRole("link",{name:/Ver localização no OpenStreetMap/})).toHaveAttribute(
-    "href",/www\.openstreetmap\.org/
-  );
+  await expect(page.getByRole("link",{name:/Ver localização no OpenStreetMap/})).toHaveAttribute("href",/www\\.openstreetmap\\.org/);
   await expect(page.locator(".bms-results .bms-provider-attribution")).toContainText("Powered by Geoapify");
-  await expect(page.getByRole("button",{name:"Buscar no Google Places"})).toHaveCount(0);
-  await expect(page.getByRole("button",{name:"Adicionar ao CRM"})).toHaveCount(0);
   expect(calls.geoapify).toBe(1);
   expect(calls.google).toBe(0);
 });
 
-test("Trocar a fonte não realiza consulta e erro real do Google não gera empresas fictícias", async ({page}) => {
+test("Se Geoapify atingir a cota interna, a busca usa Google sem clique extra", async ({page}) => {
+  const calls = await mockWorkspace(page,"pro","geoapify-failure");
+  await goToMaps(page);
+  await page.getByRole("button",{name:"Buscar no mapa"}).click();
+  await expect(page.getByText("Barbearia Google 1").first()).toBeVisible();
+  expect(calls.geoapify).toBe(1);
+  expect(calls.google).toBe(1);
+});
+
+test("Falha de permissão não permite contornar o plano usando Google", async ({page}) => {
+  const calls = await mockWorkspace(page,"pro","geoapify-denied");
+  await goToMaps(page);
+  await page.getByRole("button",{name:"Buscar no mapa"}).click();
+  await expect(page.getByRole("alert")).toContainText("Recurso não disponível");
+  expect(calls.google).toBe(0);
+});
+
+test("Bairro informado consulta somente Google, sem Geoapify desnecessário", async ({page}) => {
+  const calls = await mockWorkspace(page,"pro");
+  await goToMaps(page);
+  await page.locator("#bms-neighborhood").fill("Centro");
+  await page.getByRole("button",{name:"Buscar no mapa"}).click();
+  await expect(page.getByText("Barbearia Google 1").first()).toBeVisible();
+  expect(calls.geoapify).toBe(0);
+  expect(calls.google).toBe(1);
+  expect(calls.googlePayloads[0]?.neighborhood).toBe("Centro");
+});
+
+test("Google não configurado nunca substitui resultados por empresas fictícias", async ({page}) => {
   const calls = await mockWorkspace(page,"pro","google-not-configured");
   await goToMaps(page);
-  await page.getByRole("button",{name:/Google Places · busca real/}).click();
-  expect(calls.geoapify).toBe(0);
-  expect(calls.google).toBe(0);
   await page.getByRole("button",{name:"Buscar no mapa"}).click();
-  await expect(page.getByRole("alert")).toContainText("credencial privada do Google Places");
+  await expect(page.getByRole("alert")).toContainText("A pesquisa está temporariamente indisponível");
+  expect(calls.geoapify).toBe(1);
   expect(calls.google).toBe(1);
   await expect(page.getByText(/Fictícia/)).toHaveCount(0);
   await expect(page.locator(".bms-results-count")).toHaveText("0");
