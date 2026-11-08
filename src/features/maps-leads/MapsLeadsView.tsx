@@ -224,7 +224,7 @@ function StagingIllustrativeMap({
 }) {
   return (
     <div className="bms-illustrative-map" aria-label="Mapa ilustrativo da simulação, sem dados cartográficos reais">
-      <div className="bms-illustrative-transform" style={{ transform: \`scale(\${zoom})\` }}>
+      <div className="bms-illustrative-transform" style={{ transform: `scale(${zoom})` }}>
         <svg viewBox="0 0 1000 640" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
           <rect width="1000" height="640" fill="#101014" />
           <g stroke="#272530" strokeWidth="2" fill="none" opacity=".92">
@@ -400,7 +400,7 @@ export function MapsLeadsView({
   const canLoadMore = !!pageToken && !loading && (usage?.remaining_today ?? 1) > 0;
   const mapsLink = safeExternalHref(selected?.googleMapsUrl);
   const businessSite = safeExternalHref(selected?.website);
-  const displayedCity = applied ? \`\${applied.city} · \${applied.state}\` : \`\${city} · \${state}\`;
+  const displayedCity = applied ? `${applied.city} · ${applied.state}` : `${city} · ${state}`;
 
   return (
     <section className="bms-root saas-page" aria-labelledby="bms-heading">
@@ -450,7 +450,7 @@ export function MapsLeadsView({
       <div className="bms-meta">
         <span><Layers3 size={15}/> {applied ? results.length + " empresas no mapa" : "Escolha um segmento e uma região"}</span>
         <span>{usage
-          ? \`Plano \${usage.plan.toUpperCase()} · \${usage.remaining_today} de \${usage.daily_limit} leads disponíveis hoje\`
+          ? `Plano ${usage.plan.toUpperCase()} · ${usage.remaining_today} de ${usage.daily_limit} leads disponíveis hoje`
           : "Busca protegida por cota diária"}
         </span>
       </div>
@@ -475,7 +475,7 @@ export function MapsLeadsView({
             <div className="bms-coverage-kicker"><span className="bms-dot"/> COBERTURA TERRITORIAL</div>
             <div className="bms-coverage-place">{displayedCity}</div>
             <p>{applied
-              ? \`\${applied.neighborhood ? applied.neighborhood + " · " : ""}\${results.length} empresas encontradas\`
+              ? `${applied.neighborhood ? applied.neighborhood + " · " : ""}${results.length} empresas encontradas`
               : "Selecione um nicho e pesquise para explorar"}</p>
           </div>
 
@@ -503,7 +503,7 @@ export function MapsLeadsView({
             <p className="bms-business-address"><MapPin size={15} /> {selected.address || displayedCity}</p>
             <div className="bms-business-details">
               {selected.rating != null && <span><Star size={15} fill="#ffbc58" stroke="#ffbc58" />
-                {selected.rating.toFixed(1)} {selected.reviewCount != null ? \`(\${selected.reviewCount})\` : ""}</span>}
+                {selected.rating.toFixed(1)} {selected.reviewCount != null ? `(${selected.reviewCount})` : ""}</span>}
               <span className={selected.website ? "bms-site yes" : "bms-site"}>
                 {selected.website ? "Com website" : "Sem website identificado"}
               </span>
