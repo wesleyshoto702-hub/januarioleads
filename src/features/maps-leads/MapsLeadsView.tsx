@@ -634,7 +634,7 @@ export function MapsLeadsView({
               : <button className="bms-save" type="button" disabled={saving || saved || !mapAllowed}
                   onClick={() => void saveLead()}>
                   {saved ? <CheckCircle2 size={17}/> : <BookmarkPlus size={17}/>}
-                  {saved ? "Já está no CRM" : saving ? "Adicionando..." : "Adicionar ao CRM"}
+                  {saved ? "Lead já adicionado" : saving ? "Adicionando..." : "Adicionar ao CRM"}
                 </button>}
           </article>}
           {selectedGeo && appliedProvider === "geoapify" &&
