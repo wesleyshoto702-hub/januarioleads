@@ -42,7 +42,7 @@ export type BusinessDetailsMessageTarget = {
 };
 
 export type BusinessAddResult =
-  | { ok: true; leadId: string }
+  | { ok: true; leadId: string; alreadyExisted?: boolean }
   | { ok: false; message: string };
 
 export type BusinessCommercialLead = {
