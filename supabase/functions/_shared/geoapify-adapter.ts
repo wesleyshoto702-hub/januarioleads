@@ -127,9 +127,9 @@ export function normalizeGeoapifyPlaces(
     const address = stringField(props.formatted) ?? stringField(props.address_line1);
     seen.add(placeId);
     const reportedCity = stringField(props.city);
-    const reportedState = findBrazilianState(
-      stringField(props.state_code) ?? stringField(props.state),
-    );
+    const reportedState =
+      findBrazilianState(stringField(props.state_code)?.replace(/^BR-/i, "")) ??
+      findBrazilianState(stringField(props.state));
     output.push({
       source: "geoapify",
       sourceId: "geoapify:" + placeId,
