@@ -57,3 +57,27 @@ export async function fetchMySaasEntitlements(): Promise<SaasEntitlements | null
     return null;
   }
 }
+
+/**
+ * Exclusively for the isolated Staging Supabase project.
+ * Simulates an active plan WITHOUT checkout; server checks JWT/private_access.
+ */
+export async function switchStagingDemoPlan(plan: SaasUsage["plan"]): Promise<void> {
+  if (!SAAS_STAGING_ACTIVE) throw new Error("Simulação indisponível fora da homologação.");
+  const token = await getAccessToken();
+  if (!token) throw new Error("Sua sessão expirou. Entre novamente.");
+
+  const response = await fetch(SUPABASE_URL + "/functions/v1/staging-plan-preview", {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_PUBLISHABLE_KEY,
+      Authorization: "Bearer " + token,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ plan }),
+  });
+  const data: unknown = await response.json().catch(() => null);
+  if (!response.ok || !data || typeof data !== "object" || !("ok" in data) || data.ok !== true) {
+    throw new Error("Não foi possível ativar a simulação do plano no Staging.");
+  }
+}
