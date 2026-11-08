@@ -11,7 +11,7 @@
 - O débito é transacional em `claim_daily_leads_for_user(uuid,text[],text)`, que trava o saldo do usuário por dia e impede utilização acima do limite, inclusive em buscas simultâneas.
 - A carteira renova à meia-noite no fuso `America/Sao_Paulo`. O Google Places/Geoapify seguem tendo limites monetários e técnicos separados.
 - A prévia do frontend passa a buscar locais reais no Google por padrão; modo fictício só é opt-in explícito para testes.
-- A versão prévia **ainda mantém somente consulta e links externos no Maps**; a importação do Maps para o CRM está bloqueada enquanto se revisa compatibilidade e termos dos provedores. Os resultados do Buscar Leads tradicional continuam com o fluxo atual de prospecção/CRM.
+- A versão prévia permite adicionar Geoapify/OSM diretamente ao CRM com atribuição e Google Place IDs com nome fornecido pelo cliente. Os dados da API Google não são copiados automaticamente para armazenamento permanente. Veja `docs/maps-crm-import-cross-provider-credits-staging-20261108.md`.
 
 ## Arquivos envolvidos
 
