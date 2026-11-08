@@ -545,7 +545,7 @@ export function MapsLeadsView({
 
       <div className="bms-meta">
         <span><Layers3 size={15}/> {applied
-          ? `${resultCount} empresas encontradas · ${appliedProvider === "geoapify" ? "Geoapify" : "Google Places"}`
+          ? `${resultCount} empresas encontradas`
           : "Escolha um segmento e uma região"}</span>
         <span>{usage
           ? `Plano ${usage.plan.toUpperCase()} · ${usage.remaining_today} de ${usage.daily_limit} leads disponíveis hoje`
@@ -675,8 +675,8 @@ export function MapsLeadsView({
                 <strong>{applied && appliedProvider === "geoapify"
                   ? "Nenhum negócio dessa categoria cadastrado na fonte"
                   : applied ? "Nenhuma empresa encontrada" : "Seu próximo cliente pode estar aqui"}</strong>
-                <p>{appliedProvider === "geoapify"
-                  ? coverage?.message ?? "Tente uma região ou categoria diferente."
+                <p>{applied
+                  ? "Nenhuma empresa encontrada com os filtros informados. Tente outra região ou segmento."
                   : "Busque por Barbearia, Academia, Restaurante ou outro segmento."}</p>
               </div>
             : appliedProvider === "geoapify"
@@ -720,7 +720,7 @@ export function MapsLeadsView({
           </button>}
           <p className="bms-results-footnote">
             <ShieldCheck size={13}/> {SAAS_STAGING_ACTIVE
-              ? "Resultados somente para consulta nesta homologação; uma nova fonte exige nova busca."
+              ? "Resultados para consulta nesta homologação. A busca usa automaticamente a fonte disponível."
               : "Cada novo lead liberado usa a mesma cota do Buscar Leads."}
           </p>
         </aside>
