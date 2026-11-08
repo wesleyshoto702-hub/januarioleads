@@ -351,3 +351,22 @@
 .bms-readonly {
   margin:13px 0 0; color:#f3bdca; font-size:11px; line-height:1.65;
 }
+
+
+/* A Google Places text result is shown beside, never on top of, the illustrative staging map. */
+.bms-staging-google-detail {
+  display: grid;
+  gap: 7px;
+  padding: 16px;
+  margin: 13px 0;
+  border: 1px solid rgba(255,166,192,.25);
+  background: #23151f;
+  border-radius: 14px;
+}
+.bms-staging-google-detail strong { color: #fff0f4; font-size: 13px; }
+.bms-staging-google-detail p { color: #cbb8c3; font-size: 11px; line-height: 1.6; margin: 0; }
+.bms-staging-google-detail a {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: #ffe0ea; text-decoration: underline; text-underline-offset: 2px; font-size: 12px;
+}
+.bms-staging-google-detail small { color: #ab95a3; font-size: 10px; line-height: 1.5; }
