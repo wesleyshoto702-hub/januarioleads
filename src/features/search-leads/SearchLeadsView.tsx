@@ -998,7 +998,7 @@ export function SearchLeadsView({
     setResults(uniqueResults);
     setSearchNotice(response.demo
       ? "Resultados 100% fictícios para homologar os limites de cada plano. Nenhuma empresa real foi consultada."
-      : response.partial ? "A fonte atingiu um limite durante a busca; mostramos todos os resultados válidos obtidos até então, sem necessidade de clicar em Ver mais."
+      : response.partial ? "A fonte atingiu um limite durante a busca; mostramos todos os resultados válidos obtidos até então, e a busca já terminou automaticamente."
       : "");
     storeRecentBusinessSearch(segment,response.results,{
       city: location.city,
