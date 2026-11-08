@@ -66,23 +66,36 @@ export function googlePlaceMatchesLocation(
   if (!state) return false;
   const expectedCity = fold(city);
   const formatted = fold(place.formattedAddress ?? "");
-  const locality = component(place,"locality") ??
-    component(place,"postal_town") ??
-    component(place,"administrative_area_level_2");
-  const locatedCity = string(locality?.longText);
+  const country = component(place,"country");
+  const countryCode = string(country?.shortText) ?? string(country?.longText);
+  // A BR region bias is not a hard country filter. Never return cross-border POIs.
+  if (countryCode && !["br","brasil","brazil"].includes(fold(countryCode))) return false;
+
   const statePart = component(place,"administrative_area_level_1");
   const candidateState = findBrazilianState(
     string(statePart?.shortText) ?? string(statePart?.longText)
   );
-
-  const cityMatches = locatedCity
-    ? fold(locatedCity) === expectedCity
-    : (" " + formatted + " ").includes(" " + expectedCity + " ");
   const stateMatches = candidateState
     ? candidateState.code === state.code
     : (" " + formatted + " ").includes(" " + fold(state.name) + " ") ||
       (" " + formatted + " ").includes(" " + fold(state.code) + " ");
-  return cityMatches && stateMatches;
+  if (!stateMatches) return false;
+
+  // In the Federal District, Brasília is the IBGE municipality but Google may
+  // label an establishment's locality as Taguatinga, Gama or Ceilândia.
+  if (state.code === "DF" && expectedCity === "brasilia") return true;
+
+  // Google address components vary between regions. Compare every available
+  // municipality-level component; don't let a neighborhood stand in for a city.
+  const reportedCities = ["locality","postal_town","administrative_area_level_2"]
+    .map((type) => string(component(place,type)?.longText))
+    .filter((value): value is string => Boolean(value));
+  if (reportedCities.length) {
+    return reportedCities.some((value) => fold(value) === expectedCity);
+  }
+  // Some smaller municipalities have no locality components. Only then
+  // use the address text, after verifying the requested UF above.
+  return (" " + formatted + " ").includes(" " + expectedCity + " ");
 }
 
 export function normalizeGooglePreview(
