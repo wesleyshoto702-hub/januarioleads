@@ -115,6 +115,19 @@ export type GeoapifyPlacePreview = {
 };
 
 /** Provider provenance is retained. Never convert an OSM id into a Google Place ID. */
+/** Geoapify groups all hairdressers under the same OSM category.
+ * A barbershop query must not show unrelated salons as if they were barbers.
+ * Ambiguous names go to the separate Google search instead of being mislabelled.
+ */
+export function filterGeoapifyForNiche(
+  places: GeoapifyPlacePreview[], segment: string,
+): GeoapifyPlacePreview[] {
+  if (normalize(segment) !== "barbearia") return places;
+  return places.filter((place) =>
+    /\b(barbearia|barbeiro|barber|barbershop|barber shop)\b/.test(normalize(place.name))
+  );
+}
+
 export function normalizeGeoapifyPlaces(
   data: unknown,
   location: { city: string; state: string },
