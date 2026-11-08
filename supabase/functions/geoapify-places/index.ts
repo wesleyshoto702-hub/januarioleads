@@ -1,5 +1,6 @@
 import { isAllowedBrowserOrigin } from "../_shared/allowed-browser-origins.ts";
 import { findBrazilianState } from "../_shared/brazil-locations.ts";
+import { ALL_SEARCH_SEGMENTS } from "../_shared/niche-catalog.ts";
 import {
   mapsSearchTerm, normalizeGooglePreview, routingReason, shouldTryGeoapify,
 } from "../_shared/maps-auto-google.ts";
@@ -186,7 +187,8 @@ async function handle(request: Request): Promise<Response> {
       keyConfigured,
       featureFlagEnabled,
       description: configured ? "Disponível somente em staging." : "Desativado por segurança.",
-      supportedSegments: ["Barbearia", "Salão de Beleza", "Academia", "Restaurante", "Cafeteria", "Pizzaria", "Spa"],
+      supportedSegments: ALL_SEARCH_SEGMENTS.filter((item) => geoapifyCategoryForSegment(item) !== null),
+      googleSearchSegments: ALL_SEARCH_SEGMENTS,
       googlePlacesUnaffected: true,
     });
   }
