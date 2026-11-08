@@ -537,7 +537,7 @@ export function MapsLeadsView({
           ? `${resultCount} empresas encontradas`
           : "Escolha um segmento e uma região"}</span>
         <span>{usage
-          ? `Plano ${usage.plan.toUpperCase()} · ${usage.remaining_today} de ${usage.daily_limit} leads disponíveis hoje`
+          ? `Plano ${usage.plan.toUpperCase()} · ${usage.remaining_today} de ${usage.daily_limit} créditos restantes · 2 por lead`
           : "Busca protegida por cota diária"}
         </span>
       </div>
