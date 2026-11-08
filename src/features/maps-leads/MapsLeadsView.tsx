@@ -40,6 +40,11 @@ const GOOGLE_BROWSER_KEY = (import.meta.env["VITE_GOOGLE_MAPS_BROWSER_KEY"] as s
 type SearchValues = SearchLocation & { segment: string; neighborhood: string };
 type MapsProvider = "geoapify" | "google";
 type GeoapifyCoverage = Extract<GeoapifySearchResponse, { ok: true }>["coverage"];
+
+const GEOAPIFY_SEGMENTS = new Set([
+  "Barbearia", "Salão de Beleza", "Academia", "Restaurante",
+  "Cafeteria", "Pizzaria", "Spa",
+]);
 type GeoPoint = { lat: number; lng: number };
 
 type GoogleMapInstance = {
@@ -364,6 +369,10 @@ export function MapsLeadsView({
       return;
     }
     if (append && !pageToken) return;
+    if (source === "geoapify" && !GEOAPIFY_SEGMENTS.has(resolveSearchSegment(wanted.segment) ?? "")) {
+      setError("No Geoapify, escolha Barbearia, Salão de Beleza, Academia, Restaurante, Cafeteria, Pizzaria ou Spa. Para outros segmentos, use Google Places.");
+      return;
+    }
     if (source === "geoapify" && wanted.neighborhood.trim()) {
       setError("A busca por bairro está disponível na fonte Google Places. Remova o bairro ou selecione Google Places.");
       return;
@@ -543,7 +552,7 @@ export function MapsLeadsView({
         <p>Uma fonte por pesquisa. Trocar a fonte não consulta a API; clique em Buscar no mapa para iniciar uma nova busca sujeita às cotas.</p>
       </div>}
 
-      <form className="bms-searchbar" onSubmit={onSubmit}>
+      <form className={provider === "geoapify" ? "bms-searchbar bms-searchbar--geo" : "bms-searchbar"} onSubmit={onSubmit}>
         <div className="bms-field bms-field--segment">
           <label htmlFor="bms-segment">O QUE VOCÊ PROCURA?</label>
           <div className="bms-field-entry"><Search size={18}/><input
