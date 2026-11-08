@@ -127,7 +127,10 @@ for (const plan of ["pro","advanced"] as const) {
     expect(calls.googleSeparate).toBe(0);
     await expect(page.locator(".bms-results .bms-provider-attribution")).toContainText("Google Maps");
     await expect(page.getByRole("button",{name:"Adicionar ao CRM"})).toHaveCount(0);
-    await expect(page.getByText(/importação de dados do Google no CRM fica desativada/)).toBeVisible();
+    await expect(page.locator(".bms-staging-google-detail")).toBeVisible();
+    await expect(page.locator(".bms-staging-google-detail")).toContainText("Barbearia Google 1");
+    await expect(page.locator(".bms-map-frame .bms-business-card")).toHaveCount(0);
+    await expect(page.getByText(/sem importação ao CRM/)).toBeVisible();
     await expect(page.locator(".bms-results-count")).toHaveText("2");
     expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1)).toBe(false);
   });
