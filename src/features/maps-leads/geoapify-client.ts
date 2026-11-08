@@ -17,6 +17,16 @@ export type GeoapifyPreview = {
 export type GeoapifySearchResponse =
   | { ok: true; provider: "geoapify"; places: GeoapifyPreview[];
       limit: 20; nextPageToken: null;
+      coverage: {
+        status: "matches" | "no_osm_category_matches" | "unconfirmed_nearby";
+        searchArea: "city" | "nearby-10km";
+        cityBoundaryChecked: boolean;
+        nearbyRadiusMeters: number | null;
+        nearbyRadiusChecked: boolean;
+        nearbySkippedReason: "budget" | "throttle" | "provider" | null;
+        message: string | null;
+        alternativeSource: "google_places_manual" | null;
+      };
       attribution: { provider: string; providerUrl: string; data: string; dataUrl: string } }
   | { ok: false; code: string; message: string };
 
