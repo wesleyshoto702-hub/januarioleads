@@ -7,7 +7,7 @@ test.skip(!staging, "Requires isolated Supabase staging preview env; never run a
 
 const userId = "11111111-1111-1111-1111-111111111111";
 const flags: Record<string, boolean> = {
-  crm: true, basic_messages: true, manual_followup: true, kanban: false,
+  crm: true, basic_messages: true, manual_followup: true, maps_search: false, kanban: false,
   custom_messages: false, followup_center: false, finance: false,
   lead_enrichment: false, advanced_reports: false,
   internal_automations: false, advanced_lead_prioritization: false,
@@ -20,7 +20,7 @@ function rights(plan: Plan) {
     for (const key of ["kanban","custom_messages","followup_center","finance","lead_enrichment"]) f[key] = true;
   }
   if (plan === "advanced") {
-    for (const key of ["advanced_reports","internal_automations","advanced_lead_prioritization"]) f[key] = true;
+    for (const key of ["advanced_reports","internal_automations","advanced_lead_prioritization","maps_search"]) f[key] = true;
   }
   return {
     plan, price_cents: { free:0,pro:1990,advanced:2990 }[plan],
