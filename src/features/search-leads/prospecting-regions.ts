@@ -28,6 +28,9 @@ export type ProspectingHierarchy = {
   states: ProspectingRegion[];
 };
 
+/** Group the third level under each city by segment (default) or neighborhood. */
+export type ProspectingDetailMode = "segment" | "neighborhood";
+
 type MutableNode = {
   key: string;
   name: string;
@@ -93,7 +96,7 @@ function finalRegion(node: MutableNode): ProspectingRegion {
 }
 
 /**
- * Aggregates the CURRENT saved CRM by UF → city → neighborhood.
+ * Aggregates the CURRENT saved CRM by UF → city → niche (default) or neighborhood.
  *
  * The denominator is the user's saved leads, not all businesses in Brazil.
  * Each saved lead contributes at most once per level. A "Mandar mensagem"
@@ -107,6 +110,7 @@ export function buildProspectingHierarchy(
   leads: readonly ExistingLeadIdentity[],
   touchedLeadIds: ReadonlySet<string>,
   selectedNiche?: string,
+  detailMode: ProspectingDetailMode = "segment",
 ): ProspectingHierarchy {
   const root = newNode("BR", "Brasil");
   const filterNiche = normalizedNiche(selectedNiche);
@@ -131,11 +135,16 @@ export function buildProspectingHierarchy(
     );
     const cityName = lead.city?.trim() || "Cidade não informada";
     const cityNode = child(stateNode, normalizeLocationText(cityName), cityName);
-    const neighborhoodName = lead.neighborhood?.trim() || "Bairro não informado";
-    const neighborhoodNode = child(cityNode, normalizeLocationText(neighborhoodName), neighborhoodName);
+    const thirdLevelName = detailMode === "segment"
+      ? lead.segment?.trim() || "Nicho não informado"
+      : lead.neighborhood?.trim() || "Bairro não informado";
+    const thirdLevelKey = detailMode === "segment"
+      ? normalizedNiche(lead.segment) || "__nicho_nao_informado__"
+      : normalizeLocationText(thirdLevelName);
+    const detailNode = child(cityNode, thirdLevelKey, thirdLevelName);
     const touched = Boolean(lead.id && touchedLeadIds.has(lead.id));
 
-    for (const node of [root, stateNode, cityNode, neighborhoodNode]) {
+    for (const node of [root, stateNode, cityNode, detailNode]) {
       count(node, lead, touched);
     }
   }

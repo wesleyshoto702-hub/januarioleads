@@ -1,4 +1,4 @@
-/* Informações de Prospecção: CRM-wide state > city > neighborhood hierarchy. */
+/* Informações de Prospecção: CRM-wide state > city > niche or neighborhood hierarchy. */
 .saas-main .prospecting-info-panel {
   margin: 22px 0;
   padding: clamp(16px, 2.4vw, 27px);
@@ -196,6 +196,7 @@
   gap: 4px;
 }
 .saas-main .prospecting-info-city > .prospecting-info-region-row,
+.saas-main .prospecting-info-segment > .prospecting-info-region-row,
 .saas-main .prospecting-info-neighborhood > .prospecting-info-region-row {
   min-height: 46px;
   padding-block: 9px;
@@ -203,6 +204,7 @@
   background: transparent;
 }
 .saas-main .prospecting-info-city > .prospecting-info-region-row:hover:not(:disabled),
+.saas-main .prospecting-info-segment > .prospecting-info-region-row:hover:not(:disabled),
 .saas-main .prospecting-info-neighborhood > .prospecting-info-region-row:hover:not(:disabled) {
   border-color: var(--border);
 }
@@ -272,6 +274,14 @@
   color: var(--primary);
   flex: 0 0 auto;
 }
+
+.saas-main .prospecting-information-filter-divider {
+  width: 1px;
+  align-self: stretch;
+  min-height: 30px;
+  background: var(--border);
+  margin-inline: 4px;
+}
 .saas-main .prospecting-information-filter label {
   font-size: 12px;
   font-weight: 750;
@@ -304,6 +314,9 @@
 }
 .saas-main .prospecting-information-page > .prospecting-info-panel {
   margin: 18px 0 0;
+}
+@media (max-width: 760px) {
+  .saas-main .prospecting-information-filter-divider { display: none; }
 }
 @media (max-width: 620px) {
   .saas-main .prospecting-information-filter {

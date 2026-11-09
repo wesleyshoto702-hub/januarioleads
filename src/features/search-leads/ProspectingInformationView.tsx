@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { BarChart3, Filter } from "lucide-react";
 import type { ExistingLeadIdentity } from "./identity";
 import { ProspectingInformationPanel } from "./ProspectingInformationPanel";
+import type { ProspectingDetailMode } from "./prospecting-regions";
 
 type ProspectingInformationViewProps = {
   leads: readonly ExistingLeadIdentity[];
@@ -19,6 +20,7 @@ export function ProspectingInformationView({
   touchState,
 }: ProspectingInformationViewProps) {
   const [selectedNiche, setSelectedNiche] = useState("");
+  const [detailMode, setDetailMode] = useState<ProspectingDetailMode>("segment");
   const niches = useMemo(
     () => [...new Set(leads.map((lead) => (lead.segment ?? "").trim()).filter(Boolean))]
       .sort((a, b) => a.localeCompare(b, "pt-BR")),
@@ -34,7 +36,7 @@ export function ProspectingInformationView({
           <p className="eyebrow">CARTEIRA COMERCIAL · BRASIL</p>
           <h1>Informações de Prospecção</h1>
           <p className="subtitle">
-            Acompanhe sua atuação em todo o país, organizada por estado, cidade e bairro.
+            Acompanhe sua atuação em todo o país, organizada por estado e cidade, com detalhamento por nicho ou bairro.
             Veja suas tentativas de contato e o andamento dos leads cadastrados.
           </p>
         </div>
@@ -53,6 +55,16 @@ export function ProspectingInformationView({
             <option key={niche} value={niche}>{niche}</option>
           ))}
         </select>
+        <div className="prospecting-information-filter-divider" aria-hidden="true"/>
+        <label htmlFor="prospecting-information-detail-mode">Detalhamento das cidades</label>
+        <select
+          id="prospecting-information-detail-mode"
+          value={detailMode}
+          onChange={(event) => setDetailMode(event.target.value as ProspectingDetailMode)}
+        >
+          <option value="segment">Nichos (padrão)</option>
+          <option value="neighborhood">Bairros</option>
+        </select>
         <span className="prospecting-information-filter-detail">
           <BarChart3 size={15} aria-hidden="true" />
           {currentNiche ? `Exibindo apenas ${currentNiche}` : "Resumo geral dos seus leads"}
@@ -64,6 +76,7 @@ export function ProspectingInformationView({
         touchedLeadIds={touchedLeadIds}
         touchState={touchState}
         selectedNiche={currentNiche}
+        detailMode={detailMode}
       />
     </section>
   );
