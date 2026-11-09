@@ -1078,7 +1078,9 @@ export function SearchLeadsView({
   const saasUsagePanel = SAAS_STAGING_ACTIVE ? (
     <div className="search-cache-notice" role="status" aria-live="polite">
       <strong>
-        {searchQuota?.plan === "free"
+        {saasUsage?.test_mode || searchQuota?.test_mode
+          ? "Modo testes — pesquisas e créditos pausados"
+          : searchQuota?.plan === "free"
           ? `Plano FREE — ${searchQuota.remaining_today} de 3 pesquisas restantes hoje`
           : saasUsage?.plan === "free"
             ? "Plano FREE — 3 pesquisas por dia"
@@ -1087,7 +1089,9 @@ export function SearchLeadsView({
               : "Plano e limites da conta"}
       </strong>
       <span>
-        {searchQuota?.plan === "free"
+        {saasUsage?.test_mode || searchQuota?.test_mode
+          ? "Nenhuma pesquisa nem crédito é descontado no staging para esta conta. Os limites de custo e segurança das APIs externas continuam ativos."
+          : searchQuota?.plan === "free"
           ? `Até 20 empresas por pesquisa, sem páginas extras. ${saasUsage?.remaining_today ?? "—"} de ${saasUsage?.daily_limit ?? 5} contatos disponíveis hoje; as demais empresas aparecem como prévia. Renova à meia-noite (Brasília).`
           : saasUsage
             ? `${saasUsage.used_today} créditos utilizados hoje. Buscar Leads custa 1 crédito por empresa; Maps Advanced custa 2. Renova à meia-noite (Brasília).`
@@ -1265,7 +1269,7 @@ export function SearchLeadsView({
               !selectedCity ||
               loading ||
               municipalitiesLoading ||
-              (SAAS_STAGING_ACTIVE &&
+              (SAAS_STAGING_ACTIVE && saasUsage?.test_mode !== true && searchQuota?.test_mode !== true &&
                  ((searchQuota?.plan === "free" && searchQuota.remaining_today === 0) ||
                   (saasUsage?.plan !== "free" && saasUsage?.remaining_today === 0)))
             }
