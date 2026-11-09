@@ -64,6 +64,7 @@ import {
   deleteRemoteLead,
   fetchLeadUpdates,
   fetchRemoteLeads,
+  findRemoteLeadByPlaceId,
   markLeadUpdatesSeen,
   saveRemoteLead,
   type LeadStatus,
@@ -1629,6 +1630,18 @@ function LeadFlowApp() {
     }
 
     if (!persisted) {
+      // A parallel tab may have created this same provider ID just before
+      // our INSERT. The staging database rejects the duplicate atomically;
+      // fetch only the current user's exact ID before showing a failure.
+      const existing = newLead.placeId
+        ? await findRemoteLeadByPlaceId(newLead.placeId).catch(() => null)
+        : null;
+      if (existing) {
+        setLeads((current) => current.some((item) => item.id === existing.id)
+          ? current : [existing, ...current]);
+        setRemoteError("");
+        return {ok:true, leadId:existing.id, alreadyExisted:true};
+      }
       setRemoteError("Não foi possível confirmar a criação deste lead no Supabase.");
       return {
         ok: false,
