@@ -153,7 +153,11 @@ type SearchLeadsSession = {
 };
 
 function loadSearchLeadsSession(): SearchLeadsSession | null {
-  if (SAAS_STAGING_ACTIVE) return null; // Do not rehydrate Google content from storage.
+  if (SAAS_STAGING_ACTIVE) {
+    // Erase stale session snapshots from previous staging builds, not just hide them.
+    if (typeof window !== "undefined") accountSessionStorage.removeItem(SEARCH_LEADS_SESSION_KEY);
+    return null;
+  }
   if (typeof window === "undefined") return null;
 
   try {
