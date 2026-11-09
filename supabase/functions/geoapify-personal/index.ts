@@ -58,15 +58,21 @@ Deno.serve(async(request:Request)=>{
   if(request.method!=="POST")return fail(request,"INVALID_REQUEST","Use POST.",405);
   const origin=request.headers.get("origin")??"";
   if(origin && !cors(origin)["Access-Control-Allow-Origin"])return fail(request,"FORBIDDEN","Origem não autorizada.",403);
-  const key=Deno.env.get("GEOAPIFY_API_KEY")?.trim();
-  if(!key)return fail(request,"NOT_CONFIGURED",
-    "A fonte Geoapify ainda precisa de GEOAPIFY_API_KEY no Supabase original.",503);
   try{
     const auth=await authUser(request);
     if(!auth)return fail(request,"FORBIDDEN","Entre na conta pessoal original para usar o Maps.",403);
     const raw=await request.text();
     if(raw.length>3000)return fail(request,"INVALID_REQUEST","Pesquisa muito longa.",413);
     const body=asJson(JSON.parse(raw));
+    if(!body)return fail(request,"INVALID_REQUEST","Envie um objeto JSON.",400);
+    const key=Deno.env.get("GEOAPIFY_API_KEY")?.trim();
+    // Owner-authenticated, zero-cost preflight: no provider call and no quota debit.
+    // Do not expose the secret value or any part of it.
+    if(body.action==="status")return answer(request,{
+      ok:true,provider:"geoapify",configured:Boolean(key),dailyLimit:10,
+    });
+    if(!key)return fail(request,"NOT_CONFIGURED",
+      "A fonte Geoapify ainda precisa de GEOAPIFY_API_KEY no Supabase original.",503);
     const segment=text(body?.segment,120),city=text(body?.city,80),
       state=text(body?.state,4).toUpperCase();
     const uf=findBrazilianState(state);
