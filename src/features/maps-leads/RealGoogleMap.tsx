@@ -260,22 +260,22 @@ function RealGoogleMapCanvas({
         bounds.extend(position);
         if (typeof google.maps.marker?.AdvancedMarkerElement === "function" &&
             (MAP_ID || typeof google.maps.Marker !== "function")) {
-          const pin = advancedPin(index, point.id === selectedId);
+          const pin = advancedPin(point.listIndex - 1, point.id === selectedId);
           const marker = new google.maps.marker.AdvancedMarkerElement({
             map: instance, position, title: point.name,
             content: pin, gmpClickable: true,
             zIndex: point.id === selectedId ? 1000 : index + 1,
           });
           marker.addListener("click", () => onSelect(point.id));
-          records.current.push({ id: point.id, index, advanced: marker, content: pin });
+          records.current.push({ id: point.id, index: point.listIndex - 1, advanced: marker, content: pin });
         } else if (typeof google.maps.Marker === "function") {
           const marker = new google.maps.Marker({
             map: instance, position, title: point.name,
-            icon: svgPin(index, point.id === selectedId),
+            icon: svgPin(point.listIndex - 1, point.id === selectedId),
             zIndex: point.id === selectedId ? 1000 : index + 1,
           });
           marker.addListener("click", () => onSelect(point.id));
-          records.current.push({ id: point.id, index, legacy: marker });
+          records.current.push({ id: point.id, index: point.listIndex - 1, legacy: marker });
         } else {
           setMarkerWarning("O mapa está disponível, mas a biblioteca de marcadores não carregou. Selecione uma empresa na lista.");
           break;
