@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, Info, Layers3, MapPin, MessagesSquare } from "lucide-react";
+import { ChevronDown, ChevronRight, Info, Layers, MapPin, MessageCircle } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { ExistingLeadIdentity } from "./identity";
 import { buildProspectingHierarchy, type ProspectingMetrics, type ProspectingRegion } from "./prospecting-regions";
@@ -40,7 +40,7 @@ function RegionRow({
           {expandable
             ? expanded ? <ChevronDown size={17} aria-hidden="true" /> : <ChevronRight size={17} aria-hidden="true" />
             : <span className="prospecting-info-spacer" />}
-          {level === "state" ? <Layers3 size={18} aria-hidden="true" /> : <MapPin size={16} aria-hidden="true" />}
+          {level === "state" ? <Layers size={18} aria-hidden="true" /> : <MapPin size={16} aria-hidden="true" />}
           <strong>{item.name}</strong>
         </span>
         <ProgressTrack value={item.metrics.touchedPercent} ready={ready}
@@ -99,7 +99,7 @@ export function ProspectingInformationPanel({
     <section className="prospecting-info-panel" aria-label="Informações de Prospecção">
       <div className="prospecting-info-header">
         <div className="prospecting-info-heading">
-          <Layers3 size={27} aria-hidden="true"/>
+          <Layers size={27} aria-hidden="true"/>
           <div>
             <h2>Informações de Prospecção</h2>
             <p>Acompanhe onde você já prospectou no Brasil, por estado, cidade e bairro.</p>
@@ -119,7 +119,7 @@ export function ProspectingInformationPanel({
 
       <div className="prospecting-info-overview" aria-label="Indicadores gerais do CRM">
         <div className="prospecting-info-touched">
-          <span><MessagesSquare size={15} aria-hidden="true"/> Mandar mensagem</span>
+          <span><MessageCircle size={15} aria-hidden="true"/> Mandar mensagem</span>
           <strong>{ready ? pct(m.touchedPercent) : "—"}</strong>
           <small>{ready ? m.touched : "—"} de {m.total} leads com ação iniciada</small>
           <ProgressTrack value={m.touchedPercent} label="Ações Mandar mensagem no CRM"
