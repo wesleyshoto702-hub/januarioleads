@@ -11,7 +11,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
-    "test": "deno test src/lib/*.test.ts src/features/messages/*.test.ts supabase/functions/_shared/",
+    "test": "deno test src/lib/*.test.ts src/features/messages/*.test.ts src/features/maps-leads/map-points.test.ts supabase/functions/_shared/",
     "test:browser": "playwright test"
   },
   "overrides": {
