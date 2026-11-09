@@ -467,7 +467,7 @@ export function MapsLeadsView({
               </div>}
           <div className="bms-coverage">
             <div className="bms-coverage-kicker"><span className="bms-dot"/> COBERTURA TERRITORIAL</div>
-            <div className="bms-coverage-place">{displayedCity}</div>
+            <div className="bms-coverage-place">{applied ? displayedCity : "Brasil · mapa real"}</div>
             <p>{applied
               ? `${applied.neighborhood ? applied.neighborhood + " · " : ""}${resultCount} empresas encontradas`
               : "Selecione um nicho e pesquise para explorar"}</p>
