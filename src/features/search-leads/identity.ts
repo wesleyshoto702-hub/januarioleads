@@ -11,6 +11,7 @@ export type ExistingLeadIdentity = {
   phone: string;
   placeId?: string | undefined;
   address?: string | undefined;
+  neighborhood?: string | undefined;
   city?: string | undefined;
   state?: string | undefined;
   instagram?: string | undefined;

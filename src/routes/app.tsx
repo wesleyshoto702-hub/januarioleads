@@ -90,6 +90,7 @@ import {
   type BusinessAddResult,
 } from "../features/search-leads/BusinessDetailsModal";
 import type { SearchMode } from "../features/search-leads/SearchLeadsView";
+import { fetchProspectingTouchedIds, recordProspectingTouch } from "../features/search-leads/prospecting-touches";
 import {
   loadBrazilianMunicipalities,
   resolveMunicipality,
@@ -287,7 +288,9 @@ function LeadFlowApp() {
   const [messageActionPending, setMessageActionPending] = useState(false);
   const [messageActionError, setMessageActionError] = useState("");
   const [pendingWhatsAppHandoff, setPendingWhatsAppHandoff] = useState<WhatsAppHandoff | null>(null);
-  const [confirmedSendRevision, setConfirmedSendRevision] = useState(0);
+  const [touchRevision, setTouchRevision] = useState(0);
+  const [touchedLeadIds, setTouchedLeadIds] = useState<ReadonlySet<string> | null>(null);
+  const [touchState, setTouchState] = useState<"loading" | "ready" | "error">("loading");
   const [deleteLead, setDeleteLead] = useState<Lead | null>(null);
   const [enrichmentLead, setEnrichmentLead] = useState<Lead | null>(null);
   const [leadDetailsId, setLeadDetailsId] = useState<string | null>(null);
@@ -309,6 +312,37 @@ function LeadFlowApp() {
   const [dashboardOpportunitiesLoading, setDashboardOpportunitiesLoading] = useState(false);
   const [dashboardOpportunitiesError, setDashboardOpportunitiesError] = useState("");
   const [dashboardOpportunitiesLoaded, setDashboardOpportunitiesLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!remoteReady) return;
+    let active = true;
+    setTouchState("loading");
+    void fetchProspectingTouchedIds().then((ids) => {
+      if (!active) return;
+      setTouchedLeadIds((previous) => new Set([...(previous ?? []), ...ids]));
+      setTouchState("ready");
+    }).catch(() => {
+      if (!active) return;
+      setTouchState("error");
+    });
+    return () => { active = false; };
+  }, [remoteReady, touchRevision]);
+
+  function openMessageComposer(target: MessageLead) {
+    setSelectedMessage(null);
+    setMessageLead(target);
+    // The CRM now tracks the ACT of opening "Mandar mensagem", even if
+    // the user later cancels. It never claims the message was delivered.
+    // Repeated clicks map to one DB row; never increment optimistically.
+    if (!target.id || !remoteReady) return;
+    void recordProspectingTouch(target.id).then(() => {
+      setTouchedLeadIds((previous) => new Set([...(previous ?? []), target.id!]));
+      setTouchRevision((revision) => revision + 1);
+    }).catch(() => {
+      setActivityError("Não foi possível registrar a tentativa de contato. Tente novamente.");
+      window.setTimeout(() => setActivityError(""), 5000);
+    });
+  }
 
   useEffect(() => {
     setMessageActionPending(false);
@@ -830,8 +864,7 @@ function LeadFlowApp() {
 
   function startFollowUp(lead: Lead) {
     setLeadDetailsId(null);
-    setSelectedMessage(null);
-    setMessageLead({
+    openMessageComposer({
       id: lead.id,
       company: lead.company,
       phone: lead.phone,
@@ -1191,7 +1224,7 @@ function LeadFlowApp() {
           confirmation: "user",
         },
       });
-      if (confirmedEvent) setConfirmedSendRevision((value) => value + 1);
+      if (confirmedEvent) setTouchRevision((value) => value + 1);
       else throw new Error("CONFIRMATION_EVENT_NOT_SAVED");
     } catch {
       setActivityError(
@@ -1886,10 +1919,7 @@ function LeadFlowApp() {
                     lead={lead}
                     finance={financeByLead.get(lead.id) ?? null}
                     onStatus={changeStatus}
-                    onMessage={(item) => {
-                      setSelectedMessage(null);
-                      setMessageLead(item);
-                    }}
+                    onMessage={openMessageComposer}
                     onDetails={openLeadDetails}
                     updateCount={unseenUpdatesByLead.get(lead.id) ?? 0}
                     onFollowUp={startFollowUp}
@@ -1910,10 +1940,7 @@ function LeadFlowApp() {
                     lead={lead}
                     finance={financeByLead.get(lead.id) ?? null}
                     onStatus={changeStatus}
-                    onMessage={(item) => {
-                      setSelectedMessage(null);
-                      setMessageLead(item);
-                    }}
+                    onMessage={openMessageComposer}
                     onDetails={openLeadDetails}
                     updateCount={unseenUpdatesByLead.get(lead.id) ?? 0}
                     onFollowUp={startFollowUp}
@@ -1950,23 +1977,18 @@ function LeadFlowApp() {
           existingLeads={leads}
           mode={searchMode}
           onModeChange={setSearchMode}
-          confirmationRevision={confirmedSendRevision}
+          touchedLeadIds={touchedLeadIds}
+          touchState={touchState}
           onAddLead={addFoundLeadConfirmed}
           onPresenceDiscovered={applyPresenceToLead}
-          onMessage={(target) => {
-            setSelectedMessage(null);
-            setMessageLead(target);
-          }}
+          onMessage={openMessageComposer}
         />
       ) : view === "opportunities" ? (
         <OpportunityView
           existingLeads={leads}
           onAddLead={addFoundLeadConfirmed}
           onPresenceDiscovered={applyPresenceToLead}
-          onMessage={(target) => {
-            setSelectedMessage(null);
-            setMessageLead(target);
-          }}
+          onMessage={openMessageComposer}
           onGoSearch={() => navigateTo("search")}
         />
       ) : view === "finance" ? (
@@ -2266,10 +2288,7 @@ function LeadFlowApp() {
               activityLeadId={lead.id}
               onClose={() => setLeadDetailsId(null)}
               onWhatsApp={(business) => openBusinessWhatsApp(business, lead.id)}
-              onMessage={() => {
-                setSelectedMessage(null);
-                setMessageLead(lead);
-              }}
+              onMessage={() => openMessageComposer(lead)}
               onPresenceUpdate={(presence) => applyPresenceToLead(lead.id, presence)}
               financeLead={financeLoaded ? lead : null}
               financePayments={paymentsByLead.get(lead.id) ?? []}
