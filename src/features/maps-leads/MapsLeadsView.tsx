@@ -549,7 +549,7 @@ export function MapsLeadsView({
           <h1 id="bms-heading">Buscar <span>via Maps</span></h1>
           <p>Pesquise empresas reais em municípios de todas as 27 UFs do Brasil, por segmento e bairro, com seleção automática da fonte.</p>
         </div>
-        <div className="bms-plan-chip"><ShieldCheck size={15} /> Advanced · 2 créditos por lead</div>
+        <div className="bms-plan-chip"><ShieldCheck size={15} /> Pro e Advanced · 2 créditos por lead</div>
       </div>
 
       <form className="bms-searchbar" onSubmit={onSubmit}>
