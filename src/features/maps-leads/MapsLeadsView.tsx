@@ -467,7 +467,9 @@ export function MapsLeadsView({
           setGeoResults(response.places);
           setSelectedGeoId(response.places[0]?.sourceId ?? null);
           if (response.coverage.message) setMessage(response.coverage.message);
-          else if (!response.places.length) setMessage("Nenhum estabelecimento coube no saldo diário disponível.");
+          else if (!response.places.length) setMessage(response.quota?.test_mode
+            ? "Nenhum estabelecimento encontrado com esses filtros ou dentro dos limites seguros das APIs."
+            : "Nenhum estabelecimento coube no saldo diário disponível.");
         } else {
           setAppliedProvider("google");
           setGeoResults([]);
@@ -475,7 +477,9 @@ export function MapsLeadsView({
           setResults(response.results);
           setSelectedId(response.results[0]?.placeId ?? null);
           if (!response.results.length) {
-            setMessage("Nenhum estabelecimento foi encontrado ou coube no saldo diário disponível.");
+            setMessage(response.quota?.test_mode
+              ? "Nenhum estabelecimento encontrado com esses filtros ou dentro dos limites seguros das APIs."
+              : "Nenhum estabelecimento foi encontrado ou coube no saldo diário disponível.");
           } else if (response.partial) {
             setMessage("A fonte atingiu um limite durante a busca. Estes são os resultados válidos disponíveis.");
           }
