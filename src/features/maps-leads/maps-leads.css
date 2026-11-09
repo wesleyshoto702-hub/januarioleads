@@ -482,3 +482,5 @@
   .bms-business-close { width:30px; height:30px; right:9px; top:9px; }
   .bms-map-pin-warning { bottom:29px; }
 }
+
+.bms-real-pin > span { transform:rotate(45deg); display:block; }
