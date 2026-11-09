@@ -253,6 +253,7 @@ async function claimApiBudget(
 
 type SaasQuota = {
   plan: "free" | "pro" | "advanced";
+  test_mode?: boolean;
   daily_limit: number;
   used_today: number;
   remaining_today: number;
@@ -372,6 +373,7 @@ type SaasSearchQuota = {
   max_results: number;
   allowed: boolean;
   reset_at: string | null;
+  test_mode?: boolean;
 };
 
 async function readSaasSearchQuota(userId: string, claim: boolean): Promise<SaasSearchQuota | null> {
@@ -1286,7 +1288,7 @@ async function runSegmentSearch(
   const claim = await claimSaasLeads(userId,collected.map((b)=>b.placeId),source,verifiedAliases);
   if (!claim) return failure("REQUEST_FAILED","Não foi possível registrar os créditos.",503);
   const allowed = new Set(claim.allowed_place_ids);
-  const free = claim.plan === "free";
+  const free = claim.plan === "free" && claim.test_mode !== true;
   const visible = free
     ? collected.map((business) => allowed.has(business.placeId)
       ? business
@@ -1311,6 +1313,7 @@ async function runSegmentSearch(
       plan:claim.plan,daily_limit:claim.daily_limit,
       used_today:claim.used_today,remaining_today:claim.remaining_today,
       usage_date:claim.usage_date,
+      test_mode:claim.test_mode===true,
     },
     creditCost,creditsSpent:claim.credits_spent,
     searchQuota,demo:demoMode,
@@ -3122,7 +3125,7 @@ async function handleRequest(request: Request) {
     if (!quota) {
       return failure("REQUEST_FAILED", "Não foi possível verificar seu saldo diário.", 503);
     }
-    if (quota.plan !== "free" && quota.remaining_today <= 0) {
+    if (quota.test_mode !== true && quota.plan !== "free" && quota.remaining_today <= 0) {
       return json({
         ok: false,
         code: "DAILY_LEAD_LIMIT",
