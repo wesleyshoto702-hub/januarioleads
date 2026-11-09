@@ -1660,7 +1660,7 @@ function LeadFlowApp() {
 
   function navigateTo(nextView: AppView) {
     if (nextView === "maps" && (!SAAS_STAGING_ACTIVE || !canUse("maps_search"))) {
-      setSaasAccessError("Buscar via Maps é exclusivo do plano Advanced.");
+      setSaasAccessError("Buscar via Maps está disponível nos planos Pro e Advanced.");
       setView("dashboard");
       return;
     }
