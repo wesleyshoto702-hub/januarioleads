@@ -18,7 +18,7 @@ import {
   loadBrazilianMunicipalities, resolveMunicipality,
 } from "../search-leads/search-location";
 import { ALL_SEARCH_SEGMENTS, resolveSearchSegment } from "../search-leads/segments";
-import { searchPersonalGeoapify, type PersonalGeoapifyPlace } from "./personal-geoapify";
+import { searchPersonalGeoapify, checkPersonalGeoapifyConfig, type PersonalGeoapifyPlace } from "./personal-geoapify";
 import { buildMapPoints } from "./map-points";
 import { ENV_GOOGLE_MAPS_BROWSER_KEY, RealGoogleMap } from "./RealGoogleMap";
 
@@ -109,6 +109,8 @@ export function MapsPersonalView({
   const [browserKey,setBrowserKey]=useState(googleKeyFromBrowser);
   const [keyDraft,setKeyDraft]=useState(googleKeyFromBrowser);
   const [showKeySettings,setShowKeySettings]=useState(false);
+  const [checkingGeoapify,setCheckingGeoapify]=useState(false);
+  const [geoapifyStatus,setGeoapifyStatus]=useState("");
   const requestLock=useRef(false);
   const saveLock=useRef(false);
   const listRef=useRef<HTMLOListElement>(null);
@@ -260,6 +262,17 @@ export function MapsPersonalView({
     choose(id);
     window.requestAnimationFrame(()=>document.getElementById("bms-google-crm-name")?.focus());
   }
+  async function checkGeoapifyReadiness(){
+    if(checkingGeoapify)return;
+    setCheckingGeoapify(true);setGeoapifyStatus("");
+    try{
+      const status=await checkPersonalGeoapifyConfig();
+      if(!status.ok){setGeoapifyStatus(status.message);return;}
+      setGeoapifyStatus(status.configured
+        ? "Geoapify: chave cadastrada no Supabase original. Isso confirma apenas a configuração; faça uma busca para validar o acesso ao provedor."
+        : "Geoapify: chave ausente. Cadastre GEOAPIFY_API_KEY nos Secrets das Edge Functions do Supabase original.");
+    }finally{setCheckingGeoapify(false);}
+  }
   function saveBrowserMapKey(){
     const candidate=keyDraft.trim();
     if(candidate&&!/^AIza[\w-]{25,}$/.test(candidate)){
@@ -340,6 +353,10 @@ export function MapsPersonalView({
           onClick={()=>setShowKeySettings(value=>!value)}>
           <KeyRound size={15}/> {browserKey?"Configurar chave do mapa":"Ativar mapa Google"}
         </button>
+        <button type="button" className="bms-map-key-toggle"
+          disabled={checkingGeoapify} onClick={()=>void checkGeoapifyReadiness()}>
+          <ShieldCheck size={15}/> {checkingGeoapify?"Verificando...":"Verificar Geoapify sem custo"}
+        </button>
       </div>
       {showKeySettings&&<div className="bms-key-settings">
         <label htmlFor="bms-public-key">Chave pública do Maps JavaScript, restrita ao domínio da Lovable</label>
@@ -348,7 +365,13 @@ export function MapsPersonalView({
           onChange={e=>setKeyDraft(e.target.value)}/>
         <button type="button" onClick={saveBrowserMapKey}>Salvar chave pública neste navegador</button>
         <p>Use uma chave de navegador limitada à Maps JavaScript API e aos domínios da Lovable. Nunca insira a chave privada do Google Places aqui. O carregamento do mapa pode gerar cobrança no Google Cloud.</p>
+        <p>Cadastre este site em <strong>Restrições de aplicativo → Sites</strong>:
+          <code>{typeof window!=="undefined"?window.location.origin+"/":"domínio atual da Lovable"}</code>
+          {" "}<a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer">Abrir credenciais do Google Cloud</a>.
+          Em <strong>Restrições de API</strong>, habilite apenas Maps JavaScript API para esta chave.
+        </p>
       </div>}
+      {geoapifyStatus&&<p className="bms-message" role="status">{geoapifyStatus}</p>}
       <div className="bms-meta">
         <span><Layers size={15}/> {applied?`${count} empresas encontradas`:"Escolha um nicho e uma região"}</span>
         <span>Buscas pessoais protegidas · sem planos ou créditos de SaaS</span>
