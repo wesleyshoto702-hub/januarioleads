@@ -110,7 +110,7 @@ export function buildProspectingHierarchy(
 ): ProspectingHierarchy {
   const root = newNode("BR", "Brasil");
   const filterNiche = normalizedNiche(selectedNiche);
-  const stateNames = new Map(BRAZIL_STATES.map((s) => [s.code, s.name]));
+  const stateNames = new Map<string, string>(BRAZIL_STATES.map((s): [string, string] => [s.code, s.name]));
   const processed = new Set<string>();
   for (const lead of leads) {
     if (filterNiche && normalizedNiche(lead.segment) !== filterNiche) continue;
