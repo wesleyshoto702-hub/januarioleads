@@ -11,7 +11,8 @@ declare
   unused text;
   r jsonb;
   n integer;
-  pro_blocked boolean:=false;
+  free_blocked boolean:=false;
+  pro_google text;
 begin
   select user_id into u from public.private_access limit 1;
   if u is null then raise exception 'Missing staging test identity'; end if;
@@ -63,13 +64,29 @@ begin
   if (r->>'credits_spent')::int<>0
     then raise exception 'Recorded aliases charged on revisit: %',r;end if;
 
-  -- A Pro request must not bypass Maps entitlements via verified alias.
+  -- Pro is now entitled to Maps. A new Google Place ID costs two credits.
   update public.saas_subscriptions set plan_code='pro' where user_id=u;
+  pro_google:='ChIJpro'||seed;
+  r:=public.claim_daily_maps_with_osm_anchors(
+    u,array[pro_google],'{}'::jsonb,'[]'::jsonb);
+  if r->>'plan'<>'pro' or (r->>'credits_spent')::int<>2 or
+     (r->>'credit_cost')::int<>2 then
+    raise exception 'Pro Maps failed or wrong credit cost: %',r;
+  end if;
+  -- Repeating the Pro request does not deduct more credits.
+  r:=public.claim_daily_maps_with_osm_anchors(
+    u,array[pro_google],'{}'::jsonb,'[]'::jsonb);
+  if (r->>'credits_spent')::int<>0 then
+    raise exception 'Pro Maps repeat was billed again: %',r;
+  end if;
+
+  -- Free is NOT entitled to Maps, even when an ID was previously unlocked.
+  update public.saas_subscriptions set plan_code='free' where user_id=u;
   begin
     perform public.claim_daily_maps_with_osm_anchors(u,array[osm],
       '{}'::jsonb,'[]'::jsonb);
-  exception when insufficient_privilege then pro_blocked:=true;
+  exception when insufficient_privilege then free_blocked:=true;
   end;
-  if not pro_blocked then raise exception 'Pro gate bypassed';end if;
+  if not free_blocked then raise exception 'Free Maps gate bypassed';end if;
 end $$;
 rollback;
