@@ -10,7 +10,7 @@ import type { RealMapPoint } from "./map-points";
  * (legacy Marker is deprecated but still supported). With a real Map ID prefer
  * AdvancedMarkerElement and the dark map style configured in Google Cloud.
  */
-const BROWSER_KEY = (import.meta.env["VITE_GOOGLE_MAPS_BROWSER_KEY"] as string | undefined)?.trim() ?? "";
+export const ENV_GOOGLE_MAPS_BROWSER_KEY = (import.meta.env["VITE_GOOGLE_MAPS_BROWSER_KEY"] as string | undefined)?.trim() ?? "";
 const MAP_ID = (import.meta.env["VITE_GOOGLE_MAPS_MAP_ID"] as string | undefined)?.trim() ?? "";
 
 // Public geographic overview used only BEFORE a locality search; actual
@@ -49,10 +49,10 @@ type GoogleMapsSDK = {
 };
 let scriptPromise: Promise<GoogleMapsSDK> | null = null;
 
-function loadMapsSDK(): Promise<GoogleMapsSDK> {
+function loadMapsSDK(browserKey: string): Promise<GoogleMapsSDK> {
   if (scriptPromise) return scriptPromise;
   scriptPromise = new Promise<GoogleMapsSDK>((resolve, reject) => {
-    if (!BROWSER_KEY) {
+    if (!browserKey) {
       reject(new Error("Chave pública do Google Maps não configurada."));
       return;
     }
@@ -73,7 +73,7 @@ function loadMapsSDK(): Promise<GoogleMapsSDK> {
     const script = document.createElement("script");
     script.async = true;
     script.src = "https://maps.googleapis.com/maps/api/js?key=" +
-      encodeURIComponent(BROWSER_KEY) +
+      encodeURIComponent(browserKey) +
       "&v=weekly&libraries=marker&language=pt-BR&region=BR";
     script.onload = ready;
     script.onerror = () => reject(new Error("Não foi possível carregar o Google Maps. Confira Maps JavaScript API, faturamento e restrições da chave."));
@@ -152,6 +152,7 @@ class LocalMapErrorBoundaryInner extends Component<{children: ReactNode}, {faile
 }
 
 export function RealGoogleMap(props: {
+  browserKey: string;
   points: RealMapPoint[];
   selectedId: string | null;
   onSelect: (id: string) => void;
@@ -161,8 +162,9 @@ export function RealGoogleMap(props: {
 }
 
 function RealGoogleMapCanvas({
-  points, selectedId, onSelect, zoomAction,
+  browserKey, points, selectedId, onSelect, zoomAction,
 }: {
+  browserKey: string;
   points: RealMapPoint[];
   selectedId: string | null;
   onSelect: (id: string) => void;
@@ -191,7 +193,7 @@ function RealGoogleMapCanvas({
 
   useEffect(() => {
     let live = true;
-    void loadMapsSDK().then(async (google) => {
+    void loadMapsSDK(browserKey).then(async (google) => {
       if (typeof google.maps.Marker !== "function" && google.maps.importLibrary) {
         try { await google.maps.importLibrary("marker"); }
         catch (reason) { console.warn("[JanuárioLeads Maps] Biblioteca marker:", reason); }
@@ -243,7 +245,7 @@ function RealGoogleMapCanvas({
       map.current = null;
       sdk.current = null;
     };
-  }, [clearMarkers]);
+  }, [browserKey, clearMarkers]);
 
   useEffect(() => {
     const instance = map.current;
