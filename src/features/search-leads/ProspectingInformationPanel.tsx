@@ -128,7 +128,7 @@ export function ProspectingInformationPanel({
           <RegionRow key={state.key} item={state} level="state" ready={ready}/>
         )) : (
           <p className="prospecting-info-empty">
-            {niche ? "Nenhum lead cadastrado neste nicho." : "Cadastre leads para começar a acompanhar suas regiões."}
+            {selectedNiche ? "Nenhum lead cadastrado neste nicho." : "Cadastre leads para começar a acompanhar suas regiões."}
           </p>
         )}
       </div>

@@ -1209,7 +1209,7 @@ export function SearchLeadsView({
           </div>
         </div>
 
-        {error && <SearchError error={error} />
+        {error && <SearchError error={error} />}
 
         <div className="selection-bar">
           <div>
