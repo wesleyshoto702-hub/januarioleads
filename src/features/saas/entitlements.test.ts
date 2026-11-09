@@ -47,3 +47,16 @@ Deno.test("flags retornam valores booleanos sem confiar em preços locais", () =
     throw new Error("feature check must produce boolean");
   }
 });
+
+Deno.test("modo testes libera recursos sem reescrever os planos gravados", () => {
+  const testOnly: SaasEntitlements = {...free, test_mode:true};
+  if (!isSaasEntitlements(testOnly)) throw new Error("Test-mode rights must stay valid");
+  if (!canUseSaasFeature(testOnly,"maps_search") ||
+      !canUseSaasFeature(testOnly,"internal_automations") ||
+      !canUseSaasFeature(testOnly,"finance")) {
+    throw new Error("Staging tester should bypass temporary plan gates");
+  }
+  // The Free plan model remains intact for reactivation.
+  if (testOnly.plan!=="free" || testOnly.features.maps_search!==false)
+    throw new Error("Test flag must not rewrite the saved plan catalog");
+});
