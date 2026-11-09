@@ -172,6 +172,10 @@ export function MapsPersonalView({
       input.city=resolved;
     }
     requestLock.current=true;
+    // Invalidate the previous search before requesting another city/niche.
+    // A failed or quota-limited request must never appear to return old places.
+    setGeoResults([]);setGoogleResults([]);setResultProvider(null);
+    setSelection(null);setApplied(null);setSavedIds([]);
     setLoading(true);setError("");setNotice("");setManualName("");
     try{
       // Automatic: Geoapify first for supported OSM categories; a separate
