@@ -58,6 +58,9 @@ import {
   persistPlacesSearchSample,
 } from "../opportunities/places-search-cache";
 import { isValidWhatsAppPhone, openWhatsAppLink } from "../../lib/whatsapp";
+import { fetchConfirmedProspectingIds } from "./prospecting-confirmations";
+import { summarizeLoadedProspecting, summarizeSavedProspecting } from "./prospecting-progress";
+import { ProspectingProgressPanel } from "./ProspectingProgressPanel";
 
 export type SearchMode = "all" | "open";
 
@@ -475,6 +478,7 @@ export function SearchLeadsView({
   onPresenceDiscovered,
   mode,
   onModeChange,
+  confirmationRevision = 0,
 }: {
   existingLeads: ExistingLeadIdentity[];
   onAddLead: (
@@ -485,6 +489,7 @@ export function SearchLeadsView({
   onPresenceDiscovered?: (leadId: string, presence: BusinessPresence) => void;
   mode: SearchMode;
   onModeChange: (mode: SearchMode) => void;
+  confirmationRevision?: number;
 }) {
   const initialSearchSession = useMemo(() => loadSearchLeadsSession(), []);
   const initialSearchLocation = useMemo(
@@ -536,6 +541,26 @@ export function SearchLeadsView({
   const hasActiveSearchRef = useRef(Boolean(initialSearchSession));
   // A slower search must never replace results from a newer user request.
   const searchRequestIdRef = useRef(0);
+  const [confirmedSendIds, setConfirmedSendIds] = useState<ReadonlySet<string> | null>(null);
+  const [confirmationState, setConfirmationState] = useState<"loading" | "ready" | "error">("loading");
+
+  // The CRM already records a user-confirmed WhatsApp handoff. This is a
+  // separate read-only RLS request and never queries the paid Places APIs.
+  // Re-fetch after confirmWhatsAppSent writes its event in the parent.
+  useEffect(() => {
+    let active = true;
+    setConfirmationState("loading");
+    void fetchConfirmedProspectingIds().then((ids) => {
+      if (!active) return;
+      setConfirmedSendIds(ids);
+      setConfirmationState("ready");
+    }).catch(() => {
+      if (!active) return;
+      setConfirmedSendIds(null);
+      setConfirmationState("error");
+    });
+    return () => { active = false; };
+  }, [confirmationRevision]);
 
   useEffect(() => {
     // Do not replace the remote last search with an empty default session.
@@ -822,6 +847,19 @@ export function SearchLeadsView({
   const hasActiveFilters =
     leadStatusFilter !== "all" ||
     !sameResultFilters(resultFilters, DEFAULT_RESULT_FILTERS);
+
+  const savedProspecting = useMemo(
+    () => summarizeSavedProspecting(existingLeads, {
+      city: selectedCity ?? "",
+      state: selectedState.code,
+      segment: selectedSegment,
+    }, confirmedSendIds ?? new Set<string>()),
+    [existingLeads, selectedCity, selectedState.code, selectedSegment, confirmedSendIds],
+  );
+  const loadedProspecting = useMemo(
+    () => summarizeLoadedProspecting(resultWithExisting, confirmedSendIds ?? new Set<string>()),
+    [resultWithExisting, confirmedSendIds],
+  );
 
   const alreadyAddedCount = resultWithExisting.filter((item) => item.alreadyAdded).length;
   const newCount = resultWithExisting.length - alreadyAddedCount;
@@ -1210,6 +1248,12 @@ export function SearchLeadsView({
           </div>
         </div>
 
+        {selectedSegment && selectedCity && (
+          <ProspectingProgressPanel kind="saved"
+            segment={selectedSegment} city={selectedCity} state={selectedState.code}
+            summary={savedProspecting} confirmationState={confirmationState} />
+        )}
+
         {error && <SearchError error={error} />}
 
         <div className="selection-bar">
@@ -1259,6 +1303,10 @@ export function SearchLeadsView({
           </p>
         </div>
       </div>
+
+      <ProspectingProgressPanel kind="results"
+        segment={resultsSegment} city={resultsLocation.city} state={resultsLocation.state}
+        summary={loadedProspecting} confirmationState={confirmationState} />
 
       {/* Choose the open-now filter only after the niche search has returned. */}
       <SearchModeSwitcher mode={mode} onModeChange={onModeChange} />
