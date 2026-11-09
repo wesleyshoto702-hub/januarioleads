@@ -11,8 +11,9 @@ import {
   Search,
   ShieldCheck,
   Star,
+  X,
 } from "lucide-react";
-import { Component, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { BRAZIL_STATES } from "../../lib/brazil-locations";
 import { safeExternalHref } from "../../lib/safe-external-url";
 import type { PersistedLead } from "../leads/remote-leads";
@@ -21,7 +22,8 @@ import { findBusinessDuplicate, findSavedBusinessMatch } from "../search-leads/i
 import { searchBusinesses } from "../search-leads/search-businesses";
 import { searchAutomaticMaps, type GeoapifyPreview } from "./geoapify-client";
 import { loadMapPlaceDetails } from "./map-place-details";
-import { buildMapPoints, type RealMapPoint } from "./map-points";
+import { buildMapPoints } from "./map-points";
+import { RealGoogleMap } from "./RealGoogleMap";
 import {
   DEFAULT_SEARCH_LOCATION,
   loadSearchLocation,
@@ -43,274 +45,7 @@ const GOOGLE_BROWSER_KEY = (import.meta.env["VITE_GOOGLE_MAPS_BROWSER_KEY"] as s
 
 type SearchValues = SearchLocation & { segment: string; neighborhood: string };
 type MapsProvider = "geoapify" | "google";
-type GeoPoint = { lat: number; lng: number };
-
-type GoogleMapInstance = {
-  fitBounds: (value: GoogleBounds) => void;
-  panTo: (value: GeoPoint) => void;
-  setZoom: (zoom: number) => void;
-  getZoom: () => number | undefined;
-};
-type GoogleMarker = {
-  setMap: (map: GoogleMapInstance | null) => void;
-  addListener: (event: string, callback: () => void) => void;
-  setIcon: (options: Record<string, unknown>) => void;
-  setZIndex: (value: number) => void;
-};
-type GoogleBounds = { extend: (value: GeoPoint) => void };
-type GoogleMapsApi = {
-  maps: {
-    Map: new (element: HTMLElement, options: Record<string, unknown>) => GoogleMapInstance;
-    Marker: new (options: Record<string, unknown>) => GoogleMarker;
-    LatLngBounds: new () => GoogleBounds;
-    importLibrary?: (name: "marker") => Promise<unknown>;
-  };
-};
-let mapsLoader: Promise<GoogleMapsApi> | null = null;
-
-/** Google Maps may load its base library before its marker library.
- * Validate both before creating the map so an incomplete SDK never crashes
- * the entire dashboard after a successful provider search.
- */
-function hasMapMarkerLibrary(google: GoogleMapsApi | undefined): google is GoogleMapsApi {
-  return typeof google?.maps?.Map === "function" &&
-    typeof google.maps.Marker === "function" &&
-    typeof google.maps.LatLngBounds === "function";
-}
-
-async function requireGoogleMapMarkers(google: GoogleMapsApi | undefined): Promise<GoogleMapsApi> {
-  if (!google?.maps?.Map) throw new Error("O Google Maps não terminou de carregar.");
-  if (!hasMapMarkerLibrary(google) && typeof google.maps.importLibrary === "function") {
-    await google.maps.importLibrary("marker");
-  }
-  if (!hasMapMarkerLibrary(google)) {
-    throw new Error("A biblioteca de marcadores do Google Maps não está disponível.");
-  }
-  return google;
-}
-
-function loadGoogleMaps(): Promise<GoogleMapsApi> {
-  if (mapsLoader) return mapsLoader;
-  mapsLoader = new Promise((resolve, reject) => {
-    const w = window as Window & { google?: GoogleMapsApi };
-    if (w.google?.maps?.Map) {
-      void requireGoogleMapMarkers(w.google).then(resolve, reject);
-      return;
-    }
-    if (!GOOGLE_BROWSER_KEY) {
-      reject(new Error("A chave pública do Google Maps não está configurada."));
-      return;
-    }
-    const script = document.createElement("script");
-    script.async = true;
-    // Request the marker library explicitly. A bare Maps SDK can expose Map
-    // while omitting Marker; previously that caused an uncaught React error.
-    script.src = "https://maps.googleapis.com/maps/api/js?key=" +
-      encodeURIComponent(GOOGLE_BROWSER_KEY) +
-      "&v=weekly&libraries=marker&language=pt-BR&region=BR";
-    script.onload = () => {
-      void requireGoogleMapMarkers(w.google).then(resolve, reject);
-    };
-    script.onerror = () => reject(new Error("Falha ao carregar o Google Maps. Confira a chave e a conexão."));
-    document.head.appendChild(script);
-  }).catch((error: unknown) => {
-    mapsLoader = null;
-    throw error;
-  });
-  return mapsLoader;
-}
-
-const DARK_GOOGLE_STYLE: Array<Record<string, unknown>> = [
-  { elementType: "geometry", stylers: [{ color: "#17121a" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#a8a1ad" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#151018" }] },
-  { featureType: "administrative", elementType: "geometry.stroke", stylers: [{ color: "#41343f" }] },
-  { featureType: "poi", stylers: [{ visibility: "off" }] },
-  { featureType: "road", elementType: "geometry", stylers: [{ color: "#342c37" }] },
-  { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#241c29" }] },
-  { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#59414d" }] },
-  { featureType: "transit", stylers: [{ visibility: "off" }] },
-  { featureType: "water", elementType: "geometry", stylers: [{ color: "#101922" }] },
-];
-
-function hasCoordinates(value: BusinessSearchResult): value is BusinessSearchResult & { latitude: number; longitude: number } {
-  return typeof value.latitude === "number" && Number.isFinite(value.latitude) &&
-    typeof value.longitude === "number" && Number.isFinite(value.longitude) &&
-    Math.abs(value.latitude) <= 90 && Math.abs(value.longitude) <= 180;
-}
-
-type MapDisplayPoint = RealMapPoint;
 type MapZoomAction = { id: number; delta: number };
-
-/** Use a literal SVG circle path instead of google.maps.SymbolPath.CIRCLE.
- * The latter can be missing from an incomplete/changed SDK. The legacy
- * marker API is isolated and all its errors are caught below.
- */
-function markerIcon(active: boolean) {
-  return {
-    path: "M 0,-1 a 1,1 0 1,0 0,2 a 1,1 0 1,0 0,-2 Z",
-    scale: active ? 20 : 15,
-    fillColor: active ? "#ff174c" : "#e52d57",
-    fillOpacity: 1,
-    strokeColor: active ? "#ffffff" : "#f7dce4",
-    strokeWeight: active ? 3 : 2,
-  };
-}
-
-/** If a future SDK change throws during render/effect, contain the crash to
- * the map canvas. The results list and CRM actions remain mounted.
- */
-class GoogleMapErrorBoundary extends Component<
-  { children: ReactNode }, { failed: boolean }
-> {
-  state = { failed: false };
-  static getDerivedStateFromError() { return { failed: true }; }
-  componentDidCatch(reason: Error) {
-    console.error("[JanuárioLeads Maps] Falha no mapa visual:", reason);
-  }
-  render() {
-    if (this.state.failed) {
-      return <div className="bms-map-placeholder" role="status">
-        <MapPin size={34} />
-        <strong>Mapa visual indisponível</strong>
-        <p>A busca funcionou. Os estabelecimentos continuam na lista ao lado.</p>
-      </div>;
-    }
-    return this.props.children;
-  }
-}
-
-/** Only verified provider coordinates appear on the live Google map; never simulated pins. */
-function GoogleLeadsMap({
-  points, selectedId, onSelect, zoomAction,
-}: {
-  points: MapDisplayPoint[];
-  selectedId: string | null;
-  onSelect: (id: string) => void;
-  zoomAction: MapZoomAction;
-}) {
-  const container = useRef<HTMLDivElement>(null);
-  const map = useRef<GoogleMapInstance | null>(null);
-  const sdk = useRef<GoogleMapsApi | null>(null);
-  const markers = useRef<Array<{ id: string; marker: GoogleMarker }>>([]);
-  const [ready, setReady] = useState(false);
-  const [error, setError] = useState("");
-
-  const clearMarkers = useCallback(() => {
-    const previous = markers.current;
-    markers.current = [];
-    for (const item of previous) {
-      // A partially loaded/invalid SDK can also throw while removing markers.
-      try { item.marker.setMap(null); } catch { /* Preserve the result list. */ }
-    }
-  }, []);
-
-  const failMap = useCallback((reason: unknown) => {
-    console.error("[JanuárioLeads Maps] Falha no mapa visual:", reason);
-    clearMarkers();
-    map.current = null;
-    sdk.current = null;
-    setReady(false);
-    setError("Mapa visual indisponível. Os estabelecimentos continuam na lista ao lado.");
-  }, [clearMarkers]);
-
-  useEffect(() => {
-    let alive = true;
-    void loadGoogleMaps().then((google) => {
-      if (!alive || !container.current) return;
-      try {
-        sdk.current = google;
-        map.current = new google.maps.Map(container.current, {
-          center: { lat: -21.245, lng: -44.999 },
-          zoom: 12,
-          maxZoom: 18,
-          styles: DARK_GOOGLE_STYLE,
-          disableDefaultUI: true,
-          clickableIcons: false,
-          gestureHandling: "cooperative",
-          backgroundColor: "#121017",
-        });
-        setReady(true);
-      } catch (reason: unknown) {
-        if (alive) failMap(reason);
-      }
-    }).catch((reason: unknown) => {
-      if (alive) failMap(reason);
-    });
-    return () => {
-      alive = false;
-      clearMarkers();
-      map.current = null;
-      sdk.current = null;
-    };
-  }, [clearMarkers, failMap]);
-
-  useEffect(() => {
-    const google = sdk.current;
-    const instance = map.current;
-    if (!ready || error || !google || !instance) return;
-    try {
-      clearMarkers();
-      const bounds = new google.maps.LatLngBounds();
-      for (const [index, point] of points.entries()) {
-        const position = { lat: point.lat, lng: point.lng };
-        bounds.extend(position);
-        const marker = new google.maps.Marker({
-          map: instance, position, title: point.name,
-          label: { text: String(index + 1), color: "#ffffff", fontSize: "11px", fontWeight: "800" },
-          icon: markerIcon(selectedId === point.id),
-          zIndex: selectedId === point.id ? 1000 : index + 1,
-        });
-        marker.addListener("click", () => onSelect(point.id));
-        markers.current.push({ id: point.id, marker });
-      }
-      if (points.length) {
-        instance.fitBounds(bounds);
-        if (points.length === 1) instance.setZoom(15);
-      }
-    } catch (reason: unknown) {
-      failMap(reason);
-    }
-    return clearMarkers;
-    // Marker selection is updated independently without fitting the viewport.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [points, ready, error, onSelect, clearMarkers, failMap]);
-
-  useEffect(() => {
-    const google = sdk.current;
-    if (!ready || error || !google) return;
-    try {
-      for (const item of markers.current) {
-        const active = item.id === selectedId;
-        item.marker.setIcon(markerIcon(active));
-        item.marker.setZIndex(active ? 1000 : 1);
-      }
-      const target = points.find((point) => point.id === selectedId);
-      if (target) map.current?.panTo({ lat: target.lat, lng: target.lng });
-    } catch (reason: unknown) {
-      failMap(reason);
-    }
-  }, [points, selectedId, ready, error, failMap]);
-
-  useEffect(() => {
-    if (!zoomAction.id || !map.current || error) return;
-    try {
-      const zoom = map.current.getZoom() ?? 12;
-      map.current.setZoom(Math.min(18, Math.max(5, zoom + zoomAction.delta)));
-    } catch (reason: unknown) {
-      failMap(reason);
-    }
-  }, [zoomAction, error, failMap]);
-
-  return (
-    <div className="bms-google-map" ref={container}
-      role="region" aria-label="Google Maps real com marcadores dos estabelecimentos encontrados">
-      {!ready && <div className="bms-map-loading" role="status">
-        {error || "Carregando Google Maps..."}
-      </div>}
-    </div>
-  );
-}
 
 export function MapsLeadsView({
   existingLeads,
@@ -399,7 +134,6 @@ export function MapsLeadsView({
     crmGoogleIds.has(selected.placeId) : false;
   const geoSaved = selectedGeo ? crmGeoIds.has(selectedGeo.sourceId) || savedIds.includes(selectedGeo.sourceId) : false;
   // Search may still work without a browser map key; never expose the server Places key.
-  const mapAllowed = Boolean(GOOGLE_BROWSER_KEY) || SAAS_STAGING_ACTIVE;
   const mapPoints = useMemo(() => buildMapPoints(appliedProvider, results, geoResults),
     [appliedProvider, geoResults, results]);
 
@@ -520,7 +254,6 @@ export function MapsLeadsView({
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!mapAllowed) return;
     void search({
       city: city.trim(), state,
       neighborhood: neighborhood.trim(),
@@ -622,7 +355,9 @@ export function MapsLeadsView({
   const osmLink = selectedGeo
     ? `https://www.openstreetmap.org/?mlat=${selectedGeo.latitude}&mlon=${selectedGeo.longitude}#map=16/${selectedGeo.latitude}/${selectedGeo.longitude}`
     : null;
-  const displayGoogleMap = Boolean(GOOGLE_BROWSER_KEY) && mapPoints.length > 0;
+  // A real Google map loads even before the first search; its map tiles
+  // are never generated or simulated. Only verified results become numbered pins.
+  const displayGoogleMap = Boolean(GOOGLE_BROWSER_KEY);
   const activeMarkerId = appliedProvider === "geoapify" ? selectedGeoId : selectedId;
 
 
@@ -674,7 +409,7 @@ export function MapsLeadsView({
             onChange={(e) => setNeighborhood(e.target.value)} placeholder="Ex.: Centro" />
         </div>
         <button className="bms-submit" type="submit"
-          disabled={loading || !mapAllowed || (usage != null && usage.test_mode !== true && usage.remaining_today < 2)}>
+          disabled={loading || (usage != null && usage.test_mode !== true && usage.remaining_today < 2)}>
           {loading ? <LoaderCircle className="bms-spin" size={17} /> : <Search size={17}/>}
           {loading ? "Buscando empresas..." : "Buscar no mapa"}
         </button>
@@ -703,18 +438,13 @@ export function MapsLeadsView({
       <div className="bms-layout">
         <div className="bms-map-frame">
           {displayGoogleMap
-            ? <GoogleMapErrorBoundary>
-                <GoogleLeadsMap points={mapPoints} selectedId={activeMarkerId}
-                  onSelect={choose} zoomAction={zoomAction} />
-              </GoogleMapErrorBoundary>
+            ? <RealGoogleMap points={mapPoints} selectedId={activeMarkerId}
+                onSelect={choose} zoomAction={zoomAction} />
             : <div className="bms-map-placeholder" role="status">
                 <MapPin size={34}/>
-                <strong>{!GOOGLE_BROWSER_KEY ? "Google Maps aguardando configuração" :
-                  resultCount ? "Nenhum local com coordenadas válidas" : "Explore empresas reais no mapa"}</strong>
-                <p>{!GOOGLE_BROWSER_KEY
-                  ? "A busca de estabelecimentos funciona, mas o mapa real precisa de uma chave pública exclusiva para Maps JavaScript API."
-                  : resultCount ? "Consulte a lista de resultados para abrir cada localização."
-                  : "Escolha o segmento e a cidade e clique em Buscar no mapa."}</p>
+                <strong>Chave do Google Maps não configurada</strong>
+                <p>A lista de empresas ainda funciona. Configure uma chave pública
+                  autorizada para a API Maps JavaScript para mostrar o mapa geográfico real.</p>
               </div>}
           <div className="bms-coverage">
             <div className="bms-coverage-kicker"><span className="bms-dot"/> COBERTURA TERRITORIAL</div>
@@ -735,6 +465,8 @@ export function MapsLeadsView({
           </div>}
 
           {selected && <article className="bms-business-card" aria-label={"Empresa selecionada: " + selected.name}>
+            <button type="button" className="bms-business-close" aria-label="Fechar detalhes do lead"
+              onClick={() => { setSelectedId(null); setGoogleCrmName(""); }}><X size={17}/></button>
             <div className="bms-business-top">
               <span className="bms-business-icon"><MapPin size={23} /></span>
               <div className="bms-business-title">
@@ -772,15 +504,17 @@ export function MapsLeadsView({
                 <small>O CRM salvará o nome que você digitou e o identificador Google; outros dados ficam somente na consulta.</small>
               </>}
               <button className="bms-save" type="button"
-                disabled={saving || saved || !mapAllowed || (!saved && googleCrmName.trim().length<3)}
+                disabled={saving || saved || (!saved && googleCrmName.trim().length<3)}
                 onClick={() => void saveLead()}>
                 {saved ? <CheckCircle2 size={17}/> : <BookmarkPlus size={17}/>}
-                {saved ? "Lead já adicionado" : saving ? "Adicionando..." : "Adicionar ao CRM"}
+                {saved ? "Lead já adicionado" : saving ? "Adicionando..." : "Adicionar lead"}
               </button>
             </div>
           </article>}
           {selectedGeo && appliedProvider === "geoapify" &&
             <article className="bms-business-card" aria-label={"Estabelecimento Geoapify: " + selectedGeo.name}>
+              <button type="button" className="bms-business-close" aria-label="Fechar detalhes do lead"
+                onClick={() => setSelectedGeoId(null)}><X size={17}/></button>
               <div className="bms-business-top">
                 <span className="bms-business-icon"><MapPin size={23}/></span>
                 <div className="bms-business-title">
@@ -802,10 +536,10 @@ export function MapsLeadsView({
               </div>
               <p className="bms-readonly">Dados provenientes do Geoapify e © OpenStreetMap contributors. Contatos não disponíveis poderão ser adicionados depois no CRM.</p>
               <button className="bms-save" type="button"
-                disabled={saving || geoSaved || !mapAllowed}
+                disabled={saving || geoSaved}
                 onClick={() => void saveLead()}>
                 {geoSaved ? <CheckCircle2 size={17}/> : <BookmarkPlus size={17}/>}
-                {geoSaved ? "Lead já adicionado" : saving ? "Adicionando..." : "Adicionar ao CRM"}
+                {geoSaved ? "Lead já adicionado" : saving ? "Adicionando..." : "Adicionar lead"}
               </button>
             </article>}
 
