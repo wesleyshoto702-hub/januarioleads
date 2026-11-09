@@ -1,4 +1,5 @@
 import { accountLocalStorage } from "../../lib/account-storage";
+import { SAAS_STAGING_ACTIVE } from "../search-leads/saas-usage";
 import {
   isOpenNowCacheFresh,
   type OpeningHoursSnapshot,
@@ -105,6 +106,7 @@ export function storeRecentBusinessSearch(
   results: BusinessSearchResult[],
   options: {city:string;state:string;append?:boolean},
 ) {
+  if (SAAS_STAGING_ACTIVE) return; // Staging: live results only, no persistent Places cache.
   if (typeof window === "undefined") return;
   const storageKey = key(options.city,options.state,segment);
   let previous: LocalOpenNowCache | null = null;
@@ -141,6 +143,7 @@ export function storeRecentBusinessSearch(
 }
 
 export function loadRecentBusinessSearches(city: string,state: string) {
+  if (SAAS_STAGING_ACTIVE) return [] as LocalOpenNowCache[];
   if (typeof window === "undefined") return [] as LocalOpenNowCache[];
   const values: LocalOpenNowCache[] = [];
   const expectedCity = normalizeLocationText(city);
@@ -171,6 +174,7 @@ export function loadRecentBusinessSearches(city: string,state: string) {
 
 
 export function loadOpportunityBusinessSearches() {
+  if (SAAS_STAGING_ACTIVE) return [] as LocalOpenNowCache[];
   if (typeof window === "undefined") return [] as LocalOpenNowCache[];
 
   const values: LocalOpenNowCache[] = [];
