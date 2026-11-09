@@ -1,5 +1,5 @@
 /** Location markers from authenticated real-provider search responses. No synthetic points. */
-export type RealMapPoint = { id: string; name: string; lat: number; lng: number };
+export type RealMapPoint = { id: string; name: string; lat: number; lng: number; listIndex: number };
 type GoogleCandidate = { placeId: string; name: string; latitude: number | null; longitude: number | null };
 type GeoCandidate = { sourceId: string; name: string; latitude: number; longitude: number };
 
@@ -20,10 +20,11 @@ export function buildMapPoints(
       : [];
   const seen = new Set<string>();
   const points: RealMapPoint[] = [];
-  for (const item of candidates) {
+  for (const [index, item] of candidates.entries()) {
     if (!item.id || !item.name || seen.has(item.id) || !validLocation(item.lat, item.lng)) continue;
     seen.add(item.id);
-    points.push({ id: item.id, name: item.name, lat: item.lat!, lng: item.lng! });
+    // Same numbering as the sidebar, even if prior places lack GPS.
+    points.push({ id: item.id, name: item.name, lat: item.lat!, lng: item.lng!, listIndex: index + 1 });
     if (points.length >= 35) break;
   }
   return points;
