@@ -79,6 +79,8 @@ export function MapsLeadsView({
   const [zoomAction, setZoomAction] = useState<MapZoomAction>({ id: 0, delta: 0 });
   const resultList = useRef<HTMLOListElement>(null);
   const busy = useRef(false);
+  // A synchronous lock prevents duplicate saves before React flushes state.
+  const saveInFlight = useRef(false);
 
   // IBGE municipality suggestions are loaded for the selected UF only. If
   // the official service is unavailable, manual city entry still works.
@@ -283,7 +285,7 @@ export function MapsLeadsView({
   }
 
   async function saveLead(geoTargetId?: string) {
-    if (!applied || saving) return;
+    if (!applied || saving || saveInFlight.current) return;
     const isGeo=appliedProvider==="geoapify";
     // The sidebar can save an OSM lead directly without first waiting for a
     // React selection state update. Google leads still require a typed name.
@@ -338,6 +340,7 @@ export function MapsLeadsView({
         businessStatus:null,latitude:null,longitude:null,
       };
     }
+    saveInFlight.current = true;
     setSaving(true);
     setError("");
     try {
@@ -354,6 +357,7 @@ export function MapsLeadsView({
     } catch {
       setError("Não foi possível salvar o lead no CRM agora.");
     } finally {
+      saveInFlight.current = false;
       setSaving(false);
     }
   }
