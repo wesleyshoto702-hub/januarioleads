@@ -52,3 +52,42 @@ export async function searchPersonalGeoapify(input:{
       message:"Não foi possível consultar o Geoapify agora."};
   }
 }
+
+/**
+ * Checks only the existence of the server-side Geoapify secret.
+ * Requires the original owner session; never spends search quota or provider credits.
+ */
+export type PersonalGeoapifyConfigStatus =
+  | { ok: true; configured: boolean; provider: "geoapify"; dailyLimit: number }
+  | { ok: false; code: string; message: string };
+
+export async function checkPersonalGeoapifyConfig(): Promise<PersonalGeoapifyConfigStatus> {
+  const token = await getAccessToken();
+  if (!token) return { ok: false, code: "AUTH_REQUIRED", message: "Entre novamente na sua conta para verificar a configuração." };
+  try {
+    const response = await fetch(SUPABASE_URL + "/functions/v1/geoapify-personal", {
+      method: "POST", cache: "no-store",
+      headers: {
+        authorization: "Bearer " + token,
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ action: "status" }),
+    });
+    const data: unknown = await response.json();
+    if (data && typeof data === "object") {
+      const payload = data as Record<string, unknown>;
+      if (response.ok && payload.ok === true && typeof payload.configured === "boolean")
+        return { ok: true, configured: payload.configured, provider: "geoapify", dailyLimit: 10 };
+      if (payload.ok === false)
+        return {
+          ok: false,
+          code: typeof payload.code === "string" ? payload.code : "REQUEST_FAILED",
+          message: typeof payload.message === "string" ? payload.message : "Não foi possível verificar a chave Geoapify.",
+        };
+    }
+    return { ok: false, code: "REQUEST_FAILED", message: "A função não respondeu ao diagnóstico. Verifique a publicação no Supabase." };
+  } catch {
+    return { ok: false, code: "REQUEST_FAILED", message: "Não foi possível conectar ao diagnóstico Geoapify." };
+  }
+}
