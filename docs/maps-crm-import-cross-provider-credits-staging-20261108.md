@@ -6,7 +6,7 @@
 3. **Aviso "Lead já adicionado":** resultados de ambos os buscadores consultam o CRM do próprio usuário. Quando há identidade confirmada pelo mesmo ID, ou pela regra conservadora de nome/localização, o cartão é identificado e a gravação duplicada fica desabilitada.
 
 ## Créditos no servidor
-- Carteira diária compartilhada: busca tradicional **1 crédito por lead**; Advanced Maps **2 créditos por lead**.
+- Carteira diária compartilhada: busca tradicional **1 crédito por lead**; Maps Pro/Advanced **2 créditos por lead**.
 - O mesmo ID no mesmo dia não é cobrado outra vez. O backend aceita a equivalência **Google ID ↔ Geoapify ID** somente quando verificável no servidor, por nome normalizado igual, mesma UF/município e coordenadas próximas (até 80 m); se faltam coordenadas, o endereço precisa coincidir integralmente, assim como cidade/UF.
 - As equivalências ambíguas entre estabelecimentos distintos **não** recebem isenção automática. Quando não é possível verificar (API indisponível, lugares não encontrados dentro das páginas verificadas, mudança de grafia, endereços diferentes), o sistema pode tratar como leads diferentes e debitar normalmente, para não permitir isenções não comprovadas.
 - Os leads previamente **salvos no CRM** também são consultados na identificação, mesmo depois da virada do dia. IDs Google salvos e dados OSM/Geoapify do próprio CRM alimentam a conferência sem persistir informações Google. A existência do lead antigo gera o aviso "Lead já adicionado" quando verificado, mas **não dispensa os créditos de um novo dia** se ele não havia sido contabilizado naquele dia.
@@ -21,10 +21,20 @@
 
 ## Implementado e verificado
 - Supabase **staging** `prlrxjothrslhswpkoza`: migrações `20261108210000_verified_cross_provider_credit_aliases.sql` e `20261108211500_atomic_verified_maps_claim.sql`.
-- `search-places` versão **12** e `geoapify-places` versão **14**, ativas com verificação JWT.
+- `search-places` versão **13** e `geoapify-places` versão **15**, ativas com verificação JWT.
 - Testes SQL transacionais reversíveis em `supabase/staging/tests/20261108_cross_provider_credit_aliases.sql`: repetição 0 crédito, dedupe nos dois sentidos, ID não comprovado cobra, Pro Maps bloqueado, registro OSM atômico.
 - Testes unitários Deno `supabase/functions/_shared/cross-provider-identity.test.ts` e navegador `tests/browser/maps-leads-pro-advanced.spec.ts` foram adicionados, mas **a execução integral de Playwright ainda precisa ser confirmada**.
 - PR #94 em branch isolada, sem merge na main; **nenhuma alteração no Supabase de produção**.
 
 - Teste adicional `supabase/staging/tests/20261108_crm_cross_provider_history.sql` executado com `ROLLBACK`: confirmou que leads salvos três dias antes são recuperáveis para detecção e não consomem crédito ao serem consultados.
 - Migração complementar `20261108214500_cross_provider_identity_saved_crm.sql` instalada somente no Supabase de testes.
+
+## Status de homologação atualizado
+- Maps liberado para Pro e Advanced no Staging; Free continua bloqueado.
+- Custo: Buscar Leads = 1 crédito/lead; Maps = 2 créditos/lead, no saldo diário compartilhado.
+- Banco protegido contra IDs de estabelecimento repetidos por conta pelo índice único `leads_user_place_id_staging_unique_idx`.
+- Fluxo do CRM reconhece conflitos de outra aba e informa quando o lead já foi salvo.
+- Testes SQL de créditos/aliases e histórico entre provedores executados com sucesso em transações terminadas por ROLLBACK.
+- Edge Functions atualizadas no staging: `search-places` versão 13 e `geoapify-places` versão 15, JWT obrigatório.
+- Testes Deno/Playwright atualizados no código; execução integral no GitHub Actions bloqueada.
+- Nenhum deploy Vercel, merge em main ou mudança no Supabase de produção nesta etapa.
