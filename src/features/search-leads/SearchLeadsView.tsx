@@ -58,9 +58,7 @@ import {
   persistPlacesSearchSample,
 } from "../opportunities/places-search-cache";
 import { isValidWhatsAppPhone, openWhatsAppLink } from "../../lib/whatsapp";
-import { fetchConfirmedProspectingIds } from "./prospecting-confirmations";
-import { summarizeLoadedProspecting, summarizeSavedProspecting } from "./prospecting-progress";
-import { ProspectingProgressPanel } from "./ProspectingProgressPanel";
+import { ProspectingInformationPanel } from "./ProspectingInformationPanel";
 
 export type SearchMode = "all" | "open";
 
@@ -478,7 +476,8 @@ export function SearchLeadsView({
   onPresenceDiscovered,
   mode,
   onModeChange,
-  confirmationRevision = 0,
+  touchedLeadIds,
+  touchState,
 }: {
   existingLeads: ExistingLeadIdentity[];
   onAddLead: (
@@ -489,7 +488,8 @@ export function SearchLeadsView({
   onPresenceDiscovered?: (leadId: string, presence: BusinessPresence) => void;
   mode: SearchMode;
   onModeChange: (mode: SearchMode) => void;
-  confirmationRevision?: number;
+  touchedLeadIds: ReadonlySet<string> | null;
+  touchState: "loading" | "ready" | "error";
 }) {
   const initialSearchSession = useMemo(() => loadSearchLeadsSession(), []);
   const initialSearchLocation = useMemo(
@@ -541,27 +541,6 @@ export function SearchLeadsView({
   const hasActiveSearchRef = useRef(Boolean(initialSearchSession));
   // A slower search must never replace results from a newer user request.
   const searchRequestIdRef = useRef(0);
-  const [confirmedSendIds, setConfirmedSendIds] = useState<ReadonlySet<string> | null>(null);
-  const [confirmationState, setConfirmationState] = useState<"loading" | "ready" | "error">("loading");
-
-  // The CRM already records a user-confirmed WhatsApp handoff. This is a
-  // separate read-only RLS request and never queries the paid Places APIs.
-  // Re-fetch after confirmWhatsAppSent writes its event in the parent.
-  useEffect(() => {
-    let active = true;
-    setConfirmationState("loading");
-    void fetchConfirmedProspectingIds().then((ids) => {
-      if (!active) return;
-      setConfirmedSendIds(ids);
-      setConfirmationState("ready");
-    }).catch(() => {
-      if (!active) return;
-      setConfirmedSendIds(null);
-      setConfirmationState("error");
-    });
-    return () => { active = false; };
-  }, [confirmationRevision]);
-
   useEffect(() => {
     // Do not replace the remote last search with an empty default session.
     if (!selectedSegment && !resultsSegment) return;
@@ -847,19 +826,6 @@ export function SearchLeadsView({
   const hasActiveFilters =
     leadStatusFilter !== "all" ||
     !sameResultFilters(resultFilters, DEFAULT_RESULT_FILTERS);
-
-  const savedProspecting = useMemo(
-    () => summarizeSavedProspecting(existingLeads, {
-      city: selectedCity ?? "",
-      state: selectedState.code,
-      segment: selectedSegment,
-    }, confirmedSendIds ?? new Set<string>()),
-    [existingLeads, selectedCity, selectedState.code, selectedSegment, confirmedSendIds],
-  );
-  const loadedProspecting = useMemo(
-    () => summarizeLoadedProspecting(resultWithExisting, confirmedSendIds ?? new Set<string>()),
-    [resultWithExisting, confirmedSendIds],
-  );
 
   const alreadyAddedCount = resultWithExisting.filter((item) => item.alreadyAdded).length;
   const newCount = resultWithExisting.length - alreadyAddedCount;
@@ -1248,13 +1214,12 @@ export function SearchLeadsView({
           </div>
         </div>
 
-        {selectedSegment && selectedCity && (
-          <ProspectingProgressPanel kind="saved"
-            segment={selectedSegment} city={selectedCity} state={selectedState.code}
-            summary={savedProspecting} confirmationState={confirmationState} />
-        )}
+        <ProspectingInformationPanel
+          leads={existingLeads} touchedLeadIds={touchedLeadIds} touchState={touchState}
+          selectedNiche={selectedSegment}
+        />
 
-        {error && <SearchError error={error} />}
+        {error && <SearchError error={error} />
 
         <div className="selection-bar">
           <div>
@@ -1304,10 +1269,7 @@ export function SearchLeadsView({
         </div>
       </div>
 
-      <ProspectingProgressPanel kind="results"
-        segment={resultsSegment} city={resultsLocation.city} state={resultsLocation.state}
-        summary={loadedProspecting} confirmationState={confirmationState} />
-
+      {/* The geographical information panel lives on the niche-selection screen. */}
       {/* Choose the open-now filter only after the niche search has returned. */}
       <SearchModeSwitcher mode={mode} onModeChange={onModeChange} />
       {mode === "open" && (
