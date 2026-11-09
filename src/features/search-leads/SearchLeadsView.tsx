@@ -152,6 +152,7 @@ type SearchLeadsSession = {
 };
 
 function loadSearchLeadsSession(): SearchLeadsSession | null {
+  if (SAAS_STAGING_ACTIVE) return null; // Do not rehydrate Google content from storage.
   if (typeof window === "undefined") return null;
 
   try {
@@ -578,6 +579,8 @@ export function SearchLeadsView({
   }, []);
 
   useEffect(() => {
+    // Staging keeps Google Places content only in in-memory UI state.
+    if (SAAS_STAGING_ACTIVE) return;
     // Do not replace the remote last search with an empty default session.
     if (!selectedSegment && !resultsSegment) return;
 
@@ -957,15 +960,17 @@ export function SearchLeadsView({
       : response.partial
         ? "Uma fonte atingiu o limite seguro de consultas. Estes são os resultados válidos da pesquisa."
         : "");
-    storeRecentBusinessSearch(segment,uniqueResults,{
-      city:location.city,state:location.state,append:false,
-    });
-    void persistPlacesSearchSample({
-      location,segment,results:uniqueResults,
-      nextPageToken:null,append:false,
-    }).catch(() => {
-      // History persistence is auxiliary and may fail independently.
-    });
+    if (!SAAS_STAGING_ACTIVE) {
+      storeRecentBusinessSearch(segment,uniqueResults,{
+        city:location.city,state:location.state,append:false,
+      });
+      void persistPlacesSearchSample({
+        location,segment,results:uniqueResults,
+        nextPageToken:null,append:false,
+      }).catch(() => {
+        // History persistence is auxiliary and may fail independently.
+      });
+    }
     saveSearchLocation(location);
     setSearchLocation(location);
     setCityInput(location.city);
