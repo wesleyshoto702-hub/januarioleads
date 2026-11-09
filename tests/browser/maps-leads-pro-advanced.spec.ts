@@ -6,7 +6,7 @@ test.skip(process.env["VITE_SUPABASE_URL"] !== STAGING,
   "Requires isolated staging frontend configuration.");
 const userId = "11111111-1111-1111-1111-111111111111";
 type Plan = "free" | "pro" | "advanced";
-type Scenario = "google-fallback" | "geo-found" | "provider-unavailable" | "crm-conflict";
+type Scenario = "google-fallback" | "geo-found" | "provider-unavailable" | "crm-conflict" | "test-mode";
 type Requests = { unified: Record<string,unknown>[]; googleSeparate: number; crmSaves: Record<string,unknown>[]; };
 
 async function mockWorkspace(
@@ -36,7 +36,9 @@ async function mockWorkspace(
       payload = {
         plan,currency:"BRL",price_cents:{free:0,pro:1990,advanced:2990}[plan],
         daily_limit:{free:5,pro:25,advanced:70}[plan],
-        used_today:0,remaining_today:{free:5,pro:25,advanced:70}[plan],
+        used_today:scenario==="test-mode" ? 5 : 0,
+        remaining_today:scenario==="test-mode" ? 0 : {free:5,pro:25,advanced:70}[plan],
+        test_mode:scenario==="test-mode",
         usage_date:"2026-11-08",
         features:{
           crm:true,basic_messages:true,manual_followup:true,
@@ -354,4 +356,17 @@ test("SDK de mapas incompleto é tratado sem travar a lista de estabelecimentos"
     "Mapa visual indisponível. Os estabelecimentos continuam na lista ao lado.");
   await expect(page.locator(".bms-results-list")).toContainText("Barbearia Google 1");
   await expect(page.getByRole("heading",{name:"Não foi possível carregar esta página"})).toHaveCount(0);
+});
+
+test("Free: conta de homologação em modo testes pesquisa Maps sem débito ou bloqueio",async({page})=>{
+  const calls=await mockWorkspace(page,"free","test-mode");
+  await openMaps(page);
+  await expect(page.getByText("Modo testes · créditos pausados")).toBeVisible();
+  const search=page.getByRole("button",{name:"Buscar no mapa"});
+  await expect(search).toBeEnabled();
+  await search.click();
+  await expect(page.getByText("Barbearia Google 1").first()).toBeVisible();
+  await expect(page.getByText(/Modo testes: nenhuma pesquisa ou crédito descontado/)).toBeVisible();
+  expect(calls.unified).toHaveLength(1);
+  expect(calls.googleSeparate).toBe(0);
 });
