@@ -3051,7 +3051,7 @@ async function handleRequest(request: Request) {
   // Reuses the same Google Places search, per-user API budget and daily lead quota.
   if (requestBody.mapMode === true || mode === "place-details") {
     if (!["segment-search", "place-details"].includes(mode) || !saasQuotasEnabled()) {
-      return failure("FEATURE_NOT_AVAILABLE", "Buscar via Maps é exclusivo do plano Advanced.", 403);
+      return failure("FEATURE_NOT_AVAILABLE", "Buscar via Maps está disponível nos planos Pro e Advanced.", 403);
     }
     try {
       const allowedResponse = await fetch(
@@ -3063,7 +3063,7 @@ async function handleRequest(request: Request) {
         },
       );
       if (!allowedResponse.ok || await allowedResponse.json() !== true) {
-        return failure("FEATURE_NOT_AVAILABLE", "Buscar via Maps é exclusivo do plano Advanced.", 403);
+        return failure("FEATURE_NOT_AVAILABLE", "Buscar via Maps está disponível nos planos Pro e Advanced.", 403);
       }
     } catch {
       return failure("REQUEST_FAILED", "Não foi possível validar seu acesso ao mapa.", 503);
