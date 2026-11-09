@@ -23,7 +23,6 @@ import { buildMapPoints } from "./map-points";
 import { ENV_GOOGLE_MAPS_BROWSER_KEY, RealGoogleMap } from "./RealGoogleMap";
 
 const MAP_KEY_STORAGE = "maps-personal-browser-api-key";
-type ProviderChoice = "automatic" | "google" | "geoapify";
 type ResultsProvider = "google" | "geoapify";
 type SearchInput = {city:string;state:string;segment:string;neighborhood:string};
 type ZoomAction = {id:number;delta:number};
@@ -55,15 +54,17 @@ function osmBusiness(place:PersonalGeoapifyPlace):BusinessSearchResult {
 
 function googleCrmBusiness(
   place:BusinessSearchResult,
-  manualName:string,
   input:SearchInput,
 ):BusinessSearchResult {
+  // Google allows long-term storage of Place IDs, not Google-sourced names.
+  // Generate a useful distinct CRM label using only the user's niche/city
+  // inputs plus an ID fragment, never any Google Places display fields.
+  const label = [input.segment.slice(0,45),input.city.slice(0,45),
+    "Ref. "+place.placeId.slice(-8)].join(" · ");
   return {
     ...emptyBusiness(),
     placeId:place.placeId,
-    name:manualName.trim(),
-    // City and state originate from the user's search fields, never
-    // from restricted Google Place Details content.
+    name:label,
     city:input.city,
     state:input.state,
   };
@@ -91,7 +92,6 @@ export function MapsPersonalView({
   const [state,setState]=useState(initialLocation.state);
   const [segment,setSegment]=useState("Barbearia");
   const [neighborhood,setNeighborhood]=useState("");
-  const [providerChoice,setProviderChoice]=useState<ProviderChoice>("automatic");
   const [municipalities,setMunicipalities]=useState<string[]>([]);
   const [municipalityState,setMunicipalityState]=useState("");
   const [googleResults,setGoogleResults]=useState<BusinessSearchResult[]>([]);
@@ -99,7 +99,6 @@ export function MapsPersonalView({
   const [resultProvider,setResultProvider]=useState<ResultsProvider|null>(null);
   const [selection,setSelection]=useState<string|null>(null);
   const [applied,setApplied]=useState<SearchInput|null>(null);
-  const [manualName,setManualName]=useState("");
   const [savedIds,setSavedIds]=useState<string[]>([]);
   const [isLoading,setLoading]=useState(false);
   const [isSaving,setSaving]=useState(false);
@@ -154,7 +153,6 @@ export function MapsPersonalView({
 
   const choose=useCallback((id:string)=>{
     setSelection(id);
-    setManualName("");
     const row=listRef.current?.querySelectorAll<HTMLButtonElement>("[data-marker-id]");
     const button=row&&Array.from(row).find(item=>item.dataset.markerId===id);
     button?.scrollIntoView({behavior:"smooth",block:"nearest"});
@@ -178,36 +176,26 @@ export function MapsPersonalView({
     // A failed or quota-limited request must never appear to return old places.
     setGeoResults([]);setGoogleResults([]);setResultProvider(null);
     setSelection(null);setApplied(null);setSavedIds([]);
-    setLoading(true);setError("");setNotice("");setManualName("");
+    setLoading(true);setError("");setNotice("");
     try{
       // Automatic: Geoapify first for supported OSM categories; a separate
       // authenticated Google Places query only if no valid OSM match.
-      if(providerChoice!=="google"){
-        const geo=await searchPersonalGeoapify({...input,segment:canonical});
-        if(geo.ok&&geo.places.length){
-          setGeoResults(geo.places);setGoogleResults([]);
-          setResultProvider("geoapify");setSelection(geo.places[0]?.sourceId??null);
-          setApplied({...input,segment:canonical});
-          saveSearchLocation({city:input.city,state:input.state});
-          setNotice("Resultados Geoapify / OpenStreetMap. Selecione uma empresa para adicioná-la ao CRM.");
-          return;
-        }
-        if(providerChoice==="geoapify"){
-          if(geo.ok){
-            setGeoResults([]);setGoogleResults([]);setResultProvider("geoapify");setSelection(null);
-            setNotice("Nenhum estabelecimento correspondente encontrado no Geoapify.");
-            setApplied({...input,segment:canonical});
-          }else setError(geo.message);
-          return;
-        }
-        if(!geo.ok&&geo.code==="QUOTA"){
-          setError(geo.message+". A busca automática foi interrompida para proteger o orçamento das APIs.");
-          return;
-        }
-        // This can trigger a separate provider-billed search; Google has an
-        // existing server-side per-account budget/rate-limiting circuit breaker.
-        setNotice("Geoapify não retornou estabelecimentos utilizáveis; consultando Google Places.");
+      const geo=await searchPersonalGeoapify({...input,segment:canonical});
+      if(geo.ok&&geo.places.length){
+        setGeoResults(geo.places);setGoogleResults([]);
+        setResultProvider("geoapify");setSelection(geo.places[0]?.sourceId??null);
+        setApplied({...input,segment:canonical});
+        saveSearchLocation({city:input.city,state:input.state});
+        setNotice("Resultados Geoapify / OpenStreetMap. Selecione uma empresa para adicioná-la ao CRM.");
+        return;
       }
+      if(!geo.ok&&geo.code==="QUOTA"){
+        setError(geo.message+". A busca automática foi interrompida para proteger o orçamento das APIs.");
+        return;
+      }
+      // This can trigger a separate provider-billed search; Google has an
+      // existing server-side per-account budget/rate-limiting circuit breaker.
+      setNotice("Geoapify não retornou estabelecimentos utilizáveis; consultando Google Places.");
       const google=await searchBusinesses({city:input.city,state:input.state,segment:canonical});
       if(!google.ok){setError(google.message);return;}
       let results=google.results;
@@ -223,7 +211,7 @@ export function MapsPersonalView({
       setApplied({...input,segment:canonical});
       saveSearchLocation({city:input.city,state:input.state});
       setNotice(results.length
-        ? "Resultados Google Places. Dados exibidos apenas para consulta; nomes salvos no CRM precisam ser informados por você."
+        ? "Resultados Google Places. O CRM salva o ID do local com um rótulo automático criado a partir da sua pesquisa."
         : "Nenhum resultado correspondente carregado. Tente outro nicho, cidade ou bairro.");
     }catch{
       setError("Não foi possível realizar a pesquisa agora. Tente novamente.");
@@ -241,12 +229,7 @@ export function MapsPersonalView({
     const geo=resultProvider==="geoapify"?geoResults.find(item=>item.sourceId===id):null;
     const google=resultProvider==="google"?googleResults.find(item=>item.placeId===id):null;
     if(!geo&&!google)return;
-    if(google&&selection!==id){choose(id);return;}
-    if(google&&(manualName.trim().length<3||manualName.trim().length>120)){
-      setError("Digite um nome seu para este lead (3 a 120 caracteres), antes de salvar o identificador Google.");
-      return;
-    }
-    const business=geo?osmBusiness(geo):googleCrmBusiness(google!,manualName,applied);
+    const business=geo?osmBusiness(geo):googleCrmBusiness(google!,applied);
     saveLock.current=true;setSaving(true);setError("");
     try{
       const response=await onAddLead(business,applied.segment);
@@ -254,13 +237,9 @@ export function MapsPersonalView({
       setSavedIds(current=>current.includes(id)?current:[...current,id]);
       setNotice(geo
         ? "Lead Geoapify/OSM adicionado. Origem registrada sem usar o campo Google Place ID; você pode complementar o contato no CRM."
-        : "Identificador Google e nome escrito por você foram adicionados ao CRM.");
+        : "Lead adicionado ao CRM com identificador Google e rótulo de referência automático.");
     }catch{setError("Não foi possível salvar o lead no Supabase.");}
     finally{saveLock.current=false;setSaving(false);}
-  }
-  function focusGoogle(id:string){
-    choose(id);
-    window.requestAnimationFrame(()=>document.getElementById("bms-google-crm-name")?.focus());
   }
   async function checkGeoapifyReadiness(){
     if(checkingGeoapify)return;
@@ -342,13 +321,6 @@ export function MapsPersonalView({
         </button>
       </form>
       <div className="bms-personal-options">
-        <label htmlFor="bms-source">Fonte da pesquisa</label>
-        <select id="bms-source" value={providerChoice}
-          onChange={e=>setProviderChoice(e.target.value as ProviderChoice)}>
-          <option value="automatic">Automática · Geoapify → Google</option>
-          <option value="google">Google Places</option>
-          <option value="geoapify">Geoapify / OpenStreetMap</option>
-        </select>
         <button type="button" className="bms-map-key-toggle"
           onClick={()=>setShowKeySettings(value=>!value)}>
           <KeyRound size={15}/> {browserKey?"Configurar chave do mapa":"Ativar mapa Google"}
@@ -423,18 +395,11 @@ export function MapsPersonalView({
               {googleMapUrl&&<a href={googleMapUrl} target="_blank" rel="noopener noreferrer">
                 Abrir Google Maps <ArrowUpRight size={13}/></a>}
             </div>
-            {!savedInCrm(selected.placeId)&&<div className="bms-crm-save">
-              <label htmlFor="bms-google-crm-name">Nome para salvar no seu CRM</label>
-              <input id="bms-google-crm-name" type="text" maxLength={120}
-                value={manualName} onChange={e=>setManualName(e.target.value)}
-                placeholder="Digite um nome para este lead" autoComplete="off"/>
-              <small>O CRM guarda apenas este nome informado por você e o identificador Google; os outros dados são apenas exibidos.</small>
-              <button className="bms-save" type="button"
-                disabled={isSaving||manualName.trim().length<3}
-                onClick={()=>void addLead(selected.placeId)}>
-                <BookmarkPlus size={17}/>{isSaving?"Adicionando...":"Adicionar lead"}
-              </button>
-            </div>}
+            {!savedInCrm(selected.placeId)&&<button className="bms-save" type="button"
+              disabled={isSaving}
+              onClick={()=>void addLead(selected.placeId)}>
+              <BookmarkPlus size={17}/>{isSaving?"Adicionando...":"Adicionar lead"}
+            </button>}
           </article>}
           {selectedGeo&&<article className="bms-business-card" aria-label={"Estabelecimento: "+selectedGeo.name}>
             <button type="button" className="bms-business-close" aria-label="Fechar detalhes do lead"
@@ -469,12 +434,12 @@ export function MapsPersonalView({
             {resultProvider==="geoapify"?<>
               <a href="https://www.geoapify.com/" target="_blank" rel="noopener noreferrer">Powered by Geoapify</a>
               {" · "}<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a>
-            </>:resultProvider==="google"?"Fonte: Google Maps · consulta individual":"Fonte selecionada após a primeira busca"}
+            </>:resultProvider==="google"?"Fonte: Google Maps · consulta individual":"Fonte automática definida na pesquisa"}
           </p>
           {count===0?<div className="bms-no-results">
             <MapPin size={32}/>
             <strong>{applied?"Nenhuma empresa encontrada":"Seu próximo cliente pode estar aqui"}</strong>
-            <p>{applied?"Tente outro bairro, município ou fonte.":"Pesquise Barbearia, Academia, Restaurante ou outro nicho."}</p>
+            <p>{applied?"Tente outro bairro, nicho ou município.":"Pesquise Barbearia, Academia, Restaurante ou outro nicho."}</p>
           </div>:<ol className="bms-results-list" ref={listRef}>
             {(resultProvider==="google"?googleResults.map(item=>({
               id:item.placeId,name:item.name,address:item.address??titleCity,
@@ -496,7 +461,7 @@ export function MapsPersonalView({
               <button type="button" className="bms-result-add"
                 aria-label={"Adicionar lead: "+item.name}
                 disabled={isSaving||savedInCrm(item.id)}
-                onClick={()=>resultProvider==="google"?focusGoogle(item.id):void addLead(item.id)}>
+                onClick={()=>void addLead(item.id)}>
                 {savedInCrm(item.id)?<><CheckCircle2 size={14}/> Já adicionado</>
                   :<><BookmarkPlus size={14}/> Adicionar lead</>}
               </button>
