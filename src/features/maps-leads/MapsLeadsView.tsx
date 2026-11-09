@@ -630,7 +630,7 @@ export function MapsLeadsView({
           <h1 id="bms-heading">Buscar <span>via Maps</span></h1>
           <p>Pesquise empresas reais em municípios de todas as 27 UFs do Brasil, por segmento e bairro, com seleção automática da fonte.</p>
         </div>
-        <div className="bms-plan-chip"><ShieldCheck size={15} /> Pro e Advanced · 2 créditos por lead</div>
+        <div className="bms-plan-chip"><ShieldCheck size={15} /> {usage?.test_mode ? "Modo testes · créditos pausados" : "Pro e Advanced · 2 créditos por lead"}</div>
       </div>
 
       <form className="bms-searchbar" onSubmit={onSubmit}>
@@ -670,7 +670,7 @@ export function MapsLeadsView({
             onChange={(e) => setNeighborhood(e.target.value)} placeholder="Ex.: Centro" />
         </div>
         <button className="bms-submit" type="submit"
-          disabled={loading || !mapAllowed || (usage != null && usage.remaining_today < 2)}>
+          disabled={loading || !mapAllowed || (usage != null && usage.test_mode !== true && usage.remaining_today < 2)}>
           {loading ? <LoaderCircle className="bms-spin" size={17} /> : <Search size={17}/>}
           {loading ? "Buscando empresas..." : "Buscar no mapa"}
         </button>
@@ -680,7 +680,9 @@ export function MapsLeadsView({
         <span><Layers3 size={15}/> {applied
           ? `${resultCount} empresas encontradas`
           : "Escolha um segmento e uma região"}</span>
-        <span>{usage
+        <span>{usage?.test_mode
+          ? "Modo testes: nenhuma pesquisa ou crédito descontado. Orçamentos das APIs protegidos."
+          : usage
           ? `Plano ${usage.plan.toUpperCase()} · ${usage.remaining_today} de ${usage.daily_limit} créditos restantes · 2 por lead`
           : "Busca protegida por cota diária"}
         </span>
@@ -882,7 +884,9 @@ export function MapsLeadsView({
               <small>Dados do Google para consulta; ao adicionar ao CRM, salvamos apenas o Place ID e o nome informado por você.</small>
             </div>}
           <p className="bms-results-footnote">
-            <ShieldCheck size={13}/> {SAAS_STAGING_ACTIVE
+            <ShieldCheck size={13}/> {usage?.test_mode
+              ? "Modo testes: resultados reais, sem desconto de créditos; limites de custo de provedores ativos."
+              : SAAS_STAGING_ACTIVE
               ? "Resultados para consulta nesta homologação. A busca usa automaticamente a fonte disponível."
               : "Buscar via Maps debita 2 créditos por lead entregue, no saldo diário compartilhado."}
           </p>
