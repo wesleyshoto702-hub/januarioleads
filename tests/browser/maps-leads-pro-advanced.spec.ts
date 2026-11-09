@@ -6,7 +6,7 @@ test.skip(process.env["VITE_SUPABASE_URL"] !== STAGING,
   "Requires isolated staging frontend configuration.");
 const userId = "11111111-1111-1111-1111-111111111111";
 type Plan = "free" | "pro" | "advanced";
-type Scenario = "google-fallback" | "geo-found" | "provider-unavailable";
+type Scenario = "google-fallback" | "geo-found" | "provider-unavailable" | "crm-conflict";
 type Requests = { unified: Record<string,unknown>[]; googleSeparate: number; crmSaves: Record<string,unknown>[]; };
 
 async function mockWorkspace(
@@ -52,8 +52,19 @@ async function mockWorkspace(
     } else if (url.pathname === "/rest/v1/leads" && route.request().method()==="POST") {
       const value=JSON.parse(route.request().postData()??"{}") as Record<string,unknown>;
       calls.crmSaves.push(value);
-      status=201;
-      payload=[];
+      status=scenario==="crm-conflict" ? 409 : 201;
+      payload=scenario==="crm-conflict"
+        ? {code:"23505",message:"duplicate user/place id"} : [];
+    } else if (url.pathname === "/rest/v1/leads" &&
+               route.request().method()==="GET" &&
+               url.searchParams.get("place_id")==="eq.google-real-1" &&
+               scenario==="crm-conflict") {
+      payload=[{
+        id:"22222222-2222-4222-8222-222222222222",user_id:userId,
+        company:"Nome informado na outra aba",place_id:"google-real-1",
+        segment:"Barbearia",phone:"",status:"send_message",
+        first_contact:"2026-11-08",created_at:"2026-11-08T12:00:00Z",notes:"",
+      }];
     } else if (url.pathname === "/functions/v1/geoapify-places") {
       const body = JSON.parse(route.request().postData() ?? "{}") as Record<string,unknown>;
       expect(body.action).toBe("search");
@@ -232,5 +243,17 @@ test("Maps Geoapify: dados OSM, atribuição e ID são salvos no CRM",async({pag
   expect(saved["notes"]).toContain("© OpenStreetMap contributors");
   await expect(page.getByRole("article",{name:/Estabelecimento Geoapify: Barbearia OSM/})
     .getByRole("button",{name:"Lead já adicionado"})).toBeDisabled();
+  expect(calls.crmSaves).toHaveLength(1);
+});
+
+test("Maps: outra aba salvou o mesmo Google Place ID; não duplica nem informa falha genérica",async({page})=>{
+  const calls=await mockWorkspace(page,"pro","crm-conflict");
+  await openMaps(page);
+  await page.getByRole("button",{name:"Buscar no mapa"}).click();
+  await expect(page.getByRole("article",{name:/Empresa selecionada: Barbearia Google 1/})).toBeVisible();
+  await page.getByLabel("Nome que você quer usar no CRM").fill("Nome informado manualmente");
+  await page.getByRole("button",{name:"Adicionar ao CRM"}).click();
+  await expect(page.getByText("Lead já adicionado ao CRM. Nenhum novo cadastro foi criado.")).toBeVisible();
+  await expect(page.getByRole("button",{name:"Lead já adicionado"})).toBeDisabled();
   expect(calls.crmSaves).toHaveLength(1);
 });
