@@ -142,7 +142,7 @@ export async function loadMySearchQuota(): Promise<SaasSearchQuota | null> {
     if (!["free", "pro", "advanced"].includes(item.plan ?? "") ||
         typeof item.allowed !== "boolean" ||
         item.max_results !== 20 ||
-        (item.plan === "free" && (item.daily_limit !== 3 ||
+        (item.plan === "free" && item.test_mode !== true && (item.daily_limit !== 3 ||
           !Number.isInteger(item.remaining_today)))) return null;
     return item as SaasSearchQuota;
   } catch {
