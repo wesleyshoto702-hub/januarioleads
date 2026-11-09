@@ -446,7 +446,7 @@ export function MapsLeadsView({
         </span>
       </div>
 
-      {!mapAllowed && <p className="bms-alert" role="status">
+      {!displayGoogleMap && <p className="bms-alert" role="status">
         A chave pública de mapas do Google ainda precisa ser configurada para ativar o mapa real.
       </p>}
       {SAAS_STAGING_ACTIVE && <p className="bms-demo-notice" role="status">
