@@ -249,3 +249,72 @@
   .saas-main .prospecting-info-track > span,
   .saas-main .prospecting-info-status-track > span { transition: none; }
 }
+
+
+/* The prospecting dashboard now has its own Workspace page. */
+.saas-main .prospecting-information-page-heading {
+  margin-bottom: 18px;
+}
+.saas-main .prospecting-information-page-heading .subtitle {
+  max-width: 760px;
+}
+.saas-main .prospecting-information-filter {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  padding: 13px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.saas-main .prospecting-information-filter > svg {
+  color: var(--primary);
+  flex: 0 0 auto;
+}
+.saas-main .prospecting-information-filter label {
+  font-size: 12px;
+  font-weight: 750;
+  color: var(--text);
+}
+.saas-main .prospecting-information-filter select {
+  min-height: 38px;
+  min-width: 190px;
+  max-width: 100%;
+  padding: 8px 34px 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+}
+.saas-main .prospecting-information-filter select:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}
+.saas-main .prospecting-information-filter-detail {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 11px;
+}
+.saas-main .prospecting-information-page > .prospecting-info-panel {
+  margin: 18px 0 0;
+}
+@media (max-width: 620px) {
+  .saas-main .prospecting-information-filter {
+    align-items: stretch;
+  }
+  .saas-main .prospecting-information-filter select {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+  .saas-main .prospecting-information-filter-detail {
+    margin-left: 0;
+    flex-basis: 100%;
+  }
+}
