@@ -46,6 +46,7 @@ export function googlePlaceIdAndOwnName(
   return {
     placeId: business.placeId,
     equivalentPlaceId: business.equivalentPlaceId ?? null,
+    crmManualName: true,
     name, primaryCategory: null, categories: [], description: null,
     address: null, neighborhood: null, city: null, state: null,
     phone: null, internationalPhone: null,
