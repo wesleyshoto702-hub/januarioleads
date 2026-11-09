@@ -23,6 +23,10 @@ begin
     raise exception 'This regression is restricted to single-account staging';
   end if;
   update public.private_access set quota_test_mode=false where user_id=u;
+  -- The daily wallet can already be full in staging from previous testing.
+  -- Reset ONLY inside this ROLLBACK transaction to make assertions deterministic.
+  update public.saas_daily_usage set used=0
+    where user_id=u and usage_date=(now() at time zone 'America/Sao_Paulo')::date;
   insert into public.saas_subscriptions(user_id,plan_code,status,period_start,period_end)
     values(u,'advanced','active',now()-interval '1 day',now()+interval '1 day')
     on conflict(user_id) do update set plan_code='advanced',status='active',
