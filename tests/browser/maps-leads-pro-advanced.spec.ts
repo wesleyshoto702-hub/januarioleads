@@ -112,6 +112,23 @@ async function mockWorkspace(
       if (body.mode === "search-quota") {
         payload = {ok:true,searchQuota:{plan,daily_limit:null,used_today:null,
           remaining_today:null,usage_date:"2026-11-08",max_results:20,allowed:true,reset_at:null}};
+      } else if (body.segment === "Barbearia" && body.mapMode !== true) {
+        // Traditional Google search: a live preview; CRM must save only a user label.
+        payload = {
+          ok:true,nextPageToken:null,partial:false,
+          results:[{
+            placeId:"google-traditional-1",name:"Nome vindo do Google",
+            primaryCategory:"Barbearia",categories:["hair_care"],
+            description:"Conteúdo Google não persistente",
+            address:"Rua Exemplo 42, Lavras - MG",neighborhood:"Centro",
+            city:"Lavras",state:"MG",phone:"(35) 99999-9999",
+            internationalPhone:"+5535999999999",rating:4.8,reviewCount:39,
+            isOpenNow:true,openingHours:["Seg-Sex"],currentOpeningHours:null,
+            regularOpeningHours:null,website:"https://example.com",
+            instagram:null,googleMapsUrl:"https://google.com/maps",
+            businessStatus:"OPERATIONAL",latitude:-21.245,longitude:-44.999,
+          }],
+        };
       } else {
         calls.googleSeparate++;
         status = 500;
@@ -256,4 +273,31 @@ test("Maps: outra aba salvou o mesmo Google Place ID; não duplica nem informa f
   await expect(page.getByText("Lead já adicionado ao CRM. Nenhum novo cadastro foi criado.")).toBeVisible();
   await expect(page.getByRole("button",{name:"Lead já adicionado"})).toBeDisabled();
   expect(calls.crmSaves).toHaveLength(1);
+});
+
+test("Buscar Leads: Google só permite salvar ID e nome informado, nunca conteúdo do provedor",async({page})=>{
+  const calls=await mockWorkspace(page,"pro");
+  await page.addInitScript((id)=>{
+    localStorage.setItem("januarioleads:workspace:v2:"+id+":leadflow:recent-searches",
+      JSON.stringify([{segment:"Barbearia",city:"Lavras",state:"MG"}]));
+  },userId);
+  await page.goto("/app");
+  await page.getByRole("button",{name:"Buscar Leads",exact:true}).first().click();
+  await page.locator(".recent-searches").getByRole("button",{name:/Barbearia/}).click();
+  const card=page.locator(".business-card").filter({hasText:"Nome vindo do Google"});
+  await expect(card).toBeVisible();
+  const add=card.getByRole("button",{name:"Adicionar aos meus leads"});
+  await expect(add).toBeDisabled();
+  await card.getByPlaceholder("Digite o nome por conta própria").fill("Meu contato verificado");
+  await expect(add).toBeEnabled();
+  await add.click();
+  await expect.poll(()=>calls.crmSaves.length).toBe(1);
+  const saved=calls.crmSaves[0]!;
+  expect(saved["company"]).toBe("Meu contato verificado");
+  expect(saved["place_id"]).toBe("google-traditional-1");
+  for (const key of ["address","city","state","latitude","longitude","phone",
+    "website","google_maps_url","rating","review_count","description"]) {
+    expect(saved[key]??null,"Google property leaked: "+key).toBeNull();
+  }
+  expect(String(saved["notes"]??"")).not.toContain("Rua Exemplo 42");
 });
