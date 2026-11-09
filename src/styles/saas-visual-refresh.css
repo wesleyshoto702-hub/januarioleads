@@ -857,3 +857,111 @@
   .saas-main .search-mode-option { min-height: 68px; }
   .saas-main .search-mode-option strong { font-size: 14px; }
 }
+
+
+/* CRM-derived prospecting progress: no new paid API requests. */
+.saas-main .prospecting-progress {
+  display: grid;
+  gap: 16px;
+  margin: 18px 0;
+  padding: clamp(16px, 2.5vw, 24px);
+  border: 1px solid color-mix(in srgb, var(--primary) 25%, var(--border));
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--primary) 4%, var(--surface));
+  min-width: 0;
+}
+.saas-main .prospecting-progress-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.saas-main .prospecting-progress-header h2 {
+  margin: 6px 0;
+  color: var(--text);
+  font-size: clamp(16px, 2.5vw, 20px);
+  line-height: 1.3;
+}
+.saas-main .prospecting-progress-header p,
+.saas-main .prospecting-progress-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+.saas-main .prospecting-progress-eyebrow {
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .12em;
+}
+.saas-main .prospecting-progress-label {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 11px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.saas-main .prospecting-progress-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(125px, 1fr));
+  gap: 9px;
+}
+.saas-main .prospecting-progress-kpis > div {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  padding: 13px 14px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface);
+}
+.saas-main .prospecting-progress-kpis strong {
+  color: var(--text);
+  font-size: clamp(20px, 3vw, 26px);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.saas-main .prospecting-progress-kpis span {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+.saas-main .prospecting-progress-meter {
+  display: grid;
+  gap: 8px;
+}
+.saas-main .prospecting-progress-meter > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text);
+  font-size: 12px;
+}
+.saas-main .prospecting-progress-meter > div:first-child span {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.saas-main .prospecting-progress-track {
+  height: 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text) 9%, transparent);
+  overflow: hidden;
+}
+.saas-main .prospecting-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+}
+.saas-main .prospecting-progress-fill.saved { background: var(--primary); }
+.saas-main .prospecting-progress-fill.confirmed { background: #2baf83; }
+@media (max-width: 620px) {
+  .saas-main .prospecting-progress { padding: 14px; }
+  .saas-main .prospecting-progress-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .saas-main .prospecting-progress-label { display: none; }
+}
