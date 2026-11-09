@@ -32,6 +32,7 @@ import {
   normalizeBrazilianPhone,
   type ExistingLeadIdentity,
 } from "./identity";
+import { googleCrmNeedsOwnName, googlePlaceIdAndOwnName } from "./google-crm-save";
 import { loadMySearchQuota, searchBusinesses } from "./search-businesses";
 import {
   SAAS_STAGING_ACTIVE,
@@ -1578,13 +1579,21 @@ function BusinessCard({
     (!existingLead || existingLead.status === "send_message");
   const [addingLead, setAddingLead] = useState(false);
   const [addError, setAddError] = useState("");
+  const [googleCrmName, setGoogleCrmName] = useState("");
+  const requiresOwnName = SAAS_STAGING_ACTIVE && googleCrmNeedsOwnName(business);
 
   async function addBusiness() {
     if (addingLead || existingLead) return;
+    const candidate = requiresOwnName
+      ? googlePlaceIdAndOwnName(business, googleCrmName) : business;
+    if (!candidate) {
+      setAddError("Digite um nome próprio (3 a 120 caracteres) para este lead no CRM.");
+      return;
+    }
     setAddingLead(true);
     setAddError("");
     try {
-      const result = await onAdd(business);
+      const result = await onAdd(candidate);
       if (!result.ok) setAddError(result.message);
     } catch {
       setAddError("Não foi possível adicionar a empresa. Tente novamente.");
@@ -1684,6 +1693,15 @@ function BusinessCard({
       </div>
 
       <div className="business-actions">
+        {requiresOwnName && !existingLead && !business.previewOnly && (
+          <label className="business-google-crm-name">
+            Nome que você quer usar no CRM
+            <input type="text" value={googleCrmName} maxLength={120}
+              onChange={(event) => setGoogleCrmName(event.target.value)}
+              placeholder="Digite o nome por conta própria" autoComplete="off" />
+            <small>O CRM guarda seu nome e o Place ID; dados Google ficam somente na consulta.</small>
+          </label>
+        )}
         <button type="button" className="secondary-button compact-button" onClick={() => onDetails(business)}>
           Ver empresa
         </button>
@@ -1715,7 +1733,7 @@ function BusinessCard({
             type="button"
             className="primary-button compact-button"
             onClick={() => void addBusiness()}
-            disabled={addingLead}
+            disabled={addingLead || (requiresOwnName && googleCrmName.trim().length < 3)}
           >
             {addingLead ? "Salvando..." : "Adicionar aos meus leads"}
           </button>
