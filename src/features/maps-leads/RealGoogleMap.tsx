@@ -258,18 +258,20 @@ function RealGoogleMapCanvas({
       for (const [index, point] of points.entries()) {
         const position = { lat: point.lat, lng: point.lng };
         bounds.extend(position);
-        if (typeof google.maps.marker?.AdvancedMarkerElement === "function" &&
-            (MAP_ID || typeof google.maps.Marker !== "function")) {
+        const AdvancedMarkerElement = google.maps.marker?.AdvancedMarkerElement;
+        const LegacyMarker = google.maps.Marker;
+        if (typeof AdvancedMarkerElement === "function" &&
+            (MAP_ID || typeof LegacyMarker !== "function")) {
           const pin = advancedPin(point.listIndex - 1, point.id === selectedId);
-          const marker = new google.maps.marker.AdvancedMarkerElement({
+          const marker = new AdvancedMarkerElement({
             map: instance, position, title: point.name,
             content: pin, gmpClickable: true,
             zIndex: point.id === selectedId ? 1000 : index + 1,
           });
           marker.addListener("click", () => onSelect(point.id));
           records.current.push({ id: point.id, index: point.listIndex - 1, advanced: marker, content: pin });
-        } else if (typeof google.maps.Marker === "function") {
-          const marker = new google.maps.Marker({
+        } else if (typeof LegacyMarker === "function") {
+          const marker = new LegacyMarker({
             map: instance, position, title: point.name,
             icon: svgPin(point.listIndex - 1, point.id === selectedId),
             zIndex: point.id === selectedId ? 1000 : index + 1,
