@@ -180,22 +180,22 @@ export function MapsPersonalView({
     try{
       // Automatic: Geoapify first for supported OSM categories; a separate
       // authenticated Google Places query only if no valid OSM match.
-        const geo=await searchPersonalGeoapify({...input,segment:canonical});
-        if(geo.ok&&geo.places.length){
-          setGeoResults(geo.places);setGoogleResults([]);
-          setResultProvider("geoapify");setSelection(geo.places[0]?.sourceId??null);
-          setApplied({...input,segment:canonical});
-          saveSearchLocation({city:input.city,state:input.state});
-          setNotice("Resultados Geoapify / OpenStreetMap. Selecione uma empresa para adicioná-la ao CRM.");
-          return;
-        }
-        if(!geo.ok&&geo.code==="QUOTA"){
-          setError(geo.message+". A busca automática foi interrompida para proteger o orçamento das APIs.");
-          return;
-        }
-        // This can trigger a separate provider-billed search; Google has an
-        // existing server-side per-account budget/rate-limiting circuit breaker.
-        setNotice("Geoapify não retornou estabelecimentos utilizáveis; consultando Google Places.");
+      const geo=await searchPersonalGeoapify({...input,segment:canonical});
+      if(geo.ok&&geo.places.length){
+        setGeoResults(geo.places);setGoogleResults([]);
+        setResultProvider("geoapify");setSelection(geo.places[0]?.sourceId??null);
+        setApplied({...input,segment:canonical});
+        saveSearchLocation({city:input.city,state:input.state});
+        setNotice("Resultados Geoapify / OpenStreetMap. Selecione uma empresa para adicioná-la ao CRM.");
+        return;
+      }
+      if(!geo.ok&&geo.code==="QUOTA"){
+        setError(geo.message+". A busca automática foi interrompida para proteger o orçamento das APIs.");
+        return;
+      }
+      // This can trigger a separate provider-billed search; Google has an
+      // existing server-side per-account budget/rate-limiting circuit breaker.
+      setNotice("Geoapify não retornou estabelecimentos utilizáveis; consultando Google Places.");
       const google=await searchBusinesses({city:input.city,state:input.state,segment:canonical});
       if(!google.ok){setError(google.message);return;}
       let results=google.results;
