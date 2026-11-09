@@ -49,11 +49,19 @@ function osmBusiness(place:PersonalGeoapifyPlace):BusinessSearchResult {
   };
 }
 
-function googleCrmBusiness(place:BusinessSearchResult, manualName:string):BusinessSearchResult {
+function googleCrmBusiness(
+  place:BusinessSearchResult,
+  manualName:string,
+  input:SearchInput,
+):BusinessSearchResult {
   return {
     ...emptyBusiness(),
     placeId:place.placeId,
     name:manualName.trim(),
+    // City and state originate from the user's search fields, never
+    // from restricted Google Place Details content.
+    city:input.city,
+    state:input.state,
   };
 }
 
@@ -225,7 +233,7 @@ export function MapsPersonalView({
       setError("Digite um nome seu para este lead (3 a 120 caracteres), antes de salvar o identificador Google.");
       return;
     }
-    const business=geo?osmBusiness(geo):googleCrmBusiness(google!,manualName);
+    const business=geo?osmBusiness(geo):googleCrmBusiness(google!,manualName,applied);
     saveLock.current=true;setSaving(true);setError("");
     try{
       const response=await onAddLead(business,applied.segment);
