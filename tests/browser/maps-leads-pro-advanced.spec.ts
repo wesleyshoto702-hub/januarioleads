@@ -40,7 +40,7 @@ async function mockWorkspace(
         usage_date:"2026-11-08",
         features:{
           crm:true,basic_messages:true,manual_followup:true,
-          maps_search:plan==="advanced",
+          maps_search:plan!=="free",
           kanban:plan!=="free",custom_messages:plan!=="free",
           finance:plan!=="free",followup_center:plan!=="free",
           lead_enrichment:plan!=="free",
@@ -129,7 +129,7 @@ test("Free: Buscar via Maps continua indisponível", async({page})=>{
   await expect(page.getByRole("button",{name:"Buscar via Maps"})).toHaveCount(0);
 });
 
-for (const plan of ["advanced"] as const) {
+for (const plan of ["pro","advanced"] as const) {
   test(plan+": um clique exibe resultados Google após fallback automático",async({page})=>{
     const calls=await mockWorkspace(page,plan);
     await openMaps(page);
@@ -192,10 +192,10 @@ test("bairro continua disponível sem oferecer escolha técnica de provedor",asy
 });
 
 
-test("Pro: Buscar via Maps é exclusivo do Advanced", async({page})=>{
+test("Pro: Buscar via Maps está disponível com a mesma cobrança de 2 créditos por lead", async({page})=>{
  await mockWorkspace(page,"pro");
- await page.goto("/app");
- await expect(page.getByRole("button",{name:"Buscar via Maps"})).toHaveCount(0);
+ await openMaps(page);
+ await expect(page.getByText("Pro e Advanced · 2 créditos por lead")).toBeVisible();
 });
 
 
