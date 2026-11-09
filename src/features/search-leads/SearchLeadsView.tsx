@@ -1174,6 +1174,11 @@ export function SearchLeadsView({
           </div>
         )}
 
+        <ProspectingInformationPanel
+          leads={existingLeads} touchedLeadIds={touchedLeadIds} touchState={touchState}
+          selectedNiche={selectedSegment}
+        />
+
         <div className="segment-picker">
           <div className="segment-search">
             <Search size={17} />
@@ -1213,11 +1218,6 @@ export function SearchLeadsView({
             )}
           </div>
         </div>
-
-        <ProspectingInformationPanel
-          leads={existingLeads} touchedLeadIds={touchedLeadIds} touchState={touchState}
-          selectedNiche={selectedSegment}
-        />
 
         {error && <SearchError error={error} />
 
