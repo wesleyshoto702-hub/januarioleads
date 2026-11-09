@@ -99,6 +99,7 @@ import {
   resolveMunicipality,
 } from "../features/search-leads/search-location";
 import { findBusinessDuplicate, normalizeBrazilianPhone } from "../features/search-leads/identity";
+import { googleCrmNeedsOwnName, googlePlaceIdAndOwnName } from "../features/search-leads/google-crm-save";
 import type { BusinessSearchResult } from "../features/search-leads/types";
 import { getValidSession, signOut, subscribeAuthChange } from "../lib/auth";
 import { accountLocalStorage, isLegacyWorkspaceOwner } from "../lib/account-storage";
@@ -1620,7 +1621,24 @@ function LeadFlowApp() {
       };
     }
 
-    const newLead = buildFoundLead(business, selectedSegment);
+    let candidate = business;
+    if (SAAS_STAGING_ACTIVE && googleCrmNeedsOwnName(business)) {
+      // Results from Google are for live viewing only. UI search cards and
+      // Maps supply a customer-typed label. Other entry points prompt rather
+      // than silently saving provider name/contact/location into our CRM.
+      const ownName = business.crmManualName === true
+        ? business.name
+        : typeof window !== "undefined"
+          ? window.prompt("Digite um nome próprio para este lead no CRM (não copiamos os dados do Google):", "")
+          : null;
+      if (ownName === null) return {ok:false,message:"Cadastro cancelado."};
+      const allowed = googlePlaceIdAndOwnName(business,ownName);
+      if (!allowed) return {ok:false,
+        message:"Informe um nome de 3 a 120 caracteres para cadastrar este Place ID."};
+      candidate = allowed;
+    }
+
+    const newLead = buildFoundLead(candidate, selectedSegment);
     let persisted = false;
     try {
       await flushPendingLeads();
