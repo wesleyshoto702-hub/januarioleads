@@ -7,6 +7,7 @@ import { sameLocation } from "../../lib/location";
 export type ExistingLeadIdentity = {
   id?: string | undefined;
   company: string;
+  segment?: string | undefined;
   phone: string;
   placeId?: string | undefined;
   address?: string | undefined;
