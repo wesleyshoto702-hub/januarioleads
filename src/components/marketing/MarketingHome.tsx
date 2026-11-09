@@ -243,18 +243,18 @@ export function MarketingHome() {
       for (const entry of entries) {
         if (!entry.isIntersecting) continue;
         const section = entry.target as HTMLElement;
-        section.dataset.jlReveal = "visible";
+        section.dataset["jlReveal"] = "visible";
         observer.unobserve(section); // Each section reveals only once.
       }
     }, { rootMargin: "0px 0px -8% 0px", threshold: 0 });
 
     for (const section of sections) {
-      section.dataset.jlReveal = "waiting";
+      section.dataset["jlReveal"] = "waiting";
       observer.observe(section);
     }
     return () => {
       observer.disconnect();
-      for (const section of sections) delete section.dataset.jlReveal;
+      for (const section of sections) delete section.dataset["jlReveal"];
     };
   }, []);
 
