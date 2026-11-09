@@ -501,6 +501,7 @@ export function MapsLeadsView({
       // by the user and is NEVER copied automatically from the Places response.
       candidate = {
         placeId:selected.placeId,equivalentPlaceId:selected.equivalentPlaceId??null,
+        crmManualName:true,
         name:manualName,primaryCategory:null,
         categories:[],description:null,address:null,neighborhood:null,
         city:null,state:null,phone:null,internationalPhone:null,
