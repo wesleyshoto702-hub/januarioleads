@@ -467,3 +467,41 @@ test("Mapa-base real abre antes da busca e pins numerados usam coordenadas do pr
       String(index+1).padStart(2,"0"));
   }
 });
+
+test("Maps: duplo clique em Adicionar lead não gera duas gravações no CRM",async({page})=>{
+  const calls=await mockWorkspace(page,"advanced","geo-found");
+  await openMaps(page);
+  await page.getByRole("button",{name:"Buscar no mapa"}).click();
+  const card=page.getByRole("article",{name:/Estabelecimento Geoapify: Barbearia OSM/});
+  const fromCard=card.getByRole("button",{name:"Adicionar lead",exact:true});
+  const fromList=page.locator(".bms-results-list .bms-result-add").first();
+  await expect(fromCard).toBeEnabled();
+  await expect(fromList).toBeEnabled();
+  // Dispatch both React clicks in one task, before any state flush.
+  // The synchronous ref lock should allow only one call to onAddLead.
+  await page.evaluate(()=>{
+    const cardButton=document.querySelector<HTMLButtonElement>(
+      ".bms-map-frame .bms-business-card .bms-save");
+    const listButton=document.querySelector<HTMLButtonElement>(
+      ".bms-results-list .bms-result-add");
+    if(!cardButton || !listButton)throw new Error("Missing CRM actions");
+    cardButton.click();
+    listButton.click();
+  });
+  await expect.poll(()=>calls.crmSaves.length).toBe(1);
+  await expect(fromCard).toBeDisabled();
+  await expect(fromList).toBeDisabled();
+  expect(calls.crmSaves[0]?.place_id).toBe("geoapify:abc1");
+});
+
+test("Maps: browser sem chave não bloqueia a lista nem a ação de salvar",async({page})=>{
+  const calls=await mockWorkspace(page,"pro","geo-found");
+  await openMaps(page);
+  // Even when the Google Maps JS SDK is blocked by the browser,
+  // backend provider data and the CRM workflow remain independently useful.
+  await page.route("https://maps.googleapis.com/**",route=>route.abort("blockedbyclient"));
+  await page.getByRole("button",{name:"Buscar no mapa"}).click();
+  await expect(page.locator(".bms-results-list")).toContainText("Barbearia OSM");
+  await expect(page.locator(".bms-results-list .bms-result-add").first()).toBeEnabled();
+  expect(calls.unified).toHaveLength(1);
+});
