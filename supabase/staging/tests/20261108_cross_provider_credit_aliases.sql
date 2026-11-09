@@ -16,6 +16,13 @@ declare
 begin
   select user_id into u from public.private_access limit 1;
   if u is null then raise exception 'Missing staging test identity'; end if;
+  -- The user account is intentionally on no-credit staging mode.
+  -- Exercise the ORIGINAL billing rules only inside this transaction:
+  -- the final ROLLBACK automatically restores quota_test_mode=true.
+  if (select count(*) from public.private_access) <> 1 then
+    raise exception 'This regression is restricted to single-account staging';
+  end if;
+  update public.private_access set quota_test_mode=false where user_id=u;
   insert into public.saas_subscriptions(user_id,plan_code,status,period_start,period_end)
     values(u,'advanced','active',now()-interval '1 day',now()+interval '1 day')
     on conflict(user_id) do update set plan_code='advanced',status='active',
