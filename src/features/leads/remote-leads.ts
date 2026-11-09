@@ -318,6 +318,28 @@ export async function fetchRemoteLeads() {
   ).map(fromRemote);
 }
 
+/** Exact-provider-ID lookup after a failed save (e.g. a concurrent tab).
+ * Scoped by the current user's JWT/RLS; never treats unrelated API errors as
+ * confirmed duplicates. Cross-provider matches are handled separately.
+ */
+export async function findRemoteLeadByPlaceId(placeId: string): Promise<PersistedLead | null> {
+  const key=placeId.trim();
+  if(key.length < 4 || key.length > 255) return null;
+  const session=await getValidSession();
+  if(!session) return null;
+  const response=await authedRequest(
+    "leads?select=*&place_id=eq." + encodeURIComponent(key) + "&limit=2",
+    {method:"GET",headers:{Accept:"application/json"}},session,
+  );
+  if(!response.ok) return null;
+  const payload:unknown=await response.json();
+  if(!Array.isArray(payload) || payload.length!==1) return null;
+  const found=payload[0] as Partial<RemoteLead>;
+  // Defence in depth even though the DB query is already RLS scoped.
+  if(found.user_id!==session.user.id || found.place_id!==key) return null;
+  return fromRemote(found as RemoteLead);
+}
+
 // The legacy client-to-server bulk migration was removed when account isolation
 // became mandatory. A fresh account must NEVER import old browser CRM data.
 
