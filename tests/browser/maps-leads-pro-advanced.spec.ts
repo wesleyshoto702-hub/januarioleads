@@ -415,3 +415,55 @@ test("Maps: botão Adicionar lead na lista Geoapify salva diretamente empresa OS
   expect(calls.crmSaves[0]?.place_id).toBe("geoapify:abc1");
   await expect(action).toBeDisabled();
 });
+
+test("Mapa-base real abre antes da busca e pins numerados usam coordenadas do provedor",async({page})=>{
+  test.skip(!process.env["VITE_GOOGLE_MAPS_BROWSER_KEY"],
+    "Requires the browser Maps key configured in the staging test build.");
+  await page.addInitScript(()=>{
+    const data:{markers:Record<string,unknown>[];mapOptions:Record<string,unknown>|null} = {
+      markers:[],mapOptions:null,
+    };
+    Object.defineProperty(window,"__januarioMapTest",{value:data,configurable:true});
+    Object.defineProperty(window,"google",{configurable:true,value:{maps:{
+      Map:class{
+        constructor(container:HTMLElement,options:Record<string,unknown>){
+          data.mapOptions=options;
+          container.dataset.testMapLoaded="true";
+        }
+        fitBounds() {}
+        setCenter() {}
+        panTo() {}
+        setZoom() {}
+        getZoom() { return 11; }
+      },
+      Marker:class{
+        constructor(options:Record<string,unknown>){data.markers.push(options);}
+        addListener() {}
+        setMap() {}
+        setIcon() {}
+        setZIndex() {}
+      },
+      LatLngBounds:class{extend() {}},
+    }}});
+  });
+  await mockWorkspace(page,"advanced");
+  await openMaps(page);
+  await expect(page.locator(".bms-google-map[data-test-map-loaded='true']")).toBeVisible();
+  await expect(page.getByText("Explore empresas reais no mapa")).toHaveCount(0);
+  await page.getByRole("button",{name:"Buscar no mapa"}).click();
+  await expect(page.locator(".bms-results-count")).toHaveText("2");
+  const state=await page.evaluate(()=>{
+    return (window as unknown as {__januarioMapTest:{
+      markers:Record<string,unknown>[];
+      mapOptions:Record<string,unknown>|null;
+    }}).__januarioMapTest;
+  });
+  expect(state.mapOptions?.styles).toBeDefined();
+  expect(state.markers).toHaveLength(2);
+  for (const [index, marker] of state.markers.entries()) {
+    expect(marker.position).toEqual({lat:-21.245,lng:-44.99});
+    const icon=marker.icon as {url:string};
+    expect(decodeURIComponent(icon.url)).toContain(
+      String(index+1).padStart(2,"0"));
+  }
+});
