@@ -57,7 +57,7 @@ function RegionRow({
       {expanded && expandable && (
         <div className="prospecting-info-children">
           {item.children.map((child) => (
-            <RegionRow key={`${detailMode}:${child.key}`} item={child}
+            <RegionRow key={level === "city" ? `${detailMode}:${child.key}` : child.key} item={child}
               level={level === "state" ? "city" : detailMode}
               ready={ready} detailMode={detailMode}/>
           ))}
