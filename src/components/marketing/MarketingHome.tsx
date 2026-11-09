@@ -83,7 +83,8 @@ const pricingPlans = [
     summary: "O primeiro passo para encontrar e organizar oportunidades.",
     price: "R$ 0,00",
     highlights: [
-      "5 novos leads por dia",
+      "3 pesquisas gratuitas por dia",
+      "5 créditos de leads por dia",
       "Busca por cidade e segmento",
       "CRM básico para seus contatos",
       "Modelos de mensagens essenciais",
@@ -94,9 +95,10 @@ const pricingPlans = [
     code: "pro",
     name: "Pro",
     summary: "Mais contatos e organização para quem prospecta todos os dias.",
-    price: "R$ 14,90",
+    price: "R$ 19,90",
     highlights: [
-      "25 novos leads por dia",
+      "25 créditos diários · 1 por lead tradicional",
+      "Buscar via Maps: 2 créditos por lead",
       "CRM completo com Kanban",
       "Modelos de mensagens personalizados",
       "Central de acompanhamento",
@@ -110,8 +112,9 @@ const pricingPlans = [
     summary: "Maior volume e ferramentas para decisões comerciais mais rápidas.",
     price: "R$ 29,90",
     highlights: [
-      "70 novos leads por dia",
+      "70 créditos diários · 1 por lead tradicional",
       "Todos os recursos do Pro",
+      "Buscar via Maps: 2 créditos por lead",
       "Priorização de leads por critérios",
       "Relatórios comerciais avançados",
       "Follow-ups automáticos configuráveis",

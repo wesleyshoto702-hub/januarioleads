@@ -11,19 +11,25 @@ import {
   Search,
   ShieldCheck,
   Star,
+  X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { BRAZIL_STATES } from "../../lib/brazil-locations";
 import { safeExternalHref } from "../../lib/safe-external-url";
 import type { PersistedLead } from "../leads/remote-leads";
 import type { BusinessAddResult } from "../search-leads/BusinessDetailsModal";
-import { findBusinessDuplicate } from "../search-leads/identity";
+import { findBusinessDuplicate, findSavedBusinessMatch } from "../search-leads/identity";
 import { searchBusinesses } from "../search-leads/search-businesses";
-import { searchGeoapifyPlaces, type GeoapifyPreview, type GeoapifySearchResponse } from "./geoapify-client";
+import { searchAutomaticMaps, type GeoapifyPreview } from "./geoapify-client";
 import { loadMapPlaceDetails } from "./map-place-details";
+import { buildMapPoints } from "./map-points";
+import { RealGoogleMap } from "./RealGoogleMap";
 import {
   DEFAULT_SEARCH_LOCATION,
   loadSearchLocation,
+  loadBrazilianMunicipalities,
+  resolveMunicipality,
+  saveSearchLocation,
   withSearchLocation,
   type SearchLocation,
 } from "../search-leads/search-location";
@@ -39,249 +45,7 @@ const GOOGLE_BROWSER_KEY = (import.meta.env["VITE_GOOGLE_MAPS_BROWSER_KEY"] as s
 
 type SearchValues = SearchLocation & { segment: string; neighborhood: string };
 type MapsProvider = "geoapify" | "google";
-type GeoapifyCoverage = Extract<GeoapifySearchResponse, { ok: true }>["coverage"];
-
-const GEOAPIFY_SEGMENTS = new Set([
-  "Barbearia", "Salão de Beleza", "Academia", "Restaurante",
-  "Cafeteria", "Pizzaria", "Spa",
-]);
-type GeoPoint = { lat: number; lng: number };
-
-type GoogleMapInstance = {
-  fitBounds: (value: GoogleBounds) => void;
-  panTo: (value: GeoPoint) => void;
-  setZoom: (zoom: number) => void;
-  getZoom: () => number | undefined;
-};
-type GoogleMarker = {
-  setMap: (map: GoogleMapInstance | null) => void;
-  addListener: (event: string, callback: () => void) => void;
-};
-type GoogleBounds = { extend: (value: GeoPoint) => void };
-type GoogleMapsApi = {
-  maps: {
-    Map: new (element: HTMLElement, options: Record<string, unknown>) => GoogleMapInstance;
-    Marker: new (options: Record<string, unknown>) => GoogleMarker;
-    LatLngBounds: new () => GoogleBounds;
-    SymbolPath: { CIRCLE: number };
-  };
-};
-let mapsLoader: Promise<GoogleMapsApi> | null = null;
-
-function loadGoogleMaps(): Promise<GoogleMapsApi> {
-  if (mapsLoader) return mapsLoader;
-  mapsLoader = new Promise((resolve, reject) => {
-    const w = window as Window & { google?: GoogleMapsApi };
-    if (w.google?.maps?.Map) {
-      resolve(w.google);
-      return;
-    }
-    if (!GOOGLE_BROWSER_KEY) {
-      reject(new Error("A chave pública do Google Maps não está configurada."));
-      return;
-    }
-    const script = document.createElement("script");
-    script.async = true;
-    script.src = "https://maps.googleapis.com/maps/api/js?key=" +
-      encodeURIComponent(GOOGLE_BROWSER_KEY) + "&v=weekly&language=pt-BR&region=BR";
-    script.onload = () => {
-      if (w.google?.maps?.Map) resolve(w.google);
-      else reject(new Error("O Google Maps não respondeu corretamente."));
-    };
-    script.onerror = () => reject(new Error("Falha ao carregar o mapa. Verifique a chave e a conexão."));
-    document.head.appendChild(script);
-  }).catch((error: unknown) => {
-    mapsLoader = null;
-    throw error;
-  });
-  return mapsLoader;
-}
-
-const DARK_GOOGLE_STYLE: Array<Record<string, unknown>> = [
-  { elementType: "geometry", stylers: [{ color: "#17121a" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#a8a1ad" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#151018" }] },
-  { featureType: "administrative", elementType: "geometry.stroke", stylers: [{ color: "#41343f" }] },
-  { featureType: "poi", stylers: [{ visibility: "off" }] },
-  { featureType: "road", elementType: "geometry", stylers: [{ color: "#342c37" }] },
-  { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#241c29" }] },
-  { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#59414d" }] },
-  { featureType: "transit", stylers: [{ visibility: "off" }] },
-  { featureType: "water", elementType: "geometry", stylers: [{ color: "#101922" }] },
-];
-
-function hasCoordinates(value: BusinessSearchResult): value is BusinessSearchResult & { latitude: number; longitude: number } {
-  return typeof value.latitude === "number" && Number.isFinite(value.latitude) &&
-    typeof value.longitude === "number" && Number.isFinite(value.longitude) &&
-    Math.abs(value.latitude) <= 90 && Math.abs(value.longitude) <= 180;
-}
-
-function GoogleLeadsMap({
-  businesses, selectedId, onSelect, zoomDirection,
-}: {
-  businesses: BusinessSearchResult[];
-  selectedId: string | null;
-  onSelect: (id: string) => void;
-  zoomDirection: number;
-}) {
-  const container = useRef<HTMLDivElement>(null);
-  const map = useRef<GoogleMapInstance | null>(null);
-  const sdk = useRef<GoogleMapsApi | null>(null);
-  const markers = useRef<GoogleMarker[]>([]);
-  const [ready, setReady] = useState(false);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    let alive = true;
-    void loadGoogleMaps().then((google) => {
-      if (!alive || !container.current) return;
-      sdk.current = google;
-      map.current = new google.maps.Map(container.current, {
-        center: { lat: -21.245, lng: -44.999 },
-        zoom: 12,
-        styles: DARK_GOOGLE_STYLE,
-        disableDefaultUI: true,
-        clickableIcons: false,
-        gestureHandling: "greedy",
-        backgroundColor: "#121017",
-      });
-      setReady(true);
-    }).catch((reason: unknown) => {
-      if (alive) setError(reason instanceof Error ? reason.message : "Mapa indisponível.");
-    });
-    return () => {
-      alive = false;
-      for (const marker of markers.current) marker.setMap(null);
-      markers.current = [];
-      map.current = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    const g = sdk.current;
-    const instance = map.current;
-    if (!ready || !g || !instance) return;
-    markers.current.forEach((marker) => marker.setMap(null));
-    markers.current = [];
-    const bounds = new g.maps.LatLngBounds();
-    const valid = businesses.filter(hasCoordinates);
-    valid.forEach((business, i) => {
-      const position = { lat: business.latitude, lng: business.longitude };
-      bounds.extend(position);
-      const marker = new g.maps.Marker({
-        map: instance,
-        position,
-        title: business.name,
-        label: { text: String(i + 1), color: "#fff", fontSize: "11px", fontWeight: "700" },
-        icon: {
-          path: g.maps.SymbolPath.CIRCLE,
-          scale: 16,
-          fillColor: "#ed2f57",
-          fillOpacity: 1,
-          strokeColor: "#fff0f2",
-          strokeWeight: 2,
-        },
-      });
-      marker.addListener("click", () => onSelect(business.placeId));
-      markers.current.push(marker);
-    });
-    if (valid.length) {
-      instance.fitBounds(bounds);
-      // Google may initially zoom too far for a single company.
-      if (valid.length === 1) instance.setZoom(14);
-    }
-    return () => {
-      markers.current.forEach((marker) => marker.setMap(null));
-      markers.current = [];
-    };
-  }, [businesses, ready, onSelect]);
-
-  useEffect(() => {
-    const target = businesses.find((b) => b.placeId === selectedId);
-    if (target && hasCoordinates(target)) map.current?.panTo({ lat: target.latitude, lng: target.longitude });
-  }, [businesses, selectedId]);
-
-  useEffect(() => {
-    if (!zoomDirection || !map.current) return;
-    const zoom = map.current.getZoom() ?? 12;
-    map.current.setZoom(Math.min(18, Math.max(5, zoom + Math.sign(zoomDirection))));
-  }, [zoomDirection]);
-
-  return (
-    <div className="bms-google-map" ref={container} aria-label="Mapa Google com as empresas encontradas">
-      {!ready && <div className="bms-map-loading" role="status">
-        {error || "Carregando mapa do Google..."}
-      </div>}
-    </div>
-  );
-}
-
-function markerPosition(index: number) {
-  // Fictional placements for STAGING ONLY, not a geographic representation.
-  const x = 17 + ((index * 31 + index * index * 7) % 66);
-  const y = 20 + ((index * 23 + index * index * 5) % 56);
-  return { left: x + "%", top: y + "%" };
-}
-
-function StagingIllustrativeMap({
-  businesses, selectedId, onSelect, zoom,
-}: {
-  businesses: BusinessSearchResult[];
-  selectedId: string | null;
-  onSelect: (id: string) => void;
-  zoom: number;
-}) {
-  return (
-    <div className="bms-illustrative-map" aria-label="Mapa ilustrativo da simulação, sem dados cartográficos reais">
-      <div className="bms-illustrative-transform" style={{ transform: `scale(${zoom})` }}>
-        <svg viewBox="0 0 1000 640" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-          <rect width="1000" height="640" fill="#101014" />
-          <g stroke="#272530" strokeWidth="2" fill="none" opacity=".92">
-            <path d="M-50 80L280 120L430 55L710 100L1100 64M-30 202L370 222L610 188L1080 236M-30 365L290 306L525 388L760 354L1050 402M0 532L265 454L525 528L840 488L1100 562" />
-            <path d="M100 -60L165 720M276 -60L332 740M466 -60L524 730M647 -90L713 720M846 -45L886 712" />
-            <path d="M-20 28L720 635M480 -70L1000 500M-80 530L650 -50M230 720L1000 -80" />
-          </g>
-          <g stroke="#403843" strokeWidth="5" fill="none" opacity=".82">
-            <path d="M-65 303Q145 267 253 343T532 331T1050 295" />
-            <path d="M362 -70Q315 165 420 263T516 710" />
-            <path d="M698 -80Q622 153 743 273T768 700" />
-          </g>
-          <g stroke="#5c4555" strokeWidth="2" fill="none" opacity=".46">
-            <path d="M-100 324Q145 286 253 362T532 350T1060 315" />
-            <path d="M381 -70Q334 165 439 263T535 710" />
-          </g>
-          <g stroke="#222b36" strokeWidth="38" opacity=".43" fill="none">
-            <path d="M1050 -20Q726 160 860 315T971 680" />
-          </g>
-          <g stroke="#394b60" strokeWidth="2" opacity=".62" fill="none">
-            <path d="M1050 -20Q726 160 860 315T971 680" />
-          </g>
-          <g fill="#362e37" opacity=".82">
-            <rect x="82" y="235" width="48" height="34" rx="3" transform="rotate(-8 82 235)" />
-            <rect x="527" y="151" width="79" height="49" rx="5" />
-            <rect x="540" y="445" width="58" height="76" rx="4" />
-            <rect x="793" y="407" width="67" height="36" rx="4" />
-            <rect x="198" y="485" width="88" height="40" rx="4" />
-          </g>
-        </svg>
-        {businesses.slice(0, 30).map((business, index) => (
-          <button
-            className={business.placeId === selectedId ? "bms-pin selected" : "bms-pin"}
-            key={business.placeId}
-            style={markerPosition(index)}
-            aria-label={"Selecionar " + business.name}
-            aria-pressed={business.placeId === selectedId}
-            type="button"
-            onClick={() => onSelect(business.placeId)}
-          >
-            {index + 1}
-          </button>
-        ))}
-      </div>
-      <div className="bms-map-watermark">MAPA ILUSTRATIVO · HOMOLOGAÇÃO</div>
-    </div>
-  );
-}
+type MapZoomAction = { id: number; delta: number };
 
 export function MapsLeadsView({
   existingLeads,
@@ -293,28 +57,49 @@ export function MapsLeadsView({
   const [location] = useState(() => typeof window === "undefined" ? DEFAULT_SEARCH_LOCATION : loadSearchLocation());
   const [city, setCity] = useState(location.city);
   const [state, setState] = useState(location.state);
+  const [municipalities, setMunicipalities] = useState<string[]>([]);
+  const [municipalitiesState, setMunicipalitiesState] = useState("");
   const [neighborhood, setNeighborhood] = useState("");
   const [segment, setSegment] = useState("Barbearia");
   const [results, setResults] = useState<BusinessSearchResult[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [applied, setApplied] = useState<SearchValues | null>(null);
-  const [pageToken, setPageToken] = useState<string | null>(null);
-  const [provider, setProvider] = useState<MapsProvider>(SAAS_STAGING_ACTIVE ? "geoapify" : "google");
   const [appliedProvider, setAppliedProvider] = useState<MapsProvider | null>(null);
   const [geoResults, setGeoResults] = useState<GeoapifyPreview[]>([]);
   const [selectedGeoId, setSelectedGeoId] = useState<string | null>(null);
-  const [coverage, setCoverage] = useState<GeoapifyCoverage | null>(null);
   const [usage, setUsage] = useState<SaasUsage | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [detailsLoaded, setDetailsLoaded] = useState<string[]>([]);
   const [savedIds, setSavedIds] = useState<string[]>([]);
+  const [googleCrmName, setGoogleCrmName] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [zoom, setZoom] = useState(1);
-  const [zoomTick, setZoomTick] = useState(0);
+  const [zoomAction, setZoomAction] = useState<MapZoomAction>({ id: 0, delta: 0 });
+  const resultList = useRef<HTMLOListElement>(null);
   const busy = useRef(false);
+  // A synchronous lock prevents duplicate saves before React flushes state.
+  const saveInFlight = useRef(false);
+
+  // IBGE municipality suggestions are loaded for the selected UF only. If
+  // the official service is unavailable, manual city entry still works.
+  useEffect(() => {
+    const controller = new AbortController();
+    setMunicipalities([]);
+    setMunicipalitiesState("");
+    void loadBrazilianMunicipalities(state, controller.signal).then((items) => {
+      if (controller.signal.aborted) return;
+      setMunicipalities(items);
+      setMunicipalitiesState(state);
+    }).catch(() => {
+      if (!controller.signal.aborted) {
+        setMunicipalities([]);
+        setMunicipalitiesState("");
+      }
+    });
+    return () => controller.abort();
+  }, [state]);
 
   useEffect(() => {
     let live = true;
@@ -330,37 +115,43 @@ export function MapsLeadsView({
     () => geoResults.find((item) => item.sourceId === selectedGeoId) ?? null,
     [geoResults, selectedGeoId],
   );
+  // The CRM is shared across both entry points. Google and Geoapify do not
+  // share Place IDs, so Geoapify also compares strict identity + geo proximity.
+  const crmGoogleIds = useMemo(() => new Set(results
+    .filter((place) => Boolean(findBusinessDuplicate(place, existingLeads)))
+    .map((place) => place.placeId)), [results, existingLeads]);
+  const crmGeoIds = useMemo(() => new Set(geoResults
+    .filter((place) => Boolean(findSavedBusinessMatch({
+      placeId: place.sourceId,
+      equivalentPlaceId:place.equivalentPlaceId,
+      name: place.name,
+      address: place.address,
+      city: place.city,
+      state: place.state,
+      latitude: place.latitude,
+      longitude: place.longitude,
+    }, existingLeads)))
+    .map((place) => place.sourceId)), [geoResults, existingLeads]);
   const saved = selected ? savedIds.includes(selected.placeId) ||
-    Boolean(findBusinessDuplicate(selected, existingLeads)) : false;
-  const mapAllowed = Boolean(GOOGLE_BROWSER_KEY) || SAAS_STAGING_ACTIVE;
+    crmGoogleIds.has(selected.placeId) : false;
+  const geoSaved = selectedGeo ? crmGeoIds.has(selectedGeo.sourceId) || savedIds.includes(selectedGeo.sourceId) : false;
+  // Search may still work without a browser map key; never expose the server Places key.
+  const mapPoints = useMemo(() => buildMapPoints(appliedProvider, results, geoResults),
+    [appliedProvider, geoResults, results]);
 
-  const choose = useCallback((id: string) => setSelectedId(id), []);
+  const choose = useCallback((id: string) => {
+    if (appliedProvider === "geoapify") setSelectedGeoId(id);
+    else { setSelectedId(id); setGoogleCrmName(""); }
+    const nodes = resultList.current?.querySelectorAll<HTMLButtonElement>("[data-marker-id]");
+    const item = nodes && Array.from(nodes).find((button) => button.dataset.markerId === id);
+    item?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [appliedProvider]);
 
-  function switchProvider(next: MapsProvider) {
-    if (busy.current || next === provider) return;
-    setProvider(next);
-    setResults([]);
-    setGeoResults([]);
-    setSelectedId(null);
-    setSelectedGeoId(null);
-    setApplied(null);
-    setAppliedProvider(null);
-    setPageToken(null);
-    setCoverage(null);
-    setDetailsLoaded([]);
-    setError("");
-    setMessage("");
-    if (next === "geoapify") setNeighborhood("");
-  }
-
-  async function search(
-    append: boolean, input?: SearchValues, sourceOverride?: MapsProvider,
-  ) {
+  async function search(input: SearchValues) {
     if (busy.current) return;
-    const wanted = append ? applied : input;
-    const source = sourceOverride ?? provider;
-    if (!wanted || (append && source !== "google")) return;
-    if (!append && !resolveSearchSegment(wanted.segment)) {
+    const wanted = input;
+    if (!wanted) return;
+    if (!resolveSearchSegment(wanted.segment)) {
       setError("Selecione um segmento válido da lista, como Barbearia ou Academia.");
       return;
     }
@@ -368,56 +159,75 @@ export function MapsLeadsView({
       setError("Informe uma cidade válida para a busca.");
       return;
     }
-    if (append && !pageToken) return;
-    if (source === "geoapify" && !GEOAPIFY_SEGMENTS.has(resolveSearchSegment(wanted.segment) ?? "")) {
-      setError("No Geoapify, escolha Barbearia, Salão de Beleza, Academia, Restaurante, Cafeteria, Pizzaria ou Spa. Para outros segmentos, use Google Places.");
-      return;
-    }
-    if (source === "geoapify" && wanted.neighborhood.trim()) {
-      setError("A busca por bairro está disponível na fonte Google Places. Remova o bairro ou selecione Google Places.");
-      return;
+    if (municipalitiesState === wanted.state && municipalities.length) {
+      const canonicalCity = resolveMunicipality(wanted.city, municipalities);
+      if (!canonicalCity) {
+        setError("Escolha um município válido na lista do IBGE para a UF selecionada.");
+        return;
+      }
+      wanted.city = canonicalCity;
     }
     busy.current = true;
     setLoading(true);
     setError("");
     setMessage("");
+    setGoogleCrmName("");
     try {
-      if (source === "geoapify") {
-        const response = await searchGeoapifyPlaces({
+      if (SAAS_STAGING_ACTIVE) {
+        // All routing is server-side. One user action; at most one Google request.
+        // Backend claims the plan search quota exactly once, even on fallback.
+        const response = await searchAutomaticMaps({
           city: wanted.city,
           state: wanted.state,
           segment: resolveSearchSegment(wanted.segment) ?? wanted.segment,
-          mapMode: true,
+          neighborhood: wanted.neighborhood,
         });
         if (!response.ok) {
+          setResults([]);
+          setGeoResults([]);
+          setSelectedId(null);
+          setSelectedGeoId(null);
+          setApplied(null);
+          setAppliedProvider(null);
           setError(response.message);
           return;
         }
         setApplied(wanted);
-        setAppliedProvider("geoapify");
-        setResults([]);
-        setSelectedId(null);
-        setGeoResults(response.places);
-        setSelectedGeoId(response.places[0]?.sourceId ?? null);
-        setCoverage(response.coverage);
-        setPageToken(null);
+        saveSearchLocation({ city: wanted.city, state: wanted.state });
         setDetailsLoaded([]);
-        if (response.coverage.message) {
-          setMessage(response.coverage.message);
-        } else if (!response.places.length) {
-          setMessage("Nenhuma empresa catalogada nessa categoria pelo Geoapify.");
+        if (response.quota) setUsage(response.quota);
+        if (response.provider === "geoapify") {
+          setAppliedProvider("geoapify");
+          setResults([]);
+          setSelectedId(null);
+          setGeoResults(response.places);
+          setSelectedGeoId(response.places[0]?.sourceId ?? null);
+          if (response.coverage.message) setMessage(response.coverage.message);
+          else if (!response.places.length) setMessage(response.quota?.test_mode
+            ? "Nenhum estabelecimento encontrado com esses filtros ou dentro dos limites seguros das APIs."
+            : "Nenhum estabelecimento coube no saldo diário disponível.");
+        } else {
+          setAppliedProvider("google");
+          setGeoResults([]);
+          setSelectedGeoId(null);
+          setResults(response.results);
+          setSelectedId(response.results[0]?.placeId ?? null);
+          if (!response.results.length) {
+            setMessage(response.quota?.test_mode
+              ? "Nenhum estabelecimento encontrado com esses filtros ou dentro dos limites seguros das APIs."
+              : "Nenhum estabelecimento foi encontrado ou coube no saldo diário disponível.");
+          } else if (response.partial) {
+            setMessage("A fonte atingiu um limite durante a busca. Estes são os resultados válidos disponíveis.");
+          }
         }
         return;
       }
 
-      // A deliberate Google selection ALWAYS uses a real query in staging.
-      // Do not silently show the synthetic staging demo results.
+      // Production stays on its legacy route until reviewed rollout.
       const response = await searchBusinesses({
         ...wanted,
         segment: resolveSearchSegment(wanted.segment) ?? wanted.segment,
         mapMode: true,
-        liveGoogle: SAAS_STAGING_ACTIVE,
-        ...(append && pageToken ? { pageToken } : {}),
       });
       if (!response.ok) {
         if (response.quota) setUsage(response.quota);
@@ -426,27 +236,18 @@ export function MapsLeadsView({
       }
       if (response.quota) setUsage(response.quota);
       setApplied(wanted);
+      saveSearchLocation({ city: wanted.city, state: wanted.state });
       setAppliedProvider("google");
-      setCoverage(null);
       setGeoResults([]);
       setSelectedGeoId(null);
-      setPageToken(response.nextPageToken);
-      if (!append) setDetailsLoaded([]);
-      setResults((previous) => {
-        const next = append ? previous : [];
-        const known = new Set(next.map((item) => item.placeId));
-        for (const item of response.results) {
-          if (!known.has(item.placeId)) {
-            next.push(item);
-            known.add(item.placeId);
-          }
-        }
-        return [...next];
-      });
-      if (!append) setSelectedId(response.results[0]?.placeId ?? null);
-      if (response.results.length === 0) {
-        setMessage("Nenhuma empresa encontrada pelo Google Places. Experimente outra região ou segmento.");
+      setDetailsLoaded([]);
+      setResults(response.results);
+      setSelectedId(response.results[0]?.placeId ?? null);
+      if (!response.results.length) {
+        setMessage("Nenhuma empresa encontrada nesta região e segmento.");
       }
+    } catch {
+      setError("Não foi possível concluir a pesquisa. Tente novamente.");
     } finally {
       busy.current = false;
       setLoading(false);
@@ -455,19 +256,11 @@ export function MapsLeadsView({
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!mapAllowed) return;
-    void search(false, {
+    void search({
       city: city.trim(), state,
-      neighborhood: provider === "geoapify" ? "" : neighborhood.trim(),
+      neighborhood: neighborhood.trim(),
       segment: segment.trim(),
-    }, provider);
-  }
-
-  function searchGoogleAsAlternative() {
-    if (!applied || loading || appliedProvider !== "geoapify") return;
-    // Only this explicit click triggers a second provider request.
-    setProvider("google");
-    void search(false, applied, "google");
+    });
   }
 
   async function consultExtraDetails() {
@@ -491,30 +284,93 @@ export function MapsLeadsView({
     }
   }
 
-  async function saveLead() {
-    if (!selected || !applied || saving || saved || SAAS_STAGING_ACTIVE || appliedProvider !== "google") return;
+  async function saveLead(geoTargetId?: string) {
+    if (!applied || saving || saveInFlight.current) return;
+    const isGeo=appliedProvider==="geoapify";
+    // The sidebar can save an OSM lead directly without first waiting for a
+    // React selection state update. Google leads still require a typed name.
+    const targetGeo=isGeo
+      ? geoTargetId
+        ? geoResults.find((place)=>place.sourceId===geoTargetId) ?? null
+        : selectedGeo
+      : null;
+    const selectedPlaceId=isGeo?targetGeo?.sourceId:selected?.placeId;
+    const alreadySaved=isGeo
+      ? Boolean(selectedPlaceId && (savedIds.includes(selectedPlaceId) || crmGeoIds.has(selectedPlaceId)))
+      : saved;
+    if (!selectedPlaceId || alreadySaved) return;
+    let candidate: BusinessSearchResult;
+    if (isGeo) {
+      if (!targetGeo) return;
+      // Geoapify/OSM data is independently licensed for storage with attribution.
+      candidate = {
+        placeId:targetGeo.sourceId,
+        equivalentPlaceId:targetGeo.equivalentPlaceId??null,
+        name:targetGeo.name,
+        primaryCategory:targetGeo.category,
+        categories:[],description:null,
+        address:targetGeo.address,
+        neighborhood:null,
+        city:targetGeo.city,state:targetGeo.state,
+        phone:null,internationalPhone:null,
+        rating:null,reviewCount:null,isOpenNow:null,
+        openingHours:[],currentOpeningHours:null,regularOpeningHours:null,
+        website:null,instagram:null,googleMapsUrl:null,businessStatus:null,
+        latitude:targetGeo.latitude,longitude:targetGeo.longitude,
+      };
+    } else {
+      if (!selected) return;
+      const manualName=googleCrmName.trim();
+      if (manualName.length<3 || manualName.length>120) {
+        setError("Digite um nome próprio para identificar este lead no CRM (3 a 120 caracteres).");
+        return;
+      }
+      // Google Places only permits permanently persisting Place IDs, not its
+      // name, coordinates, address or contact fields. This CRM name is typed
+      // by the user and is NEVER copied automatically from the Places response.
+      candidate = {
+        placeId:selected.placeId,equivalentPlaceId:selected.equivalentPlaceId??null,
+        crmManualName:true,
+        name:manualName,primaryCategory:null,
+        categories:[],description:null,address:null,neighborhood:null,
+        city:null,state:null,phone:null,internationalPhone:null,
+        rating:null,reviewCount:null,isOpenNow:null,openingHours:[],
+        currentOpeningHours:null,regularOpeningHours:null,
+        website:null,instagram:null,googleMapsUrl:null,
+        businessStatus:null,latitude:null,longitude:null,
+      };
+    }
+    saveInFlight.current = true;
     setSaving(true);
     setError("");
     try {
-      const result = await onAddLead(
-        withSearchLocation(selected, { city: applied.city, state: applied.state }),
-        resolveSearchSegment(applied.segment) ?? applied.segment,
-      );
-      if (result.ok) {
-        setSavedIds((ids) => ids.includes(selected.placeId) ? ids : [...ids, selected.placeId]);
-        setMessage("Empresa adicionada ao CRM com sucesso.");
-      } else {
-        setError(result.message);
-      }
+      const result=await onAddLead(candidate,
+        resolveSearchSegment(applied.segment) ?? applied.segment);
+      if(result.ok) {
+        setSavedIds((ids)=>ids.includes(selectedPlaceId)?ids:[...ids,selectedPlaceId]);
+        setMessage(result.alreadyExisted
+          ? "Lead já adicionado ao CRM. Nenhum novo cadastro foi criado."
+          : isGeo
+            ? "Lead salvo no CRM com dados Geoapify/OSM e atribuição da fonte."
+            : "Lead salvo no CRM com o nome informado por você e o identificador Google; dados do Google não foram copiados.");
+      } else setError(result.message);
     } catch {
       setError("Não foi possível salvar o lead no CRM agora.");
     } finally {
+      saveInFlight.current = false;
       setSaving(false);
     }
   }
 
-  const canLoadMore = appliedProvider === "google" && !!pageToken &&
-    !loading && (usage?.remaining_today ?? 1) > 0;
+  function beginAddGoogle(placeId: string) {
+    choose(placeId);
+    // The Google Places contract does not allow copying the provider's name
+    // straight into the CRM. Guide the user to the manual-name field instead.
+    window.requestAnimationFrame(() => {
+      document.getElementById("bms-google-crm-name")?.focus();
+    });
+  }
+
   const mapsLink = safeExternalHref(selected?.googleMapsUrl);
   const businessSite = safeExternalHref(selected?.website);
   const displayedCity = applied ? `${applied.city} · ${applied.state}` : `${city} · ${state}`;
@@ -522,8 +378,11 @@ export function MapsLeadsView({
   const osmLink = selectedGeo
     ? `https://www.openstreetmap.org/?mlat=${selectedGeo.latitude}&mlon=${selectedGeo.longitude}#map=16/${selectedGeo.latitude}/${selectedGeo.longitude}`
     : null;
-  const displayGoogleMap = appliedProvider !== "geoapify" && !!GOOGLE_BROWSER_KEY && !SAAS_STAGING_ACTIVE;
-  const preventCrmWrite = appliedProvider === "geoapify" || SAAS_STAGING_ACTIVE;
+  // A real Google map loads even before the first search; its map tiles
+  // are never generated or simulated. Only verified results become numbered pins.
+  const displayGoogleMap = Boolean(GOOGLE_BROWSER_KEY);
+  const activeMarkerId = appliedProvider === "geoapify" ? selectedGeoId : selectedId;
+
 
   return (
     <section className="bms-root saas-page" aria-labelledby="bms-heading">
@@ -531,28 +390,12 @@ export function MapsLeadsView({
         <div>
           <div className="bms-eyebrow"><Compass size={14} /> EXPLORAÇÃO GEOGRÁFICA</div>
           <h1 id="bms-heading">Buscar <span>via Maps</span></h1>
-          <p>Explore empresas por segmento, cidade e bairro. Selecione os marcadores e salve oportunidades no CRM.</p>
+          <p>Pesquise empresas reais em municípios de todas as 27 UFs do Brasil, por segmento e bairro, com seleção automática da fonte.</p>
         </div>
-        <div className="bms-plan-chip"><ShieldCheck size={15} /> Disponível no Pro e Advanced</div>
+        <div className="bms-plan-chip"><ShieldCheck size={15} /> {usage?.test_mode ? "Modo testes · créditos pausados" : "Pro e Advanced · 2 créditos por lead"}</div>
       </div>
 
-      {SAAS_STAGING_ACTIVE && <div className="bms-provider-group">
-        <div className="bms-provider-switch" role="group" aria-label="Fonte de estabelecimentos">
-          <button type="button" className={provider === "geoapify" ? "selected" : ""}
-            aria-pressed={provider === "geoapify"} disabled={loading}
-            onClick={() => switchProvider("geoapify")}>
-            <Layers3 size={15}/> Geoapify · OpenStreetMap
-          </button>
-          <button type="button" className={provider === "google" ? "selected" : ""}
-            aria-pressed={provider === "google"} disabled={loading}
-            onClick={() => switchProvider("google")}>
-            <MapPin size={15}/> Google Places · busca real
-          </button>
-        </div>
-        <p>Uma fonte por pesquisa. Trocar a fonte não consulta a API; clique em Buscar no mapa para iniciar uma nova busca sujeita às cotas.</p>
-      </div>}
-
-      <form className={provider === "geoapify" ? "bms-searchbar bms-searchbar--geo" : "bms-searchbar"} onSubmit={onSubmit}>
+      <form className="bms-searchbar" onSubmit={onSubmit}>
         <div className="bms-field bms-field--segment">
           <label htmlFor="bms-segment">O QUE VOCÊ PROCURA?</label>
           <div className="bms-field-entry"><Search size={18}/><input
@@ -565,90 +408,88 @@ export function MapsLeadsView({
         <div className="bms-field bms-field--city">
           <label htmlFor="bms-city">CIDADE</label>
           <div className="bms-field-entry"><MapPin size={17}/><input
-            id="bms-city" maxLength={120} value={city} required
-            onChange={(e) => setCity(e.target.value)} placeholder="Ex.: Lavras"
+            id="bms-city" list="bms-brazil-cities" maxLength={80} value={city} required
+            onChange={(e) => setCity(e.target.value)}
+            placeholder="Ex.: Lavras" autoComplete="off"
+            title="Digite ou selecione o município da UF escolhida"
           /></div>
+          <datalist id="bms-brazil-cities">
+            {(municipalitiesState === state ? municipalities : []).map((item) =>
+              <option value={item} key={item}/>)}
+          </datalist>
         </div>
         <div className="bms-field bms-field--state">
           <label htmlFor="bms-state">UF</label>
-          <select id="bms-state" value={state} onChange={(e) => setState(e.target.value)}>
+          <select id="bms-state" value={state} onChange={(e) => {
+            setState(e.target.value); setCity(""); setNeighborhood("");
+          }}>
             {BRAZIL_STATES.map((item) => <option key={item.code} value={item.code}>{item.code}</option>)}
           </select>
         </div>
-        {provider === "google" && <div className="bms-field bms-field--neighborhood">
+        <div className="bms-field bms-field--neighborhood">
           <label htmlFor="bms-neighborhood">BAIRRO <span>(OPCIONAL)</span></label>
           <input id="bms-neighborhood" maxLength={80} value={neighborhood}
             onChange={(e) => setNeighborhood(e.target.value)} placeholder="Ex.: Centro" />
-        </div>}
+        </div>
         <button className="bms-submit" type="submit"
-          disabled={loading || !mapAllowed || (provider === "google" && usage?.remaining_today === 0)}>
+          disabled={loading || (usage != null && usage.test_mode !== true && usage.remaining_today < 2)}>
           {loading ? <LoaderCircle className="bms-spin" size={17} /> : <Search size={17}/>}
-          {loading ? "Buscando..." : "Buscar no mapa"}
+          {loading ? "Buscando empresas..." : "Buscar no mapa"}
         </button>
       </form>
 
       <div className="bms-meta">
         <span><Layers3 size={15}/> {applied
-          ? `${resultCount} empresas encontradas · ${appliedProvider === "geoapify" ? "Geoapify" : "Google Places"}`
-          : "Escolha uma fonte, um segmento e uma região"}</span>
-        <span>{usage
-          ? `Plano ${usage.plan.toUpperCase()} · ${usage.remaining_today} de ${usage.daily_limit} leads disponíveis hoje`
+          ? `${resultCount} empresas encontradas`
+          : "Escolha um segmento e uma região"}</span>
+        <span>{usage?.test_mode
+          ? "Modo testes: nenhuma pesquisa ou crédito descontado. Orçamentos das APIs protegidos."
+          : usage
+          ? `Plano ${usage.plan.toUpperCase()} · ${usage.remaining_today} de ${usage.daily_limit} créditos restantes · 2 por lead`
           : "Busca protegida por cota diária"}
         </span>
       </div>
 
-      {!mapAllowed && <p className="bms-alert" role="status">
+      {!displayGoogleMap && <p className="bms-alert" role="status">
         A chave pública de mapas do Google ainda precisa ser configurada para ativar o mapa real.
       </p>}
       {SAAS_STAGING_ACTIVE && <p className="bms-demo-notice" role="status">
-        Homologação: as consultas Geoapify e Google Places são reais e controladas por orçamento.
-        O desenho ao fundo é ilustrativo, sem marcadores geográficos; use os links oficiais para localizar empresas.
+        Homologação: resultados e coordenadas reais. É possível salvar um lead Geoapify/OSM ou o identificador Google com nome fornecido por você.
       </p>}
       {error && <p className="bms-alert" role="alert">{error}</p>}
       {message && <p className="bms-message" role="status">{message}</p>}
-      {SAAS_STAGING_ACTIVE && appliedProvider === "geoapify" && coverage?.alternativeSource === "google_places_manual" && applied && (
-        <div className="bms-provider-fallback" role="status">
-          <div>
-            <strong>Não encontrou empresas no Geoapify?</strong>
-            <p>Você pode tentar a mesma região e categoria no Google Places com uma nova consulta.</p>
-          </div>
-          <button type="button" disabled={loading || usage?.remaining_today === 0}
-            onClick={searchGoogleAsAlternative}>
-            <Search size={16}/> Buscar no Google Places
-          </button>
-          <small>Essa segunda consulta poderá consumir sua cota de leads e a franquia do Google.
-            A troca nunca ocorre automaticamente.</small>
-        </div>
-      )}
-
       <div className="bms-layout">
         <div className="bms-map-frame">
           {displayGoogleMap
-            ? <GoogleLeadsMap businesses={results} selectedId={selectedId}
-                onSelect={choose} zoomDirection={zoomTick} />
-            : <StagingIllustrativeMap businesses={[]}
-                selectedId={null} onSelect={choose} zoom={zoom} />}
+            ? <RealGoogleMap points={mapPoints} selectedId={activeMarkerId}
+                onSelect={choose} zoomAction={zoomAction} />
+            : <div className="bms-map-placeholder" role="status">
+                <MapPin size={34}/>
+                <strong>Chave do Google Maps não configurada</strong>
+                <p>A lista de empresas ainda funciona. Configure uma chave pública
+                  autorizada para a API Maps JavaScript para mostrar o mapa geográfico real.</p>
+              </div>}
           <div className="bms-coverage">
             <div className="bms-coverage-kicker"><span className="bms-dot"/> COBERTURA TERRITORIAL</div>
-            <div className="bms-coverage-place">{displayedCity}</div>
+            <div className="bms-coverage-place">{applied ? displayedCity : "Brasil · mapa real"}</div>
             <p>{applied
               ? `${applied.neighborhood ? applied.neighborhood + " · " : ""}${resultCount} empresas encontradas`
               : "Selecione um nicho e pesquise para explorar"}</p>
           </div>
 
-          <div className="bms-map-controls" aria-label="Controles do mapa">
+          {displayGoogleMap && <div className="bms-map-controls" aria-label="Controles do mapa">
             <button type="button" aria-label="Ampliar mapa" onClick={() => {
-              if (displayGoogleMap) setZoomTick((n) => n + 1);
-              else setZoom((n) => Math.min(1.8, +(n + .15).toFixed(2)));
+              setZoomAction((prev) => ({ id: prev.id + 1, delta: 1 }));
             }}><Plus size={20}/></button>
             <span>ZOOM</span>
             <button type="button" aria-label="Reduzir mapa" onClick={() => {
-              if (displayGoogleMap) setZoomTick((n) => n - 1);
-              else setZoom((n) => Math.max(1, +(n - .15).toFixed(2)));
+              setZoomAction((prev) => ({ id: prev.id + 1, delta: -1 }));
             }}><Minus size={20}/></button>
-          </div>
+          </div>}
 
           {selected && <article className="bms-business-card" aria-label={"Empresa selecionada: " + selected.name}>
+            <button type="button" className="bms-business-close" aria-label="Fechar detalhes do lead"
+              onClick={() => { setSelectedId(null); setGoogleCrmName(""); }}><X size={17}/></button>
             <div className="bms-business-top">
               <span className="bms-business-icon"><MapPin size={23} /></span>
               <div className="bms-business-title">
@@ -658,6 +499,7 @@ export function MapsLeadsView({
               <span className="bms-business-counter">#{results.findIndex((b) => b.placeId === selectedId) + 1}</span>
             </div>
             <p className="bms-business-address"><MapPin size={15} /> {selected.address || displayedCity}</p>
+            {saved && <span className="bms-saved-label">Lead já adicionado</span>}
             <div className="bms-business-details">
               {selected.rating != null && <span><Star size={15} fill="#ffbc58" stroke="#ffbc58" />
                 {selected.rating.toFixed(1)} {selected.reviewCount != null ? `(${selected.reviewCount})` : ""}</span>}
@@ -676,20 +518,30 @@ export function MapsLeadsView({
                 {detailsLoading ? "Consultando..." : "Consultar telefone, website e avaliações"}
                 <small>Consulta adicional do Google Places sujeita aos limites de segurança</small>
               </button>}
-            {preventCrmWrite
-              ? <p className="bms-readonly">Visualização apenas: a importação de dados do Google no CRM fica desativada durante a homologação.</p>
-              : <button className="bms-save" type="button" disabled={saving || saved || !mapAllowed}
-                  onClick={() => void saveLead()}>
-                  {saved ? <CheckCircle2 size={17}/> : <BookmarkPlus size={17}/>}
-                  {saved ? "Já está no CRM" : saving ? "Adicionando..." : "Adicionar ao CRM"}
-                </button>}
+            <div className="bms-crm-save">
+              {!saved && <>
+                <label htmlFor="bms-google-crm-name">Nome que você quer usar no CRM</label>
+                <input id="bms-google-crm-name" type="text" maxLength={120}
+                  value={googleCrmName} onChange={(event)=>setGoogleCrmName(event.target.value)}
+                  placeholder="Digite o nome por conta própria" autoComplete="off"/>
+                <small>O CRM salvará o nome que você digitou e o identificador Google; outros dados ficam somente na consulta.</small>
+              </>}
+              <button className="bms-save" type="button"
+                disabled={saving || saved || (!saved && googleCrmName.trim().length<3)}
+                onClick={() => void saveLead()}>
+                {saved ? <CheckCircle2 size={17}/> : <BookmarkPlus size={17}/>}
+                {saved ? "Lead já adicionado" : saving ? "Adicionando..." : "Adicionar lead"}
+              </button>
+            </div>
           </article>}
           {selectedGeo && appliedProvider === "geoapify" &&
             <article className="bms-business-card" aria-label={"Estabelecimento Geoapify: " + selectedGeo.name}>
+              <button type="button" className="bms-business-close" aria-label="Fechar detalhes do lead"
+                onClick={() => setSelectedGeoId(null)}><X size={17}/></button>
               <div className="bms-business-top">
                 <span className="bms-business-icon"><MapPin size={23}/></span>
                 <div className="bms-business-title">
-                  <span>GEOAPIFY · OPENSTREETMAP</span>
+                  <span>{selectedGeo.category ?? "ESTABELECIMENTO"} · GEOAPIFY/OSM</span>
                   <h2>{selectedGeo.name}</h2>
                 </div>
                 <span className="bms-business-counter">
@@ -699,17 +551,21 @@ export function MapsLeadsView({
               <p className="bms-business-address"><MapPin size={15}/>
                 {selectedGeo.address || `${selectedGeo.city} · ${selectedGeo.state}`}
               </p>
+              {geoSaved && <span className="bms-saved-label">Lead já adicionado</span>}
               <div className="bms-business-details">
                 {osmLink && <a href={osmLink} target="_blank" rel="noopener noreferrer">
                   Ver localização no OpenStreetMap <ArrowUpRight size={13}/>
                 </a>}
               </div>
-              <p className="bms-readonly">Consulta de estabelecimentos baseada em OpenStreetMap.
-                Contatos e importação para o CRM não estão habilitados nessa fonte durante a homologação.</p>
+              <p className="bms-readonly">Dados provenientes do Geoapify e © OpenStreetMap contributors. Contatos não disponíveis poderão ser adicionados depois no CRM.</p>
+              <button className="bms-save" type="button"
+                disabled={saving || geoSaved}
+                onClick={() => void saveLead()}>
+                {geoSaved ? <CheckCircle2 size={17}/> : <BookmarkPlus size={17}/>}
+                {geoSaved ? "Lead já adicionado" : saving ? "Adicionando..." : "Adicionar lead"}
+              </button>
             </article>}
-          {SAAS_STAGING_ACTIVE && <span className="bms-map-footnote">
-            Desenho ilustrativo · sem marcadores geográficos reais
-          </span>}
+
         </div>
 
         <aside className="bms-results" aria-label="Empresas encontradas no mapa">
@@ -734,53 +590,76 @@ export function MapsLeadsView({
                 <strong>{applied && appliedProvider === "geoapify"
                   ? "Nenhum negócio dessa categoria cadastrado na fonte"
                   : applied ? "Nenhuma empresa encontrada" : "Seu próximo cliente pode estar aqui"}</strong>
-                <p>{appliedProvider === "geoapify"
-                  ? coverage?.message ?? "Tente uma região ou categoria diferente."
+                <p>{applied
+                  ? "Nenhuma empresa encontrada com os filtros informados. Tente outra região ou segmento."
                   : "Busque por Barbearia, Academia, Restaurante ou outro segmento."}</p>
               </div>
             : appliedProvider === "geoapify"
-              ? <ol className="bms-results-list">
+              ? <ol className="bms-results-list" ref={resultList}>
                   {geoResults.map((business, i) => (
-                    <li key={business.sourceId}>
+                    <li key={business.sourceId} className="bms-result-row">
                       <button type="button"
                         className={selectedGeoId === business.sourceId ? "bms-result selected" : "bms-result"}
-                        onClick={() => setSelectedGeoId(business.sourceId)}>
+                        data-marker-id={business.sourceId}
+                        onClick={() => choose(business.sourceId)}>
                         <span className="bms-result-index">{i + 1}</span>
                         <span className="bms-result-text">
                           <strong>{business.name}</strong>
                           <small>{business.address || `${business.city} · ${business.state}`}</small>
+                          {(crmGeoIds.has(business.sourceId) || savedIds.includes(business.sourceId)) &&
+                            <span className="bms-saved-inline">Lead já adicionado</span>}
                           <em>Geoapify · sem dados de contato</em>
                         </span>
+                      </button>
+                      <button type="button" className="bms-result-add"
+                        aria-label={"Adicionar lead: " + business.name}
+                        disabled={saving || crmGeoIds.has(business.sourceId) || savedIds.includes(business.sourceId)}
+                        onClick={() => {
+                          choose(business.sourceId);
+                          void saveLead(business.sourceId);
+                        }}>
+                        {crmGeoIds.has(business.sourceId) || savedIds.includes(business.sourceId)
+                          ? <><CheckCircle2 size={14}/> Lead já adicionado</>
+                          : <><BookmarkPlus size={14}/> Adicionar lead</>}
                       </button>
                     </li>
                   ))}
                 </ol>
-              : <ol className="bms-results-list">
+              : <ol className="bms-results-list" ref={resultList}>
                   {results.map((business, i) => (
-                    <li key={business.placeId}>
+                    <li key={business.placeId} className="bms-result-row">
                       <button type="button"
                         className={selectedId === business.placeId ? "bms-result selected" : "bms-result"}
-                        onClick={() => setSelectedId(business.placeId)}>
+                        data-marker-id={business.placeId}
+                        onClick={() => choose(business.placeId)}>
                         <span className="bms-result-index">{i + 1}</span>
                         <span className="bms-result-text">
                           <strong>{business.name}</strong>
                           <small>{business.neighborhood || business.address || displayedCity}</small>
+                          {(crmGoogleIds.has(business.placeId) || savedIds.includes(business.placeId)) &&
+                            <span className="bms-saved-inline">Lead já adicionado</span>}
                           <em>Google Maps · {business.website ? "Website identificado"
                             : detailsLoaded.includes(business.placeId) ? "Sem website identificado"
                             : "Website não consultado"}</em>
                         </span>
                       </button>
+                      <button type="button" className="bms-result-add"
+                        aria-label={"Adicionar lead: " + business.name}
+                        disabled={saving || crmGoogleIds.has(business.placeId) || savedIds.includes(business.placeId)}
+                        onClick={() => beginAddGoogle(business.placeId)}>
+                        {crmGoogleIds.has(business.placeId) || savedIds.includes(business.placeId)
+                          ? <><CheckCircle2 size={14}/> Lead já adicionado</>
+                          : <><BookmarkPlus size={14}/> Adicionar lead</>}
+                      </button>
                     </li>
                   ))}
                 </ol>}
-          {canLoadMore && <button className="bms-more" type="button"
-            onClick={() => void search(true)} disabled={loading}>
-            {loading ? "Carregando..." : "Carregar mais empresas"}
-          </button>}
           <p className="bms-results-footnote">
-            <ShieldCheck size={13}/> {SAAS_STAGING_ACTIVE
-              ? "Resultados somente para consulta nesta homologação; uma nova fonte exige nova busca."
-              : "Cada novo lead liberado usa a mesma cota do Buscar Leads."}
+            <ShieldCheck size={13}/> {usage?.test_mode
+              ? "Modo testes: resultados reais, sem desconto de créditos; limites de custo de provedores ativos."
+              : SAAS_STAGING_ACTIVE
+              ? "Resultados para consulta nesta homologação. A busca usa automaticamente a fonte disponível."
+              : "Buscar via Maps debita 2 créditos por lead entregue, no saldo diário compartilhado."}
           </p>
         </aside>
       </div>

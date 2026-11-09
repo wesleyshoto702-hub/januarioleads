@@ -1,6 +1,8 @@
+import { ALL_SEARCH_SEGMENTS } from "./niche-catalog.ts";
 import {
   classifyGeoapifyCoverage,
   geoapifyCategoryForSegment,
+  filterGeoapifyForNiche,
   geoapifyFeatureCount,
   normalizeGeoapifyPlaces,
   resolveGeoapifyCityId,
@@ -86,4 +88,81 @@ Deno.test("resultado zero não vira empresa fictícia nem erro de API", () => {
     throw new Error("unverified radius must not be labeled no coverage");
   if (classifyGeoapifyCoverage(2, true) !== "matches")
     throw new Error("real nearby matches must be preserved");
+});
+
+Deno.test("Barbearia não apresenta salão genérico ou esmalteria como barbearia", () => {
+  const names = ["Salão de Cabelo", "Barbearia Central", "Barber Shop", "Esmalteria"];
+  const previews = names.map((name, i) => ({
+    source: "geoapify" as const,
+    sourceId: "geoapify:" + i,
+    name, category: "service.beauty.hairdresser",
+    address: null, city: "Lavras",state: "MG",
+    latitude: -21.2, longitude: -45,
+  }));
+  const filtered = filterGeoapifyForNiche(previews, "Barbearia");
+  if (filtered.length !== 2 || filtered[0]?.name !== "Barbearia Central" ||
+      filtered[1]?.name !== "Barber Shop") {
+    throw new Error("Geoapify overly broad category leaked unrelated services");
+  }
+  if(filterGeoapifyForNiche(previews,"Salão de Beleza").length !== 4) {
+    throw new Error("Unrelated niches should preserve provider categories");
+  }
+});
+
+
+Deno.test("Reviewed Geoapify mappings cover diverse Brazilian businesses", () => {
+  const examples: Array<[string,string]> = [
+    ["Padaria","commercial.food_and_drink.bakery"],
+    ["Açougue","commercial.food_and_drink.butcher"],
+    ["Hortifruti","commercial.food_and_drink.fruit_and_vegetable"],
+    ["Floricultura","commercial.florist"],
+    ["Loja de Roupas","commercial.clothing.clothes"],
+    ["Loja de Calçados","commercial.clothing.shoes"],
+    ["Pet Shop","pet.shop"],
+    ["Clínica Veterinária","pet.veterinary"],
+    ["Hotel","accommodation.hotel"],
+    ["Hostel","accommodation.hostel"],
+    ["Estacionamento","parking.cars"],
+    ["Cartório / Serviços Notariais","office.notary"],
+    ["Escritório de Advocacia","office.lawyer"],
+    ["Agência de Viagens","office.travel_agent"],
+    ["Transportadora","office.logistics"],
+  ];
+  for(const [name,category] of examples) {
+    if(geoapifyCategoryForSegment(name)!==category) {
+      throw new Error("Unexpected Geoapify mapping for " + name);
+    }
+  }
+  for(const name of ["Funilaria","Psiquiatra","Restaurante Fine Dining"]) {
+    if(geoapifyCategoryForSegment(name)!==null) {
+      throw new Error("Ambiguous niche cannot trigger unrelated OSM category: " + name);
+    }
+  }
+});
+
+Deno.test("Nearby OSM results may include adjacent towns but never another UF/country", () => {
+  const point=(id:string,city:string,state:string,country="br")=>({
+    properties:{
+      place_id:id,name:"Empresa "+id,city,state,country_code:country,
+      formatted:city+", "+state,
+    },
+    geometry:{coordinates:[-45.0,-21.3]},
+  });
+  const items=normalizeGeoapifyPlaces({features:[
+    point("lavras","Lavras","Minas Gerais"),
+    point("nearby","Ribeirão Vermelho","Minas Gerais"),
+    point("otherstate","Lavras","São Paulo"),
+    point("foreign","Lavras","Minas Gerais","ar"),
+  ]},{city:"Lavras",state:"MG"});
+  if(items.length!==2 || items[0]?.sourceId!=="geoapify:lavras" ||
+      items[1]?.city!=="Ribeirão Vermelho") {
+    throw new Error("Cross-border filtering incorrectly modified valid nearby results");
+  }
+});
+
+Deno.test("all reviewed Geoapify mappings are selectable SaaS niches", () => {
+  const mapped = ALL_SEARCH_SEGMENTS.filter((name) => geoapifyCategoryForSegment(name) !== null);
+  if (mapped.length !== 37) {
+    throw new Error("Expected 37 reviewed niche routes; got " + mapped.length);
+  }
 });

@@ -31,6 +31,7 @@ export function canUseSaasFeature(
   feature: PlanFeature,
 ): boolean {
   if (!SAAS_STAGING_ACTIVE) return true;
+  if (rights?.test_mode === true) return true;
   return rights?.features[feature] === true;
 }
 

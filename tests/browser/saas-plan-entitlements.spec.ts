@@ -7,7 +7,7 @@ test.skip(!staging, "Requires isolated Supabase staging preview env; never run a
 
 const userId = "11111111-1111-1111-1111-111111111111";
 const flags: Record<string, boolean> = {
-  crm: true, basic_messages: true, manual_followup: true, kanban: false,
+  crm: true, basic_messages: true, manual_followup: true, maps_search: false, kanban: false,
   custom_messages: false, followup_center: false, finance: false,
   lead_enrichment: false, advanced_reports: false,
   internal_automations: false, advanced_lead_prioritization: false,
@@ -17,13 +17,13 @@ type Plan = "free" | "pro" | "advanced";
 function rights(plan: Plan) {
   const f = { ...flags };
   if (plan !== "free") {
-    for (const key of ["kanban","custom_messages","followup_center","finance","lead_enrichment"]) f[key] = true;
+    for (const key of ["kanban","custom_messages","followup_center","finance","lead_enrichment","maps_search"]) f[key] = true;
   }
   if (plan === "advanced") {
     for (const key of ["advanced_reports","internal_automations","advanced_lead_prioritization"]) f[key] = true;
   }
   return {
-    plan, price_cents: { free:0,pro:1490,advanced:2990 }[plan],
+    plan, price_cents: { free:0,pro:1990,advanced:2990 }[plan],
     daily_limit: { free:5,pro:25,advanced:70 }[plan],
     used_today:0,remaining_today:{ free:5,pro:25,advanced:70 }[plan],
     usage_date:"2026-11-07", currency:"BRL", features:f,
@@ -55,6 +55,7 @@ test("Free: lista, templates essenciais; sem financeiro, Kanban ou Advanced", as
   await mockStaging(page,"free");
   await page.goto("/app");
   await expect(page.getByText(/Plano FREE/i)).toBeVisible();
+  await expect(page.getByRole("button",{name:"Buscar via Maps"})).toHaveCount(0);
   await expect(page.getByRole("button",{name:"Financeiro",exact:true})).toHaveCount(0);
   await expect(page.getByRole("button",{name:"Oportunidades",exact:true})).toHaveCount(0);
   await expect(page.getByText("Inteligência e automações")).toHaveCount(0);
@@ -69,6 +70,7 @@ test("Pro: libera Kanban, mensagens personalizadas, oportunidades e financeiro",
   await mockStaging(page,"pro");
   await page.goto("/app");
   await expect(page.getByText(/Plano PRO/i)).toBeVisible();
+  await expect(page.getByRole("button",{name:"Buscar via Maps"}).first()).toBeVisible();
   await expect(page.getByRole("button",{name:"Financeiro",exact:true}).first()).toBeVisible();
   await expect(page.getByRole("button",{name:"Oportunidades",exact:true}).first()).toBeVisible();
   await expect(page.getByText("Inteligência e automações")).toHaveCount(0);

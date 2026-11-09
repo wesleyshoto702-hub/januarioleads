@@ -87,9 +87,9 @@ test("planos Free Pro Advanced substituem o comparativo e respeitam preços e li
     await expect(cards.getByText(plan, { exact: true })).toHaveCount(0);
   }
   const expected = [
-    { name: "Free", price: "R$ 0,00", limit: "5 novos leads por dia" },
-    { name: "Pro", price: "R$ 14,90", limit: "25 novos leads por dia" },
-    { name: "Advanced", price: "R$ 29,90", limit: "70 novos leads por dia" },
+    { name: "Free", price: "R$ 0,00", limit: "3 pesquisas gratuitas por dia" },
+    { name: "Pro", price: "R$ 19,90", limit: "25 créditos diários · 1 por lead" },
+    { name: "Advanced", price: "R$ 29,90", limit: "70 créditos diários · 1 por lead tradicional" },
   ] as const;
   for (let index = 0; index < expected.length; index++) {
     const plan = cards.nth(index);

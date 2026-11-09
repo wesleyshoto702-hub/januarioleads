@@ -11,6 +11,10 @@ import type {
 
 export type BusinessSearchResult = {
   placeId: string;
+  /** Server-verified same-day equivalent ID from another provider. Never stored as Google content. */
+  equivalentPlaceId?: string | null;
+  /** UI-only marker: the customer supplied a CRM label (never from Places content). */
+  crmManualName?: true;
   previewOnly?: boolean;
   name: string;
   primaryCategory: string | null;
@@ -62,12 +66,17 @@ export type SaasSearchQuota = {
   max_results: number;
   allowed: boolean;
   reset_at: string | null;
+  test_mode?: boolean;
 };
 
 export type BusinessSearchSuccess = {
   ok: true;
   results: BusinessSearchResult[];
   nextPageToken: string | null;
+  /** Automatic provider pagination may stop early on API budget exhaustion. */
+  partial?: boolean;
+  creditCost?: number;
+  creditsSpent?: number;
   quota?: SaasUsage;
   searchQuota?: SaasSearchQuota;
   demo?: boolean;

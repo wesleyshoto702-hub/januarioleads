@@ -32,6 +32,7 @@ import {
   normalizeBrazilianPhone,
   type ExistingLeadIdentity,
 } from "./identity";
+import { googleCrmNeedsOwnName, googlePlaceIdAndOwnName } from "./google-crm-save";
 import { loadMySearchQuota, searchBusinesses } from "./search-businesses";
 import {
   SAAS_STAGING_ACTIVE,
@@ -152,6 +153,11 @@ type SearchLeadsSession = {
 };
 
 function loadSearchLeadsSession(): SearchLeadsSession | null {
+  if (SAAS_STAGING_ACTIVE) {
+    // Erase stale session snapshots from previous staging builds, not just hide them.
+    if (typeof window !== "undefined") accountSessionStorage.removeItem(SEARCH_LEADS_SESSION_KEY);
+    return null;
+  }
   if (typeof window === "undefined") return null;
 
   try {
@@ -527,7 +533,6 @@ export function SearchLeadsView({
     initialSearchSession?.screen ?? "segments",
   );
   const [loading, setLoading] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<{ code: string; message: string } | null>(null);
   const [searchNotice, setSearchNotice] = useState(initialSearchSession?.searchNotice ?? "");
   const [saasUsage, setSaasUsage] = useState<SaasUsage | null>(null);
@@ -579,6 +584,8 @@ export function SearchLeadsView({
   }, []);
 
   useEffect(() => {
+    // Staging keeps Google Places content only in in-memory UI state.
+    if (SAAS_STAGING_ACTIVE) return;
     // Do not replace the remote last search with an empty default session.
     if (!selectedSegment && !resultsSegment) return;
 
@@ -884,57 +891,42 @@ export function SearchLeadsView({
     setLeadStatusFilter(preset.leadStatusFilter);
   }
 
-  async function runSearch(
-    segment: string,
-    location: SearchLocation,
-    pageToken?: string,
-    append = false,
-  ) {
-    // A fresh niche search starts with all results. The "Abertos Agora"
-    // filter is offered only after the user sees the fetched companies.
-    // Loading another page retains the selected filter.
-    if (!append) onModeChange("all");
-    // A user-initiated search takes precedence over a pending cache refresh.
+  async function runSearch(segment: string, location: SearchLocation) {
+    // One click returns all results allowed by plan balance and provider quota.
+    onModeChange("all");
     hasActiveSearchRef.current = true;
     const requestId = ++searchRequestIdRef.current;
-    if (append) {
-      setLoadingMore(true);
-    } else {
-      setLoading(true);
-      setLoadingMore(false);
-    }
+    setLoading(true);
     setError(null);
-    if (!append) setSearchNotice("");
+    setSearchNotice("");
 
     const response = await searchBusinesses({
       segment,
       city: location.city,
       state: location.state,
-      ...(pageToken ? { pageToken } : {}),
     });
 
-    // Out-of-order network responses must not overwrite the latest search.
     if (requestId !== searchRequestIdRef.current) return;
-
     if (!response.ok) {
       if (response.quota) setSaasUsage(response.quota);
       if (response.searchQuota) setSearchQuota(response.searchQuota);
       else if (SAAS_STAGING_ACTIVE) {
-        void loadMySearchQuota().then((next) => { if (next) setSearchQuota(next); });
+        void loadMySearchQuota().then((next) => {
+          if (next) setSearchQuota(next);
+        });
       }
-      if (!append && response.code === "QUOTA") {
+      // In staging, a quota failure MUST NOT expose prior cached data without
+      // checking that today's credit wallet paid for each returned company.
+      // Existing production keeps its old fallback until the feature is merged.
+      if (!SAAS_STAGING_ACTIVE && response.code === "QUOTA") {
         const cached = await fetchCachedPlacesSearchSample(
-          location,
-          segment,
+          location,segment,
         ).catch(() => null);
-
         if (requestId !== searchRequestIdRef.current) return;
         if (cached?.results.length) {
-          const checkedAt = new Intl.DateTimeFormat("pt-BR", {
-            dateStyle: "short",
-            timeStyle: "short",
+          const checkedAt = new Intl.DateTimeFormat("pt-BR",{
+            dateStyle:"short",timeStyle:"short",
           }).format(new Date(cached.checkedAt));
-
           setResults(cached.results);
           setResultsLocation(location);
           setResultsSegment(segment);
@@ -945,20 +937,13 @@ export function SearchLeadsView({
           setSearchNotice(
             `O Google Places atingiu o limite temporário. Mostrando ${cached.results.length} resultados salvos da última busca (${checkedAt}).`,
           );
-          setRecentSearches(
-            storeRecentSearch({
-              ...location,
-              segment,
-            }),
-          );
+          setRecentSearches(storeRecentSearch({...location,segment}));
           setLoading(false);
           return;
         }
       }
-
-      setError({ code: response.code, message: response.message });
-      if (append) setLoadingMore(false);
-      else setLoading(false);
+      setError({code:response.code,message:response.message});
+      setLoading(false);
       return;
     }
 
@@ -969,65 +954,37 @@ export function SearchLeadsView({
     if (response.searchQuota) setSearchQuota(response.searchQuota);
     setShowStagingDemo(Boolean(response.demo));
 
-    const combinedResults = append
-      ? [...results, ...response.results]
-      : response.results;
-    // A repeated Places ID on the next page must never erase an Instagram
-    // already confirmed by the automatic or manual discovery.
-    const uniqueByPlace = new Map<string, BusinessSearchResult>();
-    for (const item of combinedResults) {
-      const previous = uniqueByPlace.get(item.placeId);
-      if (previous && hasConfirmedInstagram(previous) && !hasConfirmedInstagram(item)) {
-        uniqueByPlace.set(item.placeId, {
-          ...item,
-          instagram: previous.instagram,
-          instagramConfidence: previous.instagramConfidence,
-          instagramSource: previous.instagramSource,
-          instagramUsername: previous.instagramUsername,
-          instagramDisplayName: previous.instagramDisplayName,
-          instagramCheckedAt: previous.instagramCheckedAt,
-          instagramSearchSignature: previous.instagramSearchSignature,
-          instagramNeedsReview: false,
-        });
-      } else {
-        uniqueByPlace.set(item.placeId, item);
-      }
-    }
+    // Backend already collects permitted pages. The UI must not paginate or
+    // charge for the same place twice within one response.
+    const uniqueByPlace = new Map<string,BusinessSearchResult>();
+    for (const item of response.results) uniqueByPlace.set(item.placeId,item);
     const uniqueResults = [...uniqueByPlace.values()];
-
     setResults(uniqueResults);
     setSearchNotice(response.demo
-      ? "Resultados 100% fictícios para homologar os limites de cada plano. Nenhuma empresa real foi consultada."
-      : "");
-    storeRecentBusinessSearch(segment,response.results,{
-      city: location.city,
-      state: location.state,
-      append,
-    });
-    void persistPlacesSearchSample({
-      location,
-      segment,
-      results: uniqueResults,
-      nextPageToken: response.nextPageToken,
-      append,
-    }).catch(() => {
-      // Opportunity persistence is auxiliary and must not break lead search.
-    });
+      ? "Resultados fictícios de homologação; nenhuma empresa real foi consultada."
+      : response.partial
+        ? "Uma fonte atingiu o limite seguro de consultas. Estes são os resultados válidos da pesquisa."
+        : "");
+    if (!SAAS_STAGING_ACTIVE) {
+      storeRecentBusinessSearch(segment,uniqueResults,{
+        city:location.city,state:location.state,append:false,
+      });
+      void persistPlacesSearchSample({
+        location,segment,results:uniqueResults,
+        nextPageToken:null,append:false,
+      }).catch(() => {
+        // History persistence is auxiliary and may fail independently.
+      });
+    }
     saveSearchLocation(location);
     setSearchLocation(location);
     setCityInput(location.city);
     setResultsLocation(location);
-    setNextPageToken(response.nextPageToken);
+    setNextPageToken(null);
     setResultsSegment(segment);
     setScreen("results");
-    setRecentSearches(
-      storeRecentSearch({
-        ...location,
-        segment,
-      }),
-    );
-    if (append) setLoadingMore(false);
-    else setLoading(false);
+    setRecentSearches(storeRecentSearch({...location,segment}));
+    setLoading(false);
   }
 
   function startSearch() {
@@ -1121,19 +1078,23 @@ export function SearchLeadsView({
   const saasUsagePanel = SAAS_STAGING_ACTIVE ? (
     <div className="search-cache-notice" role="status" aria-live="polite">
       <strong>
-        {searchQuota?.plan === "free"
+        {saasUsage?.test_mode || searchQuota?.test_mode
+          ? "Modo testes — pesquisas e créditos pausados"
+          : searchQuota?.plan === "free"
           ? `Plano FREE — ${searchQuota.remaining_today} de 3 pesquisas restantes hoje`
           : saasUsage?.plan === "free"
             ? "Plano FREE — 3 pesquisas por dia"
             : saasUsage
-              ? `Plano ${saasUsage.plan.toUpperCase()} — ${saasUsage.remaining_today} de ${saasUsage.daily_limit} leads disponíveis hoje`
+              ? `Plano ${saasUsage.plan.toUpperCase()} — ${saasUsage.remaining_today} de ${saasUsage.daily_limit} créditos restantes hoje`
               : "Plano e limites da conta"}
       </strong>
       <span>
-        {searchQuota?.plan === "free"
+        {saasUsage?.test_mode || searchQuota?.test_mode
+          ? "Nenhuma pesquisa nem crédito é descontado no staging para esta conta. Os limites de custo e segurança das APIs externas continuam ativos."
+          : searchQuota?.plan === "free"
           ? `Até 20 empresas por pesquisa, sem páginas extras. ${saasUsage?.remaining_today ?? "—"} de ${saasUsage?.daily_limit ?? 5} contatos disponíveis hoje; as demais empresas aparecem como prévia. Renova à meia-noite (Brasília).`
           : saasUsage
-            ? `${saasUsage.used_today} leads utilizados hoje. O saldo renova à meia-noite (Brasília).`
+            ? `${saasUsage.used_today} créditos utilizados hoje. Buscar Leads custa 1 crédito por empresa; Maps Advanced custa 2. Renova à meia-noite (Brasília).`
             : saasUsageError
               ? "Não foi possível consultar o saldo. O servidor continua protegendo os limites."
               : "Consultando o saldo diário..."}
@@ -1308,7 +1269,7 @@ export function SearchLeadsView({
               !selectedCity ||
               loading ||
               municipalitiesLoading ||
-              (SAAS_STAGING_ACTIVE &&
+              (SAAS_STAGING_ACTIVE && saasUsage?.test_mode !== true && searchQuota?.test_mode !== true &&
                  ((searchQuota?.plan === "free" && searchQuota.remaining_today === 0) ||
                   (saasUsage?.plan !== "free" && saasUsage?.remaining_today === 0)))
             }
@@ -1494,20 +1455,6 @@ export function SearchLeadsView({
         </div>
       )}
 
-      {nextPageToken && searchQuota?.plan !== "free" && !error && (
-        <div className="load-more-wrap">
-          <button
-            type="button"
-            className="secondary-button"
-            disabled={loadingMore}
-            onClick={() =>
-              void runSearch(resultsSegment, resultsLocation, nextPageToken, true)
-            }
-          >
-            {loadingMore ? "Buscando mais..." : "Carregar mais"}
-          </button>
-        </div>
-      )}
 
       {details && (() => {
         const duplicate = findBusinessDuplicate(details, existingLeads);
@@ -1640,13 +1587,21 @@ function BusinessCard({
     (!existingLead || existingLead.status === "send_message");
   const [addingLead, setAddingLead] = useState(false);
   const [addError, setAddError] = useState("");
+  const [googleCrmName, setGoogleCrmName] = useState("");
+  const requiresOwnName = SAAS_STAGING_ACTIVE && googleCrmNeedsOwnName(business);
 
   async function addBusiness() {
     if (addingLead || existingLead) return;
+    const candidate = requiresOwnName
+      ? googlePlaceIdAndOwnName(business, googleCrmName) : business;
+    if (!candidate) {
+      setAddError("Digite um nome próprio (3 a 120 caracteres) para este lead no CRM.");
+      return;
+    }
     setAddingLead(true);
     setAddError("");
     try {
-      const result = await onAdd(business);
+      const result = await onAdd(candidate);
       if (!result.ok) setAddError(result.message);
     } catch {
       setAddError("Não foi possível adicionar a empresa. Tente novamente.");
@@ -1663,6 +1618,7 @@ function BusinessCard({
             <div className="business-name-line">
               <h2>{business.name}</h2>
               {business.previewOnly && <span className="status-badge">Prévia sem contato · Pro</span>}
+              {existingLead && <span className="status-badge already-added-badge">Lead já adicionado</span>}
               {existingLead?.status && (
                 <span
                   className={`status-badge ${existingLead.status}`}
@@ -1674,7 +1630,6 @@ function BusinessCard({
               <ChanceBadge chance={chance} />
             </div>
             {business.primaryCategory && <span>{business.primaryCategory}</span>}
-            {existingLead && <span>Nos seus leads</span>}
           </div>
           {business.isOpenNow !== null && (
             <span className={business.isOpenNow ? "open-status open" : "open-status closed"}>
@@ -1746,6 +1701,15 @@ function BusinessCard({
       </div>
 
       <div className="business-actions">
+        {requiresOwnName && !existingLead && !business.previewOnly && (
+          <label className="business-google-crm-name">
+            Nome que você quer usar no CRM
+            <input type="text" value={googleCrmName} maxLength={120}
+              onChange={(event) => setGoogleCrmName(event.target.value)}
+              placeholder="Digite o nome por conta própria" autoComplete="off" />
+            <small>O CRM guarda seu nome e o Place ID; dados Google ficam somente na consulta.</small>
+          </label>
+        )}
         <button type="button" className="secondary-button compact-button" onClick={() => onDetails(business)}>
           Ver empresa
         </button>
@@ -1777,7 +1741,7 @@ function BusinessCard({
             type="button"
             className="primary-button compact-button"
             onClick={() => void addBusiness()}
-            disabled={addingLead}
+            disabled={addingLead || (requiresOwnName && googleCrmName.trim().length < 3)}
           >
             {addingLead ? "Salvando..." : "Adicionar aos meus leads"}
           </button>

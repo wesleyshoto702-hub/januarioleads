@@ -639,6 +639,14 @@ select{
   font-weight: 750;
 }
 
+/* Display a saved CRM match consistently in Buscar Leads. */
+.status-badge.already-added-badge {
+  border: 1px solid rgba(36, 160, 110, .30);
+  background: rgba(31, 153, 102, .12);
+  color: var(--accepted, #248a61);
+  white-space: nowrap;
+}
+
 .status-badge.send_message{
   border: 1px solid var(--border);
   background: var(--surface-2);
@@ -2562,6 +2570,45 @@ select{
   display: grid;
   gap: 6px;
 }
+
+/* Staging: user-supplied CRM label, never copied from Google Places data. */
+.business-google-crm-name{
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 100%;
+  min-width: 0;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.45;
+}
+.business-google-crm-name input{
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 9px 10px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-weight: 400;
+}
+.business-google-crm-name input:focus-visible{
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.business-google-crm-name small{
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 1.4;
+}
+.detail-actions .business-google-crm-name{
+  flex-basis: 100%;
+}
+
 
 .compact-button{
   width: 100%;

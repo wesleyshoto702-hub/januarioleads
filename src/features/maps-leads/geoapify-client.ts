@@ -1,10 +1,13 @@
 import { getAccessToken } from "../../lib/auth";
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "../../lib/supabase-config";
+import type { BusinessSearchResult } from "../search-leads/types";
+import type { SaasUsage } from "../search-leads/saas-usage";
 
-/** Kept separate from Google Place IDs and CRM lead writes. Not called by the UI yet. */
+/** One authenticated search: backend decides the provider without another user click. */
 export type GeoapifyPreview = {
   source: "geoapify";
   sourceId: string;
+  equivalentPlaceId?: string;
   name: string;
   category: string | null;
   address: string | null;
@@ -14,28 +17,26 @@ export type GeoapifyPreview = {
   longitude: number;
 };
 
-export type GeoapifySearchResponse =
+export type MapsAutoSearchResponse =
   | { ok: true; provider: "geoapify"; places: GeoapifyPreview[];
-      limit: 20; nextPageToken: null;
+      limit: 35; nextPageToken: null; quota?: SaasUsage; creditCost?: 2; creditsSpent?: number;
       coverage: {
-        status: "matches" | "no_osm_category_matches" | "unconfirmed_nearby";
+        status: "matches";
         searchArea: "city" | "nearby-10km";
-        cityBoundaryChecked: boolean;
-        nearbyRadiusMeters: number | null;
-        nearbyRadiusChecked: boolean;
-        nearbySkippedReason: "budget" | "throttle" | "provider" | null;
         message: string | null;
-        alternativeSource: "google_places_manual" | null;
       };
       attribution: { provider: string; providerUrl: string; data: string; dataUrl: string } }
+  | { ok: true; provider: "google"; results: BusinessSearchResult[];
+      limit: 35; nextPageToken: null; quota?: SaasUsage; creditCost?: 2; creditsSpent?: number; partial?: boolean; sourceSelection: "google_direct" | "google_fallback";
+      attribution: { provider: string }; note: string }
   | { ok: false; code: string; message: string };
 
-export async function searchGeoapifyPlaces(input: {
+export async function searchAutomaticMaps(input: {
   segment: string;
   city: string;
   state: string;
-  mapMode?: boolean;
-}): Promise<GeoapifySearchResponse> {
+  neighborhood?: string;
+}): Promise<MapsAutoSearchResponse> {
   const accessToken = await getAccessToken();
   if (!accessToken) return {
     ok: false, code: "AUTH_REQUIRED", message: "Sua sessão expirou.",
@@ -56,13 +57,14 @@ export async function searchGeoapifyPlaces(input: {
           city: input.city,
           state: input.state,
           segment: input.segment,
-          ...(input.mapMode ? { mapMode: true } : {}),
+          mapMode: true,
+          ...(input.neighborhood?.trim() ? { neighborhood: input.neighborhood.trim() } : {}),
         }),
       },
     );
     const payload: unknown = await response.json();
     if (!payload || typeof payload !== "object" || !("ok" in payload)) {
-      return { ok: false, code: "INVALID_RESPONSE", message: "Resposta Geoapify inválida." };
+      return { ok: false, code: "INVALID_RESPONSE", message: "O serviço de busca retornou uma resposta inválida." };
     }
     if ((payload as { ok: unknown }).ok === false) {
       const error = payload as { code?: unknown; message?: unknown };
@@ -71,12 +73,17 @@ export async function searchGeoapifyPlaces(input: {
         message: typeof error.message === "string" ? error.message : "Busca indisponível.",
       };
     }
-    if ((payload as { ok: unknown }).ok !== true || !("places" in payload) ||
-        !Array.isArray(payload.places)) {
-      return { ok: false, code: "INVALID_RESPONSE", message: "Resposta Geoapify inválida." };
+    if ((payload as { ok: unknown }).ok !== true ||
+        !(("provider" in payload) && (
+          (payload.provider === "geoapify" && "places" in payload &&
+            Array.isArray(payload.places)) ||
+          (payload.provider === "google" && "results" in payload &&
+            Array.isArray(payload.results))
+        ))) {
+      return { ok: false, code: "INVALID_RESPONSE", message: "O serviço de busca retornou uma resposta inválida." };
     }
-    return payload as GeoapifySearchResponse;
+    return payload as MapsAutoSearchResponse;
   } catch {
-    return { ok: false, code: "REQUEST_FAILED", message: "Não foi possível consultar o Geoapify." };
+    return { ok: false, code: "REQUEST_FAILED", message: "Não foi possível consultar o serviço de busca." };
   }
 }

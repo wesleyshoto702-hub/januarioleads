@@ -64,6 +64,7 @@ import {
   deleteRemoteLead,
   fetchLeadUpdates,
   fetchRemoteLeads,
+  findRemoteLeadByPlaceId,
   markLeadUpdatesSeen,
   saveRemoteLead,
   type LeadStatus,
@@ -98,6 +99,7 @@ import {
   resolveMunicipality,
 } from "../features/search-leads/search-location";
 import { findBusinessDuplicate, normalizeBrazilianPhone } from "../features/search-leads/identity";
+import { googleCrmNeedsOwnName, googlePlaceIdAndOwnName } from "../features/search-leads/google-crm-save";
 import type { BusinessSearchResult } from "../features/search-leads/types";
 import { getValidSession, signOut, subscribeAuthChange } from "../lib/auth";
 import { accountLocalStorage, isLegacyWorkspaceOwner } from "../lib/account-storage";
@@ -1520,6 +1522,13 @@ function LeadFlowApp() {
       business.website ? `Site: ${business.website}` : "",
       business.instagram ? `Instagram: ${business.instagram}` : "",
       business.googleMapsUrl ? `Google Maps: ${business.googleMapsUrl}` : "",
+      business.placeId?.startsWith("geoapify:")
+        ? "Fonte de dados: Geoapify · © OpenStreetMap contributors · https://www.openstreetmap.org/copyright"
+        : "",
+      business.placeId && !business.placeId.startsWith("geoapify:") &&
+        business.address === null && business.city === null
+        ? "Cadastro manual: nome informado pelo usuário; identificador Google armazenado para consulta atualizada."
+        : "",
     ].filter(Boolean);
 
     const discoveredPresence = presenceFromBusiness(business);
@@ -1601,7 +1610,7 @@ function LeadFlowApp() {
   ): Promise<BusinessAddResult> {
     const duplicate = findBusinessDuplicate(business, leads);
     if (duplicate?.id) {
-      return { ok: true, leadId: duplicate.id };
+      return { ok: true, leadId: duplicate.id, alreadyExisted: true };
     }
 
     if (!remoteReady) {
@@ -1612,7 +1621,24 @@ function LeadFlowApp() {
       };
     }
 
-    const newLead = buildFoundLead(business, selectedSegment);
+    let candidate = business;
+    if (SAAS_STAGING_ACTIVE && googleCrmNeedsOwnName(business)) {
+      // Results from Google are for live viewing only. UI search cards and
+      // Maps supply a customer-typed label. Other entry points prompt rather
+      // than silently saving provider name/contact/location into our CRM.
+      const ownName = business.crmManualName === true
+        ? business.name
+        : typeof window !== "undefined"
+          ? window.prompt("Digite um nome próprio para este lead no CRM (não copiamos os dados do Google):", "")
+          : null;
+      if (ownName === null) return {ok:false,message:"Cadastro cancelado."};
+      const allowed = googlePlaceIdAndOwnName(business,ownName);
+      if (!allowed) return {ok:false,
+        message:"Informe um nome de 3 a 120 caracteres para cadastrar este Place ID."};
+      candidate = allowed;
+    }
+
+    const newLead = buildFoundLead(candidate, selectedSegment);
     let persisted = false;
     try {
       await flushPendingLeads();
@@ -1622,6 +1648,18 @@ function LeadFlowApp() {
     }
 
     if (!persisted) {
+      // A parallel tab may have created this same provider ID just before
+      // our INSERT. The staging database rejects the duplicate atomically;
+      // fetch only the current user's exact ID before showing a failure.
+      const existing = newLead.placeId
+        ? await findRemoteLeadByPlaceId(newLead.placeId).catch(() => null)
+        : null;
+      if (existing) {
+        setLeads((current) => current.some((item) => item.id === existing.id)
+          ? current : [existing, ...current]);
+        setRemoteError("");
+        return {ok:true, leadId:existing.id, alreadyExisted:true};
+      }
       setRemoteError("Não foi possível confirmar a criação deste lead no Supabase.");
       return {
         ok: false,
@@ -1653,7 +1691,7 @@ function LeadFlowApp() {
 
   function navigateTo(nextView: AppView) {
     if (nextView === "maps" && (!SAAS_STAGING_ACTIVE || !canUse("maps_search"))) {
-      setSaasAccessError("Buscar via Maps está disponível a partir do plano Pro.");
+      setSaasAccessError("Buscar via Maps está disponível nos planos Pro e Advanced.");
       setView("dashboard");
       return;
     }
@@ -1680,7 +1718,7 @@ function LeadFlowApp() {
         ...(!canUse("followup_center") ? ["opportunities" as const] : []),
         ...(!SAAS_STAGING_ACTIVE || !canUse("maps_search") ? ["maps" as const] : []),
       ]}
-      planLabel={SAAS_STAGING_ACTIVE ? (saasRights?.plan ?? "Verificando") : undefined}
+      planLabel={SAAS_STAGING_ACTIVE ? (saasRights?.test_mode ? "Modo testes" : saasRights?.plan ?? "Verificando") : undefined}
       activeView={view}
       theme={theme}
       onNavigate={navigateTo}
@@ -1695,10 +1733,11 @@ function LeadFlowApp() {
       }}
     >
       {SAAS_STAGING_ACTIVE && <div className="saas-plan-status" role="status">
-        <strong>{saasRightsLoading ? "Consultando plano..." : "Plano " + (saasRights?.plan ?? "indisponível").toUpperCase()}</strong>
-        {saasRights && <span>{saasRights.used_today} de {saasRights.daily_limit} leads utilizados hoje
-          · {saasRights.remaining_today} restantes · renova à meia-noite (Brasília)</span>}
-        {saasRights && <label className="saas-plan-switch">
+        <strong>{saasRightsLoading ? "Consultando plano..." : saasRights?.test_mode ? "MODO TESTES — sem cobrança de créditos" : "Plano " + (saasRights?.plan ?? "indisponível").toUpperCase()}</strong>
+        {saasRights && <span>{saasRights.test_mode
+          ? "Regras de planos e contagem diária pausadas para esta conta. Limites de segurança e custo das APIs continuam ativos."
+          : `${saasRights.used_today} de ${saasRights.daily_limit} créditos utilizados hoje · ${saasRights.remaining_today} restantes · renova à meia-noite (Brasília)`}</span>}
+        {saasRights && !saasRights.test_mode && <label className="saas-plan-switch">
           Simular plano
           <select
             aria-label="Simular plano no Staging"
@@ -1715,9 +1754,9 @@ function LeadFlowApp() {
                 });
             }}
           >
-            <option value="free">Free — 5/dia</option>
-            <option value="pro">Pro — 25/dia</option>
-            <option value="advanced">Advanced — 70/dia</option>
+            <option value="free">Free — 3 pesquisas e 5 créditos/dia</option>
+            <option value="pro">Pro — 25 créditos/dia</option>
+            <option value="advanced">Advanced — 70 créditos/dia</option>
           </select>
         </label>}
         {saasAccessError && <span className="saas-plan-error">{saasAccessError}</span>}

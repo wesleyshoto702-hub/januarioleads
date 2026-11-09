@@ -15,6 +15,7 @@ const free: SaasEntitlements = {
     kanban: false,
     finance: false,
     internal_automations: false,
+    maps_search: false,
   },
 };
 
@@ -29,15 +30,15 @@ Deno.test("somente objetos completos e planos conhecidos são entitlements váli
 Deno.test("flags retornam valores booleanos sem confiar em preços locais", () => {
   if (free.features.crm !== true || free.features.finance !== false) throw new Error("free flags wrong");
   const pro: SaasEntitlements = {
-    ...free, plan: "pro", price_cents: 1490, daily_limit: 25, remaining_today: 25,
-    features: { ...free.features, finance: true, kanban: true, custom_messages: true, internal_automations: false },
+    ...free, plan: "pro", price_cents: 1990, daily_limit: 25, remaining_today: 25,
+    features: { ...free.features, finance: true, kanban: true, custom_messages: true, internal_automations: false, maps_search: true },
   };
   const advanced: SaasEntitlements = {
     ...pro, plan: "advanced", price_cents: 2990, daily_limit: 70, remaining_today: 70,
-    features: { ...pro.features, internal_automations: true, advanced_reports: true, advanced_lead_prioritization: true },
+    features: { ...pro.features, internal_automations: true, advanced_reports: true, advanced_lead_prioritization: true, maps_search: true },
   };
-  if (pro.features.internal_automations || !pro.features.kanban) throw new Error("Pro gating wrong");
-  if (!advanced.features.internal_automations || !advanced.features.advanced_reports) {
+  if (pro.features.internal_automations || !pro.features.kanban || !pro.features.maps_search) throw new Error("Pro gating wrong");
+  if (!advanced.features.internal_automations || !advanced.features.advanced_reports || !advanced.features.maps_search) {
     throw new Error("Advanced gating wrong");
   }
   // Feature checking in production is deliberate legacy fallback; for staging,
@@ -45,4 +46,17 @@ Deno.test("flags retornam valores booleanos sem confiar em preços locais", () =
   if (typeof canUseSaasFeature(null, "finance") !== "boolean") {
     throw new Error("feature check must produce boolean");
   }
+});
+
+Deno.test("modo testes libera recursos sem reescrever os planos gravados", () => {
+  const testOnly: SaasEntitlements = {...free, test_mode:true};
+  if (!isSaasEntitlements(testOnly)) throw new Error("Test-mode rights must stay valid");
+  if (!canUseSaasFeature(testOnly,"maps_search") ||
+      !canUseSaasFeature(testOnly,"internal_automations") ||
+      !canUseSaasFeature(testOnly,"finance")) {
+    throw new Error("Staging tester should bypass temporary plan gates");
+  }
+  // The Free plan model remains intact for reactivation.
+  if (testOnly.plan!=="free" || testOnly.features.maps_search!==false)
+    throw new Error("Test flag must not rewrite the saved plan catalog");
 });

@@ -10,6 +10,8 @@ export type SaasUsage = {
   used_today: number;
   remaining_today: number;
   usage_date: string;
+  /** Staging-only account flag: daily SaaS debits and plan gates are paused. */
+  test_mode?: boolean;
 };
 
 export function isSaasUsage(value: unknown): value is SaasUsage {
