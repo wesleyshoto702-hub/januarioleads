@@ -109,6 +109,11 @@ const SearchLeadsView = lazy(() =>
     default: module.SearchLeadsView,
   })),
 );
+const MapsPersonalView = lazy(() =>
+  import("../features/maps-leads/MapsPersonalView").then((module) => ({
+    default: module.MapsPersonalView,
+  })),
+);
 const ProspectingInformationView = lazy(() =>
   import("../features/search-leads/ProspectingInformationView").then((module) => ({
     default: module.ProspectingInformationView,
@@ -1669,6 +1674,7 @@ function LeadFlowApp() {
   }
 
   function navigateTo(nextView: AppView) {
+    if (nextView === "maps" && !isLegacyWorkspaceOwner()) return;
     // Abertos Agora is an internal mode of Buscar Leads, not a separate page.
     // Selecting Buscar Leads from the Workspace always opens the default mode.
     if (nextView === "search") setSearchMode("all");
@@ -1986,6 +1992,12 @@ function LeadFlowApp() {
           onPresenceDiscovered={applyPresenceToLead}
           onMessage={openMessageComposer}
         />
+      ) : view === "maps" ? (
+        isLegacyWorkspaceOwner() ? (
+          <MapsPersonalView existingLeads={leads} onAddLead={addFoundLeadConfirmed}/>
+        ) : (
+          <p className="saas-page">Esta ferramenta de Maps está reservada à conta pessoal original.</p>
+        )
       ) : view === "prospecting" ? (
         <ProspectingInformationView
           leads={leads}
