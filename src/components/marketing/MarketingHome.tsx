@@ -84,7 +84,7 @@ const pricingPlans = [
     price: "R$ 0,00",
     highlights: [
       "3 pesquisas gratuitas por dia",
-      "Até 5 contatos completos por dia",
+      "5 créditos de leads por dia",
       "Busca por cidade e segmento",
       "CRM básico para seus contatos",
       "Modelos de mensagens essenciais",
