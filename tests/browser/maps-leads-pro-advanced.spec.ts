@@ -170,13 +170,13 @@ for (const plan of ["pro","advanced"] as const) {
     expect(calls.unified).toHaveLength(1);
     expect(calls.googleSeparate).toBe(0);
     await expect(page.locator(".bms-results .bms-provider-attribution")).toContainText("Google Maps");
-    const addToCrm=page.getByRole("button",{name:"Adicionar ao CRM"});
+    const addToCrm=page.locator(".bms-map-frame .bms-business-card").getByRole("button",{name:"Adicionar lead",exact:true});
     await expect(addToCrm).toBeDisabled();
     await expect(page.getByLabel("Nome que você quer usar no CRM")).toBeVisible();
     await page.getByLabel("Nome que você quer usar no CRM").fill("Contato informado pelo cliente");
     await expect(addToCrm).toBeEnabled();
-    await expect(page.locator(".bms-staging-google-detail")).toBeVisible();
-    await expect(page.locator(".bms-staging-google-detail")).toContainText("Barbearia Google 1");
+    await expect(page.locator(".bms-results-list .bms-result-add")).toHaveCount(2);
+    await expect(page.locator(".bms-map-frame .bms-business-card")).toContainText("Barbearia Google 1");
     await expect(page.locator(".bms-map-frame .bms-business-card")).toHaveCount(1);
     await expect(page.locator(".bms-map-frame .bms-business-card")).toContainText("Barbearia Google 1");
     await expect(page.getByText(/outros dados ficam somente na consulta/)).toBeVisible();
@@ -193,7 +193,7 @@ test("Geoapify com empresas exibe somente sua fonte e não faz consulta Google s
  await page.getByRole("button",{name:"Buscar no mapa"}).click();
  await expect(page.getByRole("article",{name:"Estabelecimento Geoapify: Barbearia OSM"})).toBeVisible();
  await expect(page.getByRole("article",{name:"Estabelecimento Geoapify: Barbearia OSM"})
-   .getByRole("button",{name:"Adicionar ao CRM"})).toBeEnabled();
+   .getByRole("button",{name:"Adicionar lead",exact:true})).toBeEnabled();
  await expect(page.locator(".bms-results .bms-provider-attribution")).toContainText("Powered by Geoapify");
  await expect(page.getByRole("link",{name:/OpenStreetMap/}).first()).toBeVisible();
  expect(calls.unified).toHaveLength(1);
@@ -236,7 +236,7 @@ test("Maps Google: CRM salva só Place ID e nome escolhido pelo usuário",async(
   await expect(page.getByRole("article",{name:/Empresa selecionada: Barbearia Google 1/})).toBeVisible();
   const manualName="Cliente cadastrado manualmente";
   await page.getByLabel("Nome que você quer usar no CRM").fill(manualName);
-  await page.getByRole("button",{name:"Adicionar ao CRM"}).click();
+  await page.locator(".bms-map-frame .bms-business-card").getByRole("button",{name:"Adicionar lead",exact:true}).click();
   await expect.poll(()=>calls.crmSaves.length).toBe(1);
   const saved=calls.crmSaves[0]!;
   expect(saved["company"]).toBe(manualName);
@@ -244,7 +244,7 @@ test("Maps Google: CRM salva só Place ID e nome escolhido pelo usuário",async(
   for(const key of ["address","city","state","latitude","longitude","google_maps_url","website"]) {
     expect(saved[key]??null,"Should not persist provider content: "+key).toBeNull();
   }
-  await expect(page.getByRole("button",{name:"Lead já adicionado"})).toBeDisabled();
+  await expect(page.locator(".bms-map-frame .bms-business-card").getByRole("button",{name:"Lead já adicionado"})).toBeDisabled();
   expect(calls.crmSaves).toHaveLength(1);
 });
 
@@ -254,7 +254,7 @@ test("Maps Geoapify: dados OSM, atribuição e ID são salvos no CRM",async({pag
   await page.getByRole("button",{name:"Buscar no mapa"}).click();
   await expect(page.getByRole("article",{name:/Estabelecimento Geoapify: Barbearia OSM/})).toBeVisible();
   await page.getByRole("article",{name:/Estabelecimento Geoapify: Barbearia OSM/})
-    .getByRole("button",{name:"Adicionar ao CRM"}).click();
+    .getByRole("button",{name:"Adicionar lead",exact:true}).click();
   await expect.poll(()=>calls.crmSaves.length).toBe(1);
   const saved=calls.crmSaves[0]!;
   expect(saved["place_id"]).toBe("geoapify:abc1");
@@ -271,9 +271,9 @@ test("Maps: outra aba salvou o mesmo Google Place ID; não duplica nem informa f
   await page.getByRole("button",{name:"Buscar no mapa"}).click();
   await expect(page.getByRole("article",{name:/Empresa selecionada: Barbearia Google 1/})).toBeVisible();
   await page.getByLabel("Nome que você quer usar no CRM").fill("Nome informado manualmente");
-  await page.getByRole("button",{name:"Adicionar ao CRM"}).click();
+  await page.locator(".bms-map-frame .bms-business-card").getByRole("button",{name:"Adicionar lead",exact:true}).click();
   await expect(page.getByText("Lead já adicionado ao CRM. Nenhum novo cadastro foi criado.")).toBeVisible();
-  await expect(page.getByRole("button",{name:"Lead já adicionado"})).toBeDisabled();
+  await expect(page.locator(".bms-map-frame .bms-business-card").getByRole("button",{name:"Lead já adicionado"})).toBeDisabled();
   expect(calls.crmSaves).toHaveLength(1);
 });
 
@@ -327,8 +327,8 @@ test("erro do Google Maps no marcador não derruba o CRM nem a lista",async({pag
   const calls=await mockWorkspace(page,"advanced");
   await openMaps(page);
   await page.getByRole("button",{name:"Buscar no mapa"}).click();
-  await expect(page.locator(".bms-google-map")).toContainText(
-    "Mapa visual indisponível. Os estabelecimentos continuam na lista ao lado.");
+  await expect(page.locator(".bms-map-pin-warning")).toContainText(
+    "marcadores");
   await expect(page.locator(".bms-results-list")).toContainText("Barbearia Google 1");
   await expect(page.getByRole("heading",{name:"Não foi possível carregar esta página"})).toHaveCount(0);
   expect(calls.unified).toHaveLength(1);
@@ -352,8 +352,8 @@ test("SDK de mapas incompleto é tratado sem travar a lista de estabelecimentos"
   await mockWorkspace(page,"pro");
   await openMaps(page);
   await page.getByRole("button",{name:"Buscar no mapa"}).click();
-  await expect(page.locator(".bms-google-map")).toContainText(
-    "Mapa visual indisponível. Os estabelecimentos continuam na lista ao lado.");
+  await expect(page.locator(".bms-map-pin-warning")).toContainText(
+    "marcadores");
   await expect(page.locator(".bms-results-list")).toContainText("Barbearia Google 1");
   await expect(page.getByRole("heading",{name:"Não foi possível carregar esta página"})).toHaveCount(0);
 });
@@ -369,4 +369,49 @@ test("Free: conta de homologação em modo testes pesquisa Maps sem débito ou b
   await expect(page.getByText(/Modo testes: nenhuma pesquisa ou crédito descontado/)).toBeVisible();
   expect(calls.unified).toHaveLength(1);
   expect(calls.googleSeparate).toBe(0);
+});
+
+test("Maps: fechar o card e reabri-lo pela lista, sem perder o resultado",async({page})=>{
+  const calls=await mockWorkspace(page,"advanced");
+  await openMaps(page);
+  await page.getByRole("button",{name:"Buscar no mapa"}).click();
+  const card=page.getByRole("article",{name:/Empresa selecionada: Barbearia Google 1/});
+  await expect(card).toBeVisible();
+  await card.getByRole("button",{name:"Fechar detalhes do lead"}).click();
+  await expect(card).toHaveCount(0);
+  await expect(page.locator(".bms-results-count")).toHaveText("2");
+  await page.locator(".bms-results-list .bms-result-add").nth(1).click();
+  await expect(page.getByRole("article",{name:/Empresa selecionada: Barbearia Google 2/})).toBeVisible();
+  await expect(page.getByLabel("Nome que você quer usar no CRM")).toBeFocused();
+  expect(calls.unified).toHaveLength(1);
+  expect(calls.crmSaves).toHaveLength(0);
+});
+
+test("Maps: botão da lista Google exige nome próprio antes de adicionar lead",async({page})=>{
+  const calls=await mockWorkspace(page,"pro");
+  await openMaps(page);
+  await page.getByRole("button",{name:"Buscar no mapa"}).click();
+  const buttons=page.locator(".bms-results-list .bms-result-add");
+  await expect(buttons).toHaveCount(2);
+  await buttons.first().click();
+  const card=page.getByRole("article",{name:/Empresa selecionada: Barbearia Google 1/});
+  await expect(card.getByRole("button",{name:"Adicionar lead",exact:true})).toBeDisabled();
+  await page.getByLabel("Nome que você quer usar no CRM").fill("Nome escolhido por mim");
+  await card.getByRole("button",{name:"Adicionar lead",exact:true}).click();
+  await expect.poll(()=>calls.crmSaves.length).toBe(1);
+  expect(calls.crmSaves[0]?.company).toBe("Nome escolhido por mim");
+  expect(calls.crmSaves[0]?.place_id).toBe("google-real-1");
+  await expect(buttons.first()).toBeDisabled();
+});
+
+test("Maps: botão Adicionar lead na lista Geoapify salva diretamente empresa OSM",async({page})=>{
+  const calls=await mockWorkspace(page,"advanced","geo-found");
+  await openMaps(page);
+  await page.getByRole("button",{name:"Buscar no mapa"}).click();
+  const action=page.locator(".bms-results-list .bms-result-add").first();
+  await expect(action).toHaveText(/Adicionar lead/);
+  await action.click();
+  await expect.poll(()=>calls.crmSaves.length).toBe(1);
+  expect(calls.crmSaves[0]?.place_id).toBe("geoapify:abc1");
+  await expect(action).toBeDisabled();
 });
