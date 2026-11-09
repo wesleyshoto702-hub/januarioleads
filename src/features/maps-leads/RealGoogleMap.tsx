@@ -118,7 +118,9 @@ function svgPin(index: number, active: boolean): Record<string, unknown> {
 function advancedPin(index: number, active: boolean): HTMLElement {
   const pin = document.createElement("div");
   pin.className = "bms-real-pin" + (active ? " is-active" : "");
-  pin.textContent = String(index + 1).padStart(2, "0");
+  const label = document.createElement("span");
+  label.textContent = String(index + 1).padStart(2, "0");
+  pin.appendChild(label);
   pin.setAttribute("aria-label", "Empresa " + String(index + 1));
   return pin;
 }
