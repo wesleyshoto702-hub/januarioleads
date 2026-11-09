@@ -31,7 +31,7 @@ Deno.test("states are collapsed by UI and grouped with accurate per-user metrics
 });
 
 Deno.test("cities and neighborhoods are independent within the same state", () => {
-  const mg=buildProspectingHierarchy(leads,touches).states.find(s=>s.key==="MG")!;
+  const mg=buildProspectingHierarchy(leads,touches,undefined,"neighborhood").states.find(s=>s.key==="MG")!;
   const lavras=mg.children.find(c=>c.name==="Lavras")!;
   assert(lavras.metrics.total===3 && lavras.metrics.touched===3,"Lavras rows");
   assert(lavras.children.length===2,"Neighborhood grouping");
@@ -97,4 +97,57 @@ Deno.test("empty lead data is valid and safe for missing localization", () => {
     city:"",state:"",neighborhood:"",status:"send_message"}
   ],new Set());
   assert(unknown.states[0]?.name==="UF não informada", "Do not lose missing-location leads");
+});
+
+
+Deno.test("Nichos is the default third level in every city", () => {
+  const mg=buildProspectingHierarchy(leads,touches).states.find(s=>s.key==="MG")!;
+  const lavras=mg.children.find(c=>c.name==="Lavras")!;
+  assert(lavras.children.length===1, "Lavras contains one niche across different neighborhoods");
+  const barbearia=lavras.children[0]!;
+  assert(barbearia.name==="Barbearia", "Default label should be the segment name");
+  assert(barbearia.metrics.total===3 && barbearia.metrics.touched===3,
+    "Niche summary counts all matching saved leads and distinct contact actions");
+  assert(barbearia.metrics.touchedPercent===100, "All three barbershops were approached");
+  assert(mg.children.find(c=>c.name==="Varginha")?.children[0]?.name==="Barbearia",
+    "Same niche in another city must remain independent");
+});
+
+Deno.test("Bairros option preserves original neighborhood view without changing city totals", () => {
+  const niches=buildProspectingHierarchy(leads,touches,undefined,"segment");
+  const neighborhoods=buildProspectingHierarchy(leads,touches,undefined,"neighborhood");
+  assert(JSON.stringify(niches.metrics)===JSON.stringify(neighborhoods.metrics),
+    "Changing detail mode cannot change global CRM metrics");
+  const cityNiches=niches.states.find(s=>s.key==="MG")!.children.find(c=>c.name==="Lavras")!;
+  const cityBairros=neighborhoods.states.find(s=>s.key==="MG")!.children.find(c=>c.name==="Lavras")!;
+  assert(JSON.stringify(cityNiches.metrics)===JSON.stringify(cityBairros.metrics),
+    "Changing detail mode cannot change Lavras metrics");
+  assert(cityNiches.children[0]?.name==="Barbearia", "Segment mode must show niche");
+  assert(cityBairros.children.some(child=>child.name==="Centro"), "Bairro mode must show Centro");
+  assert(cityBairros.children.some(child=>child.name==="Vila Rica"), "Bairro mode must show Vila Rica");
+});
+
+Deno.test("Filtering a niche still works in both detail modes", () => {
+  const nichos=buildProspectingHierarchy(leads,touches,"Barbearia","segment");
+  const bairros=buildProspectingHierarchy(leads,touches,"Barbearia","neighborhood");
+  assert(nichos.metrics.total===4 && bairros.metrics.total===4,"Both views filter by niche");
+  assert(nichos.states.length===1 && bairros.states.length===1,"Only MG has matching niche");
+  assert(nichos.states[0]?.children.length===2 && bairros.states[0]?.children.length===2,
+    "Cities stay visible in both modes");
+});
+
+Deno.test("Changing status, deleting a lead or clicking Mandar mensagem updates both views", () => {
+  const changed=leads.filter(lead=>lead.id!=="a").map(lead=>
+    lead.id==="b"?{...lead,status:"rejected" as const}:lead
+  );
+  const moreTouches=new Set([...touches,"d"]);
+  const before=buildProspectingHierarchy(leads,touches,"Barbearia","segment");
+  const after=buildProspectingHierarchy(changed,moreTouches,"Barbearia","segment");
+  const afterBairros=buildProspectingHierarchy(changed,moreTouches,"Barbearia","neighborhood");
+  assert(after.metrics.total===before.metrics.total-1,"Deleted lead leaves denominator");
+  assert(after.metrics.touched===3,"Remaining contacted leads count once");
+  assert(after.metrics.rejected===2 && after.metrics.accepted===0,
+    "Live status updates current outcome rates");
+  assert(JSON.stringify(after.metrics)===JSON.stringify(afterBairros.metrics),
+    "Views must remain exactly consistent after edits");
 });
