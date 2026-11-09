@@ -301,3 +301,57 @@ test("Buscar Leads: Google só permite salvar ID e nome informado, nunca conteú
   }
   expect(String(saved["notes"]??"")).not.toContain("Rua Exemplo 42");
 });
+
+
+test("erro do Google Maps no marcador não derruba o CRM nem a lista",async({page})=>{
+  // These tests require the public Maps JS browser key in the local staging build.
+  // The SDK is mocked: no requests to Google are made.
+  test.skip(!process.env["VITE_GOOGLE_MAPS_BROWSER_KEY"],
+    "Set a public browser Maps key in staging test configuration to exercise the map canvas.");
+  await page.addInitScript(()=>{
+    Object.defineProperty(window,"google",{configurable:true,value:{maps:{
+      Map:class {
+        fitBounds() {}
+        panTo() {}
+        setZoom() {}
+        getZoom() { return 12; }
+      },
+      Marker:class {
+        constructor() { throw new Error("SDK Marker indisponível"); }
+      },
+      LatLngBounds:class { extend() {} },
+    }}});
+  });
+  const calls=await mockWorkspace(page,"advanced");
+  await openMaps(page);
+  await page.getByRole("button",{name:"Buscar no mapa"}).click();
+  await expect(page.locator(".bms-google-map")).toContainText(
+    "Mapa visual indisponível. Os estabelecimentos continuam na lista ao lado.");
+  await expect(page.locator(".bms-results-list")).toContainText("Barbearia Google 1");
+  await expect(page.getByRole("heading",{name:"Não foi possível carregar esta página"})).toHaveCount(0);
+  expect(calls.unified).toHaveLength(1);
+});
+
+test("SDK de mapas incompleto é tratado sem travar a lista de estabelecimentos",async({page})=>{
+  test.skip(!process.env["VITE_GOOGLE_MAPS_BROWSER_KEY"],
+    "Requires a browser Maps key in the staging test build.");
+  await page.addInitScript(()=>{
+    Object.defineProperty(window,"google",{configurable:true,value:{maps:{
+      Map:class {
+        fitBounds() {}
+        panTo() {}
+        setZoom() {}
+        getZoom() { return 12; }
+      },
+      // Marker and importLibrary intentionally absent.
+      LatLngBounds:class { extend() {} },
+    }}});
+  });
+  await mockWorkspace(page,"pro");
+  await openMaps(page);
+  await page.getByRole("button",{name:"Buscar no mapa"}).click();
+  await expect(page.locator(".bms-google-map")).toContainText(
+    "Mapa visual indisponível. Os estabelecimentos continuam na lista ao lado.");
+  await expect(page.locator(".bms-results-list")).toContainText("Barbearia Google 1");
+  await expect(page.getByRole("heading",{name:"Não foi possível carregar esta página"})).toHaveCount(0);
+});
