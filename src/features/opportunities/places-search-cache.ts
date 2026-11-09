@@ -1,4 +1,5 @@
 import { getValidSession } from "../../lib/auth";
+import { SAAS_STAGING_ACTIVE } from "../search-leads/saas-usage";
 import { searchLocationKey, type SearchLocation } from "../search-leads/search-location";
 import type { BusinessSearchResult } from "../search-leads/types";
 import { safeBusinessResult } from "./opportunity-businesses";
@@ -39,6 +40,8 @@ function safeResults(value: unknown) {
 }
 
 export async function fetchPlacesSearchSamples(): Promise<OpportunitySample[]> {
+  // Google Places data must not be read from persistent caches in Staging.
+  if (SAAS_STAGING_ACTIVE) return [];
   const params = new URLSearchParams();
   params.set("select", "city,state,segment,checked_at,next_page_token,page_count,results");
   params.set("order", "checked_at.desc");
@@ -73,6 +76,7 @@ export type CachedPlacesSearchSample = {
 export async function fetchRecentPlacesSearchSamples(
   limit = 5,
 ): Promise<CachedPlacesSearchSample[]> {
+  if (SAAS_STAGING_ACTIVE) return [];
   const params = new URLSearchParams();
   params.set("select", "city,state,segment,checked_at,next_page_token,page_count,results");
   params.set("order", "checked_at.desc");
@@ -117,6 +121,7 @@ export async function fetchCachedPlacesSearchSample(
   location: SearchLocation,
   segment: string,
 ): Promise<CachedPlacesSearchSample | null> {
+  if (SAAS_STAGING_ACTIVE) return null;
   const session = await getValidSession();
   if (!session) return null;
 
@@ -144,6 +149,9 @@ export async function persistPlacesSearchSample(input: {
   nextPageToken: string | null;
   append: boolean;
 }) {
+  // Do not persist Google Places names, addresses, phones or coords in Staging.
+  // Search results remain transient in React state until a compliant workflow exists.
+  if (SAAS_STAGING_ACTIVE) return false;
   const session = await getValidSession();
   if (!session) throw new Error("AUTH_REQUIRED");
 
