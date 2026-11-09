@@ -13,6 +13,8 @@ export type BusinessSearchResult = {
   placeId: string;
   /** Server-verified same-day equivalent ID from another provider. Never stored as Google content. */
   equivalentPlaceId?: string | null;
+  /** UI-only marker: the customer supplied a CRM label (never from Places content). */
+  crmManualName?: true;
   previewOnly?: boolean;
   name: string;
   primaryCategory: string | null;
