@@ -1,6 +1,6 @@
 import {
   ArrowUpRight, BookmarkPlus, CheckCircle2, Compass, Layers, LoaderCircle,
-  MapPin, Minus, Plus, Search, ShieldCheck, Star, X, KeyRound,
+  MapPin, Minus, Plus, Search, Star, X,
 } from "lucide-react";
 import {
   useCallback, useEffect, useMemo, useRef, useState, type FormEvent,
@@ -18,7 +18,7 @@ import {
   loadBrazilianMunicipalities, resolveMunicipality,
 } from "../search-leads/search-location";
 import { ALL_SEARCH_SEGMENTS, resolveSearchSegment } from "../search-leads/segments";
-import { searchPersonalGeoapify, checkPersonalGeoapifyConfig, type PersonalGeoapifyPlace } from "./personal-geoapify";
+import { searchPersonalGeoapify, type PersonalGeoapifyPlace } from "./personal-geoapify";
 import { buildMapPoints } from "./map-points";
 import { ENV_GOOGLE_MAPS_BROWSER_KEY, RealGoogleMap } from "./RealGoogleMap";
 
@@ -103,13 +103,10 @@ export function MapsPersonalView({
   const [isLoading,setLoading]=useState(false);
   const [isSaving,setSaving]=useState(false);
   const [error,setError]=useState("");
-  const [notice,setNotice]=useState("");
   const [zoomAction,setZoomAction]=useState<ZoomAction>({id:0,delta:0});
-  const [browserKey,setBrowserKey]=useState(googleKeyFromBrowser);
-  const [keyDraft,setKeyDraft]=useState(googleKeyFromBrowser);
-  const [showKeySettings,setShowKeySettings]=useState(false);
-  const [checkingGeoapify,setCheckingGeoapify]=useState(false);
-  const [geoapifyStatus,setGeoapifyStatus]=useState("");
+  // Existing device key remains supported while public deployments can inject
+  // a site-restricted VITE_GOOGLE_MAPS_BROWSER_KEY at build time.
+  const [browserKey]=useState(googleKeyFromBrowser);
   const requestLock=useRef(false);
   const saveLock=useRef(false);
   const listRef=useRef<HTMLOListElement>(null);
@@ -176,7 +173,7 @@ export function MapsPersonalView({
     // A failed or quota-limited request must never appear to return old places.
     setGeoResults([]);setGoogleResults([]);setResultProvider(null);
     setSelection(null);setApplied(null);setSavedIds([]);
-    setLoading(true);setError("");setNotice("");
+    setLoading(true);setError("");
     try{
       // Automatic: Geoapify first for supported OSM categories; a separate
       // authenticated Google Places query only if no valid OSM match.
@@ -186,7 +183,6 @@ export function MapsPersonalView({
         setResultProvider("geoapify");setSelection(geo.places[0]?.sourceId??null);
         setApplied({...input,segment:canonical});
         saveSearchLocation({city:input.city,state:input.state});
-        setNotice("Resultados Geoapify / OpenStreetMap. Selecione uma empresa para adicioná-la ao CRM.");
         return;
       }
       if(!geo.ok&&geo.code==="QUOTA"){
@@ -195,7 +191,6 @@ export function MapsPersonalView({
       }
       // This can trigger a separate provider-billed search; Google has an
       // existing server-side per-account budget/rate-limiting circuit breaker.
-      setNotice("Geoapify não retornou estabelecimentos utilizáveis; consultando Google Places.");
       const google=await searchBusinesses({city:input.city,state:input.state,segment:canonical});
       if(!google.ok){setError(google.message);return;}
       let results=google.results;
@@ -210,9 +205,6 @@ export function MapsPersonalView({
       setResultProvider("google");setSelection(results[0]?.placeId??null);
       setApplied({...input,segment:canonical});
       saveSearchLocation({city:input.city,state:input.state});
-      setNotice(results.length
-        ? "Resultados Google Places. O CRM salva o ID do local com um rótulo automático criado a partir da sua pesquisa."
-        : "Nenhum resultado correspondente carregado. Tente outro nicho, cidade ou bairro.");
     }catch{
       setError("Não foi possível realizar a pesquisa agora. Tente novamente.");
     }finally{
@@ -235,39 +227,9 @@ export function MapsPersonalView({
       const response=await onAddLead(business,applied.segment);
       if(!response.ok){setError(response.message);return;}
       setSavedIds(current=>current.includes(id)?current:[...current,id]);
-      setNotice(geo
-        ? "Lead Geoapify/OSM adicionado. Origem registrada sem usar o campo Google Place ID; você pode complementar o contato no CRM."
-        : "Lead adicionado ao CRM com identificador Google e rótulo de referência automático.");
     }catch{setError("Não foi possível salvar o lead no Supabase.");}
     finally{saveLock.current=false;setSaving(false);}
   }
-  async function checkGeoapifyReadiness(){
-    if(checkingGeoapify)return;
-    setCheckingGeoapify(true);setGeoapifyStatus("");
-    try{
-      const status=await checkPersonalGeoapifyConfig();
-      if(!status.ok){setGeoapifyStatus(status.message);return;}
-      setGeoapifyStatus(status.configured
-        ? "Geoapify: chave cadastrada no Supabase original. Isso confirma apenas a configuração; faça uma busca para validar o acesso ao provedor."
-        : "Geoapify: chave ausente. Cadastre GEOAPIFY_API_KEY nos Secrets das Edge Functions do Supabase original.");
-    }finally{setCheckingGeoapify(false);}
-  }
-  function saveBrowserMapKey(){
-    const candidate=keyDraft.trim();
-    if(candidate&&!/^AIza[\w-]{25,}$/.test(candidate)){
-      setError("Informe uma chave pública Google Maps válida, iniciada por AIza.");
-      return;
-    }
-    try{
-      if(candidate)accountLocalStorage.setItem(MAP_KEY_STORAGE,candidate);
-      else accountLocalStorage.removeItem(MAP_KEY_STORAGE);
-      setBrowserKey(candidate||ENV_GOOGLE_MAPS_BROWSER_KEY);
-      setError("");
-      setShowKeySettings(false);
-      setNotice(candidate?"Chave pública configurada neste navegador. O Google Maps poderá carregar agora.":"Chave local removida.");
-    }catch{setError("Não foi possível guardar a chave pública neste navegador.");}
-  }
-
   const titleCity=applied?`${applied.city} · ${applied.state}`:`${city} · ${state}`;
   const activeId=selection;
   const selected=selectedGoogle;
@@ -278,11 +240,10 @@ export function MapsPersonalView({
     <section className="bms-root saas-page" aria-labelledby="bms-heading">
       <div className="bms-heading">
         <div>
-          <div className="bms-eyebrow"><Compass size={14}/> EXPLORAÇÃO GEOGRÁFICA PESSOAL</div>
+          <div className="bms-eyebrow"><Compass size={14}/> EXPLORAÇÃO GEOGRÁFICA</div>
           <h1 id="bms-heading">Buscar <span>via Maps</span></h1>
-          <p>Explore estabelecimentos reais por nicho e município em todo o Brasil. Adicione empresas ao seu CRM pessoal.</p>
+          <p>Encontre estabelecimentos por nicho e município em todo o Brasil e adicione novos contatos ao seu CRM.</p>
         </div>
-        <div className="bms-plan-chip"><ShieldCheck size={15}/> Uso pessoal · orçamentos das APIs protegidos</div>
       </div>
       <form className="bms-searchbar" onSubmit={submit}>
         <div className="bms-field bms-field--segment">
@@ -320,36 +281,10 @@ export function MapsPersonalView({
           {isLoading?"Buscando...":"Buscar no mapa"}
         </button>
       </form>
-      <div className="bms-personal-options">
-        <button type="button" className="bms-map-key-toggle"
-          onClick={()=>setShowKeySettings(value=>!value)}>
-          <KeyRound size={15}/> {browserKey?"Configurar chave do mapa":"Ativar mapa Google"}
-        </button>
-        <button type="button" className="bms-map-key-toggle"
-          disabled={checkingGeoapify} onClick={()=>void checkGeoapifyReadiness()}>
-          <ShieldCheck size={15}/> {checkingGeoapify?"Verificando...":"Verificar Geoapify sem custo"}
-        </button>
-      </div>
-      {showKeySettings&&<div className="bms-key-settings">
-        <label htmlFor="bms-public-key">Chave pública do Maps JavaScript, restrita ao domínio da Lovable</label>
-        <input id="bms-public-key" type="password" spellCheck={false}
-          autoComplete="off" placeholder="AIza..." value={keyDraft}
-          onChange={e=>setKeyDraft(e.target.value)}/>
-        <button type="button" onClick={saveBrowserMapKey}>Salvar chave pública neste navegador</button>
-        <p>Use uma chave de navegador limitada à Maps JavaScript API e aos domínios da Lovable. Nunca insira a chave privada do Google Places aqui. O carregamento do mapa pode gerar cobrança no Google Cloud.</p>
-        <p>Cadastre este site em <strong>Restrições de aplicativo → Sites</strong>:
-          <code>{typeof window!=="undefined"?window.location.origin+"/":"domínio atual da Lovable"}</code>
-          {" "}<a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer">Abrir credenciais do Google Cloud</a>.
-          Em <strong>Restrições de API</strong>, habilite apenas Maps JavaScript API para esta chave.
-        </p>
-      </div>}
-      {geoapifyStatus&&<p className="bms-message" role="status">{geoapifyStatus}</p>}
       <div className="bms-meta">
         <span><Layers size={15}/> {applied?`${count} empresas encontradas`:"Escolha um nicho e uma região"}</span>
-        <span>Buscas pessoais protegidas · sem planos ou créditos de SaaS</span>
       </div>
       {error&&<p className="bms-alert" role="alert">{error}</p>}
-      {notice&&<p className="bms-message" role="status">{notice}</p>}
       <div className="bms-layout">
         <div className="bms-map-frame">
           {browserKey
@@ -358,8 +293,8 @@ export function MapsPersonalView({
               onSelect={choose} zoomAction={zoomAction}/>
             : <div className="bms-map-placeholder" role="status">
               <MapPin size={34}/>
-              <strong>Mapa Google aguardando chave pública</strong>
-              <p>Ative o Maps JavaScript com uma chave de navegador restrita. A lista de empresas funciona sem ela.</p>
+              <strong>Mapa temporariamente indisponível</strong>
+              <p>Você ainda pode consultar as empresas encontradas na lista de resultados.</p>
             </div>}
           <div className="bms-coverage">
             <div className="bms-coverage-kicker"><span className="bms-dot"/> COBERTURA TERRITORIAL</div>
@@ -467,10 +402,6 @@ export function MapsPersonalView({
               </button>
             </li>)}
           </ol>}
-          <p className="bms-results-footnote">
-            <ShieldCheck size={13}/> Sua carteira pessoal permanece no Supabase original.
-            Uma busca pode consumir cota externa; os resultados não são inventados.
-          </p>
         </aside>
       </div>
     </section>
