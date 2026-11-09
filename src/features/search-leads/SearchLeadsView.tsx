@@ -58,7 +58,6 @@ import {
   persistPlacesSearchSample,
 } from "../opportunities/places-search-cache";
 import { isValidWhatsAppPhone, openWhatsAppLink } from "../../lib/whatsapp";
-import { ProspectingInformationPanel } from "./ProspectingInformationPanel";
 
 export type SearchMode = "all" | "open";
 
@@ -476,8 +475,6 @@ export function SearchLeadsView({
   onPresenceDiscovered,
   mode,
   onModeChange,
-  touchedLeadIds,
-  touchState,
 }: {
   existingLeads: ExistingLeadIdentity[];
   onAddLead: (
@@ -488,8 +485,6 @@ export function SearchLeadsView({
   onPresenceDiscovered?: (leadId: string, presence: BusinessPresence) => void;
   mode: SearchMode;
   onModeChange: (mode: SearchMode) => void;
-  touchedLeadIds: ReadonlySet<string> | null;
-  touchState: "loading" | "ready" | "error";
 }) {
   const initialSearchSession = useMemo(() => loadSearchLeadsSession(), []);
   const initialSearchLocation = useMemo(
@@ -1173,11 +1168,6 @@ export function SearchLeadsView({
             </div>
           </div>
         )}
-
-        <ProspectingInformationPanel
-          leads={existingLeads} touchedLeadIds={touchedLeadIds} touchState={touchState}
-          selectedNiche={selectedSegment}
-        />
 
         <div className="segment-picker">
           <div className="segment-search">
