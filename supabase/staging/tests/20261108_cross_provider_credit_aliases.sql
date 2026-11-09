@@ -81,7 +81,8 @@ begin
   end if;
 
   -- Free is NOT entitled to Maps, even when an ID was previously unlocked.
-  update public.saas_subscriptions set plan_code='free' where user_id=u;
+  -- Free is the default when no paid subscription is active.
+  delete from public.saas_subscriptions where user_id=u;
   begin
     perform public.claim_daily_maps_with_osm_anchors(u,array[osm],
       '{}'::jsonb,'[]'::jsonb);
