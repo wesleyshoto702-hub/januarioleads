@@ -41,3 +41,13 @@ Deno.test("Pins are deduplicated and capped to the actual 20-place search payloa
   const points = buildMapPoints("google", values, []);
   check(points.length === 35 && new Set(points.map((p) => p.id)).size === 35, "Invalid cap or duplicates");
 });
+
+Deno.test("Map pins keep original sidebar numbering if an earlier place lacks GPS", () => {
+  const points = buildMapPoints("google", [
+    {placeId:"google-no-gps",name:"Empresa sem coordenada",latitude:null,longitude:null},
+    {placeId:"google-gps",name:"Empresa com GPS",latitude:-21.246,longitude:-44.999},
+  ],[]);
+  check(points.length===1 && points[0]?.id==="google-gps" &&
+    points[0]?.listIndex===2,
+    "Pin must be numbered #2 to match the second company in the list");
+});
