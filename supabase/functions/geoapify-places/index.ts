@@ -150,6 +150,7 @@ type CreditClaim = {
   plan: string; daily_limit: number; used_today: number;
   remaining_today: number; usage_date: string;
   allowed_place_ids: string[]; credits_spent: number; credit_cost: number;
+  test_mode?: boolean;
 };
 
 /** Debit only the real returned place IDs. No points are charged on failure. */
@@ -269,7 +270,7 @@ async function chargeMapsPlaces(
     p_user_id:userId,p_place_ids:ids,
     p_verified_aliases:aliases,p_osm_places:osmPlaces,
   }) as CreditClaim|null;
-  if(!quota||!["pro","advanced"].includes(quota.plan)||quota.credit_cost!==2||
+  if(!quota||!(quota.test_mode===true||["pro","advanced"].includes(quota.plan))||quota.credit_cost!==2||
     !Array.isArray(quota.allowed_place_ids)||
     !quota.allowed_place_ids.every((id)=>typeof id==="string")||
     !Number.isInteger(quota.remaining_today)||!Number.isInteger(quota.credits_spent)) {
@@ -367,20 +368,20 @@ async function handle(request: Request): Promise<Response> {
   // calls reserve independent monetary budgets and never cause a second plan claim.
   const peek = await callPrivilegedRpc("saas_free_search_quota", {
     p_user_id: auth.userId, p_claim: false,
-  }) as { plan?: string; allowed?: boolean } | null;
+  }) as { plan?: string; allowed?: boolean; test_mode?: boolean } | null;
   if (!peek) return fail(request, "REQUEST_FAILED", "Não foi possível verificar o limite de pesquisas.", 503);
-  if (!["pro","advanced"].includes(peek.plan ?? "")) {
+  if (peek.test_mode!==true && !["pro","advanced"].includes(peek.plan ?? "")) {
     return fail(request, "FEATURE_NOT_AVAILABLE",
       "Buscar via Maps está disponível nos planos Pro e Advanced.",403);
   }
   const balance = await callPrivilegedRpc("peek_daily_leads_for_user", {
     p_user_id:auth.userId,
-  }) as {plan?:string;remaining_today?:number} | null;
-  if(!balance || !["pro","advanced"].includes(balance.plan ?? "") ||
+  }) as {plan?:string;remaining_today?:number;test_mode?:boolean} | null;
+  if(!balance || !(balance.test_mode===true||["pro","advanced"].includes(balance.plan ?? "")) ||
      !Number.isInteger(balance.remaining_today)) {
     return fail(request,"REQUEST_FAILED","Não foi possível consultar o saldo.",503);
   }
-  if(balance.remaining_today! < 2) {
+  if(balance.test_mode!==true && balance.remaining_today! < 2) {
     return fail(request,"DAILY_LEAD_LIMIT",
       "Saldo insuficiente: cada lead via Maps custa 2 créditos.",429);
   }
