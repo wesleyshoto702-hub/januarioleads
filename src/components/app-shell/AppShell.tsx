@@ -2,6 +2,7 @@ import {
   BarChart3,
   LayoutDashboard,
   LogOut,
+  MapPinned,
   Menu,
   MessageCircle,
   Moon,
@@ -13,11 +14,13 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { isLegacyWorkspaceOwner } from "../../lib/account-storage";
 
 export type AppView =
   | "dashboard"
   | "leads"
   | "search"
+  | "maps"
   | "prospecting"
   | "opportunities"
   | "messages"
@@ -31,6 +34,7 @@ const NAV_ITEMS: Array<{
   { view: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { view: "leads", label: "Meus Leads", icon: Users },
   { view: "search", label: "Buscar Leads", icon: Search },
+  { view: "maps", label: "Buscar via Maps", icon: MapPinned },
   { view: "prospecting", label: "Informações de Prospecção", icon: BarChart3 },
   { view: "opportunities", label: "Oportunidades", icon: Target },
   { view: "messages", label: "Mensagens", icon: MessageCircle },
@@ -41,6 +45,7 @@ const VIEW_TITLES: Record<AppView, string> = {
   dashboard: "Dashboard",
   leads: "Meus Leads",
   search: "Buscar Leads",
+  maps: "Buscar via Maps",
   prospecting: "Informações de Prospecção",
   opportunities: "Oportunidades",
   messages: "Mensagens",
@@ -126,7 +131,7 @@ export function AppShell({
   const navigation = (
     <>
       <nav className="saas-nav" aria-label="Navegação principal">
-        {NAV_ITEMS.map((item) => {
+        {NAV_ITEMS.filter((item) => item.view !== "maps" || isLegacyWorkspaceOwner()).map((item) => {
           const Icon = item.icon;
           const active = activeView === item.view;
           return (
