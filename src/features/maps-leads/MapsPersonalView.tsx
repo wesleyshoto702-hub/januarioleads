@@ -38,13 +38,17 @@ function emptyBusiness(): BusinessSearchResult {
   };
 }
 
-/** Persist OSM provider data only; Google results persist a user-supplied CRM name + Place ID. */
+/** Keep OSM IDs in provenance, never in the Google Place ID database field. */
+function osmReference(id:string):string {
+  return `Geoapify/OSM ID: ${id}`;
+}
 function osmBusiness(place:PersonalGeoapifyPlace):BusinessSearchResult {
   return {
     ...emptyBusiness(),
-    placeId:place.sourceId, name:place.name,
+    placeId:"", name:place.name,
     primaryCategory:place.category, address:place.address,
     city:place.city, state:place.state,
+    description:`Fonte: Geoapify / OpenStreetMap. ${osmReference(place.sourceId)}.`,
     latitude:place.latitude, longitude:place.longitude,
   };
 }
@@ -133,7 +137,10 @@ export function MapsPersonalView({
     .filter(place=>existingLeads.some(lead=>lead.placeId===place.placeId))
     .map(place=>place.placeId)),[googleResults,existingLeads]);
   const savedGeoIds=useMemo(()=>new Set(geoResults
-    .filter(place=>Boolean(findBusinessDuplicate(osmBusiness(place),existingLeads)))
+    .filter(place=>existingLeads.some(lead =>
+      lead.description?.includes(osmReference(place.sourceId)) ||
+      Boolean(findBusinessDuplicate(osmBusiness(place),[lead]))
+    ))
     .map(place=>place.sourceId)),[geoResults,existingLeads]);
   const savedInCrm=(id:string)=>savedIds.includes(id)||
     (resultProvider==="geoapify"?savedGeoIds.has(id):savedGoogleIds.has(id));
@@ -240,7 +247,7 @@ export function MapsPersonalView({
       if(!response.ok){setError(response.message);return;}
       setSavedIds(current=>current.includes(id)?current:[...current,id]);
       setNotice(geo
-        ? "Lead Geoapify/OSM adicionado. Fonte identificada no mapa; você pode complementar o contato no CRM."
+        ? "Lead Geoapify/OSM adicionado. Origem registrada sem usar o campo Google Place ID; você pode complementar o contato no CRM."
         : "Identificador Google e nome escrito por você foram adicionados ao CRM.");
     }catch{setError("Não foi possível salvar o lead no Supabase.");}
     finally{saveLock.current=false;setSaving(false);}
