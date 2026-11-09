@@ -1722,7 +1722,7 @@ function LeadFlowApp() {
                 });
             }}
           >
-            <option value="free">Free — 5/dia</option>
+            <option value="free">Free — 3 pesquisas e 5 créditos/dia</option>
             <option value="pro">Pro — 25 créditos/dia</option>
             <option value="advanced">Advanced — 70 créditos/dia</option>
           </select>
