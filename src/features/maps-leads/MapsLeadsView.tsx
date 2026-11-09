@@ -12,7 +12,7 @@ import {
   ShieldCheck,
   Star,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { Component, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { BRAZIL_STATES } from "../../lib/brazil-locations";
 import { safeExternalHref } from "../../lib/safe-external-url";
 import type { PersistedLead } from "../leads/remote-leads";
@@ -63,17 +63,38 @@ type GoogleMapsApi = {
     Map: new (element: HTMLElement, options: Record<string, unknown>) => GoogleMapInstance;
     Marker: new (options: Record<string, unknown>) => GoogleMarker;
     LatLngBounds: new () => GoogleBounds;
-    SymbolPath: { CIRCLE: number };
+    importLibrary?: (name: "marker") => Promise<unknown>;
   };
 };
 let mapsLoader: Promise<GoogleMapsApi> | null = null;
+
+/** Google Maps may load its base library before its marker library.
+ * Validate both before creating the map so an incomplete SDK never crashes
+ * the entire dashboard after a successful provider search.
+ */
+function hasMapMarkerLibrary(google: GoogleMapsApi | undefined): google is GoogleMapsApi {
+  return typeof google?.maps?.Map === "function" &&
+    typeof google.maps.Marker === "function" &&
+    typeof google.maps.LatLngBounds === "function";
+}
+
+async function requireGoogleMapMarkers(google: GoogleMapsApi | undefined): Promise<GoogleMapsApi> {
+  if (!google?.maps?.Map) throw new Error("O Google Maps não terminou de carregar.");
+  if (!hasMapMarkerLibrary(google) && typeof google.maps.importLibrary === "function") {
+    await google.maps.importLibrary("marker");
+  }
+  if (!hasMapMarkerLibrary(google)) {
+    throw new Error("A biblioteca de marcadores do Google Maps não está disponível.");
+  }
+  return google;
+}
 
 function loadGoogleMaps(): Promise<GoogleMapsApi> {
   if (mapsLoader) return mapsLoader;
   mapsLoader = new Promise((resolve, reject) => {
     const w = window as Window & { google?: GoogleMapsApi };
     if (w.google?.maps?.Map) {
-      resolve(w.google);
+      void requireGoogleMapMarkers(w.google).then(resolve, reject);
       return;
     }
     if (!GOOGLE_BROWSER_KEY) {
@@ -82,13 +103,15 @@ function loadGoogleMaps(): Promise<GoogleMapsApi> {
     }
     const script = document.createElement("script");
     script.async = true;
+    // Request the marker library explicitly. A bare Maps SDK can expose Map
+    // while omitting Marker; previously that caused an uncaught React error.
     script.src = "https://maps.googleapis.com/maps/api/js?key=" +
-      encodeURIComponent(GOOGLE_BROWSER_KEY) + "&v=weekly&language=pt-BR&region=BR";
+      encodeURIComponent(GOOGLE_BROWSER_KEY) +
+      "&v=weekly&libraries=marker&language=pt-BR&region=BR";
     script.onload = () => {
-      if (w.google?.maps?.Map) resolve(w.google);
-      else reject(new Error("O Google Maps não respondeu corretamente."));
+      void requireGoogleMapMarkers(w.google).then(resolve, reject);
     };
-    script.onerror = () => reject(new Error("Falha ao carregar o mapa. Verifique a chave e a conexão."));
+    script.onerror = () => reject(new Error("Falha ao carregar o Google Maps. Confira a chave e a conexão."));
     document.head.appendChild(script);
   }).catch((error: unknown) => {
     mapsLoader = null;
@@ -119,15 +142,42 @@ function hasCoordinates(value: BusinessSearchResult): value is BusinessSearchRes
 type MapDisplayPoint = RealMapPoint;
 type MapZoomAction = { id: number; delta: number };
 
-function markerIcon(google: GoogleMapsApi, active: boolean) {
+/** Use a literal SVG circle path instead of google.maps.SymbolPath.CIRCLE.
+ * The latter can be missing from an incomplete/changed SDK. The legacy
+ * marker API is isolated and all its errors are caught below.
+ */
+function markerIcon(active: boolean) {
   return {
-    path: google.maps.SymbolPath.CIRCLE,
+    path: "M 0,-1 a 1,1 0 1,0 0,2 a 1,1 0 1,0 0,-2 Z",
     scale: active ? 20 : 15,
     fillColor: active ? "#ff174c" : "#e52d57",
     fillOpacity: 1,
     strokeColor: active ? "#ffffff" : "#f7dce4",
     strokeWeight: active ? 3 : 2,
   };
+}
+
+/** If a future SDK change throws during render/effect, contain the crash to
+ * the map canvas. The results list and CRM actions remain mounted.
+ */
+class GoogleMapErrorBoundary extends Component<
+  { children: ReactNode }, { failed: boolean }
+> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch(reason: Error) {
+    console.error("[JanuárioLeads Maps] Falha no mapa visual:", reason);
+  }
+  render() {
+    if (this.state.failed) {
+      return <div className="bms-map-placeholder" role="status">
+        <MapPin size={34} />
+        <strong>Mapa visual indisponível</strong>
+        <p>A busca funcionou. Os estabelecimentos continuam na lista ao lado.</p>
+      </div>;
+    }
+    return this.props.children;
+  }
 }
 
 /** Only verified provider coordinates appear on the live Google map; never simulated pins. */
@@ -146,81 +196,111 @@ function GoogleLeadsMap({
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
 
+  const clearMarkers = useCallback(() => {
+    const previous = markers.current;
+    markers.current = [];
+    for (const item of previous) {
+      // A partially loaded/invalid SDK can also throw while removing markers.
+      try { item.marker.setMap(null); } catch { /* Preserve the result list. */ }
+    }
+  }, []);
+
+  const failMap = useCallback((reason: unknown) => {
+    console.error("[JanuárioLeads Maps] Falha no mapa visual:", reason);
+    clearMarkers();
+    map.current = null;
+    sdk.current = null;
+    setReady(false);
+    setError("Mapa visual indisponível. Os estabelecimentos continuam na lista ao lado.");
+  }, [clearMarkers]);
+
   useEffect(() => {
     let alive = true;
     void loadGoogleMaps().then((google) => {
       if (!alive || !container.current) return;
-      sdk.current = google;
-      map.current = new google.maps.Map(container.current, {
-        center: { lat: -21.245, lng: -44.999 },
-        zoom: 12,
-        maxZoom: 18,
-        styles: DARK_GOOGLE_STYLE,
-        disableDefaultUI: true,
-        clickableIcons: false,
-        gestureHandling: "cooperative",
-        backgroundColor: "#121017",
-      });
-      setReady(true);
+      try {
+        sdk.current = google;
+        map.current = new google.maps.Map(container.current, {
+          center: { lat: -21.245, lng: -44.999 },
+          zoom: 12,
+          maxZoom: 18,
+          styles: DARK_GOOGLE_STYLE,
+          disableDefaultUI: true,
+          clickableIcons: false,
+          gestureHandling: "cooperative",
+          backgroundColor: "#121017",
+        });
+        setReady(true);
+      } catch (reason: unknown) {
+        if (alive) failMap(reason);
+      }
     }).catch((reason: unknown) => {
-      if (alive) setError(reason instanceof Error ? reason.message : "Mapa indisponível.");
+      if (alive) failMap(reason);
     });
     return () => {
       alive = false;
-      for (const item of markers.current) item.marker.setMap(null);
-      markers.current = [];
+      clearMarkers();
       map.current = null;
+      sdk.current = null;
     };
-  }, []);
+  }, [clearMarkers, failMap]);
 
   useEffect(() => {
     const google = sdk.current;
     const instance = map.current;
-    if (!ready || !google || !instance) return;
-    markers.current.forEach((item) => item.marker.setMap(null));
-    markers.current = [];
-    const bounds = new google.maps.LatLngBounds();
-    for (const [index, point] of points.entries()) {
-      const position = { lat: point.lat, lng: point.lng };
-      bounds.extend(position);
-      const marker = new google.maps.Marker({
-        map: instance, position, title: point.name,
-        label: { text: String(index + 1), color: "#ffffff", fontSize: "11px", fontWeight: "800" },
-        icon: markerIcon(google, selectedId === point.id),
-        zIndex: selectedId === point.id ? 1000 : index + 1,
-      });
-      marker.addListener("click", () => onSelect(point.id));
-      markers.current.push({ id: point.id, marker });
+    if (!ready || error || !google || !instance) return;
+    try {
+      clearMarkers();
+      const bounds = new google.maps.LatLngBounds();
+      for (const [index, point] of points.entries()) {
+        const position = { lat: point.lat, lng: point.lng };
+        bounds.extend(position);
+        const marker = new google.maps.Marker({
+          map: instance, position, title: point.name,
+          label: { text: String(index + 1), color: "#ffffff", fontSize: "11px", fontWeight: "800" },
+          icon: markerIcon(selectedId === point.id),
+          zIndex: selectedId === point.id ? 1000 : index + 1,
+        });
+        marker.addListener("click", () => onSelect(point.id));
+        markers.current.push({ id: point.id, marker });
+      }
+      if (points.length) {
+        instance.fitBounds(bounds);
+        if (points.length === 1) instance.setZoom(15);
+      }
+    } catch (reason: unknown) {
+      failMap(reason);
     }
-    if (points.length) {
-      instance.fitBounds(bounds);
-      if (points.length === 1) instance.setZoom(15);
-    }
-    return () => {
-      markers.current.forEach((item) => item.marker.setMap(null));
-      markers.current = [];
-    };
-    // Selected marker styling is updated below without refitting the viewport.
+    return clearMarkers;
+    // Marker selection is updated independently without fitting the viewport.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [points, ready, onSelect]);
+  }, [points, ready, error, onSelect, clearMarkers, failMap]);
 
   useEffect(() => {
     const google = sdk.current;
-    if (!ready || !google) return;
-    for (const item of markers.current) {
-      const active = item.id === selectedId;
-      item.marker.setIcon(markerIcon(google, active));
-      item.marker.setZIndex(active ? 1000 : 1);
+    if (!ready || error || !google) return;
+    try {
+      for (const item of markers.current) {
+        const active = item.id === selectedId;
+        item.marker.setIcon(markerIcon(active));
+        item.marker.setZIndex(active ? 1000 : 1);
+      }
+      const target = points.find((point) => point.id === selectedId);
+      if (target) map.current?.panTo({ lat: target.lat, lng: target.lng });
+    } catch (reason: unknown) {
+      failMap(reason);
     }
-    const target = points.find((point) => point.id === selectedId);
-    if (target) map.current?.panTo({ lat: target.lat, lng: target.lng });
-  }, [points, selectedId, ready]);
+  }, [points, selectedId, ready, error, failMap]);
 
   useEffect(() => {
-    if (!zoomAction.id || !map.current) return;
-    const zoom = map.current.getZoom() ?? 12;
-    map.current.setZoom(Math.min(18, Math.max(5, zoom + zoomAction.delta)));
-  }, [zoomAction]);
+    if (!zoomAction.id || !map.current || error) return;
+    try {
+      const zoom = map.current.getZoom() ?? 12;
+      map.current.setZoom(Math.min(18, Math.max(5, zoom + zoomAction.delta)));
+    } catch (reason: unknown) {
+      failMap(reason);
+    }
+  }, [zoomAction, error, failMap]);
 
   return (
     <div className="bms-google-map" ref={container}
@@ -617,8 +697,10 @@ export function MapsLeadsView({
       <div className="bms-layout">
         <div className="bms-map-frame">
           {displayGoogleMap
-            ? <GoogleLeadsMap points={mapPoints} selectedId={activeMarkerId}
-                onSelect={choose} zoomAction={zoomAction} />
+            ? <GoogleMapErrorBoundary>
+                <GoogleLeadsMap points={mapPoints} selectedId={activeMarkerId}
+                  onSelect={choose} zoomAction={zoomAction} />
+              </GoogleMapErrorBoundary>
             : <div className="bms-map-placeholder" role="status">
                 <MapPin size={34}/>
                 <strong>{!GOOGLE_BROWSER_KEY ? "Google Maps aguardando configuração" :
