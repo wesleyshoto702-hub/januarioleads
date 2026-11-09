@@ -2,6 +2,29 @@ import { migrateLegacyWorkspace } from "./account-storage.ts";
 
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, USE_HTTPONLY_SESSION } from "./supabase-config.ts";
 const STORAGE_KEY = "januarioleads:auth-session";
+const RETURNING_BROWSER_KEY = "januarioleads:previously-signed-in:v1";
+
+/**
+ * UX hint only: remembers that this browser was used to sign in before.
+ * It is deliberately NOT an authentication credential or proof of account ownership.
+ * Logout removes session tokens but retains this hint so returning users skip signup messaging.
+ */
+export function hasPreviouslySignedInOnThisBrowser(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    if (localStorage.getItem(RETURNING_BROWSER_KEY) === "1") return true;
+
+    // Older versions did not save a returning-visitor hint. Existing per-account
+    // workspace keys are a best-effort sign that this browser used the CRM before.
+    for (let i = 0; i < localStorage.length; i++) {
+      if (localStorage.key(i)?.startsWith("januarioleads:workspace:v2:")) return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 
 export type AuthUser = {
   id: string;
@@ -66,6 +89,11 @@ function writeSession(session: StoredSession | null, notify = true) {
   if (typeof window === "undefined") return;
   if (session) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+    try {
+      localStorage.setItem(RETURNING_BROWSER_KEY, "1");
+    } catch {
+      // The hint is optional; an unavailable browser store must not break login.
+    }
     migrateLegacyWorkspace();
   } else {
     localStorage.removeItem(STORAGE_KEY);

@@ -172,3 +172,101 @@ test("Entrar e Criar conta não exibem seta de avanço no botão principal", asy
   await expect(submit).toContainText("Criar conta");
   await expect(submit.locator("svg.lucide-arrow-right")).toHaveCount(0);
 });
+
+
+test("navegador que ja entrou vai direto ao login sem o aviso de cadastro", async ({ page }) => {
+  await isolatePublicPage(page, () => {});
+  await page.goto("/");
+  await page.evaluate(() => localStorage.setItem("januarioleads:previously-signed-in:v1", "1"));
+
+  await page.locator(".jl-header-actions").getByRole("button", { name: "Acessar conta" }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByRole("dialog", { name: "Você já possui uma conta?" })).not.toBeVisible();
+  await expect(page.getByRole("tab", { name: "Entrar" })).toHaveAttribute("aria-selected", "true");
+});
+
+test("login validado abre o dashboard e logout continua exigindo credenciais", async ({ page }) => {
+  const testUserId = "11111111-1111-1111-1111-111111111111";
+  // Block all real network traffic: every Supabase response in this test is mocked.
+  await isolatePublicPage(page, () => {});
+  await page.route("**/*.supabase.co/**", (route) => {
+    const pathname = new URL(route.request().url()).pathname;
+    let body: unknown = [];
+    if (pathname === "/auth/v1/user") {
+      body = { id: testUserId, email: "returning@example.invalid" };
+    } else if (pathname === "/rest/v1/private_access") {
+      body = [{ user_id: testUserId }];
+    }
+    return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+  });
+
+  await page.goto("/");
+  await page.evaluate((id) => {
+    localStorage.setItem("januarioleads:auth-session", JSON.stringify({
+      accessToken: "test-existing-access",
+      refreshToken: "test-existing-refresh",
+      expiresAt: Date.now() + 3_600_000,
+      user: { id, email: "returning@example.invalid" },
+    }));
+  }, testUserId);
+
+  await page.locator(".jl-header-actions").getByRole("button", { name: "Acessar conta" }).click();
+  await expect(page).toHaveURL(/\/app$/);
+  await expect(page.getByRole("button", { name: "Sair", exact: true })).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem("januarioleads:previously-signed-in:v1"))).toBe("1");
+
+  await page.getByRole("button", { name: "Sair", exact: true }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  expect(await page.evaluate(() => localStorage.getItem("januarioleads:auth-session"))).toBeNull();
+
+  await page.goto("/");
+  await page.locator(".jl-header-actions").getByRole("button", { name: "Acessar conta" }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByRole("dialog", { name: "Você já possui uma conta?" })).not.toBeVisible();
+});
+
+test("navegador recorrente entra pelo rodape e pela barra mobile", async ({ page }) => {
+  await isolatePublicPage(page, () => {});
+  await page.goto("/");
+  await page.evaluate(() => localStorage.setItem("januarioleads:previously-signed-in:v1", "1"));
+
+  await page.getByRole("navigation", { name: "Links do rodapé" }).getByRole("button", { name: "Acessar conta" }).click();
+  await expect(page).toHaveURL(/\/login$/);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await page.locator(".jl-header-actions").getByRole("button", { name: "Acessar conta" }).click();
+  await expect(page).toHaveURL(/\/login$/);
+});
+
+for (const width of [320, 360, 390, 430, 620, 768]) {
+  test("mobile " + width + " exibe Criar conta e Acessar conta fora do menu", async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await isolatePublicPage(page, () => {});
+    await page.goto("/");
+
+    const header = page.locator(".jl-header");
+    const actions = header.locator(".jl-header-actions");
+    const signup = actions.getByRole("link", { name: "Criar conta" });
+    const login = actions.getByRole("button", { name: "Acessar conta" });
+    await expect(signup).toBeVisible();
+    await expect(signup).toHaveAttribute("href", "/cadastro");
+    await expect(login).toBeVisible();
+
+    const toggle = header.getByRole("button", { name: "Abrir menu" });
+    await expect(toggle).toBeVisible();
+    await toggle.click();
+
+    const menu = header.getByRole("navigation", { name: "Navegação para celular" });
+    await expect(menu).toBeVisible();
+    await expect(menu.getByRole("link", { name: "Criar conta" })).toHaveCount(0);
+    await expect(menu.getByRole("button", { name: "Acessar conta" })).toHaveCount(0);
+    await expect(menu.getByRole("link", { name: "Funcionalidades" })).toBeVisible();
+    await expect(signup).toBeVisible();
+    await expect(login).toBeVisible();
+
+    const horizontalOverflow = await page.evaluate(() =>
+      document.documentElement.scrollWidth > window.innerWidth + 1);
+    expect(horizontalOverflow, "Barra mobile nao deve estourar em " + width).toBe(false);
+  });
+}

@@ -1,4 +1,4 @@
-import { getValidSession, refreshSession, signOut } from "./auth.ts";
+import { getValidSession, hasPreviouslySignedInOnThisBrowser, refreshSession, signOut } from "./auth.ts";
 const key = "januarioleads:auth-session";
 const id = "11111111-1111-1111-1111-111111111111";
 async function browserTest(run: (storage: Map<string, string>) => Promise<void>) {
@@ -130,6 +130,61 @@ Deno.test("valid legacy localStorage session remains readable", () =>
     const session = await getValidSession();
     if (session?.accessToken !== raw.accessToken || called !== 2) {
       throw new Error("Existing valid session was not preserved");
+    }
+  }),
+);
+
+
+Deno.test("a conta continua reconhecida como visitante recorrente depois de sair, sem manter acesso", () =>
+  browserTest(async (storage) => {
+    const session = JSON.parse(storage.get(key)!) as { expiresAt: number };
+    session.expiresAt = Date.now() + 3_600_000;
+    storage.set(key, JSON.stringify(session));
+    if (hasPreviouslySignedInOnThisBrowser()) {
+      throw new Error("Um visitante novo nao deve ter marcador de retorno");
+    }
+
+    globalThis.fetch = ((url: string) => {
+      if (url.includes("/auth/v1/user")) {
+        return Promise.resolve(Response.json({ id, email: "returning@example.invalid" }));
+      }
+      if (url.includes("/rest/v1/private_access")) {
+        return Promise.resolve(Response.json([{ user_id: id }]));
+      }
+      if (url.includes("/auth/v1/logout")) {
+        return Promise.resolve(Response.json({}));
+      }
+      throw new Error("Rota inesperada " + url);
+    }) as typeof fetch;
+
+    if (!(await getValidSession())) throw new Error("Sessao valida nao reconhecida");
+    if (!hasPreviouslySignedInOnThisBrowser()) {
+      throw new Error("Login validado deve marcar navegador como recorrente");
+    }
+    if (storage.get("januarioleads:previously-signed-in:v1") !== "1") {
+      throw new Error("Marcador persistente nao foi salvo");
+    }
+
+    await signOut();
+    if (storage.has(key) || (await getValidSession()) !== null) {
+      throw new Error("Sair precisa encerrar a autenticacao");
+    }
+    if (!hasPreviouslySignedInOnThisBrowser()) {
+      throw new Error("Sair nao pode mostrar cadastro a quem ja usou a conta");
+    }
+  }),
+);
+
+Deno.test("workspace de versao anterior indica visitante recorrente sem autenticar", () =>
+  browserTest(async (storage) => {
+    storage.delete(key);
+    if (hasPreviouslySignedInOnThisBrowser()) throw new Error("Visitante nao identificado");
+    storage.set("januarioleads:workspace:v2:" + id + ":leads", "[]");
+    if (!hasPreviouslySignedInOnThisBrowser()) {
+      throw new Error("Workspace antigo nao foi reconhecido");
+    }
+    if ((await getValidSession()) !== null) {
+      throw new Error("Workspace antigo nao pode virar autorizacao");
     }
   }),
 );

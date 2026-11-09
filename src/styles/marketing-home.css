@@ -408,7 +408,12 @@
   .jl-footer-inner nav { gap: 14px 23px; }
 }
 @media (max-width: 370px) {
-  .jl-header-actions .jl-button-small { display: none; }
+  /* Em telas estreitas, ambos os botões continuam acessíveis na barra. */
+  .jl-header-inner { gap: 6px; }
+  .jl-header-actions { gap: 4px; flex-shrink: 0; }
+  .jl-header-actions .jl-button-small { display: inline-flex; min-height: 32px; padding: 6px 5px; font-size: 9px; }
+  .jl-header .jl-brand-mark { display: none; }
+  .jl-header .jl-brand-name { font-size: 12px; }
   .jl-mock-status { display: none; }
   .jl-mock-stat:nth-child(3) { display: none; }
   .jl-mock-stat-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
@@ -443,23 +448,67 @@ html:has(.jl-site) { scroll-behavior: smooth; }
   .jl-nav a { font-size: 11px; }
 }
 @media (max-width: 620px) {
-  .jl-header-actions .jl-header-signup { display: none; }
+  /* Criar conta e Acessar conta ficam na barra, nunca escondidos no menu. */
+  .jl-header-actions .jl-header-signup { display: inline-flex; }
+  .jl-header-actions { gap: 6px; }
+  .jl-header-actions .jl-button-small { padding: 8px 7px; font-size: 10px; }
+}
+@media (max-width: 430px) {
+  .jl-header .jl-brand-name { font-size: 12px; }
+  .jl-header .jl-brand-mark { width: 27px; height: 27px; }
+  .jl-header .jl-brand { gap: 6px; }
+  .jl-header-inner { gap: 6px; }
+  .jl-header-actions { gap: 5px; }
+  .jl-header-actions .jl-button-small { padding: 7px 6px; font-size: 9px; }
 }
 
-/* Matching button targets in the mobile menu and footer. */
-.jl-mobile-menu .jl-mobile-account-login {
-  display: block;
-  text-align: left;
-  width: 100%;
-  padding: 12px 8px;
-  font: 700 12px Inter, system-ui, sans-serif;
-  color: #fb8298;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  cursor: pointer;
+/* O hambúrguer contém apenas navegação; cadastro e login ficam na barra. */
+.jl-mobile-menu-toggle { display: none; }
+@media (max-width: 850px) {
+  .jl-mobile-menu-toggle {
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 35px;
+    width: 35px;
+    height: 35px;
+    padding: 0;
+    border: 1px solid rgba(215,221,234,.25);
+    border-radius: 9px;
+    background: rgba(255,255,255,.04);
+    color: #f8fafc;
+    cursor: pointer;
+  }
+  .jl-mobile-menu-toggle:hover { background: rgba(255,255,255,.1); }
+  .jl-mobile-menu-toggle:disabled { cursor: default; opacity: .6; }
+  .jl-mobile-menu {
+    border-top: 1px solid rgba(255,255,255,.08);
+    background: #10141b;
+  }
+  .jl-mobile-menu-inner {
+    width: min(1180px, calc(100% - 34px));
+    margin-inline: auto;
+    padding: 9px 0 15px;
+    display: grid;
+    gap: 2px;
+  }
+  .jl-mobile-menu-inner a {
+    display: block;
+    padding: 11px 8px;
+    border-radius: 8px;
+    color: #e6eaf0;
+    font-size: 12px;
+    font-weight: 650;
+  }
+  .jl-mobile-menu-inner a:hover { background: #242b38; }
 }
-.jl-mobile-menu .jl-mobile-account-login:hover { background: #242b38; }
+@media (max-width: 370px) {
+  .jl-mobile-menu-toggle {
+    flex-basis: 31px;
+    width: 31px;
+    height: 32px;
+  }
+}
+/* Footer continues to offer the account shortcut. */
 .jl-footer-inner nav .jl-footer-account-login {
   display: inline;
   padding: 0;
