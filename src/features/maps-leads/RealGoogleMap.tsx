@@ -201,8 +201,9 @@ function RealGoogleMapCanvas({
         const advancedReady = typeof google.maps.marker?.AdvancedMarkerElement === "function";
         // A Cloud map ID is required for AdvancedMarkerElement. Without one,
         // retain inline CodeMakers-inspired dark JSON styling with legacy SVG pins.
-        const useAdvanced = advancedReady && (Boolean(MAP_ID) ||
-          typeof google.maps.Marker !== "function");
+        // Advanced markers require a map ID. Never select the default
+        // DEMO_MAP_ID implicitly: that would discard our custom dark styling.
+        const useAdvanced = advancedReady && Boolean(MAP_ID);
         const mapOptions: Record<string, unknown> = {
           center: BRAZIL_OVERVIEW,
           zoom: 4,
@@ -214,7 +215,7 @@ function RealGoogleMapCanvas({
           backgroundColor: "#10131a",
           // Map ID and inline JSON styles cannot be used simultaneously.
           ...(useAdvanced ? {
-            mapId: MAP_ID || "DEMO_MAP_ID",
+            mapId: MAP_ID,
             colorScheme: "DARK",
           } : {
             styles: DARK_STYLE,
@@ -260,8 +261,7 @@ function RealGoogleMapCanvas({
         bounds.extend(position);
         const AdvancedMarkerElement = google.maps.marker?.AdvancedMarkerElement;
         const LegacyMarker = google.maps.Marker;
-        if (typeof AdvancedMarkerElement === "function" &&
-            (MAP_ID || typeof LegacyMarker !== "function")) {
+        if (typeof AdvancedMarkerElement === "function" && Boolean(MAP_ID)) {
           const pin = advancedPin(point.listIndex - 1, point.id === selectedId);
           const marker = new AdvancedMarkerElement({
             map: instance, position, title: point.name,
@@ -279,7 +279,7 @@ function RealGoogleMapCanvas({
           marker.addListener("click", () => onSelect(point.id));
           records.current.push({ id: point.id, index: point.listIndex - 1, legacy: marker });
         } else {
-          setMarkerWarning("O mapa está disponível, mas a biblioteca de marcadores não carregou. Selecione uma empresa na lista.");
+          setMarkerWarning("Mapa real disponível, mas a biblioteca de marcadores não carregou. Selecione uma empresa na lista.");
           break;
         }
       }
