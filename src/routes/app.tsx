@@ -1718,7 +1718,7 @@ function LeadFlowApp() {
         ...(!canUse("followup_center") ? ["opportunities" as const] : []),
         ...(!SAAS_STAGING_ACTIVE || !canUse("maps_search") ? ["maps" as const] : []),
       ]}
-      planLabel={SAAS_STAGING_ACTIVE ? (saasRights?.plan ?? "Verificando") : undefined}
+      planLabel={SAAS_STAGING_ACTIVE ? (saasRights?.test_mode ? "Modo testes" : saasRights?.plan ?? "Verificando") : undefined}
       activeView={view}
       theme={theme}
       onNavigate={navigateTo}
@@ -1733,9 +1733,10 @@ function LeadFlowApp() {
       }}
     >
       {SAAS_STAGING_ACTIVE && <div className="saas-plan-status" role="status">
-        <strong>{saasRightsLoading ? "Consultando plano..." : "Plano " + (saasRights?.plan ?? "indisponível").toUpperCase()}</strong>
-        {saasRights && <span>{saasRights.used_today} de {saasRights.daily_limit} créditos utilizados hoje
-          · {saasRights.remaining_today} restantes · renova à meia-noite (Brasília)</span>}
+        <strong>{saasRightsLoading ? "Consultando plano..." : saasRights?.test_mode ? "MODO TESTES — sem cobrança de créditos" : "Plano " + (saasRights?.plan ?? "indisponível").toUpperCase()}</strong>
+        {saasRights && <span>{saasRights.test_mode
+          ? "Regras de planos e contagem diária pausadas para esta conta. Limites de segurança e custo das APIs continuam ativos."
+          : `${saasRights.used_today} de ${saasRights.daily_limit} créditos utilizados hoje · ${saasRights.remaining_today} restantes · renova à meia-noite (Brasília)`}</span>}
         {saasRights && <label className="saas-plan-switch">
           Simular plano
           <select
