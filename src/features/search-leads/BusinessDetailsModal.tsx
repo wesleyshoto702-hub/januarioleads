@@ -33,6 +33,8 @@ import type {
 } from "../leads/remote-leads";
 import { STATUS_LABEL } from "../leads/lead-status";
 import { normalizeBrazilianPhone } from "./identity";
+import { SAAS_STAGING_ACTIVE } from "./saas-usage";
+import { googleCrmNeedsOwnName, googlePlaceIdAndOwnName } from "./google-crm-save";
 import type { BusinessSearchResult } from "./types";
 
 export type BusinessDetailsMessageTarget = {
@@ -140,6 +142,8 @@ export function BusinessDetailsModal({
   const [activeTab, setActiveTab] = useState<"info" | "history">("info");
   const [addingLead, setAddingLead] = useState(false);
   const [commercialError, setCommercialError] = useState("");
+  const [googleCrmName, setGoogleCrmName] = useState("");
+  const requiresOwnName = SAAS_STAGING_ACTIVE && googleCrmNeedsOwnName(business);
 
   const factualDescription =
     business.factualDescription ?? buildFactualBusinessDescription(business);
@@ -261,11 +265,17 @@ export function BusinessDetailsModal({
 
   async function addToLeads() {
     if (!onAdd || addingLead || alreadyAdded) return;
+    const candidate = requiresOwnName
+      ? googlePlaceIdAndOwnName(business,googleCrmName) : business;
+    if(!candidate) {
+      setCommercialError("Informe um nome próprio (3 a 120 caracteres) para identificar este lead no CRM.");
+      return;
+    }
 
     setAddingLead(true);
     setCommercialError("");
     try {
-      const result = await onAdd(business);
+      const result = await onAdd(candidate);
       if (result && !result.ok) {
         setCommercialError(result.message);
       }
@@ -287,6 +297,7 @@ export function BusinessDetailsModal({
     setManualInstagramOpen(false);
     setAddingLead(false);
     setCommercialError("");
+    setGoogleCrmName("");
   }, [business.placeId]);
 
   useEffect(() => {
@@ -754,11 +765,20 @@ export function BusinessDetailsModal({
                 )}
               </>
             )}
+            {!commercialLead && onAdd && !alreadyAdded && requiresOwnName && (
+              <label className="business-google-crm-name">
+                Nome que você quer usar no CRM
+                <input type="text" maxLength={120} value={googleCrmName}
+                  onChange={(event) => setGoogleCrmName(event.target.value)}
+                  placeholder="Digite o nome por conta própria" autoComplete="off" />
+                <small>Somente seu nome e o Place ID serão guardados no CRM.</small>
+              </label>
+            )}
             {!commercialLead && (onAdd || alreadyAdded) && (
               <button
                 type="button"
                 className={alreadyAdded ? "secondary-button added-button" : "primary-button"}
-                disabled={alreadyAdded || addingLead}
+                disabled={alreadyAdded || addingLead || (requiresOwnName && googleCrmName.trim().length < 3)}
                 onClick={() => void addToLeads()}
               >
                 {alreadyAdded
