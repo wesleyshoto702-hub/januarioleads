@@ -66,6 +66,7 @@ export type SaasSearchQuota = {
   max_results: number;
   allowed: boolean;
   reset_at: string | null;
+  test_mode?: boolean;
 };
 
 export type BusinessSearchSuccess = {
