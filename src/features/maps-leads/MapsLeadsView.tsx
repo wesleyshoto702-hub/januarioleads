@@ -282,29 +282,39 @@ export function MapsLeadsView({
     }
   }
 
-  async function saveLead() {
+  async function saveLead(geoTargetId?: string) {
     if (!applied || saving) return;
     const isGeo=appliedProvider==="geoapify";
-    const selectedPlaceId=isGeo?selectedGeo?.sourceId:selected?.placeId;
-    if (!selectedPlaceId || (isGeo ? geoSaved : saved)) return;
+    // The sidebar can save an OSM lead directly without first waiting for a
+    // React selection state update. Google leads still require a typed name.
+    const targetGeo=isGeo
+      ? geoTargetId
+        ? geoResults.find((place)=>place.sourceId===geoTargetId) ?? null
+        : selectedGeo
+      : null;
+    const selectedPlaceId=isGeo?targetGeo?.sourceId:selected?.placeId;
+    const alreadySaved=isGeo
+      ? Boolean(selectedPlaceId && (savedIds.includes(selectedPlaceId) || crmGeoIds.has(selectedPlaceId)))
+      : saved;
+    if (!selectedPlaceId || alreadySaved) return;
     let candidate: BusinessSearchResult;
     if (isGeo) {
-      if (!selectedGeo) return;
+      if (!targetGeo) return;
       // Geoapify/OSM data is independently licensed for storage with attribution.
       candidate = {
-        placeId:selectedGeo.sourceId,
-        equivalentPlaceId:selectedGeo.equivalentPlaceId??null,
-        name:selectedGeo.name,
-        primaryCategory:selectedGeo.category,
+        placeId:targetGeo.sourceId,
+        equivalentPlaceId:targetGeo.equivalentPlaceId??null,
+        name:targetGeo.name,
+        primaryCategory:targetGeo.category,
         categories:[],description:null,
-        address:selectedGeo.address,
+        address:targetGeo.address,
         neighborhood:null,
-        city:selectedGeo.city,state:selectedGeo.state,
+        city:targetGeo.city,state:targetGeo.state,
         phone:null,internationalPhone:null,
         rating:null,reviewCount:null,isOpenNow:null,
         openingHours:[],currentOpeningHours:null,regularOpeningHours:null,
         website:null,instagram:null,googleMapsUrl:null,businessStatus:null,
-        latitude:selectedGeo.latitude,longitude:selectedGeo.longitude,
+        latitude:targetGeo.latitude,longitude:targetGeo.longitude,
       };
     } else {
       if (!selected) return;
@@ -346,6 +356,15 @@ export function MapsLeadsView({
     } finally {
       setSaving(false);
     }
+  }
+
+  function beginAddGoogle(placeId: string) {
+    choose(placeId);
+    // The Google Places contract does not allow copying the provider's name
+    // straight into the CRM. Guide the user to the manual-name field instead.
+    window.requestAnimationFrame(() => {
+      document.getElementById("bms-google-crm-name")?.focus();
+    });
   }
 
   const mapsLink = safeExternalHref(selected?.googleMapsUrl);
@@ -574,7 +593,7 @@ export function MapsLeadsView({
             : appliedProvider === "geoapify"
               ? <ol className="bms-results-list" ref={resultList}>
                   {geoResults.map((business, i) => (
-                    <li key={business.sourceId}>
+                    <li key={business.sourceId} className="bms-result-row">
                       <button type="button"
                         className={selectedGeoId === business.sourceId ? "bms-result selected" : "bms-result"}
                         data-marker-id={business.sourceId}
@@ -583,17 +602,28 @@ export function MapsLeadsView({
                         <span className="bms-result-text">
                           <strong>{business.name}</strong>
                           <small>{business.address || `${business.city} · ${business.state}`}</small>
-                          {crmGeoIds.has(business.sourceId) &&
+                          {(crmGeoIds.has(business.sourceId) || savedIds.includes(business.sourceId)) &&
                             <span className="bms-saved-inline">Lead já adicionado</span>}
                           <em>Geoapify · sem dados de contato</em>
                         </span>
+                      </button>
+                      <button type="button" className="bms-result-add"
+                        aria-label={"Adicionar lead: " + business.name}
+                        disabled={saving || crmGeoIds.has(business.sourceId) || savedIds.includes(business.sourceId)}
+                        onClick={() => {
+                          choose(business.sourceId);
+                          void saveLead(business.sourceId);
+                        }}>
+                        {crmGeoIds.has(business.sourceId) || savedIds.includes(business.sourceId)
+                          ? <><CheckCircle2 size={14}/> Lead já adicionado</>
+                          : <><BookmarkPlus size={14}/> Adicionar lead</>}
                       </button>
                     </li>
                   ))}
                 </ol>
               : <ol className="bms-results-list" ref={resultList}>
                   {results.map((business, i) => (
-                    <li key={business.placeId}>
+                    <li key={business.placeId} className="bms-result-row">
                       <button type="button"
                         className={selectedId === business.placeId ? "bms-result selected" : "bms-result"}
                         data-marker-id={business.placeId}
@@ -609,18 +639,17 @@ export function MapsLeadsView({
                             : "Website não consultado"}</em>
                         </span>
                       </button>
+                      <button type="button" className="bms-result-add"
+                        aria-label={"Adicionar lead: " + business.name}
+                        disabled={saving || crmGoogleIds.has(business.placeId) || savedIds.includes(business.placeId)}
+                        onClick={() => beginAddGoogle(business.placeId)}>
+                        {crmGoogleIds.has(business.placeId) || savedIds.includes(business.placeId)
+                          ? <><CheckCircle2 size={14}/> Lead já adicionado</>
+                          : <><BookmarkPlus size={14}/> Adicionar lead</>}
+                      </button>
                     </li>
                   ))}
                 </ol>}
-          {SAAS_STAGING_ACTIVE && appliedProvider === "google" && selected &&
-            <div className="bms-staging-google-detail" aria-label={"Detalhes da empresa " + selected.name}>
-              <strong>{selected.name}</strong>
-              <p>{selected.address ?? displayedCity}</p>
-              {mapsLink && <a href={mapsLink} target="_blank" rel="noopener noreferrer">
-                Ver no Google Maps <ArrowUpRight size={13}/>
-              </a>}
-              <small>Dados do Google para consulta; ao adicionar ao CRM, salvamos apenas o Place ID e o nome informado por você.</small>
-            </div>}
           <p className="bms-results-footnote">
             <ShieldCheck size={13}/> {usage?.test_mode
               ? "Modo testes: resultados reais, sem desconto de créditos; limites de custo de provedores ativos."
