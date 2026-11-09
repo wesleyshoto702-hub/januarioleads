@@ -269,7 +269,7 @@ async function chargeMapsPlaces(
     p_user_id:userId,p_place_ids:ids,
     p_verified_aliases:aliases,p_osm_places:osmPlaces,
   }) as CreditClaim|null;
-  if(!quota||quota.plan!=="advanced"||quota.credit_cost!==2||
+  if(!quota||!["pro","advanced"].includes(quota.plan)||quota.credit_cost!==2||
     !Array.isArray(quota.allowed_place_ids)||
     !quota.allowed_place_ids.every((id)=>typeof id==="string")||
     !Number.isInteger(quota.remaining_today)||!Number.isInteger(quota.credits_spent)) {
@@ -352,7 +352,7 @@ async function handle(request: Request): Promise<Response> {
       });
       if (!permission.ok) return fail(request, "REQUEST_FAILED", "Falha ao verificar plano.", 503);
       if (await permission.json() !== true) {
-        return fail(request, "FEATURE_NOT_AVAILABLE", "Buscar via Maps é exclusivo do plano Advanced.", 403);
+        return fail(request, "FEATURE_NOT_AVAILABLE", "Buscar via Maps está disponível nos planos Pro e Advanced.", 403);
       }
     } catch { return fail(request, "REQUEST_FAILED", "Falha ao verificar plano.", 503); }
   }
@@ -369,14 +369,14 @@ async function handle(request: Request): Promise<Response> {
     p_user_id: auth.userId, p_claim: false,
   }) as { plan?: string; allowed?: boolean } | null;
   if (!peek) return fail(request, "REQUEST_FAILED", "Não foi possível verificar o limite de pesquisas.", 503);
-  if (peek.plan !== "advanced") {
+  if (!["pro","advanced"].includes(peek.plan ?? "")) {
     return fail(request, "FEATURE_NOT_AVAILABLE",
-      "Buscar via Maps é exclusivo do plano Advanced.",403);
+      "Buscar via Maps está disponível nos planos Pro e Advanced.",403);
   }
   const balance = await callPrivilegedRpc("peek_daily_leads_for_user", {
     p_user_id:auth.userId,
   }) as {plan?:string;remaining_today?:number} | null;
-  if(!balance || balance.plan!=="advanced" ||
+  if(!balance || !["pro","advanced"].includes(balance.plan ?? "") ||
      !Number.isInteger(balance.remaining_today)) {
     return fail(request,"REQUEST_FAILED","Não foi possível consultar o saldo.",503);
   }
