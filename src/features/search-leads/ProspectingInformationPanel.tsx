@@ -1,7 +1,7 @@
-import { ChevronDown, ChevronRight, Info, Layers, MapPin, MessageCircle } from "lucide-react";
+import { ChevronDown, ChevronRight, Info, Layers, MapPin, MessageCircle, Tag } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { ExistingLeadIdentity } from "./identity";
-import { buildProspectingHierarchy, type ProspectingMetrics, type ProspectingRegion } from "./prospecting-regions";
+import { buildProspectingHierarchy, type ProspectingDetailMode, type ProspectingMetrics, type ProspectingRegion } from "./prospecting-regions";
 
 type TouchState = "loading" | "ready" | "error";
 
@@ -25,8 +25,8 @@ function ProgressTrack({
 }
 
 function RegionRow({
-  item, level, ready,
-}: { item: ProspectingRegion; level: "state" | "city" | "neighborhood"; ready: boolean }) {
+  item, level, ready, detailMode,
+}: { item: ProspectingRegion; level: "state" | "city" | "segment" | "neighborhood"; ready: boolean; detailMode: ProspectingDetailMode }) {
   const [expanded, setExpanded] = useState(false);
   const expandable = item.children.length > 0;
   return (
@@ -40,7 +40,11 @@ function RegionRow({
           {expandable
             ? expanded ? <ChevronDown size={17} aria-hidden="true" /> : <ChevronRight size={17} aria-hidden="true" />
             : <span className="prospecting-info-spacer" />}
-          {level === "state" ? <Layers size={18} aria-hidden="true" /> : <MapPin size={16} aria-hidden="true" />}
+          {level === "state"
+            ? <Layers size={18} aria-hidden="true" />
+            : level === "segment"
+              ? <Tag size={16} aria-hidden="true" />
+              : <MapPin size={16} aria-hidden="true" />}
           <strong>{item.name}</strong>
         </span>
         <ProgressTrack value={item.metrics.touchedPercent} ready={ready}
@@ -53,8 +57,9 @@ function RegionRow({
       {expanded && expandable && (
         <div className="prospecting-info-children">
           {item.children.map((child) => (
-            <RegionRow key={child.key} item={child}
-              level={level === "state" ? "city" : "neighborhood"} ready={ready}/>
+            <RegionRow key={`${detailMode}:${child.key}`} item={child}
+              level={level === "state" ? "city" : detailMode}
+              ready={ready} detailMode={detailMode}/>
           ))}
         </div>
       )}
@@ -79,18 +84,21 @@ function StatusCard({
 }
 
 export function ProspectingInformationPanel({
-  leads, touchedLeadIds, touchState, selectedNiche,
+  leads, touchedLeadIds, touchState, selectedNiche, detailMode,
 }: {
   leads: readonly ExistingLeadIdentity[];
   touchedLeadIds: ReadonlySet<string> | null;
   touchState: TouchState;
   selectedNiche: string;
+  detailMode: ProspectingDetailMode;
 }) {
   // This component now belongs to its own workspace page. The page owns
   // the niche selector; the panel always reflects the selected CRM slice.
   const hierarchy = useMemo(
-    () => buildProspectingHierarchy(leads, touchedLeadIds ?? new Set<string>(), selectedNiche || undefined),
-    [leads, touchedLeadIds, selectedNiche],
+    () => buildProspectingHierarchy(
+      leads, touchedLeadIds ?? new Set<string>(), selectedNiche || undefined, detailMode,
+    ),
+    [leads, touchedLeadIds, selectedNiche, detailMode],
   );
   const m: ProspectingMetrics = hierarchy.metrics;
   const ready = touchState === "ready";
@@ -102,7 +110,7 @@ export function ProspectingInformationPanel({
           <Layers size={27} aria-hidden="true"/>
           <div>
             <h2>Informações de Prospecção</h2>
-            <p>Acompanhe onde você já prospectou no Brasil, por estado, cidade e bairro.</p>
+            <p>Acompanhe seus contatos por estado e cidade. Detalhamento atual: {detailMode === "segment" ? "nichos" : "bairros"}.</p>
           </div>
         </div>
       </div>
@@ -125,7 +133,7 @@ export function ProspectingInformationPanel({
 
       <div className="prospecting-info-regions">
         {hierarchy.states.length ? hierarchy.states.map((state) => (
-          <RegionRow key={state.key} item={state} level="state" ready={ready}/>
+          <RegionRow key={state.key} item={state} level="state" ready={ready} detailMode={detailMode}/>
         )) : (
           <p className="prospecting-info-empty">
             {selectedNiche ? "Nenhum lead cadastrado neste nicho." : "Cadastre leads para começar a acompanhar suas regiões."}
