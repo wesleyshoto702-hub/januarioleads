@@ -86,11 +86,11 @@ export function ProspectingInformationPanel({
   touchState: TouchState;
   selectedNiche: string;
 }) {
-  const [scope, setScope] = useState<"all" | "niche">("all");
-  const niche = scope === "niche" && selectedNiche ? selectedNiche : undefined;
+  // This component now belongs to its own workspace page. The page owns
+  // the niche selector; the panel always reflects the selected CRM slice.
   const hierarchy = useMemo(
-    () => buildProspectingHierarchy(leads, touchedLeadIds ?? new Set<string>(), niche),
-    [leads, touchedLeadIds, niche],
+    () => buildProspectingHierarchy(leads, touchedLeadIds ?? new Set<string>(), selectedNiche || undefined),
+    [leads, touchedLeadIds, selectedNiche],
   );
   const m: ProspectingMetrics = hierarchy.metrics;
   const ready = touchState === "ready";
@@ -105,16 +105,6 @@ export function ProspectingInformationPanel({
             <p>Acompanhe onde você já prospectou no Brasil, por estado, cidade e bairro.</p>
           </div>
         </div>
-        {selectedNiche && (
-          <div className="prospecting-info-scope" role="group" aria-label="Filtrar informações por nicho">
-            <button type="button" aria-pressed={scope === "all"}
-              className={scope === "all" ? "active" : ""}
-              onClick={() => setScope("all")}>Todos os nichos</button>
-            <button type="button" aria-pressed={scope === "niche"}
-              className={scope === "niche" ? "active" : ""}
-              onClick={() => setScope("niche")}>{selectedNiche}</button>
-          </div>
-        )}
       </div>
 
       <div className="prospecting-info-overview" aria-label="Indicadores gerais do CRM">

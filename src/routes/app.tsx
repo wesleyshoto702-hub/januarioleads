@@ -109,6 +109,11 @@ const SearchLeadsView = lazy(() =>
     default: module.SearchLeadsView,
   })),
 );
+const ProspectingInformationView = lazy(() =>
+  import("../features/search-leads/ProspectingInformationView").then((module) => ({
+    default: module.ProspectingInformationView,
+  })),
+);
 const OpportunityView = lazy(() =>
   import("../features/opportunities/OpportunityView").then((module) => ({
     default: module.OpportunityView,
@@ -1977,11 +1982,15 @@ function LeadFlowApp() {
           existingLeads={leads}
           mode={searchMode}
           onModeChange={setSearchMode}
-          touchedLeadIds={touchedLeadIds}
-          touchState={touchState}
           onAddLead={addFoundLeadConfirmed}
           onPresenceDiscovered={applyPresenceToLead}
           onMessage={openMessageComposer}
+        />
+      ) : view === "prospecting" ? (
+        <ProspectingInformationView
+          leads={leads}
+          touchedLeadIds={touchedLeadIds}
+          touchState={touchState}
         />
       ) : view === "opportunities" ? (
         <OpportunityView
