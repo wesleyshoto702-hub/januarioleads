@@ -287,6 +287,7 @@ function LeadFlowApp() {
   const [messageActionPending, setMessageActionPending] = useState(false);
   const [messageActionError, setMessageActionError] = useState("");
   const [pendingWhatsAppHandoff, setPendingWhatsAppHandoff] = useState<WhatsAppHandoff | null>(null);
+  const [confirmedSendRevision, setConfirmedSendRevision] = useState(0);
   const [deleteLead, setDeleteLead] = useState<Lead | null>(null);
   const [enrichmentLead, setEnrichmentLead] = useState<Lead | null>(null);
   const [leadDetailsId, setLeadDetailsId] = useState<string | null>(null);
@@ -1176,15 +1177,28 @@ function LeadFlowApp() {
     setLeads((current) => current.map((lead) => (lead.id === nextLead.id ? nextLead : lead)));
     setRemoteError("");
 
-    recordActivity(nextLead.id, {
-      type: "whatsapp_opened",
-      title: "Envio pelo WhatsApp confirmado",
-      description: "O usuário confirmou manualmente o envio da mensagem.",
-      metadata: {
-        messageTemplate: pendingWhatsAppHandoff.templateTitle,
-        confirmation: "user",
-      },
-    });
+    // This specific event is the authoritative source for prospecting
+    // progress. Refresh its read-only summary only after Supabase confirms
+    // that the user-confirmed send was persisted.
+    try {
+      const confirmedEvent = await createLeadActivity({
+        leadId: nextLead.id,
+        type: "whatsapp_opened",
+        title: "Envio pelo WhatsApp confirmado",
+        description: "O usuário confirmou manualmente o envio da mensagem.",
+        metadata: {
+          messageTemplate: pendingWhatsAppHandoff.templateTitle,
+          confirmation: "user",
+        },
+      });
+      if (confirmedEvent) setConfirmedSendRevision((value) => value + 1);
+      else throw new Error("CONFIRMATION_EVENT_NOT_SAVED");
+    } catch {
+      setActivityError(
+        "O contato foi atualizado, mas o histórico de confirmação não pôde ser registrado. A porcentagem não será alterada."
+      );
+      window.setTimeout(() => setActivityError(""), 7000);
+    }
 
     if (isFollowUp) {
       recordActivity(nextLead.id, {
@@ -1936,6 +1950,7 @@ function LeadFlowApp() {
           existingLeads={leads}
           mode={searchMode}
           onModeChange={setSearchMode}
+          confirmationRevision={confirmedSendRevision}
           onAddLead={addFoundLeadConfirmed}
           onPresenceDiscovered={applyPresenceToLead}
           onMessage={(target) => {
