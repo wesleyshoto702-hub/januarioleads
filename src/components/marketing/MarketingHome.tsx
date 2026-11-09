@@ -97,7 +97,8 @@ const pricingPlans = [
     summary: "Mais contatos e organização para quem prospecta todos os dias.",
     price: "R$ 19,90",
     highlights: [
-      "25 créditos diários · 1 por lead",
+      "25 créditos diários · 1 por lead tradicional",
+      "Buscar via Maps: 2 créditos por lead",
       "CRM completo com Kanban",
       "Modelos de mensagens personalizados",
       "Central de acompanhamento",
