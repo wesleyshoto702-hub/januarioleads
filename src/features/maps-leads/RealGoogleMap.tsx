@@ -104,13 +104,18 @@ const DARK_STYLE: Record<string, unknown>[] = [
 /** A numbered, SVG teardrop. The input is solely a local array index. */
 function svgPin(index: number, active: boolean): Record<string, unknown> {
   const n = String(index + 1).padStart(2, "0");
-  const fill = active ? "#f5295a" : "#d81b4a";
-  const stroke = active ? "#fff1f4" : "#e8a3b7";
+  // Legacy Google markers are SVG data URIs, so CSS alone cannot recolor them.
+  // Read only the validated palette's computed CSS variables at render time.
+  const css = getComputedStyle(document.documentElement);
+  const accent = css.getPropertyValue(active ? "--primary-hover" : "--primary").trim();
+  const ink = css.getPropertyValue("--primary-contrast").trim();
+  const fill = /^#[\da-f]{6}$/i.test(accent) ? accent : "#f12d46";
+  const stroke = /^#[\da-f]{6}$/i.test(ink) ? ink : "#ffffff";
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="42" height="54" viewBox="0 0 42 54">
     <path d="M21 2C10 2 3 10 3 21c0 13 18 30 18 30s18-17 18-30C39 10 32 2 21 2Z"
       fill="${fill}" stroke="${stroke}" stroke-width="${active ? 3 : 2}"/>
     <text x="21" y="26" text-anchor="middle" font-family="Arial,sans-serif"
-      font-size="12" font-weight="800" fill="#fff">${n}</text>
+      font-size="12" font-weight="800" fill="${stroke}">${n}</text>
   </svg>`;
   return { url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg) };
 }
