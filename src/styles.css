@@ -6846,6 +6846,12 @@ a{
   --primary-soft:rgba(96,165,250,.10);--primary-soft-strong:rgba(96,165,250,.18);
   --primary-contrast:#071327;
 }
+:root.dark[data-jl-accent="black"]{
+  --primary:#c9ced6;--primary-hover:#e4e7ec;
+  --primary-action:#2a2e35;--primary-action-hover:#363b44;
+  --primary-soft:rgba(201,206,214,.08);--primary-soft-strong:rgba(201,206,214,.15);
+  --primary-contrast:#f2f3f6;
+}
 :root.dark[data-jl-accent="white"]{
   --primary:#f2f3f6;--primary-hover:#ffffff;
   --primary-action:#e6e7eb;--primary-action-hover:#ffffff;
