@@ -268,8 +268,6 @@ function LeadFlowApp() {
     setLeads,
     messages,
     setMessages,
-    theme,
-    setTheme,
     hydrated,
     remoteReady,
     remoteError,
@@ -286,6 +284,12 @@ function LeadFlowApp() {
   const [userSettings,setUserSettings]=useState<UserSettings>({...DEFAULT_USER_SETTINGS});
   const [settingsLoading,setSettingsLoading]=useState(true);
   const [settingsLoadError,setSettingsLoadError]=useState("");
+  useEffect(() => {
+    // One shared color-scheme token across all Workspace pages, including maps.
+    document.documentElement.classList.add("dark");
+    document.documentElement.setAttribute("data-jl-accent",userSettings.accentColor);
+    return () => {document.documentElement.removeAttribute("data-jl-accent");};
+  },[userSettings.accentColor]);
   useEffect(()=>{
     let active=true;
     void loadUserSettings().then(value=>{
@@ -1732,9 +1736,7 @@ function LeadFlowApp() {
   return (
     <AppShell
       activeView={view}
-      theme={theme}
       onNavigate={navigateTo}
-      onToggleTheme={() => setTheme((current) => (current === "light" ? "dark" : "light"))}
       onLogout={logoutWorkspace}
       compactMode={userSettings.compactMode}
       reduceMotion={userSettings.reduceMotion}
@@ -2074,12 +2076,10 @@ function LeadFlowApp() {
       ) : view === "settings" ? (
         <SettingsView
           settings={userSettings}
-          theme={theme}
           loading={settingsLoading}
           loadError={settingsLoadError}
           onRetry={retryUserSettings}
           onSave={commitUserSettings}
-          onThemeChange={setTheme}
           onNavigate={navigateTo}
           onLogout={logoutWorkspace}
           leads={leads}

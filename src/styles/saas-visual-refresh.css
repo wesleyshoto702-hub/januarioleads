@@ -21,8 +21,8 @@
 .dark {
   --saas-elevated-shadow: 0 12px 32px rgba(0,0,0,.22);
   --saas-hero-bg:
-    radial-gradient(ellipse at 85% 8%, rgba(218,30,58,.22), transparent 56%),
-    radial-gradient(ellipse at 4% 110%, rgba(127,19,42,.12), transparent 55%),
+    radial-gradient(ellipse at 85% 8%, color-mix(in srgb, var(--primary) 22%, transparent), transparent 56%),
+    radial-gradient(ellipse at 4% 110%, color-mix(in srgb, var(--primary) 12%, transparent), transparent 55%),
     linear-gradient(120deg, #16151b 0%, #121217 72%, #151318 100%);
   --saas-card-bg: linear-gradient(145deg, #17171d 0%, #121216 100%);
   --saas-sidebar-bg: linear-gradient(165deg, #131217 0%, #0c0c0f 73%);
@@ -63,8 +63,9 @@
   width: 35px;
   height: 35px;
   border-radius: 10px;
-  background: linear-gradient(140deg, #f22d48, #ae1125);
-  box-shadow: 0 5px 14px rgba(215,25,45,.27);
+  background: linear-gradient(140deg, var(--primary), color-mix(in srgb, var(--primary) 65%, black));
+  color: var(--primary-contrast);
+  box-shadow: 0 5px 14px color-mix(in srgb, var(--primary) 27%, transparent);
 }
 
 .saas-brand-word {

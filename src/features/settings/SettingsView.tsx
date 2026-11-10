@@ -1,18 +1,17 @@
 import {
-  Bell, CheckCircle2, ChevronRight, Database, ExternalLink,
-  Layers, LogOut, MapPinned, Palette, RefreshCw, Settings2, ShieldCheck,
+  Bell, CheckCircle2, ChevronRight, Database,
+  LogOut, Palette, RefreshCw, Settings2, ShieldCheck,
   SlidersHorizontal, Smartphone, UserRound, Users, type LucideIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { getValidSession, signOutOtherSessions } from "../../lib/auth";
 import { USE_HTTPONLY_SESSION } from "../../lib/supabase-config";
-import { accountLocalStorage, isLegacyWorkspaceOwner } from "../../lib/account-storage";
-import { ENV_GOOGLE_MAPS_BROWSER_KEY } from "../maps-leads/RealGoogleMap";
+import { isLegacyWorkspaceOwner } from "../../lib/account-storage";
 import type { PersistedLead } from "../leads/remote-leads";
-import type { UserSettings, SettingsHomeView } from "./user-settings";
+import type { AccentColor, UserSettings, SettingsHomeView } from "./user-settings";
 
 type SectionId = "account" | "security" | "preferences" | "notifications"
-  | "appearance" | "privacy" | "integrations" | "admin";
+  | "appearance" | "privacy" | "admin";
 type Tab = { id: SectionId; label: string; icon: LucideIcon; detail: string };
 const TABS: Tab[] = [
   {id:"account",label:"Minha conta",icon:UserRound,detail:"Identidade e perfil"},
@@ -21,7 +20,6 @@ const TABS: Tab[] = [
   {id:"notifications",label:"Notificações",icon:Bell,detail:"Lembretes dentro do aplicativo"},
   {id:"appearance",label:"Aparência",icon:Palette,detail:"Conforto de visualização"},
   {id:"privacy",label:"Privacidade e dados",icon:Database,detail:"Controle das suas informações"},
-  {id:"integrations",label:"Integrações",icon:Layers,detail:"Serviços conectados"},
   {id:"admin",label:"Administração",icon:Users,detail:"Gerenciamento do proprietário"},
 ];
 const HOME_OPTIONS: {id:SettingsHomeView;label:string}[] = [
@@ -32,6 +30,13 @@ const HOME_OPTIONS: {id:SettingsHomeView;label:string}[] = [
   {id:"opportunities",label:"Oportunidades"},
   {id:"messages",label:"Mensagens"},
   {id:"finance",label:"Financeiro"},
+];
+const ACCENT_OPTIONS: Array<{ value:AccentColor;label:string }> = [
+  {value:"green",label:"Verde"},
+  {value:"yellow",label:"Amarelo"},
+  {value:"blue",label:"Azul"},
+  {value:"red",label:"Vermelho"},
+  {value:"white",label:"Branco"},
 ];
 
 function ConfigRow({title,description,children}:{
@@ -57,17 +62,15 @@ function SectionHeading({title,description}:{
 }
 
 export function SettingsView({
-  settings,theme,loading,loadError,onRetry,onSave,onThemeChange,
+  settings,loading,loadError,onRetry,onSave,
   onNavigate,onLogout,leads,
 }:{
   settings:UserSettings;
-  theme:"light"|"dark";
   loading:boolean;
   loadError:string;
   onRetry:()=>Promise<void>;
   onSave:(next:UserSettings)=>Promise<void>;
-  onThemeChange:(value:"light"|"dark")=>void;
-  onNavigate:(view:"leads"|"maps")=>void;
+  onNavigate:(view:"leads")=>void;
   onLogout:()=>Promise<void>;
   leads:PersistedLead[];
 }){
@@ -90,9 +93,6 @@ export function SettingsView({
   },[]);
   const changed=useMemo(()=>JSON.stringify(draft)!==JSON.stringify(settings),[draft,settings]);
   const initials=(draft.displayName.trim()||email.split("@")[0]||"JL").slice(0,2).toUpperCase();
-  let savedMapKey = false;
-  try {savedMapKey=Boolean(accountLocalStorage.getItem("maps-personal-browser-api-key"));} catch { /* blocked browser storage */ }
-  const googleMapKeyAvailable=Boolean(ENV_GOOGLE_MAPS_BROWSER_KEY || savedMapKey);
 
   const change=(patch:Partial<UserSettings>)=>{
     setDraft(current=>({...current,...patch}));
@@ -221,12 +221,22 @@ export function SettingsView({
         </>}
         {section==="appearance"&&<>
           <SectionHeading title="Aparência" description="Ajustes visuais para deixar o Workspace confortável em qualquer tamanho de tela."/>
-          <ConfigRow title="Tema" description="O tema já existente continua acessível no menu lateral.">
-            <div className="js-settings-segmented" aria-label="Tema do aplicativo">
-              <button type="button" className={theme==="dark"?"active":""} onClick={()=>onThemeChange("dark")}>Escuro</button>
-              <button type="button" className={theme==="light"?"active":""} onClick={()=>onThemeChange("light")}>Claro</button>
+          <div className="js-settings-color-section">
+            <h3>Cor de destaque</h3>
+            <p>O tema do Januário Leads permanece escuro. Escolha a cor dos botões, indicadores, ícones e elementos de destaque em todo o Workspace.</p>
+            <div className="js-settings-color-options" role="group" aria-label="Cor de destaque do Workspace">
+              {ACCENT_OPTIONS.map(option=><button type="button" key={option.value}
+                className={"js-settings-color-choice is-"+option.value+(draft.accentColor===option.value?" is-selected":"")}
+                disabled={loading} aria-pressed={draft.accentColor===option.value}
+                aria-label={"Usar cor "+option.label}
+                onClick={()=>change({accentColor:option.value})}>
+                <span className="js-settings-color-swatch" aria-hidden="true"/>
+                <span>{option.label}</span>
+                {draft.accentColor===option.value&&<CheckCircle2 size={15} aria-hidden="true"/>}
+              </button>)}
             </div>
-          </ConfigRow>
+            <small>A cor será aplicada após salvar. Fundos, cartões e textos continuam no modo escuro para manter a leitura.</small>
+          </div>
           <ConfigRow title="Modo compacto" description="Diminui espaçamentos para mostrar mais informações na tela.">
             <Toggle checked={draft.compactMode} label="Ativar modo compacto" onChange={v=>change({compactMode:v})}/>
           </ConfigRow>
@@ -244,35 +254,12 @@ export function SettingsView({
           <div className="js-settings-insight"><strong>{leads.length} leads no Workspace</strong><span>Esta contagem se refere apenas aos registros carregados na sua sessão.</span></div>
           <p className="js-settings-inline-note">A exportação existente exclui dados obtidos por provedores externos quando seu armazenamento ou redistribuição é restrito. A exclusão de conta e dados requer um fluxo de confirmação separado antes de ser disponibilizada.</p>
         </>}
-        {section==="integrations"&&<>
-          <SectionHeading title="Integrações" description="Visão geral dos serviços utilizados. Credenciais privadas não são exibidas ou editadas aqui."/>
-          <div className="js-settings-integration"><Database size={22}/>
-            <div><strong>Supabase</strong><small>Autenticação e sincronização dos dados do CRM</small></div>
-            <span className="js-settings-pill">Em uso</span>
-          </div>
-          <div className="js-settings-integration"><MapPinned size={22}/>
-            <div><strong>Google Maps</strong><small>Mapa geográfico e visualização de empresas</small></div>
-            <span className="js-settings-pill">{googleMapKeyAvailable?"Chave no ambiente":"Sem chave neste navegador"}</span>
-          </div>
-          <div className="js-settings-integration"><Layers size={22}/>
-            <div><strong>Fontes de estabelecimentos</strong><small>Geoapify e Google Places são gerenciados pelo servidor e pelos limites de uso.</small></div>
-            <span className="js-settings-pill">Automático</span>
-          </div>
-          {owner&&<button type="button" className="js-settings-button secondary"
-            onClick={()=>onNavigate("maps")}><MapPinned size={16}/>Abrir Buscar via Maps</button>}
-          <p className="js-settings-inline-note">A presença de uma integração não comprova disponibilidade, saldo ou faturamento; falhas são informadas durante as consultas.</p>
-        </>}
         {section==="admin"&&owner&&<>
           <SectionHeading title="Administração" description="Ferramentas de gestão disponíveis somente para a conta original."/>
           <div className="js-settings-admin-stat"><Users size={21}/><div>
             <strong>{leads.length} leads na sua carteira</strong>
             <small>Seus registros carregados no CRM</small>
           </div></div>
-          <div className="js-settings-admin-links">
-            <a href="https://supabase.com/dashboard/project/czkazbianiflhldenhcj" target="_blank" rel="noopener noreferrer">Gerenciar Supabase <ExternalLink size={15}/></a>
-            <a href="https://github.com/wesleyshoto702-hub/januarioleads" target="_blank" rel="noopener noreferrer">Repositório GitHub <ExternalLink size={15}/></a>
-            <a href="https://lovable.dev/projects/cfc45a7b-7f48-4b0a-82fc-daf876974a6f" target="_blank" rel="noopener noreferrer">Editor Lovable <ExternalLink size={15}/></a>
-          </div>
           <p className="js-settings-inline-note">Controles públicos de usuários, planos, cobrança e cotas devem ser implementados separadamente com autorização no servidor antes do lançamento.</p>
         </>}
         {(["account","preferences","notifications","appearance"] as SectionId[]).includes(section)&&
