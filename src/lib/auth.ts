@@ -268,13 +268,31 @@ export async function signIn(email: string, password: string) {
 
 async function revokeSession(accessToken: string) {
   try {
-    await request("/auth/v1/logout", {
+    await request("/auth/v1/logout?scope=local", {
       method: "POST",
       headers: { Authorization: `Bearer ${accessToken}` },
     });
   } catch {
     // Local logout still proceeds if the network request fails.
   }
+}
+
+/**
+ * Revokes refresh tokens on other devices, without signing out this session.
+ * JWTs on revoked devices may remain usable until they expire.
+ * This is not available under the experimental BFF session mode.
+ */
+export async function signOutOtherSessions(): Promise<void> {
+  if (USE_HTTPONLY_SESSION) {
+    throw new Error("Gerenciamento de outras sessões não está disponível neste modo de autenticação.");
+  }
+  const token = await getAccessToken();
+  if (!token) throw new Error("Sua sessão expirou. Faça login novamente.");
+  const response = await request("/auth/v1/logout?scope=others", {
+    method: "POST",
+    headers: { Authorization: "Bearer " + token },
+  });
+  if (!response.ok) throw new Error("Não foi possível encerrar as outras sessões.");
 }
 
 export async function signOut() {

@@ -25,7 +25,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { FormEvent, Suspense, lazy, useEffect, useMemo, useState } from "react";
+import { FormEvent, Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { buildFactualBusinessDescription } from "../features/business-presence/business-description";
 import { discoverBusinessPresence } from "../features/business-presence/discover-business-presence";
 import { presenceFromBusiness } from "../features/business-presence/storage";
@@ -99,6 +99,8 @@ import { findBusinessDuplicate, normalizeBrazilianPhone } from "../features/sear
 import type { BusinessSearchResult } from "../features/search-leads/types";
 import { getValidSession, signOut, subscribeAuthChange } from "../lib/auth";
 import { accountLocalStorage, isLegacyWorkspaceOwner } from "../lib/account-storage";
+import { DEFAULT_USER_SETTINGS, loadUserSettings, saveUserSettings, type UserSettings } from "../features/settings/user-settings";
+import { SettingsReminders } from "../features/settings/SettingsReminders";
 import { openWhatsAppLink } from "../lib/whatsapp";
 import { BRAZIL_STATES, normalizeBrazilianStateCode } from "../lib/brazil-locations";
 import { normalizeLocationText } from "../lib/location";
@@ -132,6 +134,11 @@ const FinanceView = lazy(() =>
 const MessagesView = lazy(() =>
   import("../features/messages/MessagesView").then((module) => ({
     default: module.MessagesView,
+  })),
+);
+const SettingsView = lazy(() =>
+  import("../features/settings/SettingsView").then((module) => ({
+    default: module.SettingsView,
   })),
 );
 
@@ -275,6 +282,37 @@ function LeadFlowApp() {
     financeError,
   } = useLeadWorkspace();
   const [view, setView] = useState<AppView>("dashboard");
+  const navigationTouched = useRef(false);
+  const [userSettings,setUserSettings]=useState<UserSettings>({...DEFAULT_USER_SETTINGS});
+  const [settingsLoading,setSettingsLoading]=useState(true);
+  const [settingsLoadError,setSettingsLoadError]=useState("");
+  useEffect(()=>{
+    let active=true;
+    void loadUserSettings().then(value=>{
+      if(!active)return;
+      setUserSettings(value);
+      setSettingsLoadError("");
+      if(!navigationTouched.current)setView(value.homeView);
+    }).catch(()=>{
+      if(active)setSettingsLoadError("Não foi possível carregar suas preferências no Supabase.");
+    }).finally(()=>{
+      if(active)setSettingsLoading(false);
+    });
+    return ()=>{active=false;};
+  },[]);
+  async function retryUserSettings(){
+    setSettingsLoading(true);setSettingsLoadError("");
+    try{
+      const value=await loadUserSettings();
+      setUserSettings(value);
+    }catch{
+      setSettingsLoadError("Não foi possível carregar suas preferências no Supabase.");
+    }finally{setSettingsLoading(false);}
+  }
+  async function commitUserSettings(value:UserSettings){
+    const saved=await saveUserSettings(value);
+    setUserSettings(saved);
+  }
   const [leadLayout, setLeadLayout] = useState<"list" | "kanban">("list");
   const [renderLimit, setRenderLimit] = useState(40);
   const [searchMode, setSearchMode] = useState<SearchMode>("all");
@@ -1675,10 +1713,20 @@ function LeadFlowApp() {
 
   function navigateTo(nextView: AppView) {
     if (nextView === "maps" && !isLegacyWorkspaceOwner()) return;
+    navigationTouched.current=true;
     // Abertos Agora is an internal mode of Buscar Leads, not a separate page.
     // Selecting Buscar Leads from the Workspace always opens the default mode.
     if (nextView === "search") setSearchMode("all");
     setView(nextView);
+  }
+
+  async function logoutWorkspace(){
+    try {
+      await signOut();
+      await navigate({ to: "/login", replace: true });
+    } catch {
+      window.alert("Não foi possível encerrar sua sessão. Verifique a conexão e tente novamente.");
+    }
   }
 
   return (
@@ -1687,17 +1735,18 @@ function LeadFlowApp() {
       theme={theme}
       onNavigate={navigateTo}
       onToggleTheme={() => setTheme((current) => (current === "light" ? "dark" : "light"))}
-      onLogout={async () => {
-        try {
-          await signOut();
-          await navigate({ to: "/login", replace: true });
-        } catch {
-          window.alert("Não foi possível encerrar sua sessão. Verifique a conexão e tente novamente.");
-        }
-      }}
+      onLogout={logoutWorkspace}
+      compactMode={userSettings.compactMode}
+      reduceMotion={userSettings.reduceMotion}
     >
       <Suspense fallback={<div className="page-wrap" role="status" aria-live="polite">Carregando seção...</div>}>
       {view === "dashboard" ? (
+        <>
+        {!settingsLoading&&!settingsLoadError&&
+          <SettingsReminders settings={userSettings} leads={leads} onShow={type=>{
+            setActionFilter(type);
+            navigateTo("leads");
+          }}/>}
         <DashboardView
           counts={counts}
           financialOverview={financialOverview}
@@ -1719,6 +1768,7 @@ function LeadFlowApp() {
           onScheduleAction={(id, type, date) => saveNextAction(id, { nextActionType: type, nextActionDate: date, nextActionNotes: undefined })}
           onCompleteAction={completeNextAction}
         />
+        </>
       ) : view === "leads" ? (
         <section className="page-wrap">
           <div className="page-heading">
@@ -2020,6 +2070,19 @@ function LeadFlowApp() {
           loaded={financeLoaded}
           error={financeError}
           onOpenLead={openLeadDetails}
+        />
+      ) : view === "settings" ? (
+        <SettingsView
+          settings={userSettings}
+          theme={theme}
+          loading={settingsLoading}
+          loadError={settingsLoadError}
+          onRetry={retryUserSettings}
+          onSave={commitUserSettings}
+          onThemeChange={setTheme}
+          onNavigate={navigateTo}
+          onLogout={logoutWorkspace}
+          leads={leads}
         />
       ) : (
         <MessagesView messages={messages} onCommit={saveMessages} savedNotice={savedNotice} />
