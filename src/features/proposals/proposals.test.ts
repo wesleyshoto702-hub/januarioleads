@@ -1,6 +1,7 @@
 /// <reference lib="deno.ns" />
 import {
   applyProposalTemplate, duplicateProposal, makeProposal,
+  parseProposalBackup, serializeProposalBackup,
   proposalCode, proposalTotal, validateProposalForSending,
   type ProposalLine,
 } from "./proposals.ts";
@@ -51,4 +52,30 @@ Deno.test("Duplicating creates separate identity, line IDs and a draft version",
     "Duplicate should reset status and identity");
   check(copied.lines[0]?.id!==initial.lines[0]?.id,"Duplicated lines need unique IDs");
   check(copied.leadId===initial.leadId,"CRM lead link should be preserved");
+});
+
+Deno.test("Proposal backups are portable and preserve contents without overwriting IDs",()=>{
+  const p=makeProposal({id:crypto.randomUUID(),company:"Restaurante"},"Prestador");
+  p.lines[0]!.unitPrice=499.9;
+  p.lines[0]!.description="Site responsivo";
+  const json=serializeProposalBackup([p]);
+  const restored=parseProposalBackup(json);
+  check(restored.length===1,"One proposal should round-trip");
+  check(restored[0]?.id===p.id && restored[0]?.clientName==="Restaurante" &&
+    proposalTotal(restored[0]!.lines)===499.9,"Backup should preserve proposal data");
+});
+Deno.test("Proposal backups reject unrelated, duplicate, and malformed data",()=>{
+  const p=makeProposal();
+  const bad=[
+    "{}",
+    "{",
+    JSON.stringify({product:"Other",section:"proposals",version:1,proposals:[p]}),
+    JSON.stringify({product:"JanuarioLeads",section:"proposals",version:1,proposals:[p,p]}),
+    JSON.stringify({product:"JanuarioLeads",section:"proposals",version:1,proposals:[{id:"not-a-uuid"}]}),
+  ];
+  for(const value of bad){
+    let rejected=false;
+    try{parseProposalBackup(value);}catch{rejected=true;}
+    check(rejected,"Incompatible or dangerous backup should be rejected.");
+  }
 });
