@@ -268,7 +268,7 @@ export async function signIn(email: string, password: string) {
 
 async function revokeSession(accessToken: string) {
   try {
-    await request("/auth/v1/logout", {
+    await request("/auth/v1/logout?scope=local", {
       method: "POST",
       headers: { Authorization: `Bearer ${accessToken}` },
     });
