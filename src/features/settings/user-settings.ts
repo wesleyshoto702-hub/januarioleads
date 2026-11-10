@@ -5,7 +5,13 @@ import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "../../lib/supabase-confi
 export type SettingsHomeView =
   | "dashboard" | "leads" | "search" | "prospecting"
   | "opportunities" | "messages" | "finance";
+export type AccentColor = "green" | "yellow" | "blue" | "red" | "white";
+export const ACCENT_COLORS: readonly AccentColor[] = ["green","yellow","blue","red","white"];
+export function isAccentColor(value:unknown): value is AccentColor {
+  return typeof value === "string" && ACCENT_COLORS.includes(value as AccentColor);
+}
 export type UserSettings = {
+  accentColor: AccentColor;
   displayName: string;
   homeView: SettingsHomeView;
   compactMode: boolean;
@@ -14,6 +20,7 @@ export type UserSettings = {
   notifyOverdue: boolean;
 };
 export const DEFAULT_USER_SETTINGS: Readonly<UserSettings> = Object.freeze({
+  accentColor: "red",
   displayName: "",
   homeView: "dashboard",
   compactMode: false,
@@ -28,6 +35,7 @@ type SettingsRow = {
   user_id: string;
   display_name: string;
   home_view: string;
+  accent_color: string;
   compact_mode: boolean;
   reduce_motion: boolean;
   notify_due_today: boolean;
@@ -39,6 +47,7 @@ export function parseUserSettings(value: unknown): UserSettings {
     return { ...DEFAULT_USER_SETTINGS };
   const row = value as Partial<SettingsRow>;
   return {
+    accentColor: isAccentColor(row.accent_color) ? row.accent_color : "red",
     displayName: typeof row.display_name === "string" ? row.display_name.slice(0,80) : "",
     homeView: HOME_VIEWS.includes(row.home_view as SettingsHomeView)
       ? row.home_view as SettingsHomeView : "dashboard",
@@ -52,6 +61,8 @@ function validateSettings(value: UserSettings): UserSettings {
   const displayName = value.displayName.trim();
   if (displayName.length > 80)
     throw new Error("O nome de exibição deve ter até 80 caracteres.");
+  if (!isAccentColor(value.accentColor))
+    throw new Error("Selecione uma das cinco cores disponíveis.");
   if (!HOME_VIEWS.includes(value.homeView))
     throw new Error("A página inicial selecionada é inválida.");
   return { ...value, displayName };
@@ -89,6 +100,7 @@ export async function saveUserSettings(value: UserSettings): Promise<UserSetting
     body: JSON.stringify({
       user_id: session.user.id,
       display_name: next.displayName,
+      accent_color: next.accentColor,
       home_view: next.homeView,
       compact_mode: next.compactMode,
       reduce_motion: next.reduceMotion,
