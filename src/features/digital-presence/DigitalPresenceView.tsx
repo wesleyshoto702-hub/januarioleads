@@ -1,4 +1,4 @@
-import { Activity, BarChart3, CheckCircle2, ExternalLink, Gauge, Globe2, Info, LoaderCircle, Monitor, RotateCcw, Search, ShieldCheck, Smartphone, TriangleAlert, Accessibility, type LucideIcon } from "lucide-react";
+import { Activity, BarChart3, CheckCircle2, ExternalLink, Gauge, Globe2, Info, LoaderCircle, Monitor, Search, ShieldCheck, Smartphone, TriangleAlert, Accessibility, type LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { PageHeader } from "../../components/app-shell/PageHeader";
 import type { PersistedLead } from "../leads/remote-leads";
@@ -143,6 +143,10 @@ export function DigitalPresenceView({
             {loading&&<button className="dp-secondary" type="button" onClick={cancelRequest}>Cancelar</button>}
           </div>
           <p className="dp-limit"><Info size={14}/> {remaining} de 8 novas consultas disponíveis hoje neste navegador. Relatórios recentes podem ser reabertos sem nova consulta.</p>
+          {validWebsite&&<a className="dp-official-link" href={officialPageSpeedUrl(validWebsite,device)}
+            target="_blank" rel="noopener noreferrer">
+            <ExternalLink size={14}/> Abrir a análise no PageSpeed oficial
+          </a>}
         </form>
         {selectedLead&&<div className="dp-lead-context">
           <div><strong>{selectedLead.company}</strong>
