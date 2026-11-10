@@ -19,12 +19,10 @@ export const STORAGE = {
   messages: "leadflow:messages",
   defaultMessagesRestored: "leadflow:messages:defaults-restored:2026-11-03",
   followUpDefaultsInitialized: "leadflow:messages:followups-initialized:2026-11-04",
-  theme: "leadflow:theme",
 };
 export function useLeadWorkspace() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [messages, setMessages] = useState<MessageTemplate[]>([]);
-  const [theme, setTheme] = useState<"light" | "dark">("dark");
   const [hydrated, setHydrated] = useState(false);
   const [remoteReady, setRemoteReady] = useState(false);
   const [remoteError, setRemoteError] = useState("");
@@ -39,7 +37,6 @@ export function useLeadWorkspace() {
     try {
       const storedLeads = accountLocalStorage.getItem(STORAGE.leads);
       const storedMessages = accountLocalStorage.getItem(STORAGE.messages);
-      const storedTheme = accountLocalStorage.getItem(STORAGE.theme) as "light" | "dark" | null;
 
       if (storedLeads) {
         const parsed = JSON.parse(storedLeads);
@@ -75,9 +72,6 @@ export function useLeadWorkspace() {
         setMessages(nextMessages);
       }
 
-      if (storedTheme === "dark" || storedTheme === "light") {
-        setTheme(storedTheme);
-      }
     } catch {
       // Corrupted local data never blocks access; backend migration still runs.
     } finally {
@@ -197,19 +191,16 @@ export function useLeadWorkspace() {
     accountLocalStorage.setItem(STORAGE.messages, JSON.stringify(messages));
   }, [messages, hydrated]);
 
+  // Workspace is always dark, even for accounts that previously saved "light".
   useEffect(() => {
-    if (!hydrated) return;
-    accountLocalStorage.setItem(STORAGE.theme, theme);
-    document.documentElement.classList.toggle("dark", theme === "dark");
-  }, [theme, hydrated]);
+    document.documentElement.classList.add("dark");
+  }, []);
 
   return {
     leads,
     setLeads,
     messages,
     setMessages,
-    theme,
-    setTheme,
     hydrated,
     remoteReady,
     remoteError,
