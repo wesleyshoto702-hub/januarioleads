@@ -1,4 +1,4 @@
-import { accountLocalStorage } from "../../lib/account-storage.ts";
+import { accountLocalStorage, accountSessionStorage } from "../../lib/account-storage.ts";
 
 type ProposalLeadReference = { id: string; company: string };
 
@@ -31,6 +31,7 @@ export type ProposalRecord = {
 };
 
 const STORAGE_KEY = "proposals:v1";
+const WORKING_DRAFT_KEY = "proposals:editing:v1";
 const MAX_PROPOSALS = 120;
 const MAX_LINES = 30;
 const PROPOSAL_STATUSES: ProposalStatus[] = ["draft", "sent", "accepted", "rejected"];
@@ -143,6 +144,20 @@ function parseProposal(value: unknown): ProposalRecord | null {
       ?Math.min(9999,Math.max(1,value.revision)):1,
     createdAt:value.createdAt,updatedAt:value.updatedAt,
   };
+}
+/** Preserve an unfinished edit when the user opens another Workspace section. */
+export function loadWorkingProposal(): ProposalRecord | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = accountSessionStorage.getItem(WORKING_DRAFT_KEY);
+    return raw ? parseProposal(JSON.parse(raw)) : null;
+  } catch { return null; }
+}
+export function rememberWorkingProposal(proposal: ProposalRecord): void {
+  if (typeof window === "undefined") return;
+  try {
+    accountSessionStorage.setItem(WORKING_DRAFT_KEY, JSON.stringify(proposal));
+  } catch { /* Unsaved edits remain in React state when session storage is unavailable. */ }
 }
 export function loadProposals(): ProposalRecord[] {
   if(typeof window==="undefined")return [];
