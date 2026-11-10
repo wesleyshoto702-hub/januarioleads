@@ -56,8 +56,9 @@ export function AnimatedNumber({
   const visible = formatter.format(displayValue);
 
   return (
-    <span className="jl-motion-count" aria-label={readable}>
+    <span className="jl-motion-count">
       <span aria-hidden="true">{visible}</span>
+      <span className="jl-motion-sr-only">{readable}</span>
     </span>
   );
 }
