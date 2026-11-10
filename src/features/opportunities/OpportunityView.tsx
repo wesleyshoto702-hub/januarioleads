@@ -10,6 +10,7 @@ import {
   Star,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { AnimatedNumber } from "../../components/app-shell/AnimatedNumber";
 import type { BusinessPresence } from "../business-presence/types";
 import type { PersistedLead } from "../leads/remote-leads";
 import {
@@ -729,7 +730,7 @@ function OpportunitySummaryItem({
   return (
     <div>
       <span>{label}</span>
-      <strong>{value}</strong>
+      <strong><AnimatedNumber value={value} /></strong>
     </div>
   );
 }

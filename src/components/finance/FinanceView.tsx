@@ -6,6 +6,7 @@ import {
 } from "../../features/lead-finance/finance";
 import type { PersistedLead } from "../../features/leads/remote-leads";
 import { MetricCard } from "../app-shell/MetricCard";
+import { AnimatedNumber } from "../app-shell/AnimatedNumber";
 import { PageHeader } from "../app-shell/PageHeader";
 
 type FinancialOverview = {
@@ -62,12 +63,12 @@ export function FinanceView({
       <div className="finance-metrics">
         <MetricCard
           label="Recebido no mês"
-          value={loaded ? formatCurrency(overview.receivedThisMonth) : "—"}
+          value={loaded ? <AnimatedNumber value={overview.receivedThisMonth} format="currency" /> : "—"}
           tone="accepted"
         />
         <MetricCard
           label="A receber"
-          value={loaded ? formatCurrency(overview.receivable) : "—"}
+          value={loaded ? <AnimatedNumber value={overview.receivable} format="currency" /> : "—"}
           tone="primary"
         />
         <MetricCard label="Projetos pagos" value={loaded ? overview.paidProjects : "—"} />

@@ -106,6 +106,7 @@ import { getValidSession, signOut, subscribeAuthChange } from "../lib/auth";
 import { accountLocalStorage, isLegacyWorkspaceOwner } from "../lib/account-storage";
 import { DEFAULT_USER_SETTINGS, loadUserSettings, saveUserSettings, type UserSettings } from "../features/settings/user-settings";
 import { SettingsReminders } from "../features/settings/SettingsReminders";
+import { AnimatedNumber } from "../components/app-shell/AnimatedNumber";
 import { openWhatsAppLink } from "../lib/whatsapp";
 import { BRAZIL_STATES, normalizeBrazilianStateCode } from "../lib/brazil-locations";
 import { normalizeLocationText } from "../lib/location";
@@ -2453,7 +2454,7 @@ function Stat({ label, value, tone }: { label: string; value: number; tone: "neu
       <span className={`stat-dot ${tone}`} aria-hidden="true"><Icon size={17} strokeWidth={1.8} /></span>
       <div>
         <span className="stat-item-label">{label}</span>
-        <strong>{value}</strong>
+        <strong><AnimatedNumber value={value} /></strong>
       </div>
     </div>
   );

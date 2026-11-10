@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { AnimatedNumber } from "./AnimatedNumber";
 
 export function MetricCard({
   label,
@@ -21,7 +22,7 @@ export function MetricCard({
         <span>{label}</span>
         {icon && <span className="saas-metric-icon" aria-hidden="true">{icon}</span>}
       </div>
-      <strong>{value}</strong>
+      <strong>{typeof value === "number" ? <AnimatedNumber value={value} /> : value}</strong>
       {detail && <small>{detail}</small>}
     </article>
   );

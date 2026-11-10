@@ -17,6 +17,7 @@ import type { NextActionType } from "../../features/next-actions/types";
 import { DailyProspectingQueue } from "../../features/next-actions/DailyProspectingQueue";
 import type { AppView } from "../app-shell/AppShell";
 import { MetricCard } from "../app-shell/MetricCard";
+import { AnimatedNumber } from "../app-shell/AnimatedNumber";
 import { PageHeader } from "../app-shell/PageHeader";
 import { IdealCustomerPanel } from "../../features/qualification/IdealCustomerPanel";
 
@@ -137,7 +138,7 @@ export function DashboardView({
             </a>
           </div>
           <div className="dashboard-conversion">
-            <strong>{conversion === null ? "—" : `${conversion}%`}</strong>
+            <strong>{conversion === null ? "—" : <><AnimatedNumber value={conversion} />%</>}</strong>
             <p>
               {workedContacts > 0
                 ? `${counts.accepted} aceitos em ${workedContacts} contatos que já saíram de “Enviar mensagem”.`
