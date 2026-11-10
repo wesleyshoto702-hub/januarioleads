@@ -7,6 +7,7 @@ import {
   MessageCircle,
   Moon,
   Search,
+  Settings,
   Sun,
   Target,
   Users,
@@ -24,7 +25,8 @@ export type AppView =
   | "prospecting"
   | "opportunities"
   | "messages"
-  | "finance";
+  | "finance"
+  | "settings";
 
 const NAV_ITEMS: Array<{
   view: AppView;
@@ -50,6 +52,7 @@ const VIEW_TITLES: Record<AppView, string> = {
   opportunities: "Oportunidades",
   messages: "Mensagens",
   finance: "Financeiro",
+  settings: "Configurações",
 };
 
 export function AppShell({
@@ -58,6 +61,8 @@ export function AppShell({
   onNavigate,
   onToggleTheme,
   onLogout,
+  compactMode = false,
+  reduceMotion = false,
   children,
 }: {
   activeView: AppView;
@@ -65,6 +70,8 @@ export function AppShell({
   onNavigate: (view: AppView) => void;
   onToggleTheme: () => void;
   onLogout: () => void | Promise<void>;
+  compactMode?: boolean;
+  reduceMotion?: boolean;
   children: ReactNode;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -162,6 +169,15 @@ export function AppShell({
         </button>
         <button
           type="button"
+          className={"saas-footer-action"+(activeView==="settings"?" active":"")}
+          aria-current={activeView==="settings"?"page":undefined}
+          onClick={() => navigate("settings")}
+        >
+          <Settings size={17} />
+          <span>Configurações</span>
+        </button>
+        <button
+          type="button"
           className="saas-footer-action"
           onClick={() => void onLogout()}
         >
@@ -173,7 +189,7 @@ export function AppShell({
   );
 
   return (
-    <div className="saas-shell">
+    <div className={"saas-shell"+(compactMode?" js-settings-compact":"")+(reduceMotion?" js-settings-reduce-motion":"")}>
       <aside className="saas-sidebar">
         <button
           type="button"
