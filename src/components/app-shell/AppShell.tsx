@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  Bell,
   LayoutDashboard,
   LogOut,
   MapPinned,
@@ -59,6 +60,10 @@ export function AppShell({
   onLogout,
   compactMode = false,
   reduceMotion = false,
+  accountLabel,
+  reminderCount = 0,
+  onGlobalSearch,
+  onOpenReminders,
   children,
 }: {
   activeView: AppView;
@@ -66,9 +71,16 @@ export function AppShell({
   onLogout: () => void | Promise<void>;
   compactMode?: boolean;
   reduceMotion?: boolean;
+  accountLabel?: string;
+  reminderCount?: number;
+  onGlobalSearch?: (query: string) => void;
+  onOpenReminders?: () => void;
   children: ReactNode;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [globalQuery, setGlobalQuery] = useState("");
+  const accountName = accountLabel?.trim() || "Minha conta";
+  const initial = accountName.charAt(0).toUpperCase();
   const mobileMenuButton = useRef<HTMLButtonElement>(null);
   const mobileDrawer = useRef<HTMLElement>(null);
 
@@ -252,6 +264,49 @@ export function AppShell({
       )}
 
       <div className="saas-main">
+        <div className="jl-topbar">
+          {onGlobalSearch && (
+            <form
+              className="jl-topbar-search"
+              role="search"
+              onSubmit={(event) => {
+                event.preventDefault();
+                onGlobalSearch(globalQuery.trim());
+              }}
+            >
+              <Search size={15} aria-hidden="true" />
+              <input
+                type="search"
+                value={globalQuery}
+                onChange={(event) => setGlobalQuery(event.target.value)}
+                placeholder="Buscar em Meus Leads (empresa, cidade, nicho)"
+                aria-label="Buscar em Meus Leads"
+              />
+            </form>
+          )}
+          <div className="jl-topbar-actions">
+            {onOpenReminders && reminderCount > 0 && (
+              <button
+                type="button"
+                className="jl-topbar-bell"
+                onClick={onOpenReminders}
+                aria-label={`${reminderCount} acompanhamento${reminderCount === 1 ? "" : "s"} pendente${reminderCount === 1 ? "" : "s"}`}
+              >
+                <Bell size={16} aria-hidden="true" />
+                <b>{reminderCount > 99 ? "99+" : reminderCount}</b>
+              </button>
+            )}
+            <button
+              type="button"
+              className="jl-topbar-account"
+              onClick={() => navigate("settings")}
+              aria-label={`Conta: ${accountName}. Abrir configurações`}
+            >
+              <span className="jl-topbar-avatar" aria-hidden="true">{initial}</span>
+              <span className="jl-topbar-name">{accountName}</span>
+            </button>
+          </div>
+        </div>
         <div className="saas-main-inner">{children}</div>
       </div>
     </div>

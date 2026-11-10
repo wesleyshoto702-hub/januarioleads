@@ -37,6 +37,7 @@ const ACCENT_OPTIONS: Array<{ value:AccentColor;label:string }> = [
   {value:"blue",label:"Azul"},
   {value:"red",label:"Vermelho"},
   {value:"white",label:"Branco"},
+  {value:"black",label:"Preto grafite"},
 ];
 
 function ConfigRow({title,description,children}:{

@@ -5,8 +5,8 @@ import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "../../lib/supabase-confi
 export type SettingsHomeView =
   | "dashboard" | "leads" | "search" | "prospecting"
   | "opportunities" | "messages" | "finance";
-export type AccentColor = "green" | "yellow" | "blue" | "red" | "white";
-export const ACCENT_COLORS: readonly AccentColor[] = ["green","yellow","blue","red","white"];
+export type AccentColor = "green" | "yellow" | "blue" | "red" | "white" | "black";
+export const ACCENT_COLORS: readonly AccentColor[] = ["green","yellow","blue","red","white","black"];
 export function isAccentColor(value:unknown): value is AccentColor {
   return typeof value === "string" && ACCENT_COLORS.includes(value as AccentColor);
 }

@@ -1733,6 +1733,11 @@ function LeadFlowApp() {
     }
   }
 
+  const workspaceReminderCount = (() => {
+    const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+    return leads.filter((lead) => typeof lead.nextActionDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(lead.nextActionDate) && lead.nextActionDate <= today).length;
+  })();
+
   return (
     <AppShell
       activeView={view}
@@ -1740,6 +1745,16 @@ function LeadFlowApp() {
       onLogout={logoutWorkspace}
       compactMode={userSettings.compactMode}
       reduceMotion={userSettings.reduceMotion}
+      accountLabel={userSettings.displayName}
+      reminderCount={workspaceReminderCount}
+      onGlobalSearch={(query) => {
+        setSearch(query);
+        navigateTo("leads");
+      }}
+      onOpenReminders={() => {
+        setActionFilter("today");
+        navigateTo("leads");
+      }}
     >
       <Suspense fallback={<div className="page-wrap" role="status" aria-live="polite">Carregando seção...</div>}>
       {view === "dashboard" ? (
@@ -1772,7 +1787,7 @@ function LeadFlowApp() {
         />
         </>
       ) : view === "leads" ? (
-        <section className="page-wrap">
+        <section className="page-wrap leads-page">
           <div className="page-heading">
             <div>
               <p className="eyebrow">CARTEIRA COMERCIAL</p>
@@ -2072,6 +2087,7 @@ function LeadFlowApp() {
           loaded={financeLoaded}
           error={financeError}
           onOpenLead={openLeadDetails}
+          onOpenLeads={() => navigateTo("leads")}
         />
       ) : view === "settings" ? (
         <SettingsView

@@ -22,7 +22,7 @@ export function DailyProspectingQueue({
 }) {
   const [showAll, setShowAll] = useState(false);
   const all = buildDailyProspectingQueue(leads);
-  const visible = showAll ? all : all.slice(0, 9);
+  const visible = showAll ? all : all.slice(0, 3);
   const today = crmToday();
   return (
     <section className="dashboard-panel daily-routine" aria-labelledby="daily-routine-title">
@@ -92,7 +92,7 @@ export function DailyProspectingQueue({
           })}
         </div>
       )}
-      {all.length > 9 && (
+      {all.length > 3 && (
         <button type="button" className="daily-routine-more" onClick={() => setShowAll((old) => !old)}>
           {showAll ? "Mostrar menos" : "Exibir todas as " + all.length + " ações"}
         </button>

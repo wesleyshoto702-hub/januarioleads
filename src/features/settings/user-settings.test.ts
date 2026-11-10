@@ -43,13 +43,13 @@ Deno.test("Workspace settings reject unknown start pages and corrupt field types
   assert(value.notifyDueToday&&value.notifyOverdue, "Invalid notifications fall back safely");
 });
 
-Deno.test("Only five approved workspace accent colors are accepted",()=>{
-  for(const color of ["green","yellow","blue","red","white"]){
+Deno.test("Only six approved workspace accent colors are accepted",()=>{
+  for(const color of ["green","yellow","blue","red","white","black"]){
     assert(isAccentColor(color), "Valid accent missing: "+color);
     assert(parseUserSettings({accent_color:color}).accentColor===color,
       "Valid accent lost during parsing");
   }
-  for(const value of ["black","purple","light",null,4,{},[]]){
+  for(const value of ["purple","light",null,4,{},[]]){
     assert(!isAccentColor(value), "Unapproved accent accepted");
   }
 });

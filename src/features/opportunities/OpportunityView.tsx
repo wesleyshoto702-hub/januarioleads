@@ -120,6 +120,7 @@ export function OpportunityView({
 }) {
   const [records, setRecords] = useState<OpportunityRecord[]>([]);
   const [summary, setSummary] = useState<OpportunitySummary>(EMPTY_SUMMARY);
+  const [showFormula, setShowFormula] = useState(false);
   const [loading, setLoading] = useState(true);
   const [partial, setPartial] = useState(false);
   const [error, setError] = useState("");
@@ -347,14 +348,26 @@ export function OpportunityView({
             apenas amostras reais já observadas pelo JanuarioLeads.
           </p>
         </div>
-        <span
+        <button
+          type="button"
           className="opportunity-info"
-          title="O Índice de Oportunidade considera ausência de site identificado, disponibilidade de contato, sinais de atividade e tamanho da amostra."
-          aria-label="Como o Índice de Oportunidade é calculado"
+          aria-expanded={showFormula}
+          aria-controls="opportunity-formula"
+          onClick={() => setShowFormula((open) => !open)}
         >
-          <Info size={15} />
+          <Info size={15} aria-hidden="true" />
           Como é calculado
-        </span>
+        </button>
+      </div>
+
+      {showFormula && (
+        <p id="opportunity-formula" className="opportunity-notice opportunity-formula">
+          O Índice de Oportunidade considera ausência de site identificado, disponibilidade de
+          contato, sinais de atividade e tamanho da amostra. Usa apenas empresas reais já
+          observadas pelo JanuarioLeads.
+        </p>
+      )}
+      <div hidden>
       </div>
 
       {partial && (
