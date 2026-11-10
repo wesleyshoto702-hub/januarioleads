@@ -151,7 +151,7 @@ export function MapsPersonalView({
   const choose=useCallback((id:string)=>{
     setSelection(id);
     const row=listRef.current?.querySelectorAll<HTMLButtonElement>("[data-marker-id]");
-    const button=row&&Array.from(row).find(item=>item.dataset.markerId===id);
+    const button=row&&Array.from(row).find(item=>item.dataset["markerId"]===id);
     button?.scrollIntoView({behavior:"smooth",block:"nearest"});
   },[]);
 

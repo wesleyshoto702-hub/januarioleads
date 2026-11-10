@@ -141,10 +141,10 @@ function LocalMapErrorBoundary({ children }: { children: ReactNode }) {
   return <LocalMapErrorBoundaryInner>{children}</LocalMapErrorBoundaryInner>;
 }
 class LocalMapErrorBoundaryInner extends Component<{children: ReactNode}, {failed: boolean}> {
-  state = { failed: false };
+  override state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
-  componentDidCatch(error: Error) { console.error("[JanuárioLeads Maps] Falha inesperada no mapa:", error); }
-  render() {
+  override componentDidCatch(error: Error) { console.error("[JanuárioLeads Maps] Falha inesperada no mapa:", error); }
+  override render() {
     if (this.state.failed) {
       return <div className="bms-map-placeholder" role="status">
         <MapPin size={30}/>
