@@ -6,7 +6,7 @@ import {
   useCallback, useEffect, useMemo, useRef, useState, type FormEvent,
 } from "react";
 import { BRAZIL_STATES } from "../../lib/brazil-locations";
-import { accountLocalStorage, isLegacyWorkspaceOwner } from "../../lib/account-storage";
+import { isLegacyWorkspaceOwner } from "../../lib/account-storage";
 import { safeExternalHref } from "../../lib/safe-external-url";
 import type { PersistedLead } from "../leads/remote-leads";
 import type { BusinessAddResult } from "../search-leads/BusinessDetailsModal";
@@ -20,9 +20,9 @@ import {
 import { ALL_SEARCH_SEGMENTS, resolveSearchSegment } from "../search-leads/segments";
 import { searchPersonalGeoapify, type PersonalGeoapifyPlace } from "./personal-geoapify";
 import { buildMapPoints } from "./map-points";
-import { ENV_GOOGLE_MAPS_BROWSER_KEY, RealGoogleMap } from "./RealGoogleMap";
+import { RealGoogleMap } from "./RealGoogleMap";
+import { getBrowserGoogleMapsKey } from "./browser-map-key";
 
-const MAP_KEY_STORAGE = "maps-personal-browser-api-key";
 type ResultsProvider = "google" | "geoapify";
 type SearchInput = {city:string;state:string;segment:string;neighborhood:string};
 type ZoomAction = {id:number;delta:number};
@@ -74,12 +74,6 @@ function normalize(value:string):string {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
 }
 
-function googleKeyFromBrowser():string {
-  if (typeof window==="undefined") return ENV_GOOGLE_MAPS_BROWSER_KEY;
-  try {return accountLocalStorage.getItem(MAP_KEY_STORAGE)?.trim()||ENV_GOOGLE_MAPS_BROWSER_KEY;}
-  catch {return ENV_GOOGLE_MAPS_BROWSER_KEY;}
-}
-
 export function MapsPersonalView({
   existingLeads, onAddLead,
 }:{
@@ -106,7 +100,17 @@ export function MapsPersonalView({
   const [zoomAction,setZoomAction]=useState<ZoomAction>({id:0,delta:0});
   // Existing device key remains supported while public deployments can inject
   // a site-restricted VITE_GOOGLE_MAPS_BROWSER_KEY at build time.
-  const [browserKey]=useState(googleKeyFromBrowser);
+  const [browserKey,setBrowserKey] = useState(getBrowserGoogleMapsKey);
+  useEffect(() => {
+    // A different tab (or a Settings navigation) may have repaired the key.
+    const update = () => setBrowserKey(getBrowserGoogleMapsKey());
+    window.addEventListener("focus", update);
+    window.addEventListener("storage", update);
+    return () => {
+      window.removeEventListener("focus", update);
+      window.removeEventListener("storage", update);
+    };
+  }, []);
   const requestLock=useRef(false);
   const saveLock=useRef(false);
   const listRef=useRef<HTMLOListElement>(null);
@@ -293,8 +297,9 @@ export function MapsPersonalView({
               onSelect={choose} zoomAction={zoomAction}/>
             : <div className="bms-map-placeholder" role="status">
               <MapPin size={34}/>
-              <strong>Mapa temporariamente indisponível</strong>
-              <p>Você ainda pode consultar as empresas encontradas na lista de resultados.</p>
+              <strong>Google Maps precisa ser ativado neste navegador</strong>
+              <p>Abra Configurações → Administração → Mapa interativo e informe sua chave pública da Maps JavaScript API.</p>
+              <p>A lista de empresas e o botão Adicionar lead continuam funcionando.</p>
             </div>}
           <div className="bms-coverage">
             <div className="bms-coverage-kicker"><span className="bms-dot"/> COBERTURA TERRITORIAL</div>
