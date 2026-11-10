@@ -7,6 +7,7 @@ import {
   Menu,
   MessageCircle,
   Search,
+  ScanSearch,
   Settings,
   Target,
   Users,
@@ -23,6 +24,7 @@ export type AppView =
   | "maps"
   | "prospecting"
   | "opportunities"
+  | "digital-presence"
   | "messages"
   | "finance"
   | "settings";
@@ -38,6 +40,7 @@ const NAV_ITEMS: Array<{
   { view: "maps", label: "Buscar via Maps", icon: MapPinned },
   { view: "prospecting", label: "Informações de Prospecção", icon: BarChart3 },
   { view: "opportunities", label: "Oportunidades", icon: Target },
+  { view: "digital-presence", label: "Análise Digital", icon: ScanSearch },
   { view: "messages", label: "Mensagens", icon: MessageCircle },
   { view: "finance", label: "Financeiro", icon: WalletCards },
 ];
@@ -49,6 +52,7 @@ const VIEW_TITLES: Record<AppView, string> = {
   maps: "Buscar via Maps",
   prospecting: "Informações de Prospecção",
   opportunities: "Oportunidades",
+  "digital-presence": "Análise Digital",
   messages: "Mensagens",
   finance: "Financeiro",
   settings: "Configurações",
