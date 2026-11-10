@@ -6816,3 +6816,39 @@ a{
     width: 100%;
   }
 }
+
+/*
+ * Januário Leads — per-account dark workspace palettes.
+ * The browser receives only a five-value allow-listed data attribute.
+ * Backgrounds and semantic success/warning/error colors remain legible.
+ */
+:root.dark[data-jl-accent="red"]{
+  --primary:#f12d46;--primary-hover:#ff4960;
+  --primary-action:#e32142;--primary-action-hover:#f23855;
+  --primary-soft:rgba(241,45,70,.10);--primary-soft-strong:rgba(241,45,70,.18);
+  --primary-contrast:#fff;
+}
+:root.dark[data-jl-accent="green"]{
+  --primary:#34d399;--primary-hover:#65e8b9;
+  --primary-action:#25bd84;--primary-action-hover:#45d9a0;
+  --primary-soft:rgba(52,211,153,.10);--primary-soft-strong:rgba(52,211,153,.19);
+  --primary-contrast:#06150e;
+}
+:root.dark[data-jl-accent="yellow"]{
+  --primary:#facc15;--primary-hover:#ffe264;
+  --primary-action:#edbc07;--primary-action-hover:#ffdb40;
+  --primary-soft:rgba(250,204,21,.10);--primary-soft-strong:rgba(250,204,21,.19);
+  --primary-contrast:#1a1605;
+}
+:root.dark[data-jl-accent="blue"]{
+  --primary:#60a5fa;--primary-hover:#93c5fd;
+  --primary-action:#448ef1;--primary-action-hover:#70b3ff;
+  --primary-soft:rgba(96,165,250,.10);--primary-soft-strong:rgba(96,165,250,.18);
+  --primary-contrast:#071327;
+}
+:root.dark[data-jl-accent="white"]{
+  --primary:#f2f3f6;--primary-hover:#ffffff;
+  --primary-action:#e6e7eb;--primary-action-hover:#ffffff;
+  --primary-soft:rgba(242,243,246,.09);--primary-soft-strong:rgba(242,243,246,.17);
+  --primary-contrast:#0f1014;
+}
