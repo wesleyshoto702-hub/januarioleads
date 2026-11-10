@@ -89,7 +89,6 @@ export function LeadRow({
           {chance && <ChanceBadge chance={chance} />}
         </div>
         <span className="lead-segment">{lead.segment}</span>
-        <LeadLocation lead={lead} />
         {finance && <LeadFinanceMarker summary={finance} />}
         {lead.enrichedAt && <small className="enriched-badge">Dados enriquecidos</small>}
         {updateCount > 0 && (
@@ -99,11 +98,15 @@ export function LeadRow({
         )}
         {lead.notes && <small title={lead.notes}>{lead.notes}</small>}
       </div>
+      <div className="lead-location-cell"><LeadLocation lead={lead} /></div>
       <div className="phone-cell">{lead.phone || "Sem telefone"}</div>
       <div className="lead-status-stack">
         <StatusControl lead={lead} onStatus={onStatus} />
+      </div>
+      <div className="lead-next-action-cell">
         <LeadActionSummary lead={lead} compact hideFollowUp />
       </div>
+      <div className="lead-value-cell">{finance ? formatCurrency(finance.projectValue) : "—"}</div>
       <div className="date-cell">
         <span>{formatDate(lead.firstContact)}</span>
         <small>

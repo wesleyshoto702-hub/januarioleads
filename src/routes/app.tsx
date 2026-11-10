@@ -13,16 +13,21 @@ import {
 } from "../features/leads/pending-leads";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
+  BadgeCheck,
+  Ban,
   Check,
   ChevronDown,
+  Clock3,
   Edit3,
   Loader2,
   MapPin,
   MessageCircle,
   Plus,
   Search,
+  Send,
   Star,
   Trash2,
+  UsersRound,
   X,
 } from "lucide-react";
 import { FormEvent, Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
@@ -1984,10 +1989,13 @@ function LeadFlowApp() {
               <>
             <div className="desktop-table">
               <div className="table-head">
-                <span>Empresa · Nicho · Localização</span>
-                <span>WhatsApp</span>
-                <span>Status</span>
+                <span>Lead</span>
+                <span>Cidade / UF</span>
                 <span>Contato</span>
+                <span>Status</span>
+                <span>Acompanhamento</span>
+                <span>Valor</span>
+                <span>Último contato</span>
                 <span>Ações</span>
               </div>
               {visibleLeads.length ? (
@@ -2436,12 +2444,16 @@ function LeadFlowApp() {
 }
 
 function Stat({ label, value, tone }: { label: string; value: number; tone: "neutral" | Status }) {
+  const Icon = tone === "waiting" ? Clock3 :
+    tone === "accepted" ? BadgeCheck :
+    tone === "rejected" ? Ban :
+    tone === "send_message" ? Send : UsersRound;
   return (
-    <div className="stat-item">
-      <span className={`stat-dot ${tone}`} />
+    <div className={`stat-item ${tone}`}>
+      <span className={`stat-dot ${tone}`} aria-hidden="true"><Icon size={17} strokeWidth={1.8} /></span>
       <div>
+        <span className="stat-item-label">{label}</span>
         <strong>{value}</strong>
-        <span>{label}</span>
       </div>
     </div>
   );
