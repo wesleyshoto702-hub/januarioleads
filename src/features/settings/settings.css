@@ -118,3 +118,47 @@
 .js-settings-toggle.is-active>span{background:var(--primary-contrast)}
 @media(max-width:600px){.js-settings-color-options{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.js-settings-color-choice{min-height:82px}}
 @media(max-width:370px){.js-settings-color-options{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Owner-only recovery for the public Google Maps JavaScript browser key.
+   Kept in Administration, not the customer-facing Maps search interface. */
+.js-settings-map-config{
+  margin:22px 0 8px;
+  padding:19px 20px;
+  border:1px solid color-mix(in srgb,var(--primary) 27%,var(--border));
+  border-radius:14px;
+  background:linear-gradient(135deg,color-mix(in srgb,var(--primary) 9%,var(--surface-2)),var(--surface));
+}
+.js-settings-map-header{display:flex;align-items:center;gap:12px}
+.js-settings-map-header>svg{flex:none;color:var(--primary)}
+.js-settings-map-header strong{display:block;font-size:14px;font-weight:790;color:var(--text)}
+.js-settings-map-header p{font-size:11px;color:var(--muted);line-height:1.6;margin:5px 0 0}
+.js-settings-map-status{
+  display:flex;align-items:center;gap:9px;
+  margin:17px 0 13px;padding:10px 12px;
+  border:1px solid var(--border);border-radius:10px;
+  background:var(--surface-2);color:var(--text);font-size:11px;line-height:1.6;
+}
+.js-settings-status-dot{flex:none;width:8px;height:8px;border-radius:50%;background:#eab85a}
+.js-settings-status-dot[data-configured="true"]{background:#42cc95;box-shadow:0 0 0 3px rgba(66,204,149,.12)}
+.js-settings-map-form{display:grid;gap:10px}
+.js-settings-map-form>label{display:flex;align-items:center;gap:7px;color:var(--text);font-size:12px;font-weight:700}
+.js-settings-map-form input{
+  min-height:43px;width:100%;max-width:530px;
+  padding:10px 13px;
+  border:1px solid var(--border);border-radius:10px;
+  background:var(--surface-2);color:var(--text);
+  font:600 12px Inter,system-ui,sans-serif;
+}
+.js-settings-map-form input:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.js-settings-map-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.js-settings-map-help{color:var(--muted);font-size:11px;line-height:1.85;margin:18px 0 0;max-width:760px}
+.js-settings-map-help strong{color:var(--text)}
+.js-settings-map-error,.js-settings-map-confirmation{
+  padding:10px 12px;border-radius:9px;font-size:11px;line-height:1.7;margin:12px 0 0;
+}
+.js-settings-map-error{border:1px solid rgba(240,92,111,.35);color:#f8a9b6;background:rgba(130,31,57,.12)}
+.js-settings-map-confirmation{border:1px solid rgba(74,190,139,.3);color:#78dba9;background:rgba(43,119,70,.11)}
+@media(max-width:640px){
+  .js-settings-map-config{padding:15px 13px}
+  .js-settings-map-actions>.js-settings-button{width:100%}
+}
