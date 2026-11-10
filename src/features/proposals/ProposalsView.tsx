@@ -3,14 +3,14 @@ import {
   FileText, FolderOpen, Info, PencilLine, Plus, Printer, Save, Search,
   Trash2, Upload, X, type LucideIcon,
 } from "lucide-react";
-import { useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import type { PersistedLead } from "../leads/remote-leads";
 import { PageHeader } from "../../components/app-shell/PageHeader";
 import { formatCurrency } from "../lead-finance/finance";
 import { getCachedDigitalReport, normalizePublicWebsite, type DigitalReport } from "../digital-presence/digital-presence";
 import {
-  applyProposalTemplate, duplicateProposal, loadProposals, makeProposal,
-  parseProposalBackup, serializeProposalBackup,
+  applyProposalTemplate, duplicateProposal, loadProposals, loadWorkingProposal, makeProposal,
+  parseProposalBackup, rememberWorkingProposal, serializeProposalBackup,
   PROPOSAL_STATUS_LABEL, PROPOSAL_TEMPLATES, proposalCode, proposalLine,
   proposalTotal, saveProposals, validateProposalForSending,
   type ProposalRecord, type ProposalStatus, type ProposalTemplateId,
@@ -77,11 +77,17 @@ export function ProposalsView({leads,sellerName,onOpenLead}:{
   onOpenLead:(lead:PersistedLead)=>void;
 }){
   const [proposals,setProposals]=useState<ProposalRecord[]>(loadProposals);
-  const [selectedId,setSelectedId]=useState<string|null>(proposals[0]?.id??null);
+  const [restoredDraft]=useState<ProposalRecord|null>(loadWorkingProposal);
+  const [selectedId,setSelectedId]=useState<string|null>(()=>
+    restoredDraft
+      ? (proposals.some(p=>p.id===restoredDraft.id)?restoredDraft.id:null)
+      : (proposals[0]?.id??null),
+  );
   const [draft,setDraft]=useState<ProposalRecord>(
-    ()=>proposals[0]??makeProposal(null,sellerName),
+    ()=>restoredDraft??proposals[0]??makeProposal(null,sellerName),
   );
   const backupInput=useRef<HTMLInputElement>(null);
+  useEffect(()=>{rememberWorkingProposal(draft);},[draft]);
   const [query,setQuery]=useState("");
   const [filter,setFilter]=useState<ProposalStatus|"all">("all");
   const [message,setMessage]=useState("");
@@ -298,7 +304,7 @@ export function ProposalsView({leads,sellerName,onOpenLead}:{
             className="pc-hidden-file" aria-label="Arquivo de backup das propostas"
             onChange={e=>{const file=e.target.files?.[0];e.target.value="";if(file)void importBackup(file);}}/>
         </div>
-        <p className="pc-storage-notice"><Info size={14}/> Nesta primeira versão, as propostas ficam neste navegador e nesta conta. Exporte um backup JSON para recuperar edições em outro dispositivo; PDFs servem para compartilhar com clientes.</p>
+        <p className="pc-storage-notice"><Info size={14}/> Nesta primeira versão, as propostas ficam neste navegador e nesta conta. Edições em andamento são recuperadas nesta sessão; exporte um backup JSON para outros dispositivos. PDFs servem para compartilhar com clientes.</p>
       </aside>
       <div className="pc-editor pc-panel">
         <div className="pc-editor-top">
