@@ -108,3 +108,6 @@
 @media(hover:hover) and (pointer:fine){.dark .dp-score-card,.dark .dp-panel{transition:border-color .18s,transform .18s}.dark .dp-score-card:hover{border-color:color-mix(in srgb,var(--primary) 37%,transparent);transform:translateY(-2px)}}
 @media(prefers-reduced-motion:reduce){.dark .dp-page *,.dark .dp-page *::before,.dark .dp-page *::after{animation:none!important;transition:none!important}}
 .dark .saas-shell.js-settings-reduce-motion .dp-page *,.dark .saas-shell.js-settings-reduce-motion .dp-page *::before,.dark .saas-shell.js-settings-reduce-motion .dp-page *::after{animation:none!important;transition:none!important}
+
+.dark .dp-official-link{display:inline-flex;align-items:center;gap:7px;margin-top:1px;color:var(--primary);font-size:11px;font-weight:710;text-decoration:underline;text-underline-offset:3px}
+.dark .dp-official-link:hover{color:var(--primary-hover)}
