@@ -4195,9 +4195,9 @@ a{
 }
 
 .dark .chance-badge.high{
-  border-color: rgba(239, 35, 60, 0.28);
-  background: rgba(239, 35, 60, 0.11);
-  color: #ff7d8c;
+  border-color: color-mix(in srgb, var(--primary) 32%, transparent);
+  background: var(--primary-soft);
+  color: var(--primary);
 }
 
 .dark .chance-badge.very-high{
