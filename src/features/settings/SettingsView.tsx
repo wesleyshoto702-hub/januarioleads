@@ -3,7 +3,7 @@ import {
   Layers, LogOut, MapPinned, Palette, RefreshCw, Settings2, ShieldCheck,
   SlidersHorizontal, Smartphone, UserRound, Users, type LucideIcon,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { getValidSession, signOutOtherSessions } from "../../lib/auth";
 import { USE_HTTPONLY_SESSION } from "../../lib/supabase-config";
 import { accountLocalStorage, isLegacyWorkspaceOwner } from "../../lib/account-storage";
@@ -35,7 +35,7 @@ const HOME_OPTIONS: {id:SettingsHomeView;label:string}[] = [
 ];
 
 function ConfigRow({title,description,children}:{
-  title:string;description:string;children:React.ReactNode
+  title:string;description:string;children:ReactNode
 }) {
   return <div className="js-settings-row">
     <div><strong>{title}</strong><p>{description}</p></div>
@@ -90,8 +90,9 @@ export function SettingsView({
   },[]);
   const changed=useMemo(()=>JSON.stringify(draft)!==JSON.stringify(settings),[draft,settings]);
   const initials=(draft.displayName.trim()||email.split("@")[0]||"JL").slice(0,2).toUpperCase();
-  const googleMapKeyAvailable=Boolean(ENV_GOOGLE_MAPS_BROWSER_KEY ||
-    accountLocalStorage.getItem("maps-personal-browser-api-key"));
+  let savedMapKey = false;
+  try {savedMapKey=Boolean(accountLocalStorage.getItem("maps-personal-browser-api-key"));} catch { /* blocked browser storage */ }
+  const googleMapKeyAvailable=Boolean(ENV_GOOGLE_MAPS_BROWSER_KEY || savedMapKey);
 
   const change=(patch:Partial<UserSettings>)=>{
     setDraft(current=>({...current,...patch}));
@@ -285,26 +286,4 @@ export function SettingsView({
       </div>
     </div>
   </section>;
-}
-
-/** Small, on-screen-only reminders; no email/push scheduler is implied. */
-export function SettingsReminders({settings,leads,onShow}:{
-  settings:UserSettings;leads:PersistedLead[];
-  onShow:(type:"today"|"overdue")=>void;
-}){
-  const today=new Intl.DateTimeFormat("sv-SE",{timeZone:"America/Sao_Paulo",
-    year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
-  const scheduled=leads.filter(lead=>typeof lead.nextActionDate==="string" &&
-    /^\d{4}-\d{2}-\d{2}$/.test(lead.nextActionDate));
-  const due=scheduled.filter(x=>x.nextActionDate===today).length;
-  const late=scheduled.filter(x=>x.nextActionDate! < today).length;
-  if((!settings.notifyDueToday||due===0)&&(!settings.notifyOverdue||late===0))return null;
-  return <div className="js-settings-reminders" role="status">
-    <Bell size={18}/>
-    <div><strong>Acompanhamentos pendentes</strong><p>Confira as próximas ações dos seus leads.</p></div>
-    <div className="js-settings-reminder-buttons">
-      {settings.notifyDueToday&&due>0&&<button type="button" onClick={()=>onShow("today")}>{due} para hoje</button>}
-      {settings.notifyOverdue&&late>0&&<button type="button" onClick={()=>onShow("overdue")}>{late} atrasado{late===1?"":"s"}</button>}
-    </div>
-  </div>;
 }
