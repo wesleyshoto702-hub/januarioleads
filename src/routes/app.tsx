@@ -137,6 +137,11 @@ const DigitalPresenceView = lazy(() =>
     default: module.DigitalPresenceView,
   })),
 );
+const ProposalsView = lazy(() =>
+  import("../features/proposals/ProposalsView").then((module) => ({
+    default: module.ProposalsView,
+  })),
+);
 const FinanceView = lazy(() =>
   import("../components/finance/FinanceView").then((module) => ({
     default: module.FinanceView,
@@ -2096,6 +2101,12 @@ function LeadFlowApp() {
       ) : view === "digital-presence" ? (
         <DigitalPresenceView leads={leads} onOpenLead={openLeadDetails}
           onOpenLeads={() => navigateTo("leads")}/>
+      ) : view === "proposals" ? (
+        <ProposalsView
+          leads={leads}
+          sellerName={userSettings.displayName}
+          onOpenLead={openLeadDetails}
+        />
       ) : view === "finance" ? (
         <FinanceView
           leads={leads}
