@@ -10,7 +10,7 @@ import type { RealMapPoint } from "./map-points";
  * (legacy Marker is deprecated but still supported). With a real Map ID prefer
  * AdvancedMarkerElement and the dark map style configured in Google Cloud.
  */
-export const ENV_GOOGLE_MAPS_BROWSER_KEY = (import.meta.env["VITE_GOOGLE_MAPS_BROWSER_KEY"] as string | undefined)?.trim() ?? "";
+export { ENV_GOOGLE_MAPS_BROWSER_KEY } from "./browser-map-key";
 const MAP_ID = (import.meta.env["VITE_GOOGLE_MAPS_MAP_ID"] as string | undefined)?.trim() ?? "";
 
 // Public geographic overview used only BEFORE a locality search; actual
@@ -48,6 +48,12 @@ type GoogleMapsSDK = {
   };
 };
 let scriptPromise: Promise<GoogleMapsSDK> | null = null;
+const GOOGLE_MAPS_AUTH_ERROR = "januarioleads:google-maps-auth-error";
+type MapsBrowserWindow = Window & {
+  google?: GoogleMapsSDK;
+  gm_authFailure?: () => void;
+  __jlMapsAuthHandlerInstalled?: boolean;
+};
 
 function loadMapsSDK(browserKey: string): Promise<GoogleMapsSDK> {
   if (scriptPromise) return scriptPromise;
@@ -56,7 +62,15 @@ function loadMapsSDK(browserKey: string): Promise<GoogleMapsSDK> {
       reject(new Error("Chave pública do Google Maps não configurada."));
       return;
     }
-    const win = window as Window & { google?: GoogleMapsSDK };
+    const win = window as MapsBrowserWindow;
+    if (!win.__jlMapsAuthHandlerInstalled) {
+      const previousHandler = win.gm_authFailure;
+      win.gm_authFailure = () => {
+        window.dispatchEvent(new Event(GOOGLE_MAPS_AUTH_ERROR));
+        previousHandler?.();
+      };
+      win.__jlMapsAuthHandlerInstalled = true;
+    }
     const ready = () => {
       const google = win.google;
       if (typeof google?.maps?.Map !== "function" ||
@@ -198,6 +212,12 @@ function RealGoogleMapCanvas({
 
   useEffect(() => {
     let live = true;
+    const onAuthFailure = () => {
+      if (!live) return;
+      setReady(false);
+      setError("O Google Maps recusou a chave pública. Verifique a Maps JavaScript API, o domínio autorizado e o faturamento no Google Cloud.");
+    };
+    window.addEventListener(GOOGLE_MAPS_AUTH_ERROR, onAuthFailure);
     void loadMapsSDK(browserKey).then(async (google) => {
       if (typeof google.maps.Marker !== "function" && google.maps.importLibrary) {
         try { await google.maps.importLibrary("marker"); }
@@ -246,6 +266,7 @@ function RealGoogleMapCanvas({
     });
     return () => {
       live = false;
+      window.removeEventListener(GOOGLE_MAPS_AUTH_ERROR, onAuthFailure);
       clearMarkers();
       map.current = null;
       sdk.current = null;
