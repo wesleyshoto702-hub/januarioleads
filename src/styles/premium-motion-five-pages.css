@@ -1,0 +1,266 @@
+/*
+ * Januário Leads | Motion language for the five premium Workspace pages.
+ *
+ * Inspired by the supplied Gemini prototype, adapted to the real React UI:
+ * - One-shot fade-up and stagger on page mount (not every table filter).
+ * - Genuine numbers count via AnimatedNumber rather than static HTML.
+ * - Data-driven bar reveals; no fabricated growth figures.
+ * - Pointer hover only where a hover device exists.
+ * - Brand accent from the account's six CSS palettes, never fixed red.
+ * - OS or user-level reduced motion disables ALL effects below.
+ */
+
+@keyframes jl-premium-appear {
+  from { opacity: 0; transform: translate3d(0, 12px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+@keyframes jl-premium-bar-x {
+  from { opacity: .35; transform: scaleX(.02); }
+  to { opacity: 1; transform: scaleX(1); }
+}
+@keyframes jl-premium-bar-y {
+  from { opacity: .35; transform: scaleY(.02); }
+  to { opacity: 1; transform: scaleY(1); }
+}
+@keyframes jl-premium-glow-in {
+  from { opacity: .22; }
+  to { opacity: 1; }
+}
+@keyframes jl-premium-confirm {
+  from { opacity: 0; transform: translate3d(0, 6px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+.dark .saas-shell .jl-motion-count {
+  display: inline-block;
+  font: inherit;
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: inherit;
+  white-space: nowrap;
+}
+
+/* Common page reveal. Animations run once per mounted page, never indefinitely. */
+.dark .saas-main :is(
+  .dashboard-view,
+  .leads-page,
+  .opportunity-page,
+  .messages-page,
+  .finance-view
+) > :is(.saas-page-header, .page-heading) {
+  animation: jl-premium-appear 480ms cubic-bezier(.16,1,.3,1) backwards;
+}
+
+.dark .saas-main .dashboard-view > .saas-page-header::before,
+.dark .saas-main .leads-page > .page-heading::before,
+.dark .saas-main .opportunity-page > .page-heading::before,
+.dark .saas-main .messages-page > .page-heading::before {
+  animation: jl-premium-glow-in 1050ms ease-out backwards;
+}
+
+/* Real KPI values: 60 ms cascade, with no updates triggered by filter changes. */
+.dark .saas-main :is(
+  .dashboard-view .dashboard-metrics,
+  .finance-view .finance-metrics,
+  .leads-page .stats-strip,
+  .opportunity-page .opportunity-summary
+) {
+  --jl-motion-step: 62ms;
+}
+.dark .saas-main :is(
+  .dashboard-view .dashboard-metrics > *,
+  .finance-view .finance-metrics > *,
+  .leads-page .stats-strip > *,
+  .opportunity-page .opportunity-summary > *
+) {
+  animation: jl-premium-appear 540ms cubic-bezier(.16,1,.3,1) backwards;
+  animation-delay: 80ms;
+}
+.dark .saas-main :is(
+  .dashboard-view .dashboard-metrics,
+  .finance-view .finance-metrics,
+  .leads-page .stats-strip,
+  .opportunity-page .opportunity-summary
+) > :nth-child(2) { animation-delay: 142ms; }
+.dark .saas-main :is(
+  .dashboard-view .dashboard-metrics,
+  .finance-view .finance-metrics,
+  .leads-page .stats-strip,
+  .opportunity-page .opportunity-summary
+) > :nth-child(3) { animation-delay: 204ms; }
+.dark .saas-main :is(
+  .dashboard-view .dashboard-metrics,
+  .finance-view .finance-metrics,
+  .leads-page .stats-strip,
+  .opportunity-page .opportunity-summary
+) > :nth-child(4) { animation-delay: 266ms; }
+.dark .saas-main :is(
+  .dashboard-view .dashboard-metrics,
+  .finance-view .finance-metrics,
+  .leads-page .stats-strip
+) > :nth-child(5) { animation-delay: 328ms; }
+
+/* Panels enter as units. Their list rows keep their DOM and don't re-animate
+   whenever a sort, segment, search, or message tab changes. */
+.dark .saas-main .dashboard-view > .dashboard-priority-grid {
+  animation: jl-premium-appear 590ms cubic-bezier(.16,1,.3,1) 165ms backwards;
+}
+.dark .saas-main .dashboard-view > .dashboard-secondary-grid,
+.dark .saas-main .leads-page > .finance-summary-strip,
+.dark .saas-main .messages-page > .message-kind-tabs,
+.dark .saas-main .opportunity-page > .opportunity-mode-tabs {
+  animation: jl-premium-appear 500ms cubic-bezier(.16,1,.3,1) 230ms backwards;
+}
+.dark .saas-main .dashboard-view > :is(.commercial-reports,.dashboard-columns),
+.dark .saas-main .leads-page > :is(.lead-panel),
+.dark .saas-main .messages-page > :is(.messages-grid),
+.dark .saas-main .opportunity-page > :is(.opportunity-filters,.opportunity-ranking),
+.dark .saas-main .finance-view > :is(.finance-panel) {
+  animation: jl-premium-appear 580ms cubic-bezier(.16,1,.3,1) 285ms backwards;
+}
+
+/* Graph animation uses existing business metrics (actual CSS width/height). */
+.dark .saas-main .dashboard-view .commercial-bar-track > span {
+  transform-origin: left center;
+  animation: jl-premium-bar-x 640ms cubic-bezier(.16,1,.3,1) 430ms backwards;
+}
+.dark .saas-main .dashboard-view .prospecting-weekly-bar-wrap > span {
+  transform-origin: center bottom;
+  animation: jl-premium-bar-y 720ms cubic-bezier(.16,1,.3,1) 400ms backwards;
+}
+/* Opportunity index labels are real computed scores; their card and confidence
+   bars remain data-driven, with a subtle hover focus. */
+.dark .saas-main .opportunity-page .opportunity-score strong {
+  color: var(--primary);
+  transition: color 170ms ease;
+}
+
+/* Click, save, and status feedback already exists in the app.
+   Animate it without fabricating a new toast or a success message. */
+.dark .saas-main :is(
+  .messages-page .message-inline-feedback,
+  .messages-page .message-form-error,
+  .leads-page .activity-inline-error,
+  .finance-view .saas-inline-notice,
+  .dashboard-view .saas-inline-notice
+) {
+  animation: jl-premium-confirm 270ms ease-out backwards;
+}
+
+/* Fine hover interactions: 2px lift, discreet outlines, no continuous pulse.
+   Keep animation on page wrappers and transitions on child cards separate. */
+@media (hover: hover) and (pointer: fine) {
+  .dark .saas-main :is(
+    .dashboard-view .saas-metric-card,
+    .finance-view .saas-metric-card,
+    .leads-page .stat-item,
+    .opportunity-page .opportunity-summary > div,
+    .opportunity-page .opportunity-card,
+    .messages-page .message-summary-card,
+    .dashboard-view .dashboard-panel,
+    .finance-view .finance-panel
+  ) {
+    transition: transform 180ms cubic-bezier(.16,1,.3,1),
+      box-shadow 180ms ease, border-color 180ms ease,
+      background-color 180ms ease;
+  }
+  .dark .saas-main :is(
+    .dashboard-view .saas-metric-card,
+    .finance-view .saas-metric-card,
+    .leads-page .stat-item,
+    .opportunity-page .opportunity-summary > div,
+    .opportunity-page .opportunity-card,
+    .messages-page .message-summary-card
+  ):hover {
+    transform: translate3d(0,-2px,0);
+    border-color: color-mix(in srgb,var(--primary) 42%,rgba(255,255,255,.12));
+    box-shadow: 0 12px 30px -23px color-mix(in srgb,var(--primary) 36%,#000);
+  }
+  .dark .saas-main :is(
+    .dashboard-view .dashboard-panel,
+    .finance-view .finance-panel
+  ):hover {
+    border-color: color-mix(in srgb,var(--primary) 30%,rgba(255,255,255,.12));
+    box-shadow: 0 16px 34px -28px color-mix(in srgb,var(--primary) 38%,#000);
+  }
+  .dark .saas-main :is(
+    .dashboard-view .dashboard-feed button,
+    .dashboard-view .icp-ranked > button,
+    .dashboard-view .daily-routine-item,
+    .leads-page .table-row,
+    .leads-page .lead-card,
+    .opportunity-page .opportunity-company-card,
+    .messages-page .message-editor-actions button,
+    .finance-view .finance-table-row,
+    .finance-view .finance-mobile-list button
+  ) {
+    transition: background-color 150ms ease, border-color 150ms ease,
+      color 150ms ease, box-shadow 150ms ease;
+  }
+  .dark .saas-main :is(
+    .dashboard-view .dashboard-feed button,
+    .dashboard-view .icp-ranked > button,
+    .leads-page .table-row,
+    .leads-page .lead-card,
+    .opportunity-page .opportunity-company-card,
+    .finance-view .finance-table-row,
+    .finance-view .finance-mobile-list button
+  ):hover {
+    background-color: color-mix(in srgb,var(--primary) 7%,#11191c);
+    border-color: color-mix(in srgb,var(--primary) 30%,rgba(255,255,255,.08));
+  }
+  .dark .saas-main :is(
+    .leads-page .filter-chip,
+    .opportunity-page .opportunity-mode-tabs button,
+    .messages-page .message-kind-tabs button,
+    .messages-page .message-summary-footer button,
+    .finance-view .finance-table-row
+  ) {
+    transition: background-color 180ms ease,border-color 180ms ease,color 180ms ease;
+  }
+}
+
+/* Slightly shorter motion on small screens prevents disruptive scrolling. */
+@media (max-width: 690px) {
+  .dark .saas-main :is(
+    .dashboard-view,.leads-page,.opportunity-page,.messages-page,.finance-view
+  ) > :is(.saas-page-header,.page-heading) {
+    animation-duration: 340ms;
+  }
+  .dark .saas-main :is(
+    .dashboard-view .dashboard-metrics > *,
+    .finance-view .finance-metrics > *,
+    .leads-page .stats-strip > *,
+    .opportunity-page .opportunity-summary > *
+  ) {
+    animation-duration: 350ms;
+    animation-delay: 30ms;
+  }
+}
+
+/* Accessibility: OS preference AND account setting, without waiting for JS. */
+@media (prefers-reduced-motion: reduce) {
+  .dark .saas-shell :is(
+    .dashboard-view,.leads-page,.opportunity-page,.messages-page,.finance-view
+  ) *, .dark .saas-shell :is(
+    .dashboard-view,.leads-page,.opportunity-page,.messages-page,.finance-view
+  ) *::before,.dark .saas-shell :is(
+    .dashboard-view,.leads-page,.opportunity-page,.messages-page,.finance-view
+  ) *::after {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}
+.dark .saas-shell.js-settings-reduce-motion :is(
+  .dashboard-view,.leads-page,.opportunity-page,.messages-page,.finance-view
+) *,
+.dark .saas-shell.js-settings-reduce-motion :is(
+  .dashboard-view,.leads-page,.opportunity-page,.messages-page,.finance-view
+) *::before,
+.dark .saas-shell.js-settings-reduce-motion :is(
+  .dashboard-view,.leads-page,.opportunity-page,.messages-page,.finance-view
+) *::after {
+  animation: none !important;
+  transition: none !important;
+  transform: none !important;
+}
