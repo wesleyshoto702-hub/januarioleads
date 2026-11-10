@@ -1587,7 +1587,7 @@ body{
 
 @media (max-width: 900px) {
   .saas-mobile-header {
-    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    grid-template-columns: 44px minmax(0, 1fr);
     gap: 10px;
     padding-right: max(12px, env(safe-area-inset-right));
     padding-left: max(12px, env(safe-area-inset-left));
