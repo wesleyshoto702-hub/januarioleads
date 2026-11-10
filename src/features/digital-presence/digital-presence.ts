@@ -1,4 +1,4 @@
-import { accountLocalStorage } from "../../lib/account-storage";
+import { accountLocalStorage } from "../../lib/account-storage.ts";
 
 export type AuditDevice = "mobile" | "desktop";
 export type AuditCategory = "performance" | "accessibility" | "bestPractices" | "seo";
