@@ -1,5 +1,6 @@
-import { accountLocalStorage } from "../../lib/account-storage";
-import type { PersistedLead } from "../leads/remote-leads";
+import { accountLocalStorage } from "../../lib/account-storage.ts";
+
+type ProposalLeadReference = { id: string; company: string };
 
 export type ProposalStatus = "draft" | "sent" | "accepted" | "rejected";
 export type ProposalLine = {
@@ -98,7 +99,7 @@ export function proposalTotal(lines: readonly ProposalLine[]): number {
 export function proposalLine(description=""): ProposalLine {
   return {id:uuid(),description,quantity:1,unitPrice:0};
 }
-export function makeProposal(lead?: Pick<PersistedLead,"id"|"company">|null, sellerName=""): ProposalRecord {
+export function makeProposal(lead?: ProposalLeadReference|null, sellerName=""): ProposalRecord {
   const now=new Date().toISOString();
   return {
     id:uuid(), leadId:lead?.id??null, clientName:lead?.company??"",
