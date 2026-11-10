@@ -10,7 +10,7 @@ import type { RealMapPoint } from "./map-points";
  * (legacy Marker is deprecated but still supported). With a real Map ID prefer
  * AdvancedMarkerElement and the dark map style configured in Google Cloud.
  */
-export const ENV_GOOGLE_MAPS_BROWSER_KEY = (import.meta.env["VITE_GOOGLE_MAPS_BROWSER_KEY"] as string | undefined)?.trim() ?? "";
+export { ENV_GOOGLE_MAPS_BROWSER_KEY } from "./browser-map-key";
 const MAP_ID = (import.meta.env["VITE_GOOGLE_MAPS_MAP_ID"] as string | undefined)?.trim() ?? "";
 
 // Public geographic overview used only BEFORE a locality search; actual
