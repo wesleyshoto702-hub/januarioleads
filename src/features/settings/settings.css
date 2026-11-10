@@ -40,7 +40,7 @@
 .js-settings-button{display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:41px;border:1px solid var(--border);border-radius:10px;padding:10px 15px;font:700 12px Inter,system-ui,sans-serif;cursor:pointer;text-decoration:none;white-space:nowrap;transition:transform .18s,background .18s}
 .js-settings-button:hover:not(:disabled){transform:translateY(-1px)}
 .js-settings-button:disabled{opacity:.45;cursor:not-allowed}
-.js-settings-button.primary{border-color:var(--primary);background:var(--primary);color:white}
+.js-settings-button.primary{border-color:var(--primary);background:var(--primary);color:var(--primary-contrast)}
 .js-settings-button.secondary{background:var(--surface-2);color:var(--text)}
 .js-settings-button.secondary:hover:not(:disabled){border-color:var(--primary)}
 .js-settings-toggle{width:49px;height:28px;border-radius:99px;border:1px solid var(--border);background:var(--surface-2);padding:3px;display:flex;align-items:center;cursor:pointer;transition:background .15s}
@@ -104,3 +104,27 @@
   .js-settings-reminders{width:calc(100% - 24px);margin-top:12px;align-items:flex-start;padding:12px}
   .js-settings-reminder-buttons{flex:1 1 100%}
 }
+
+
+/* Five accessible accent swatches on the permanent dark background. */
+.js-settings-color-section{display:grid;gap:13px;padding:20px 0 25px;border-top:1px solid var(--border);}
+.js-settings-color-section h3{margin:0;font-size:14px;color:var(--text);font-weight:800}
+.js-settings-color-section>p{margin:0;max-width:670px;color:var(--muted);font-size:12px;line-height:1.7}
+.js-settings-color-section>small{display:block;color:var(--faint);font-size:11px;line-height:1.6}
+.js-settings-color-options{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px}
+.js-settings-color-choice{--swatch:#f12d46;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;position:relative;min-height:94px;padding:11px 6px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2);color:var(--muted);font-size:11px;font-weight:700;cursor:pointer;transition:background .17s,border-color .17s,transform .17s}
+.js-settings-color-choice.is-green{--swatch:#34d399}
+.js-settings-color-choice.is-yellow{--swatch:#facc15}
+.js-settings-color-choice.is-blue{--swatch:#60a5fa}
+.js-settings-color-choice.is-red{--swatch:#f12d46}
+.js-settings-color-choice.is-white{--swatch:#f2f3f6}
+.js-settings-color-choice:hover:not(:disabled){transform:translateY(-2px);border-color:var(--swatch)}
+.js-settings-color-choice.is-selected{color:var(--text);border-color:var(--swatch);background:color-mix(in srgb,var(--swatch) 10%,var(--surface-2))}
+.js-settings-color-choice:focus-visible{outline:3px solid var(--swatch);outline-offset:3px}
+.js-settings-color-choice:disabled{opacity:.45;cursor:default}
+.js-settings-color-swatch{width:32px;height:32px;border-radius:50%;background:var(--swatch);border:2px solid color-mix(in srgb,var(--swatch) 65%,white);box-shadow:0 0 0 4px color-mix(in srgb,var(--swatch) 13%,transparent)}
+.js-settings-color-choice>svg{position:absolute;right:8px;top:7px;color:var(--swatch)}
+.js-settings-button.primary,.js-settings-toggle.is-active{color:var(--primary-contrast)}
+.js-settings-toggle.is-active>span{background:var(--primary-contrast)}
+@media(max-width:600px){.js-settings-color-options{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.js-settings-color-choice{min-height:82px}}
+@media(max-width:370px){.js-settings-color-options{grid-template-columns:repeat(2,minmax(0,1fr))}}
