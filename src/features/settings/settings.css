@@ -162,3 +162,6 @@
   .js-settings-map-config{padding:15px 13px}
   .js-settings-map-actions>.js-settings-button{width:100%}
 }
+
+.js-settings-map-origin{display:flex;align-items:baseline;flex-wrap:wrap;gap:7px;margin:16px 0 0;color:var(--muted);font-size:11px;line-height:1.6}
+.js-settings-map-origin code{overflow-wrap:anywhere;color:var(--text);border:1px solid var(--border);background:var(--surface-2);border-radius:6px;padding:3px 6px}
