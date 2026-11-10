@@ -7,7 +7,7 @@ import { accountLocalStorage, isLegacyWorkspaceOwner } from "../../lib/account-s
  * referrers and the Maps JavaScript API in Google Cloud.
  */
 export const ENV_GOOGLE_MAPS_BROWSER_KEY =
-  (import.meta.env["VITE_GOOGLE_MAPS_BROWSER_KEY"] as string | undefined)?.trim() ?? "";
+  ((import.meta as ImportMeta & { env?: Record<string, string> }).env?.["VITE_GOOGLE_MAPS_BROWSER_KEY"])?.trim() ?? "";
 
 const MAPS_BROWSER_KEY_STORAGE = "maps-personal-browser-api-key";
 const OLD_UNSCOPED_MAPS_KEY = "maps-personal-browser-api-key";
