@@ -132,6 +132,11 @@ const OpportunityView = lazy(() =>
     default: module.OpportunityView,
   })),
 );
+const DigitalPresenceView = lazy(() =>
+  import("../features/digital-presence/DigitalPresenceView").then((module) => ({
+    default: module.DigitalPresenceView,
+  })),
+);
 const FinanceView = lazy(() =>
   import("../components/finance/FinanceView").then((module) => ({
     default: module.FinanceView,
@@ -2088,6 +2093,9 @@ function LeadFlowApp() {
           onMessage={openMessageComposer}
           onGoSearch={() => navigateTo("search")}
         />
+      ) : view === "digital-presence" ? (
+        <DigitalPresenceView leads={leads} onOpenLead={openLeadDetails}
+          onOpenLeads={() => navigateTo("leads")}/>
       ) : view === "finance" ? (
         <FinanceView
           leads={leads}
