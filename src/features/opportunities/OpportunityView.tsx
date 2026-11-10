@@ -120,6 +120,7 @@ export function OpportunityView({
 }) {
   const [records, setRecords] = useState<OpportunityRecord[]>([]);
   const [summary, setSummary] = useState<OpportunitySummary>(EMPTY_SUMMARY);
+  const [showFormula, setShowFormula] = useState(false);
   const [loading, setLoading] = useState(true);
   const [partial, setPartial] = useState(false);
   const [error, setError] = useState("");
