@@ -38,6 +38,12 @@
   letter-spacing: inherit;
   white-space: nowrap;
 }
+.dark .saas-shell .jl-motion-sr-only {
+  position: absolute;
+  width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0,0,0,0);
+  white-space: nowrap; border: 0;
+}
 
 /* Common page reveal. Animations run once per mounted page, never indefinitely. */
 .dark .saas-main :is(
@@ -248,7 +254,7 @@
   ) *::after {
     animation: none !important;
     transition: none !important;
-    transform: none !important;
+
   }
 }
 .dark .saas-shell.js-settings-reduce-motion :is(
@@ -262,5 +268,5 @@
 ) *::after {
   animation: none !important;
   transition: none !important;
-  transform: none !important;
+
 }
