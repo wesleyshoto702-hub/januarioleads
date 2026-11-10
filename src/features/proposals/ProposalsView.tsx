@@ -1,15 +1,16 @@
 import {
-  BadgeCheck, BookOpen, Check, CirclePlus, ClipboardList, Copy, FileCheck2,
+  BadgeCheck, BookOpen, Check, CirclePlus, ClipboardList, Copy, Download, FileCheck2,
   FileText, FolderOpen, Info, PencilLine, Plus, Printer, Save, Search,
-  Trash2, X, type LucideIcon,
+  Trash2, Upload, X, type LucideIcon,
 } from "lucide-react";
-import { useMemo, useState, type ChangeEvent } from "react";
+import { useMemo, useRef, useState, type ChangeEvent } from "react";
 import type { PersistedLead } from "../leads/remote-leads";
 import { PageHeader } from "../../components/app-shell/PageHeader";
 import { formatCurrency } from "../lead-finance/finance";
 import { getCachedDigitalReport, normalizePublicWebsite, type DigitalReport } from "../digital-presence/digital-presence";
 import {
   applyProposalTemplate, duplicateProposal, loadProposals, makeProposal,
+  parseProposalBackup, serializeProposalBackup,
   PROPOSAL_STATUS_LABEL, PROPOSAL_TEMPLATES, proposalCode, proposalLine,
   proposalTotal, saveProposals, validateProposalForSending,
   type ProposalRecord, type ProposalStatus, type ProposalTemplateId,
@@ -80,6 +81,7 @@ export function ProposalsView({leads,sellerName,onOpenLead}:{
   const [draft,setDraft]=useState<ProposalRecord>(
     ()=>proposals[0]??makeProposal(null,sellerName),
   );
+  const backupInput=useRef<HTMLInputElement>(null);
   const [query,setQuery]=useState("");
   const [filter,setFilter]=useState<ProposalStatus|"all">("all");
   const [message,setMessage]=useState("");
@@ -213,6 +215,45 @@ export function ProposalsView({leads,sellerName,onOpenLead}:{
   function replacePrice(id:string,event:ChangeEvent<HTMLInputElement>){
     editLine(id,{unitPrice:Number(event.target.value)});
   }
+  function exportBackup(){
+    try{
+      const data=serializeProposalBackup(proposals);
+      const blob=new Blob([data],{type:"application/json;charset=utf-8"});
+      const url=URL.createObjectURL(blob);
+      const element=document.createElement("a");
+      element.href=url;
+      element.download="januarioleads-propostas-"+new Date().toISOString().slice(0,10)+".json";
+      document.body.appendChild(element);
+      element.click();element.remove();
+      window.setTimeout(()=>URL.revokeObjectURL(url),1200);
+      setMessage("Backup JSON gerado. Guarde o arquivo em um lugar seguro.");
+      setError("");
+    }catch{
+      setError("Não foi possível gerar o backup das propostas.");
+    }
+  }
+  async function importBackup(file:File){
+    if(!abandonIfDirty())return;
+    setError("");setMessage("");
+    try{
+      if(file.size>3_000_000)throw new Error("O arquivo excede o limite de 3 MB.");
+      const imported=parseProposalBackup(await file.text());
+      const existing=new Set(proposals.map(item=>item.id));
+      const added=imported.filter(item=>!existing.has(item.id));
+      if(added.length===0){setMessage("Nenhuma proposta nova para importar. As existentes foram preservadas.");return;}
+      if(proposals.length+added.length>120)
+        throw new Error("O backup excederia o limite de 120 propostas. Exclua propostas antigas antes de importar.");
+      if(!window.confirm("Importar "+added.length+" proposta(s) deste backup? Propostas já existentes não serão substituídas."))return;
+      const next=[...added,...proposals];
+      saveProposals(next);
+      setProposals(next);
+      setSelectedId(added[0]!.id);
+      setDraft(added[0]!);
+      setMessage(added.length+" proposta(s) importada(s). Nenhum registro anterior foi substituído.");
+    }catch(reason){
+      setError(reason instanceof Error?reason.message:"Não foi possível importar o backup.");
+    }
+  }
 
   return <section className="saas-page pc-page">
     <PageHeader eyebrow="GESTÃO COMERCIAL" title="Propostas comerciais"
@@ -248,7 +289,16 @@ export function ProposalsView({leads,sellerName,onOpenLead}:{
                 <b>{formatCurrency(proposalTotal(record.lines))}</b></span>
             </button>)}
         </div>
-        <p className="pc-storage-notice"><Info size={14}/> Nesta primeira versão, suas propostas são armazenadas somente neste navegador e nesta conta. Para mantê-las em outro dispositivo, salve uma cópia em PDF.</p>
+        <div className="pc-backup-actions">
+          <button type="button" className="pc-button pc-secondary" disabled={!proposals.length}
+            onClick={exportBackup}><Download size={15}/> Exportar backup</button>
+          <button type="button" className="pc-button pc-secondary"
+            onClick={()=>backupInput.current?.click()}><Upload size={15}/> Importar backup</button>
+          <input ref={backupInput} type="file" accept="application/json,.json"
+            className="pc-hidden-file" aria-label="Arquivo de backup das propostas"
+            onChange={e=>{const file=e.target.files?.[0];e.target.value="";if(file)void importBackup(file);}}/>
+        </div>
+        <p className="pc-storage-notice"><Info size={14}/> Nesta primeira versão, as propostas ficam neste navegador e nesta conta. Exporte um backup JSON para recuperar edições em outro dispositivo; PDFs servem para compartilhar com clientes.</p>
       </aside>
       <div className="pc-editor pc-panel">
         <div className="pc-editor-top">
