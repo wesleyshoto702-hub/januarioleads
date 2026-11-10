@@ -5,6 +5,7 @@ import {
   LogOut,
   MapPinned,
   Menu,
+  Files,
   MessageCircle,
   Search,
   ScanSearch,
@@ -25,6 +26,7 @@ export type AppView =
   | "prospecting"
   | "opportunities"
   | "digital-presence"
+  | "proposals"
   | "messages"
   | "finance"
   | "settings";
@@ -41,6 +43,7 @@ const NAV_ITEMS: Array<{
   { view: "prospecting", label: "Informações de Prospecção", icon: BarChart3 },
   { view: "opportunities", label: "Oportunidades", icon: Target },
   { view: "digital-presence", label: "Análise Digital", icon: ScanSearch },
+  { view: "proposals", label: "Propostas", icon: Files },
   { view: "messages", label: "Mensagens", icon: MessageCircle },
   { view: "finance", label: "Financeiro", icon: WalletCards },
 ];
@@ -53,6 +56,7 @@ const VIEW_TITLES: Record<AppView, string> = {
   prospecting: "Informações de Prospecção",
   opportunities: "Oportunidades",
   "digital-presence": "Análise Digital",
+  proposals: "Propostas",
   messages: "Mensagens",
   finance: "Financeiro",
   settings: "Configurações",
