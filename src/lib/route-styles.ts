@@ -7,6 +7,7 @@ import appShellCss from "../styles/app-shell.css?url";
 import saasVisualRefreshCss from "../styles/saas-visual-refresh.css?url";
 import prospectingInformationCss from "../styles/prospecting-information.css?url";
 import mapsPersonalCss from "../features/maps-leads/maps-leads.css?url";
+import settingsCss from "../features/settings/settings.css?url";
 import marketingHomeCss from "../styles/marketing-home.css?url";
 import animatedTourCss from "../styles/animated-product-tour.css?url";
 import heroSearchCss from "../styles/hero-search.css?url";
@@ -18,7 +19,7 @@ import signupCrimsonCss from "../styles/signup-crimson.css?url";
 
 const stylesheet = (href: string) => ({ rel: "stylesheet" as const, href });
 
-export const APP_STYLES = [stylesheet(appShellCss), stylesheet(saasVisualRefreshCss), stylesheet(prospectingInformationCss), stylesheet(mapsPersonalCss)];
+export const APP_STYLES = [stylesheet(appShellCss), stylesheet(saasVisualRefreshCss), stylesheet(prospectingInformationCss), stylesheet(mapsPersonalCss), stylesheet(settingsCss)];
 
 export const MARKETING_STYLES = [
   stylesheet(marketingHomeCss),
