@@ -34,18 +34,18 @@ export async function searchPersonalGeoapify(input:{
     const raw:unknown=await response.json();
     if(!raw||typeof raw!=="object"||!("ok" in raw))throw Error("INVALID_DATA");
     const data=raw as Record<string,unknown>;
-    if(data.ok!==true){
+    if(data["ok"]!==true){
       return {
         ok:false,
-        code:typeof data.code==="string"?data.code:"REQUEST_FAILED",
-        message:typeof data.message==="string"?data.message:"Fonte Geoapify indisponível.",
+        code:typeof data["code"]==="string"?data["code"]:"REQUEST_FAILED",
+        message:typeof data["message"]==="string"?data["message"]:"Fonte Geoapify indisponível.",
       };
     }
-    if(!Array.isArray(data.places))throw Error("INVALID_PLACES");
+    if(!Array.isArray(data["places"]))throw Error("INVALID_PLACES");
     return {
       ok:true,provider:"geoapify",limit:25,
       source:"Geoapify / © OpenStreetMap contributors",
-      places:data.places as PersonalGeoapifyPlace[],
+      places:data["places"] as PersonalGeoapifyPlace[],
     };
   }catch{
     return {ok:false,code:"REQUEST_FAILED",
@@ -77,13 +77,13 @@ export async function checkPersonalGeoapifyConfig(): Promise<PersonalGeoapifyCon
     const data: unknown = await response.json();
     if (data && typeof data === "object") {
       const payload = data as Record<string, unknown>;
-      if (response.ok && payload.ok === true && typeof payload.configured === "boolean")
-        return { ok: true, configured: payload.configured, provider: "geoapify", dailyLimit: 10 };
-      if (payload.ok === false)
+      if (response.ok && payload["ok"] === true && typeof payload["configured"] === "boolean")
+        return { ok: true, configured: payload["configured"], provider: "geoapify", dailyLimit: 10 };
+      if (payload["ok"] === false)
         return {
           ok: false,
-          code: typeof payload.code === "string" ? payload.code : "REQUEST_FAILED",
-          message: typeof payload.message === "string" ? payload.message : "Não foi possível verificar a chave Geoapify.",
+          code: typeof payload["code"] === "string" ? payload["code"] : "REQUEST_FAILED",
+          message: typeof payload["message"] === "string" ? payload["message"] : "Não foi possível verificar a chave Geoapify.",
         };
     }
     return { ok: false, code: "REQUEST_FAILED", message: "A função não respondeu ao diagnóstico. Verifique a publicação no Supabase." };
