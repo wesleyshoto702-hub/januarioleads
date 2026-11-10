@@ -832,3 +832,46 @@
   .dark .saas-main .message-summary-card,.dark .saas-main .opportunity-card,
   .dark .saas-nav-item{transition:none!important;animation:none!important}
 }
+
+/* Meus Leads KPI tile icons match the dashboard hierarchy. */
+.dark .saas-main .leads-page .stats-strip{
+  border:0;background:transparent;overflow:visible;padding:0;
+}
+.dark .saas-main .leads-page .stat-item{
+  display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;
+  gap:9px;border-right:1px solid var(--jl-dark-stroke);
+}
+.dark .saas-main .leads-page .stat-item>div{gap:4px;display:flex;flex-direction:column}
+.dark .saas-main .leads-page .stat-dot{
+  display:grid;place-items:center;flex:none;
+  width:32px;height:32px;border-radius:10px;
+  background:var(--primary-soft-strong);
+  color:var(--primary);box-shadow:none;
+}
+.dark .saas-main .leads-page .stat-dot.waiting{color:#edc16c;background:rgba(237,193,108,.12)}
+.dark .saas-main .leads-page .stat-dot.accepted{color:#59cf9f;background:rgba(89,207,159,.12)}
+.dark .saas-main .leads-page .stat-dot.rejected{color:#f07889;background:rgba(240,120,137,.12)}
+.dark .saas-main .leads-page .stat-dot.send_message{color:#bdc8cd;background:#1d292b}
+.dark .saas-main .leads-page .stat-item-label{
+  color:#a2b2b5;font-size:10px;font-weight:800;
+  letter-spacing:.095em;text-transform:uppercase;order:-1;
+}
+.dark .saas-main .leads-page .stat-item strong{
+  display:block;color:#f5f8f8;
+  font-size:clamp(24px,2.05vw,33px);font-weight:820;
+  letter-spacing:-.055em;margin:0;
+}
+.dark .saas-main .leads-page .stat-item:first-child strong{color:var(--primary)}
+.dark .saas-main .leads-page .stat-item:first-child .stat-dot{color:var(--primary)}
+/* Keep four finance summaries aligned with the screenshot, never duplicate values. */
+.dark .saas-main .leads-page .finance-summary-item{
+  display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:8px;min-height:76px;
+}
+.dark .saas-main .leads-page .finance-summary-item>span{
+  color:#98aab0;font-size:10px;text-transform:uppercase;letter-spacing:.09em;font-weight:780;
+}
+.dark .saas-main .leads-page .finance-summary-item strong{margin:0;letter-spacing:-.04em}
+.dark .saas-main .leads-page .finance-summary-item.partial strong{color:#eabf64}
+@media(max-width:690px){
+  .dark .saas-main .leads-page .stat-item{min-height:100px}
+}
