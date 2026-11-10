@@ -192,3 +192,36 @@ export function duplicateProposal(proposal: ProposalRecord): ProposalRecord {
   return {...proposal,id:uuid(),title:proposal.title+" (cópia)",status:"draft",revision:1,
     lines:proposal.lines.map(line=>({...line,id:uuid()})),createdAt:now,updatedAt:now};
 }
+
+/**
+ * Portable, user-controlled local backup. This is not cloud sync.
+ * Never send proposal content to the server or third parties.
+ */
+export function serializeProposalBackup(proposals: readonly ProposalRecord[]): string {
+  return JSON.stringify({
+    product: "JanuarioLeads", section: "proposals", version: 1,
+    exportedAt: new Date().toISOString(), proposals,
+  }, null, 2);
+}
+export function parseProposalBackup(serialized: string): ProposalRecord[] {
+  if(serialized.length > 3_000_000)
+    throw new Error("O backup é maior do que o limite permitido de 3 MB.");
+  let parsed: unknown;
+  try { parsed = JSON.parse(serialized); }
+  catch { throw new Error("Arquivo JSON inválido."); }
+  if(!isRecord(parsed) || parsed.product!=="JanuarioLeads" ||
+    parsed.section!=="proposals" || parsed.version!==1 ||
+    !Array.isArray(parsed.proposals) || parsed.proposals.length>MAX_PROPOSALS)
+    throw new Error("Este arquivo não é um backup compatível de propostas do Januário Leads.");
+  const result:ProposalRecord[]=[];
+  const ids=new Set<string>();
+  for(const raw of parsed.proposals) {
+    const record=parseProposal(raw);
+    if(!record || !isRecord(raw) || !Array.isArray(raw.lines) ||
+      raw.lines.length>MAX_LINES || ids.has(record.id))
+      throw new Error("O backup contém propostas inválidas ou duplicadas.");
+    ids.add(record.id);
+    result.push(record);
+  }
+  return result;
+}
