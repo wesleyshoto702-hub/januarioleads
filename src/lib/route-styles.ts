@@ -9,6 +9,7 @@ import prospectingInformationCss from "../styles/prospecting-information.css?url
 import mapsPersonalCss from "../features/maps-leads/maps-leads.css?url";
 import premiumWorkspaceCss from "../styles/premium-workspace.css?url";
 import premiumReferenceFivePagesCss from "../styles/premium-reference-five-pages.css?url";
+import premiumMotionFivePagesCss from "../styles/premium-motion-five-pages.css?url";
 import settingsCss from "../features/settings/settings.css?url";
 import marketingHomeCss from "../styles/marketing-home.css?url";
 import animatedTourCss from "../styles/animated-product-tour.css?url";
@@ -21,7 +22,7 @@ import signupCrimsonCss from "../styles/signup-crimson.css?url";
 
 const stylesheet = (href: string) => ({ rel: "stylesheet" as const, href });
 
-export const APP_STYLES = [stylesheet(appShellCss), stylesheet(saasVisualRefreshCss), stylesheet(prospectingInformationCss), stylesheet(mapsPersonalCss), stylesheet(settingsCss), stylesheet(premiumWorkspaceCss), stylesheet(premiumReferenceFivePagesCss)];
+export const APP_STYLES = [stylesheet(appShellCss), stylesheet(saasVisualRefreshCss), stylesheet(prospectingInformationCss), stylesheet(mapsPersonalCss), stylesheet(settingsCss), stylesheet(premiumWorkspaceCss), stylesheet(premiumReferenceFivePagesCss), stylesheet(premiumMotionFivePagesCss)];
 
 export const MARKETING_STYLES = [
   stylesheet(marketingHomeCss),
