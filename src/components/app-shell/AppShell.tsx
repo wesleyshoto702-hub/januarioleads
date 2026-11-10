@@ -5,10 +5,8 @@ import {
   MapPinned,
   Menu,
   MessageCircle,
-  Moon,
   Search,
   Settings,
-  Sun,
   Target,
   Users,
   WalletCards,
@@ -57,18 +55,14 @@ const VIEW_TITLES: Record<AppView, string> = {
 
 export function AppShell({
   activeView,
-  theme,
   onNavigate,
-  onToggleTheme,
   onLogout,
   compactMode = false,
   reduceMotion = false,
   children,
 }: {
   activeView: AppView;
-  theme: "light" | "dark";
   onNavigate: (view: AppView) => void;
-  onToggleTheme: () => void;
   onLogout: () => void | Promise<void>;
   compactMode?: boolean;
   reduceMotion?: boolean;
@@ -160,15 +154,6 @@ export function AppShell({
       <div className="saas-sidebar-footer">
         <button
           type="button"
-          className="saas-footer-action"
-          onClick={onToggleTheme}
-          aria-label={theme === "light" ? "Ativar tema escuro" : "Ativar tema claro"}
-        >
-          {theme === "light" ? <Moon size={17} /> : <Sun size={17} />}
-          <span>{theme === "light" ? "Tema escuro" : "Tema claro"}</span>
-        </button>
-        <button
-          type="button"
           className={"saas-footer-action"+(activeView==="settings"?" active":"")}
           aria-current={activeView==="settings"?"page":undefined}
           onClick={() => navigate("settings")}
@@ -226,14 +211,7 @@ export function AppShell({
             <span>JanuarioLeads</span>
           </div>
         </div>
-        <button
-          type="button"
-          className="saas-mobile-theme"
-          onClick={onToggleTheme}
-          aria-label={theme === "light" ? "Ativar tema escuro" : "Ativar tema claro"}
-        >
-          {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
-        </button>
+
       </header>
 
       {mobileOpen && (
