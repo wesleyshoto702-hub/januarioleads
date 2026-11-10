@@ -340,6 +340,9 @@ export function SettingsView({
             </form>
             {browserKeyError&&<p className="js-settings-map-error" role="alert">{browserKeyError}</p>}
             {browserKeyNotice&&<p className="js-settings-map-confirmation" role="status">{browserKeyNotice}</p>}
+            <p className="js-settings-map-origin">
+              Endereço atual do Workspace: <code>{typeof window!=="undefined"?window.location.origin:""}</code>
+            </p>
             <p className="js-settings-map-help">
               Use apenas uma chave <strong>pública de navegador</strong>, restrita ao domínio deste site
               e à <strong>Maps JavaScript API</strong> no Google Cloud. Nunca informe a chave privada
