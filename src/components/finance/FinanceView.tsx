@@ -31,6 +31,7 @@ export function FinanceView({
   loaded,
   error,
   onOpenLead,
+  onOpenLeads,
 }: {
   leads: PersistedLead[];
   financeByLead: Map<string, LeadFinanceSummary>;
@@ -38,6 +39,7 @@ export function FinanceView({
   loaded: boolean;
   error: string;
   onOpenLead: (lead: PersistedLead) => void;
+  onOpenLeads?: () => void;
 }) {
   const rows = leads
     .map((lead) => {
@@ -85,12 +87,17 @@ export function FinanceView({
         {!loaded ? (
           <div className="finance-empty">Carregando dados financeiros...</div>
         ) : rows.length === 0 ? (
-          <div className="finance-empty">
-            <WalletCards size={20} />
+          <div className="finance-empty finance-empty-premium">
+            <span className="finance-empty-icon"><WalletCards size={26} aria-hidden="true" /></span>
             <strong>Nenhum projeto com valor registrado.</strong>
             <p>
               O financeiro continua sendo preenchido dentro de “Ver empresa” de cada lead.
             </p>
+            {onOpenLeads && (
+              <button type="button" className="primary-button" onClick={onOpenLeads}>
+                Abrir Meus Leads
+              </button>
+            )}
           </div>
         ) : (
           <>

@@ -120,9 +120,10 @@ export function DashboardView({
         <MetricCard label="Recusados" value={counts.rejected} tone="rejected" icon={<Ban size={17} />} />
       </div>
 
-      <IdealCustomerPanel leads={leads} onOpenLead={onOpenLead} />
-
-      <DailyProspectingQueue leads={leads} onOpenLead={onOpenLead} onShowAll={onShowTodayActions} onSchedule={onScheduleAction} onComplete={onCompleteAction}/>
+      <div className="dashboard-priority-grid">
+        <IdealCustomerPanel leads={leads} onOpenLead={onOpenLead} />
+        <DailyProspectingQueue leads={leads} onOpenLead={onOpenLead} onShowAll={onShowTodayActions} onSchedule={onScheduleAction} onComplete={onCompleteAction}/>
+      </div>
 
       <div className="dashboard-secondary-grid">
         <section className="dashboard-panel dashboard-performance">
@@ -147,6 +148,8 @@ export function DashboardView({
             Fórmula: aceitos ÷ (aguardando + aceitos + recusados).
           </small>
         </section>
+
+        <ProspectingInsights leads={leads} onViewLeads={() => onNavigate("leads")} />
 
         <section className="dashboard-panel dashboard-financial">
           <div className="dashboard-panel-heading">
@@ -184,8 +187,6 @@ export function DashboardView({
           )}
         </section>
       </div>
-
-      <ProspectingInsights leads={leads} onViewLeads={() => onNavigate("leads")} />
 
       <CommercialReports
         leads={leads}
