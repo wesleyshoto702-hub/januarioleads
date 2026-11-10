@@ -99,8 +99,11 @@ export function parsePageSpeedResponse(
     return [{ id, title: title.trim(), score: Math.round(score * 100), category: "Lighthouse" }];
   }).sort((a,b) => a.score-b.score).slice(0,7);
 
-  const final = typeof root.id === "string" && /^https?:\/\//i.test(root.id)
-    ? root.id : requestedUrl;
+  let final = requestedUrl;
+  if (typeof root.id === "string") {
+    try { final = normalizePublicWebsite(root.id); }
+    catch { /* Never display or cache private URL parameters from redirects. */ }
+  }
   return {
     url: requestedUrl,
     finalUrl: final,
