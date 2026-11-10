@@ -1984,10 +1984,13 @@ function LeadFlowApp() {
               <>
             <div className="desktop-table">
               <div className="table-head">
-                <span>Empresa · Nicho · Localização</span>
-                <span>WhatsApp</span>
-                <span>Status</span>
+                <span>Lead</span>
+                <span>Cidade / UF</span>
                 <span>Contato</span>
+                <span>Status</span>
+                <span>Acompanhamento</span>
+                <span>Valor</span>
+                <span>Último contato</span>
                 <span>Ações</span>
               </div>
               {visibleLeads.length ? (
