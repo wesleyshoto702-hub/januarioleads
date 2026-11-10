@@ -484,3 +484,85 @@
 }
 
 .bms-real-pin > span { transform:rotate(45deg); display:block; }
+
+
+/*
+ * The Google basemap stays dark; interactive Januário Leads overlays follow
+ * the account's chosen accent. Status (success/error) stays semantic.
+ */
+.bms-root{
+  --bms-red:var(--primary);
+  --bms-border:color-mix(in srgb,var(--primary) 24%,transparent);
+  background:radial-gradient(ellipse 72% 40% at 52% 8%,color-mix(in srgb,var(--primary) 13%,transparent),transparent 82%),#0c0b10;
+}
+.bms-root .bms-heading h1 span,
+.bms-root .bms-eyebrow,
+.bms-root .bms-field label,
+.bms-root .bms-field-entry svg,
+.bms-root .bms-meta svg,
+.bms-root .bms-coverage-kicker,
+.bms-root .bms-coverage-place,
+.bms-root .bms-results-head span:not(.bms-results-count),
+.bms-root .bms-result-text em,
+.bms-root .bms-no-results svg,
+.bms-root .bms-map-placeholder svg,
+.bms-root .bms-map-loading svg,
+.bms-root .bms-business-address svg{color:var(--primary)}
+.bms-root .bms-searchbar{
+  border-color:var(--bms-border);
+  background:linear-gradient(125deg,color-mix(in srgb,var(--primary) 12%,#18121a),#161118);
+}
+.bms-root .bms-field input:focus,
+.bms-root .bms-field select:focus{
+  border-color:var(--primary);
+  box-shadow:0 0 0 3px var(--primary-soft);
+}
+.bms-root .bms-submit,
+.bms-root .bms-save:not(:disabled),
+.bms-root .bms-result-add:not(:disabled),
+.bms-root .bms-business-icon{
+  border-color:var(--primary);
+  background:linear-gradient(135deg,var(--primary-action),color-mix(in srgb,var(--primary) 80%,#000));
+  color:var(--primary-contrast);
+}
+.bms-root .bms-submit:hover:not(:disabled),
+.bms-root .bms-save:hover:not(:disabled),
+.bms-root .bms-result-add:hover:not(:disabled){
+  background:linear-gradient(135deg,var(--primary-hover),var(--primary-action));
+}
+.bms-root .bms-coverage,
+.bms-root .bms-business-card,
+.bms-root .bms-results,
+.bms-root .bms-map-frame{
+  border-color:color-mix(in srgb,var(--primary) 28%,#292329);
+}
+.bms-root .bms-coverage{background:color-mix(in srgb,var(--primary) 7%,#171015)}
+.bms-root .bms-dot{background:var(--primary);box-shadow:0 0 0 4px var(--primary-soft)}
+.bms-root .bms-map-controls button:hover{background:var(--primary-soft-strong)}
+.bms-root .bms-business-counter,.bms-root .bms-results-count,.bms-root .bms-result-index{
+  background:var(--primary-soft-strong);
+  color:var(--primary);
+}
+.bms-root .bms-result:hover,.bms-root .bms-result.selected{
+  border-color:color-mix(in srgb,var(--primary) 40%,transparent);
+  background:var(--primary-soft);
+}
+.bms-root .bms-business-details a:hover{border-color:var(--primary);color:var(--primary)}
+.bms-root .bms-business-close{
+  background:var(--primary-soft);
+  border-color:color-mix(in srgb,var(--primary) 34%,transparent);
+  color:var(--primary);
+}
+.bms-root .bms-real-pin,.bms-root .bms-real-pin.is-active{
+  background:linear-gradient(145deg,var(--primary),color-mix(in srgb,var(--primary) 67%,#000));
+  color:var(--primary-contrast);
+  border-color:var(--primary-contrast);
+  box-shadow:0 4px 17px color-mix(in srgb,var(--primary) 36%,transparent),0 0 0 3px var(--primary-soft);
+}
+.bms-root .bms-map-pin-warning{border-color:color-mix(in srgb,var(--primary) 30%,#292329)}
+.bms-root .bms-submit:focus-visible,
+.bms-root .bms-save:focus-visible,
+.bms-root .bms-result-add:focus-visible,
+.bms-root .bms-business-close:focus-visible,
+.bms-root .bms-result:focus-visible,
+.bms-root .bms-map-controls button:focus-visible{outline:3px solid var(--primary);outline-offset:2px}
