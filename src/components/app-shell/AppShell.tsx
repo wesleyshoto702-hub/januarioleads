@@ -6,6 +6,7 @@ import {
   MapPinned,
   Menu,
   Files,
+  FolderKanban,
   MessageCircle,
   Search,
   ScanSearch,
@@ -27,6 +28,7 @@ export type AppView =
   | "opportunities"
   | "digital-presence"
   | "proposals"
+  | "campaigns"
   | "messages"
   | "finance"
   | "settings";
@@ -44,6 +46,7 @@ const NAV_ITEMS: Array<{
   { view: "opportunities", label: "Oportunidades", icon: Target },
   { view: "digital-presence", label: "Análise Digital", icon: ScanSearch },
   { view: "proposals", label: "Propostas", icon: Files },
+  { view: "campaigns", label: "Campanhas", icon: FolderKanban },
   { view: "messages", label: "Mensagens", icon: MessageCircle },
   { view: "finance", label: "Financeiro", icon: WalletCards },
 ];
@@ -57,6 +60,7 @@ const VIEW_TITLES: Record<AppView, string> = {
   opportunities: "Oportunidades",
   "digital-presence": "Análise Digital",
   proposals: "Propostas",
+  campaigns: "Campanhas",
   messages: "Mensagens",
   finance: "Financeiro",
   settings: "Configurações",

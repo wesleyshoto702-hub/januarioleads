@@ -142,6 +142,9 @@ const ProposalsView = lazy(() =>
     default: module.ProposalsView,
   })),
 );
+const CampaignsView = lazy(() =>
+  import("../features/commercial-expansion/CampaignsView").then((module) => ({default:module.CampaignsView})),
+);
 const FinanceView = lazy(() =>
   import("../components/finance/FinanceView").then((module) => ({
     default: module.FinanceView,
@@ -2107,6 +2110,8 @@ function LeadFlowApp() {
           sellerName={userSettings.displayName}
           onOpenLead={openLeadDetails}
         />
+      ) : view === "campaigns" ? (
+        <CampaignsView leads={leads} onOpenLead={openLeadDetails}/>
       ) : view === "finance" ? (
         <FinanceView
           leads={leads}

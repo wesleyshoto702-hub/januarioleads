@@ -1,0 +1,62 @@
+/* Januário Leads commercial expansion — six-color accent and dark layout */
+.cx-page{max-width:1500px;margin:0 auto;padding:24px clamp(14px,2.2vw,31px) 56px;color:var(--text);min-width:0}
+.cx-page .saas-page-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;padding:27px;border:1px solid color-mix(in srgb,var(--primary) 22%,#253538);border-radius:17px;margin:0 0 18px;background:radial-gradient(ellipse at 87% 14%,color-mix(in srgb,var(--primary) 14%,transparent),transparent 58%),linear-gradient(110deg,#121f23,#0d1619)}
+.cx-page .saas-page-header h1{font-size:clamp(26px,3vw,38px);letter-spacing:-.038em;color:#eff6f7;margin:3px 0 7px}
+.cx-page .saas-page-header p:not(.saas-page-eyebrow){color:#9cafb4;max-width:720px;font-size:12px;line-height:1.65}
+.cx-page button{cursor:pointer}
+.cx-page :is(button,input,select,textarea):focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.cx-page button:disabled{opacity:.44;cursor:not-allowed}
+.cx-page .cx-grid{display:grid;grid-template-columns:minmax(285px,.72fr) minmax(0,1.5fr);gap:16px;align-items:start}
+.cx-page .cx-card{min-width:0;background:linear-gradient(145deg,#152125,#0d181b);border:1px solid rgba(182,207,210,.12);border-radius:15px;padding:20px;box-shadow:0 15px 40px -33px #000}
+.cx-page .cx-card h2{color:#f1f7f8;font-size:17px;font-weight:780;display:flex;align-items:center;gap:9px;letter-spacing:-.025em;margin:0 0 14px}
+.cx-page .cx-card h2 svg{color:var(--primary);flex:none}
+.cx-page .cx-form{display:grid;gap:12px;margin:16px 0}
+.cx-page label:not(.cx-checkbox):not(.cx-search){font-size:11px;font-weight:730;color:#c6d8dc}
+.cx-page label input:not([type=checkbox]),.cx-page label textarea,.cx-page label select,.cx-page .cx-control{
+  display:block;margin-top:6px;width:100%;min-height:42px;min-width:0;background:#0c171a;border:1px solid rgba(188,209,214,.18);color:#f0f7f8;border-radius:9px;padding:10px 12px;font-size:12px;font-family:Inter,system-ui,sans-serif
+}
+.cx-page textarea{resize:vertical;line-height:1.6}
+.cx-page .cx-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:38px;padding:9px 13px;border:1px solid rgba(178,207,210,.19);border-radius:9px;background:#1a2a2e;color:#e1eeef;font-size:11px;font-weight:750;text-decoration:none;white-space:nowrap}
+.cx-page .cx-button.primary{background:var(--primary-action);border-color:var(--primary);color:var(--primary-contrast)}
+.cx-page .cx-button.danger{color:#ffb4bf;border-color:rgba(251,135,157,.2);background:rgba(176,53,71,.08)}
+.cx-page .cx-button:hover:not(:disabled){filter:brightness(1.12)}
+.cx-page .cx-metrics,.cx-page .cx-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0 0 17px}
+.cx-page .cx-kpis{grid-template-columns:repeat(4,minmax(0,1fr));margin:18px 0}
+.cx-page :is(.cx-metrics,.cx-kpis)>div{padding:16px;border-radius:12px;background:#142226;border:1px solid rgba(188,205,208,.12);min-width:0}
+.cx-page :is(.cx-metrics,.cx-kpis) small{display:block;font-size:10px;color:#98abb0;line-height:1.5}
+.cx-page :is(.cx-metrics,.cx-kpis) strong{display:block;font-size:25px;color:#ecf6f7;margin-top:7px;letter-spacing:-.04em}
+.cx-page .cx-checkbox{display:flex;align-items:center;gap:8px;color:#a6b9bc;font-size:11px;margin:13px 0}
+.cx-page input[type=checkbox]{accent-color:var(--primary);width:16px;height:16px;flex:none}
+.cx-page .cx-list{display:grid;gap:8px;max-height:510px;overflow-y:auto}
+.cx-page .cx-list-entry{border:1px solid rgba(174,204,207,.13);border-radius:10px;padding:12px;background:#111c20;color:#e6f0f1;display:grid;gap:7px;text-align:left;width:100%}
+.cx-page .cx-list-entry.active{border-color:color-mix(in srgb,var(--primary) 54%,transparent);background:var(--primary-soft)}
+.cx-page .cx-list-entry strong{font-size:12px;overflow-wrap:anywhere}
+.cx-page .cx-list-entry span{font-size:10px;color:#92a9ad}
+.cx-page .cx-muted,.cx-page .cx-helper,.cx-page .cx-footnote{font-size:11px;color:#93a8ad;line-height:1.75}
+.cx-page .cx-helper{font-size:10px}
+.cx-page .cx-footnote{margin-top:17px}
+.cx-page .cx-split,.cx-page .cx-inline-actions{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.cx-page .cx-inline-actions{justify-content:flex-end}
+.cx-page .cx-eyebrow{font-size:9px;color:var(--primary);letter-spacing:.13em;font-weight:800;margin:0 0 8px}
+.cx-page .cx-track{height:8px;overflow:hidden;border-radius:99px;background:#263539;margin:12px 0}
+.cx-page .cx-track div{height:100%;border-radius:99px;background:var(--primary)}
+.cx-page .cx-search{display:flex;align-items:center;gap:9px;padding:0 12px;margin:18px 0 8px;background:#0e1a1d;border:1px solid rgba(189,209,214,.16);border-radius:10px;color:var(--primary)}
+.cx-page .cx-search input{background:none!important;border:0!important;margin:0!important;padding:11px 0!important;color:#f0f5f6!important;flex:1;min-width:0;outline:none}
+.cx-page .cx-lead-list{display:grid;max-height:500px;overflow-y:auto;scrollbar-width:thin}
+.cx-page .cx-lead-row{display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid rgba(194,217,219,.09);padding:11px 1px}
+.cx-page .cx-lead-row>label{display:flex;align-items:center;gap:10px;min-width:0;flex:1;cursor:pointer}
+.cx-page .cx-lead-row>label span{display:grid;gap:4px;min-width:0}
+.cx-page .cx-lead-row strong{font-size:12px;color:#eaf2f3;overflow-wrap:anywhere}
+.cx-page .cx-lead-row small{font-size:10px;color:#9aaeb2}
+.cx-page .cx-link{color:var(--primary);border:none;background:none;font-weight:760;font-size:11px;white-space:nowrap}
+.cx-page .cx-blank{display:grid;place-items:center;text-align:center;gap:11px;min-height:340px;color:#98aeb1;padding:22px}
+.cx-page .cx-blank svg{color:var(--primary)}
+.cx-page .cx-blank h2{margin:0}
+.cx-page .cx-blank p{font-size:12px;line-height:1.65;max-width:420px}
+.cx-page .cx-alert,.cx-page .cx-notice{display:flex;align-items:center;gap:9px;border-radius:10px;font-size:12px;padding:12px 14px;margin:15px 0}
+.cx-page .cx-alert{background:rgba(160,38,66,.14);border:1px solid rgba(244,108,134,.32);color:#ffbac5}
+.cx-page .cx-notice{background:rgba(52,132,98,.13);border:1px solid rgba(86,203,146,.25);color:#99e3b9}
+@media(max-width:950px){.cx-page .cx-grid{grid-template-columns:1fr}.cx-page .cx-list{max-height:250px}}
+@media(max-width:620px){.cx-page{padding:14px 11px 29px}.cx-page .saas-page-header{padding:18px}.cx-page .cx-card{padding:15px}.cx-page .cx-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.cx-page .cx-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.cx-page .cx-inline-actions{justify-content:flex-start}}
+@media(prefers-reduced-motion:reduce){.cx-page *{transition:none!important;animation:none!important}}
+.saas-shell.js-settings-reduce-motion .cx-page *{transition:none!important;animation:none!important}
