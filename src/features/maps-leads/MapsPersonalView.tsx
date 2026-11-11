@@ -189,8 +189,11 @@ export function MapsPersonalView({
       // Without a site-level Google Maps key, keep the open map + Geoapify only:
       // no Google Places search/billing and no Google Places mixed into OSM.
       if(!canDisplayGooglePlaces(browserKey,googleUnavailable)){
-        setError("Não foram encontrados estabelecimentos na base aberta para esta pesquisa. "+
-          "A consulta complementar do Google só funciona quando o site dispõe de Google Maps configurado.");
+        setError(geo.ok
+          ? "Nenhum estabelecimento foi encontrado na base aberta para esta pesquisa. "+
+            "Tente outra cidade ou nicho."
+          : "Não foi possível consultar a base aberta: "+geo.message+
+            " A consulta complementar Google não está habilitada para este mapa.");
         return;
       }
       // Optional, separately billed Google fallback (only with a Google basemap).
