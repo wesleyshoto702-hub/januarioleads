@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { BarChart3, Filter } from "lucide-react";
 import type { ExistingLeadIdentity } from "./identity";
 import { ProspectingInformationPanel } from "./ProspectingInformationPanel";
+import { ObjectionsSummary } from "../commercial-expansion/ObjectionsSummary";
 import type { ProspectingDetailMode } from "./prospecting-regions";
 
 type ProspectingInformationViewProps = {
@@ -71,6 +72,8 @@ export function ProspectingInformationView({
         </span>
       </div>
 
+      <ObjectionsSummary leadIds={leads.filter(lead=>!currentNiche||lead.segment===currentNiche)
+        .map(lead=>lead.id).filter((id):id is string=>typeof id==="string")} />
       <ProspectingInformationPanel
         leads={leads}
         touchedLeadIds={touchedLeadIds}

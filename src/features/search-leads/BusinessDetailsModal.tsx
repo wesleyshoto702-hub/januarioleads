@@ -18,6 +18,7 @@ import type {
   InstagramSource,
 } from "../business-presence/types";
 import { LeadActivityTimeline } from "../lead-activities/LeadActivityTimeline";
+import { ObjectionsPanel } from "../commercial-expansion/ObjectionsPanel";
 import { LeadFinancialSection } from "../lead-finance/LeadFinancialSection";
 import {
   LeadNextActionSection,
@@ -442,6 +443,8 @@ export function BusinessDetailsModal({
               onPaymentSaved={onPaymentSaved}
             />
           )}
+
+          {activityLeadId && <ObjectionsPanel key={activityLeadId} leadId={activityLeadId} />}
 
           {followUpLead && onNextActionSave && onNextActionComplete && (
             <LeadNextActionSection
