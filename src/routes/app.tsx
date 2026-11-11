@@ -329,16 +329,7 @@ function LeadFlowApp() {
       if(!active)return;
       setUserSettings(value);
       setSettingsLoadError("");
-      if(!navigationTouched.current){
-        if(value.homeView==="maps"){
-          // Previously saved "Buscar via Maps" preference opens the same
-          // unified search page with map visualization selected.
-          setDiscoveryTab("map");
-          setView("search");
-        }else{
-          setView(value.homeView);
-        }
-      }
+      if(!navigationTouched.current)setView(value.homeView);
     }).catch(()=>{
       if(active)setSettingsLoadError("Não foi possível carregar suas preferências no Supabase.");
     }).finally(()=>{
