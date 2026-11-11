@@ -151,6 +151,9 @@ const SequencesView = lazy(() =>
 const AgendaView = lazy(() =>
   import("../features/commercial-expansion/AgendaView").then((module) => ({default:module.AgendaView})),
 );
+const ProjectsView = lazy(() =>
+  import("../features/commercial-expansion/ProjectsView").then((module) => ({default:module.ProjectsView})),
+);
 const FinanceView = lazy(() =>
   import("../components/finance/FinanceView").then((module) => ({
     default: module.FinanceView,
@@ -2122,6 +2125,9 @@ function LeadFlowApp() {
         <SequencesView leads={leads} messages={messages} onOpenLead={openLeadDetails}/>
       ) : view === "agenda" ? (
         <AgendaView leads={leads} onOpenLead={openLeadDetails}/>
+      ) : view === "projects" ? (
+        <ProjectsView leads={leads} onOpenLead={openLeadDetails}
+          onFinance={()=>navigateTo("finance")} onProposals={()=>navigateTo("proposals")}/>
       ) : view === "finance" ? (
         <FinanceView
           leads={leads}
