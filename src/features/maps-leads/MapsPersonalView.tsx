@@ -21,6 +21,7 @@ import { ALL_SEARCH_SEGMENTS, resolveSearchSegment } from "../search-leads/segme
 import { searchPersonalGeoapify, type PersonalGeoapifyPlace } from "./personal-geoapify";
 import { buildMapPoints } from "./map-points";
 import { RealGoogleMap } from "./RealGoogleMap";
+import { KeylessInteractiveMap } from "./KeylessInteractiveMap";
 import { getBrowserGoogleMapsKey } from "./browser-map-key";
 
 type ResultsProvider = "google" | "geoapify";
@@ -98,19 +99,10 @@ export function MapsPersonalView({
   const [isSaving,setSaving]=useState(false);
   const [error,setError]=useState("");
   const [zoomAction,setZoomAction]=useState<ZoomAction>({id:0,delta:0});
-  // Existing device key remains supported while public deployments can inject
-  // a site-restricted VITE_GOOGLE_MAPS_BROWSER_KEY at build time.
-  const [browserKey,setBrowserKey] = useState(getBrowserGoogleMapsKey);
-  useEffect(() => {
-    // A different tab (or a Settings navigation) may have repaired the key.
-    const update = () => setBrowserKey(getBrowserGoogleMapsKey());
-    window.addEventListener("focus", update);
-    window.addEventListener("storage", update);
-    return () => {
-      window.removeEventListener("focus", update);
-      window.removeEventListener("storage", update);
-    };
-  }, []);
+  // A single optional site key enables Google Maps for everyone on the domain.
+  // Without it, MapLibre/OpenFreeMap provides a real map without per-user keys.
+  const browserKey=getBrowserGoogleMapsKey();
+  const [googleUnavailable,setGoogleUnavailable]=useState(false);
   const requestLock=useRef(false);
   const saveLock=useRef(false);
   const listRef=useRef<HTMLOListElement>(null);
@@ -291,28 +283,26 @@ export function MapsPersonalView({
       {error&&<p className="bms-alert" role="alert">{error}</p>}
       <div className="bms-layout">
         <div className="bms-map-frame">
-          {browserKey
+          {browserKey&&!googleUnavailable
             ? <RealGoogleMap key={browserKey} browserKey={browserKey}
               points={mapPoints} selectedId={activeId}
-              onSelect={choose} zoomAction={zoomAction}/>
-            : <div className="bms-map-placeholder" role="status">
-              <MapPin size={34}/>
-              <strong>Google Maps precisa ser ativado neste navegador</strong>
-              <p>Abra Configurações → Administração → Mapa interativo e informe sua chave pública da Maps JavaScript API.</p>
-              <p>A lista de empresas e o botão Adicionar lead continuam funcionando.</p>
-            </div>}
+              onSelect={choose} zoomAction={zoomAction}
+              onUnavailable={()=>setGoogleUnavailable(true)}/>
+            : <KeylessInteractiveMap
+              points={mapPoints} selectedId={activeId}
+              onSelect={choose} zoomAction={zoomAction}/>}
           <div className="bms-coverage">
             <div className="bms-coverage-kicker"><span className="bms-dot"/> COBERTURA TERRITORIAL</div>
             <div className="bms-coverage-place">{applied?titleCity:"Brasil · mapa real"}</div>
             <p>{applied?`${count} empresas retornadas · ${applied.segment}`:"Pesquise por nicho e município"}</p>
           </div>
-          {browserKey&&<div className="bms-map-controls" aria-label="Controles do mapa">
+          <div className="bms-map-controls" aria-label="Controles do mapa">
             <button type="button" aria-label="Ampliar mapa"
               onClick={()=>setZoomAction(prev=>({id:prev.id+1,delta:1}))}><Plus size={20}/></button>
             <span>ZOOM</span>
             <button type="button" aria-label="Reduzir mapa"
               onClick={()=>setZoomAction(prev=>({id:prev.id+1,delta:-1}))}><Minus size={20}/></button>
-          </div>}
+          </div>
 
           {selected&&<article className="bms-business-card" aria-label={"Empresa selecionada: "+selected.name}>
             <button type="button" className="bms-business-close" aria-label="Fechar detalhes do lead"
