@@ -9,6 +9,7 @@ import {
   StickyNote,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useConfirmAction } from "../../components/app-shell/ConfirmActionProvider";
 import {
   createLeadActivity,
   deleteManualNote,
@@ -61,6 +62,7 @@ function formatActivityDate(value: string) {
 }
 
 export function LeadActivityTimeline({ leadId }: { leadId: string }) {
+  const confirmAction = useConfirmAction();
   const [items, setItems] = useState<LeadActivity[]>([]);
   const [nextOffset, setNextOffset] = useState(0);
   const [hasMore, setHasMore] = useState(false);
@@ -169,12 +171,13 @@ export function LeadActivityTimeline({ leadId }: { leadId: string }) {
   }
 
   async function removeNote(activity: LeadActivity) {
-    if (
-      activity.type !== "manual_note" ||
-      !window.confirm("Excluir esta anotação?")
-    ) {
-      return;
-    }
+    if (activity.type !== "manual_note") return;
+    if (!(await confirmAction({
+      title: "Excluir anotação?",
+      subject: activity.description?.slice(0, 140) || "Anotação comercial",
+      description: "Esta anotação será removida do histórico de atividades do lead.",
+      confirmLabel: "Excluir anotação",
+    }))) return;
 
     setError("");
     try {
