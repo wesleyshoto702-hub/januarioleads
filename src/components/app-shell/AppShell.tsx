@@ -186,12 +186,12 @@ export function AppShell({
         </nav>
         <div className="saas-commercial-nav">
           <button type="button" className={"saas-commercial-toggle"+(commercialOpen?" open":"")}
-            aria-expanded={commercialOpen} aria-controls="saas-commercial-items"
+            aria-expanded={commercialOpen}
             onClick={()=>setCommercialOpen(value=>!value)}>
             <BriefcaseBusiness size={17} strokeWidth={1.8}/>
             <span>Gestão Comercial</span><ChevronDown size={15} aria-hidden="true"/>
           </button>
-          {commercialOpen&&<nav className="saas-nav saas-commercial-items" id="saas-commercial-items"
+          {commercialOpen&&<nav className="saas-nav saas-commercial-items"
             aria-label="Ferramentas de gestão comercial">
             {NAV_ITEMS.filter(item=>COMMERCIAL_VIEWS.has(item.view)).map(item=>{
               const Icon=item.icon;const active=activeView===item.view;
