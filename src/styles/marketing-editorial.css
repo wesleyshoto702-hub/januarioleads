@@ -126,3 +126,27 @@
 @media (prefers-reduced-motion:reduce) {
  .jl-challenge-line,.jl-workflow-track li { animation:none; }
 }
+
+/* Two integrated groups keep the existing feature explorer usable with 14 modules. */
+.jl-module-explorer { display:grid; gap:13px; }
+.jl-module-groups { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.jl-module-group {
+  display:inline-flex; justify-content:center; align-items:center; gap:10px;
+  border-radius:10px; min-height:44px; padding:10px 17px;
+  border:1px solid #374251; color:#c5cfda; background:#151b25;
+  font-size:12px; font-weight:760; cursor:pointer;
+  transition:border-color .2s,background .2s,color .2s;
+}
+.jl-module-group svg { color:#fa8298; flex:none; }
+.jl-module-group:hover:not(:disabled) { border-color:#945063; background:#241d2a; }
+.jl-module-group.active { border-color:#c35b74; background:#392432; color:#fff; }
+.jl-module-group:focus-visible,.jl-module-tab:focus-visible { outline:2px solid #ff879c; outline-offset:3px; }
+.jl-module-group:disabled { cursor:default; opacity:.7; }
+.jl-module-group-description { color:#aab8c7; font-size:11px; line-height:1.6; margin:0 0 9px; }
+.jl-module-availability { border-top:1px solid #36414e; padding-top:12px; color:#a0acbc!important; font-size:10px!important; line-height:1.75!important; }
+@media(max-width:640px) {
+  .jl-module-groups { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .jl-module-group { padding:10px 7px; font-size:11px; min-width:0; gap:6px; }
+  .jl-module-group svg { width:15px; }
+}
+@media(prefers-reduced-motion:reduce) { .jl-module-group { transition:none!important; } }
