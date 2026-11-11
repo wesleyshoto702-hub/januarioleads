@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { getValidSession, signOutOtherSessions } from "../../lib/auth";
+import { useConfirmAction } from "../../components/app-shell/ConfirmActionProvider";
 import { USE_HTTPONLY_SESSION } from "../../lib/supabase-config";
 import { isLegacyWorkspaceOwner } from "../../lib/account-storage";
 import type { PersistedLead } from "../leads/remote-leads";
@@ -82,6 +83,7 @@ export function SettingsView({
   onLogout:()=>Promise<void>;
   leads:PersistedLead[];
 }){
+  const confirmAction=useConfirmAction();
   const [section,setSection]=useState<SectionId>("account");
   const [draft,setDraft]=useState<UserSettings>(settings);
   const [email,setEmail]=useState("");
@@ -122,7 +124,12 @@ export function SettingsView({
   }
   async function otherSessions(){
     if(working)return;
-    if(!window.confirm("Encerrar as outras sessões da sua conta? O dispositivo atual continuará conectado."))return;
+    if(!(await confirmAction({
+      title:"Encerrar outras sessões?",
+      description:"Os outros dispositivos serão desconectados. A sessão deste dispositivo continuará ativa. Tokens já emitidos podem permanecer válidos até expirarem.",
+      confirmLabel:"Encerrar sessões",
+      variant:"warning",
+    })))return;
     setWorking(true);setError("");setNotice("");
     try{
       await signOutOtherSessions();
@@ -142,8 +149,12 @@ export function SettingsView({
       setBrowserKeyError(reason instanceof Error ? reason.message : "Não foi possível salvar a chave.");
     }
   }
-  function removeMapKey(){
-    if(!window.confirm("Remover a chave pública do Google Maps salva neste navegador?")) return;
+  async function removeMapKey(){
+    if(!(await confirmAction({
+      title:"Remover chave local do Maps?",
+      description:"A chave pública do Google Maps será removida deste navegador. Se houver uma chave configurada no site, ela continuará disponível.",
+      confirmLabel:"Remover chave",
+    })))return;
     setBrowserKeyError("");
     setBrowserKeyNotice("");
     try {
@@ -329,7 +340,7 @@ export function SettingsView({
                   <KeyRound size={15}/> Salvar chave do mapa
                 </button>
                 {browserKeySource==="browser"&&<button type="button"
-                  className="js-settings-button secondary" onClick={removeMapKey}>
+                  className="js-settings-button secondary" onClick={()=>void removeMapKey()}>
                   Remover chave local
                 </button>}
                 {browserKeySource!=="missing"&&<button type="button"
