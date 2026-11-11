@@ -8,8 +8,9 @@ Evitar duas entradas no menu para tarefas de prospecção equivalentes, mantendo
 ## Alterações
 1. Menu lateral e móvel: removido somente o **item de navegação** "Buscar via Maps".
    O tipo de view `maps` foi preservado como compatibilidade legada; chamadas antigas
-   e preferências antigas com `homeView: maps` chegam a `Buscar Leads` com a
-   visualização Mapa selecionada.
+   chegam a `Buscar Leads` com a visualização Mapa selecionada.
+   As preferências de página inicial já aceitam somente o valor `search`
+   (não havia opção `maps` nessa configuração).
 2. Página Buscar Leads (conta proprietária original):
    - **Lista** (padrão): pesquisa híbrida Geoapify → Google Places com resultados
      apresentados em lista ampla, detalhes selecionados e botão de salvar no CRM.
@@ -57,7 +58,7 @@ Evitar duas entradas no menu para tarefas de prospecção equivalentes, mantendo
 - [ ] Confirmar que Busca avançada continua com filtros e pesquisa independentes.
 - [ ] Testar uma conta não proprietária: a tela antiga permanece, sem desbloquear
       permissões pessoais.
-- [ ] Testar preferência antiga `maps`: redirecionar para Buscar Leads/Mapa.
+- [ ] Testar navegação legada `navigateTo("maps")`: redirecionar para Buscar Leads/Mapa.
 
 A revisão estática é possível pelo GitHub, mas os testes reais de navegador e
 compilação integral dependem de runner/ambiente disponível. Não declarar
