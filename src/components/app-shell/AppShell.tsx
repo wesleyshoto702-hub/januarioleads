@@ -6,7 +6,6 @@ import {
   ChevronDown,
   LayoutDashboard,
   LogOut,
-  MapPinned,
   Menu,
   Files,
   ListOrdered,
@@ -21,7 +20,6 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { isLegacyWorkspaceOwner } from "../../lib/account-storage";
 
 export type AppView =
   | "dashboard"
@@ -48,7 +46,6 @@ const NAV_ITEMS: Array<{
   { view: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { view: "leads", label: "Meus Leads", icon: Users },
   { view: "search", label: "Buscar Leads", icon: Search },
-  { view: "maps", label: "Buscar via Maps", icon: MapPinned },
   { view: "prospecting", label: "Informações de Prospecção", icon: BarChart3 },
   { view: "opportunities", label: "Oportunidades", icon: Target },
   { view: "digital-presence", label: "Análise Digital", icon: ScanSearch },
@@ -68,7 +65,7 @@ const VIEW_TITLES: Record<AppView, string> = {
   dashboard: "Dashboard",
   leads: "Meus Leads",
   search: "Buscar Leads",
-  maps: "Buscar via Maps",
+  maps: "Buscar Leads",
   prospecting: "Informações de Prospecção",
   opportunities: "Oportunidades",
   "digital-presence": "Análise Digital",
@@ -175,8 +172,7 @@ export function AppShell({
     <>
       <div className="saas-nav-scroll">
         <nav className="saas-nav" aria-label="Navegação principal">
-          {NAV_ITEMS.filter(item=>!COMMERCIAL_VIEWS.has(item.view) &&
-            (item.view!=="maps"||isLegacyWorkspaceOwner())).map(item=>{
+          {NAV_ITEMS.filter(item=>!COMMERCIAL_VIEWS.has(item.view)).map(item=>{
             const Icon=item.icon;const active=activeView===item.view;
             return <button key={item.view} type="button" className={active?"saas-nav-item active":"saas-nav-item"}
               aria-current={active?"page":undefined} onClick={()=>navigate(item.view)}>
