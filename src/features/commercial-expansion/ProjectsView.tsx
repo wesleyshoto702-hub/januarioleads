@@ -1,6 +1,7 @@
 import {useMemo,useState} from "react";
 import {BriefcaseBusiness,Check,CheckCircle2,ClipboardList,Download,Plus,Trash2} from "lucide-react";
 import {PageHeader} from "../../components/app-shell/PageHeader";
+import {useConfirmAction} from "../../components/app-shell/ConfirmActionProvider";
 import type {PersistedLead} from "../leads/remote-leads";
 import {formatCurrency} from "../lead-finance/finance";
 import {loadProposals,proposalTotal} from "../proposals/proposals";
@@ -10,6 +11,7 @@ export function ProjectsView({leads,onOpenLead,onFinance,onProposals}:{
  leads:PersistedLead[];onOpenLead:(lead:PersistedLead)=>void;
  onFinance:()=>void;onProposals:()=>void;
 }){
+ const confirmAction=useConfirmAction();
  const [projects,setProjects]=useState<ClientProject[]>(()=>loadCommercial("projects",isClientProject,150));
  const [proposals]=useState(loadProposals);
  const [selectedId,setSelectedId]=useState("");
@@ -46,8 +48,14 @@ export function ProjectsView({leads,onOpenLead,onFinance,onProposals}:{
     setNewName(proposal.title||"Projeto para "+proposal.clientName);
   }
  }
- function changeStage(project:ClientProject,status:ProjectStatus){
-  if(status==="delivered"&&!window.confirm("Marcar o projeto como entregue? Isso não registra recebimentos financeiros."))return;
+ async function changeStage(project:ClientProject,status:ProjectStatus){
+  if(status==="delivered"&&!(await confirmAction({
+    title:"Marcar projeto como entregue?",
+    subject:project.name,
+    description:"O projeto ficará como entregue, mas nenhum pagamento será registrado no Financeiro.",
+    confirmLabel:"Confirmar entrega",
+    variant:"warning",
+  })))return;
   patch(project.id,{status,deliveredAt:status==="delivered"?new Date().toISOString():null},
     status==="delivered"?"Projeto marcado como entregue; Financeiro inalterado.":"Etapa atualizada.");
  }
@@ -59,8 +67,13 @@ export function ProjectsView({leads,onOpenLead,onFinance,onProposals}:{
   patch(selected.id,{tasks:[...selected.tasks,{id:crypto.randomUUID(),title,done:false}]},"Tarefa adicionada.");
   setTaskTitle("");
  }
- function deleteProject(project:ClientProject){
-  if(!window.confirm("Excluir este projeto? Isso não exclui o lead nem a proposta vinculada."))return;
+ async function deleteProject(project:ClientProject){
+  if(!(await confirmAction({
+    title:"Excluir projeto?",
+    subject:project.name,
+    description:"O projeto e suas tarefas serão apagados. O lead e a proposta vinculados serão preservados.",
+    confirmLabel:"Excluir projeto",
+  })))return;
   if(commit(projects.filter(p=>p.id!==project.id),"Projeto excluído. Lead e proposta preservados."))setSelectedId("");
  }
  return <section className="saas-page cx-page">
@@ -108,10 +121,10 @@ export function ProjectsView({leads,onOpenLead,onFinance,onProposals}:{
         onClick={()=>onOpenLead(leadsById.get(selected.leadId!)!)}>Ver lead</button>}
       {selected.proposalId&&<button className="cx-button" type="button" onClick={onProposals}>Abrir propostas</button>}
       <button className="cx-button" type="button" onClick={onFinance}>Financeiro</button>
-      <button className="cx-button danger" type="button" onClick={()=>deleteProject(selected)}><Trash2 size={15}/> Excluir</button>
+      <button className="cx-button danger" type="button" onClick={()=>void deleteProject(selected)}><Trash2 size={15}/> Excluir</button>
     </div></div>
    <div className="cx-project-form cx-project-details-form">
-    <label>Fase<select value={selected.status} onChange={e=>changeStage(selected,e.target.value as ProjectStatus)}>
+    <label>Fase<select value={selected.status} onChange={e=>void changeStage(selected,e.target.value as ProjectStatus)}>
       {stages.map(([key,label])=><option key={key} value={key}>{label}</option>)}
     </select></label>
     <label>Previsão de entrega<input type="date" value={selected.dueDate}
@@ -131,7 +144,14 @@ export function ProjectsView({leads,onOpenLead,onFinance,onProposals}:{
         onChange={()=>patch(selected.id,{tasks:selected.tasks.map(x=>x.id===t.id?{...x,done:!x.done}:x)})}/>
        <span className={t.done?"done":""}>{t.title}</span></label>
       <button type="button" className="cx-button danger" aria-label={"Remover tarefa "+t.title}
-        onClick={()=>patch(selected.id,{tasks:selected.tasks.filter(x=>x.id!==t.id)})}><Trash2 size={14}/></button>
+        onClick={async()=>{
+          if(await confirmAction({
+            title:"Remover tarefa do projeto?",
+            subject:t.title,
+            description:"A tarefa e seu estado de conclusão serão excluídos deste projeto.",
+            confirmLabel:"Remover tarefa",
+          }))patch(selected.id,{tasks:selected.tasks.filter(x=>x.id!==t.id)});
+        }}><Trash2 size={14}/></button>
     </div>)}
     {!selected.tasks.length&&<p className="cx-muted">Adicione tarefas concretas para acompanhar o avanço real do projeto.</p>}</div>
    </div>
