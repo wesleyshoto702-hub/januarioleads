@@ -289,7 +289,7 @@ export function MapsPersonalView({
           <option value="geoapify">Automático · Geoapify primeiro, Google se necessário</option>
           <option value="google">Google primeiro · Geoapify como alternativa</option>
         </select>
-        <span>O Google Places pode gerar cobrança quando consultado. A busca respeita o limite diário.</span>
+        <span>O Google Places pode gerar cobrança quando consultado. O limite diário do Januário Leads está temporariamente pausado para testes. Google Places pode gerar cobranças.</span>
       </div>
       <div className="bms-meta">
         <span><Layers size={15}/> {applied?`${count} empresas encontradas`:"Escolha um nicho e uma região"}</span>
