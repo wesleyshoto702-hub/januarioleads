@@ -316,7 +316,7 @@ Deno.serve(async(request:Request)=>{
     }
     const neighborhood=text(body?.neighborhood,80);
     if(neighborhood){
-      const norm=(value:string)=>value.normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase();
+      const norm=(value:string)=>value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
       selected=selected.filter(x=>norm(x.address??"").includes(norm(neighborhood)));
     }
     return answer(request,{
