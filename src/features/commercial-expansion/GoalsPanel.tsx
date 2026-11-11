@@ -2,11 +2,13 @@ import {useMemo,useState} from "react";
 import {ChartNoAxesCombined,Check,CirclePlus,Target,Trash2} from "lucide-react";
 import type {PersistedLead} from "../leads/remote-leads";
 import {loadProposals} from "../proposals/proposals";
+import {useConfirmAction} from "../../components/app-shell/ConfirmActionProvider";
 import {brazilToday,displayDate,freshRecord,loadCommercial,saveCommercial} from "./store";
 import {isAgendaItem} from "./agenda";
 import {isClientProject} from "./projects";
 import {countInPeriod,goalPeriodRange,isCommercialGoal,GOAL_METRICS,type CommercialGoal,type GoalMetric,type GoalPeriod} from "./goals";
 export function GoalsPanel({leads}:{leads:PersistedLead[]}){
+ const confirmAction=useConfirmAction();
  const [goals,setGoals]=useState<CommercialGoal[]>(()=>loadCommercial("goals",isCommercialGoal,20));
  const [proposals]=useState(loadProposals);
  const [appointments]=useState(()=>loadCommercial("agenda",isAgendaItem,300));
@@ -62,8 +64,13 @@ export function GoalsPanel({leads}:{leads:PersistedLead[]}){
      {sorted.map(g=>{const count=current(g),ratio=Math.round(count/g.target*100),range=goalPeriodRange(day,g.period);
        return <article key={g.id} className="cx-goal-card">
         <div className="cx-goal-card-top"><small>{g.period==="week"?"META SEMANAL":"META MENSAL"}</small>
-         <button type="button" aria-label={"Excluir meta "+GOAL_METRICS[g.metric]} onClick={()=>{
-           if(window.confirm("Remover esta meta? Os dados reais continuam preservados."))commit(goals.filter(x=>x.id!==g.id),"Meta removida.");
+         <button type="button" aria-label={"Excluir meta "+GOAL_METRICS[g.metric]} onClick={async()=>{
+           if(await confirmAction({
+             title:"Excluir meta de produtividade?",
+             subject:GOAL_METRICS[g.metric],
+             description:"A meta configurada será removida. Os registros reais de produtividade continuarão preservados.",
+             confirmLabel:"Excluir meta",
+           }))commit(goals.filter(x=>x.id!==g.id),"Meta removida.");
          }}><Trash2 size={14}/></button></div>
         <h3>{GOAL_METRICS[g.metric]}</h3>
         <div className="cx-goal-numbers"><strong>{count}</strong><span>/ {g.target}</span></div>
