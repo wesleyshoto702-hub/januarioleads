@@ -2,7 +2,7 @@ import { getAccessToken } from "../../lib/auth";
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "../../lib/supabase-config";
 
 export type PersonalGeoapifyPlace = {
-  source: "geoapify";
+  source: "geoapify" | "osm";
   sourceId: string;
   name: string;
   category: string | null;
@@ -13,7 +13,7 @@ export type PersonalGeoapifyPlace = {
   longitude: number;
 };
 export type PersonalGeoapifyResponse =
-  | {ok:true;provider:"geoapify";places:PersonalGeoapifyPlace[];limit:25;source:string}
+  | {ok:true;provider:"geoapify" | "osm";places:PersonalGeoapifyPlace[];limit:25;source:string}
   | {ok:false;code:string;message:string};
 
 export async function searchPersonalGeoapify(input:{
@@ -43,8 +43,8 @@ export async function searchPersonalGeoapify(input:{
     }
     if(!Array.isArray(data["places"]))throw Error("INVALID_PLACES");
     return {
-      ok:true,provider:"geoapify",limit:25,
-      source:"Geoapify / © OpenStreetMap contributors",
+      ok:true,provider:data["provider"]==="osm"?"osm":"geoapify",limit:25,
+      source:typeof data["source"]==="string"?data["source"]:"© OpenStreetMap contributors",
       places:data["places"] as PersonalGeoapifyPlace[],
     };
   }catch{
