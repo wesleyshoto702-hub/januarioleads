@@ -1,9 +1,9 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { findBrazilianState } from "../_shared/brazil-locations.ts";
 import {
-  filterGeoapifyForNiche, geoapifyCategoryForSegment,
-  normalizeGeoapifyPlaces, resolveGeoapifyCityLocation,
-  geoapifyFeatureCount,
+  geoapifySearchPlanForSegment, geoapifyNameFallbackPlanForSegment,
+  selectGeoapifyPlaces, normalizeGeoapifyPlaces, resolveGeoapifyCityLocation,
+  geoapifyFeatureCount, type GeoapifySearchPlan, type GeoapifyPlacePreview,
 } from "../_shared/geoapify-adapter.ts";
 
 const PERSONAL_OWNER = "531d0690-bdb5-4549-b07a-76da37e2ff96";
@@ -224,11 +224,11 @@ Deno.serve(async(request:Request)=>{
     const segment=text(body?.segment,120),city=text(body?.city,80),
       state=text(body?.state,4).toUpperCase();
     const uf=findBrazilianState(state);
-    const category=geoapifyCategoryForSegment(segment);
+    const plan=geoapifySearchPlanForSegment(segment);
     if(!uf||city.length<2||!segment)return fail(request,"INVALID_REQUEST",
       "Informe nicho, cidade e estado válidos.");
-    if(!category)return fail(request,"UNSUPPORTED_SEGMENT",
-      "Este nicho não tem categoria Geoapify validada; use Google Places.");
+    if(!plan)return fail(request,"UNSUPPORTED_SEGMENT",
+      "Selecione um nicho do catálogo do Januário Leads.");
 
     const claim=await fetch(auth.host+"/rest/v1/rpc/claim_personal_geoapify_search",{
       method:"POST",headers:{...auth.headers,"content-type":"application/json"},
@@ -250,9 +250,8 @@ Deno.serve(async(request:Request)=>{
     const geo=new URL("https://api.geoapify.com/v1/geocode/search");
     geo.searchParams.set("text",city+", "+uf.name+", Brasil");
     geo.searchParams.set("filter","countrycode:br");
-    geo.searchParams.set("type","city");
     geo.searchParams.set("lang","pt");
-    geo.searchParams.set("limit","5");
+    geo.searchParams.set("limit","10");
     geo.searchParams.set("format","geojson");
     geo.searchParams.set("apiKey",key);
     const cityResponse=await fetch(geo,{signal:AbortSignal.timeout(7000)});
@@ -261,26 +260,68 @@ Deno.serve(async(request:Request)=>{
     if(!municipal)return fail(request,"LOCATION_NOT_FOUND",
       "Não foi possível validar esta cidade e UF no Geoapify.",404);
 
-    const places=new URL("https://api.geoapify.com/v2/places");
-    places.searchParams.set("categories",category);
-    places.searchParams.set("filter","place:"+municipal.placeId);
-    places.searchParams.set("limit","25");
-    places.searchParams.set("lang","pt");
-    places.searchParams.set("apiKey",key);
-    const placesResponse=await fetch(places,{signal:AbortSignal.timeout(8000)});
-    if(!placesResponse.ok)return fail(request,"PROVIDER_UNAVAILABLE","Geoapify não conseguiu consultar estabelecimentos.",502);
-    const data:unknown=await placesResponse.json();
-    if(geoapifyFeatureCount(data)===null)return fail(request,"PROVIDER_UNAVAILABLE",
-      "Resposta do provedor em formato inesperado.",502);
-    let listed=filterGeoapifyForNiche(normalizeGeoapifyPlaces(data,{city,state:uf.code},25),segment);
+
+    // Every search is constrained to the geocoded municipality's place ID.
+    // A larger source page is ranked BEFORE truncation to 25 results.
+    const fetchPlaces=async(searchPlan:GeoapifySearchPlan,providerLimit:number):
+      Promise<{ok:true;places:GeoapifyPlacePreview[]}
+      |{ok:false;httpStatus:number}>=>{
+      const endpoint=new URL("https://api.geoapify.com/v2/places");
+      endpoint.searchParams.set("categories",searchPlan.categories);
+      endpoint.searchParams.set("filter","place:"+municipal.placeId);
+      endpoint.searchParams.set("limit",String(providerLimit));
+      endpoint.searchParams.set("lang","pt");
+      if(searchPlan.name)endpoint.searchParams.set("name",searchPlan.name);
+      endpoint.searchParams.set("apiKey",key);
+      const result=await fetch(endpoint,{signal:AbortSignal.timeout(9000)});
+      if(!result.ok)return {ok:false,httpStatus:result.status};
+      const json:unknown=await result.json();
+      if(geoapifyFeatureCount(json)===null)return {ok:false,httpStatus:502};
+      return {ok:true,places:normalizeGeoapifyPlaces(json,{city,state:uf.code},providerLimit)};
+    };
+    const primary=await fetchPlaces(plan,plan.matchMode==="category"?150:75);
+    if(!primary.ok)return fail(request,primary.httpStatus===429?"QUOTA":"PROVIDER_UNAVAILABLE",
+      primary.httpStatus===429
+        ?"Geoapify atingiu seu limite de consultas. A busca foi interrompida."
+        :"Geoapify não conseguiu consultar os estabelecimentos deste município.",
+      primary.httpStatus===429?429:502);
+    let selected:GeoapifyPlacePreview[];
+    let matchMode:"category"|"related"|"name";
+    if(plan.matchMode==="name"){
+      selected=primary.places.slice(0,25).map(p=>({...p,matchQuality:"name"}));
+      matchMode="name";
+    }else{
+      const ranked=selectGeoapifyPlaces(primary.places,segment,25);
+      selected=ranked.places;
+      matchMode=ranked.matchMode;
+    }
+    // A non-specific category can contain many candidates with no barber
+    // label. Before returning related hairdressers, request a precise name
+    // match. This second call only happens for zero/uncertain results.
+    if(plan.matchMode==="category" && (selected.length===0||matchMode==="related")){
+      const fallback=geoapifyNameFallbackPlanForSegment(segment);
+      if(fallback){
+        const byName=await fetchPlaces(fallback,75);
+        if(byName.ok && byName.places.length>0){
+          selected=byName.places.slice(0,25).map(p=>({...p,matchQuality:"name"}));
+          matchMode="name";
+        }else if(!byName.ok && selected.length===0){
+          return fail(request,byName.httpStatus===429?"QUOTA":"PROVIDER_UNAVAILABLE",
+            byName.httpStatus===429
+              ?"Geoapify atingiu seu limite de consultas."
+              :"A consulta por categoria não encontrou registros e a busca complementar falhou.",
+            byName.httpStatus===429?429:502);
+        }
+      }
+    }
     const neighborhood=text(body?.neighborhood,80);
     if(neighborhood){
-      const norm=(value:string)=>value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
-      listed=listed.filter(x=>norm(x.address??"").includes(norm(neighborhood)));
+      const norm=(value:string)=>value.normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase();
+      selected=selected.filter(x=>norm(x.address??"").includes(norm(neighborhood)));
     }
     return answer(request,{
-      ok:true,provider:"geoapify",places:listed,partial:false,
-      limit:25,source:"Geoapify / © OpenStreetMap contributors",
+      ok:true,provider:"geoapify",places:selected,partial:matchMode!=="category",
+      matchMode,limit:25,source:"Geoapify / © OpenStreetMap contributors",
     });
   }catch{
     return fail(request,"REQUEST_FAILED","Busca temporariamente indisponível. Tente mais tarde.",503);
