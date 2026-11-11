@@ -10,7 +10,10 @@ import type { RealMapPoint } from "./map-points";
  * A pinned CDN build is used so the current Bun lockfile is not rewritten by
  * hand; a self-hosted MapLibre bundle/tiles is the future high-scale option.
  */
-const SDK_URL = "https://cdn.jsdelivr.net/npm/maplibre-gl@6.17.0/dist/maplibre-gl.mjs";
+const SDK_URLS = [
+  "https://cdn.jsdelivr.net/npm/maplibre-gl@6.17.0/dist/maplibre-gl.mjs",
+  "https://unpkg.com/maplibre-gl@6.17.0/dist/maplibre-gl.mjs",
+] as const;
 const CSS_URL = "https://cdn.jsdelivr.net/npm/maplibre-gl@6.17.0/dist/maplibre-gl.css";
 const DEFAULT_STYLE = "https://tiles.openfreemap.org/styles/dark";
 const BRAZIL_CENTER: [number, number] = [-51.9253, -14.235];
@@ -43,13 +46,15 @@ let cachedSdk:Promise<MapLibreSdk>|null=null;
 function loadMapLibre():Promise<MapLibreSdk>{
   if (!cachedSdk) {
     cachedSdk = (async()=>{
-      // The URL is fixed/pinned; Vite must leave this browser-only import intact.
-      const url = SDK_URL;
-      const sdk = await import(/* @vite-ignore */ url) as MapLibreSdk;
-      if(typeof sdk?.Map!=="function"||typeof sdk?.Marker!=="function"){
-        throw new Error("A biblioteca do mapa não está disponível.");
+      // Fixed, version-pinned CDNs; no user-provided script URLs are accepted.
+      // Vite must leave the browser-only import intact for SSR-safe loading.
+      for (const url of SDK_URLS) {
+        try {
+          const sdk = await import(/* @vite-ignore */ url) as MapLibreSdk;
+          if(typeof sdk?.Map==="function"&&typeof sdk?.Marker==="function")return sdk;
+        } catch { /* CDN unavailable; retry from the secondary mirror. */ }
       }
-      return sdk;
+      throw new Error("A biblioteca do mapa não está disponível.");
     })().catch((error:unknown)=>{cachedSdk=null;throw error;});
   }
   return cachedSdk;
