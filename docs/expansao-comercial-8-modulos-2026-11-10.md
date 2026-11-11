@@ -12,8 +12,8 @@ Data: 10/11/2026. Desenvolvimento por módulos independentes no GitHub; sem aç�
 | 4 | Sequências de prospecção | Implementada no código principal; validar no navegador |
 | 5 | Agenda comercial | Implementada no código principal; validar no navegador |
 | 6 | Histórico de objeções | Implementado no código principal; validar no navegador |
-| 7 | Gestão de projetos | Próxima |
-| 8 | Metas e produtividade | Pendente |
+| 7 | Gestão de projetos | Implementada no código principal; validar no navegador |
+| 8 | Metas e produtividade | Próxima |
 
 ## Módulo 2 — Propostas comerciais
 

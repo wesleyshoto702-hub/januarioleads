@@ -2,6 +2,7 @@ import {
   BarChart3,
   Bell,
   CalendarDays,
+  BriefcaseBusiness,
   LayoutDashboard,
   LogOut,
   MapPinned,
@@ -33,6 +34,7 @@ export type AppView =
   | "campaigns"
   | "sequences"
   | "agenda"
+  | "projects"
   | "messages"
   | "finance"
   | "settings";
@@ -54,6 +56,7 @@ const NAV_ITEMS: Array<{
   { view: "messages", label: "Mensagens", icon: MessageCircle },
   { view: "sequences", label: "Sequências", icon: ListOrdered },
   { view: "agenda", label: "Agenda", icon: CalendarDays },
+  { view: "projects", label: "Projetos", icon: BriefcaseBusiness },
   { view: "finance", label: "Financeiro", icon: WalletCards },
 ];
 
@@ -70,6 +73,7 @@ const VIEW_TITLES: Record<AppView, string> = {
   messages: "Mensagens",
   sequences: "Sequências",
   agenda: "Agenda",
+  projects: "Projetos",
   finance: "Financeiro",
   settings: "Configurações",
 };
