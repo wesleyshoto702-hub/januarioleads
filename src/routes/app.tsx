@@ -105,7 +105,7 @@ import {
 import { findBusinessDuplicate, normalizeBrazilianPhone } from "../features/search-leads/identity";
 import type { BusinessSearchResult } from "../features/search-leads/types";
 import { getValidSession, signOut, subscribeAuthChange } from "../lib/auth";
-import { accountLocalStorage, isLegacyWorkspaceOwner } from "../lib/account-storage";
+import { accountLocalStorage } from "../lib/account-storage";
 import { DEFAULT_USER_SETTINGS, loadUserSettings, saveUserSettings, type UserSettings } from "../features/settings/user-settings";
 import { SettingsReminders } from "../features/settings/SettingsReminders";
 import { AnimatedNumber } from "../components/app-shell/AnimatedNumber";
@@ -117,11 +117,6 @@ import { normalizeLocationText } from "../lib/location";
 const SearchLeadsView = lazy(() =>
   import("../features/search-leads/SearchLeadsView").then((module) => ({
     default: module.SearchLeadsView,
-  })),
-);
-const MapsPersonalView = lazy(() =>
-  import("../features/maps-leads/MapsPersonalView").then((module) => ({
-    default: module.MapsPersonalView,
   })),
 );
 const ProspectingInformationView = lazy(() =>
@@ -310,15 +305,12 @@ function LeadFlowApp() {
     financeError,
   } = useLeadWorkspace();
   const [view, setView] = useState<AppView>("dashboard");
-  // One search entry: the hybrid result set is reused when switching list/map.
-  // The original rich Google prospecting screen remains as an advanced tool.
-  const [discoveryTab,setDiscoveryTab]=useState<"list"|"map"|"advanced">("list");
   const navigationTouched = useRef(false);
   const [userSettings,setUserSettings]=useState<UserSettings>({...DEFAULT_USER_SETTINGS});
   const [settingsLoading,setSettingsLoading]=useState(true);
   const [settingsLoadError,setSettingsLoadError]=useState("");
   useEffect(() => {
-    // One shared color-scheme token across all Workspace pages, including maps.
+    // One shared color-scheme token across all Workspace pages.
     document.documentElement.classList.add("dark");
     document.documentElement.setAttribute("data-jl-accent",userSettings.accentColor);
     return () => {document.documentElement.removeAttribute("data-jl-accent");};
@@ -1749,19 +1741,9 @@ function LeadFlowApp() {
   }
 
   function navigateTo(nextView: AppView) {
-    if(nextView==="maps"){
-      // Legacy deep navigation is preserved, but there is no second menu item.
-      if(!isLegacyWorkspaceOwner())return;
-      navigationTouched.current=true;
-      setDiscoveryTab("map");
-      setView("search");
-      return;
-    }
     navigationTouched.current=true;
-    if(nextView==="search"){
-      setSearchMode("all");
-      setDiscoveryTab("list");
-    }
+    // Buscar Leads is the original prospecting experience.
+    if (nextView === "search") setSearchMode("all");
     setView(nextView);
   }
 
@@ -2096,78 +2078,15 @@ function LeadFlowApp() {
             )}
           </div>
         </section>
-      ) : view === "search" || view === "maps" ? (
-        isLegacyWorkspaceOwner() ? (
-          <section className="jl-unified-search" aria-label="Buscar Leads">
-            <div className="jl-unified-search-header">
-              <p className="jl-unified-search-eyebrow">PROSPECÇÃO INTELIGENTE</p>
-              <h1>Buscar Leads</h1>
-              <p>Explore empresas em lista ou no mapa usando a mesma pesquisa híbrida.
-                Ao trocar entre Lista e Mapa, os resultados continuam carregados.</p>
-            </div>
-            <div className="jl-unified-search-tabs" role="group" aria-label="Modo de busca">
-              <button type="button" id="jl-discovery-list"
-                aria-pressed={discoveryTab==="list"}
-                aria-controls="jl-discovery-panel"
-                className={discoveryTab==="list"?"active":""}
-                onClick={()=>setDiscoveryTab("list")}>
-                <Search size={16}/> Lista
-              </button>
-              <button type="button" id="jl-discovery-map"
-                aria-pressed={discoveryTab==="map"}
-                aria-controls="jl-discovery-panel"
-                className={discoveryTab==="map"?"active":""}
-                onClick={()=>setDiscoveryTab("map")}>
-                <MapPin size={16}/> Mapa
-              </button>
-              <button type="button" id="jl-discovery-advanced"
-                aria-pressed={discoveryTab==="advanced"}
-                aria-controls="jl-discovery-panel"
-                className={discoveryTab==="advanced"?"active":""}
-                onClick={()=>setDiscoveryTab("advanced")}>
-                <Star size={16}/> Busca avançada
-              </button>
-            </div>
-            <div id="jl-discovery-panel" role="region"
-              aria-labelledby={"jl-discovery-"+discoveryTab}
-              className="jl-unified-search-panel">
-              {discoveryTab==="advanced" ? (
-                <>
-                  <p className="jl-advanced-search-note" role="note">
-                    Busca avançada: filtros, enriquecimento e análise de oportunidades.
-                    Este modo usa a pesquisa completa existente e tem resultados próprios.
-                  </p>
-                  <SearchLeadsView
-                    existingLeads={leads}
-                    mode={searchMode}
-                    onModeChange={setSearchMode}
-                    onAddLead={addFoundLeadConfirmed}
-                    onPresenceDiscovered={applyPresenceToLead}
-                    onMessage={openMessageComposer}
-                  />
-                </>
-              ) : (
-                <MapsPersonalView
-                  existingLeads={leads}
-                  onAddLead={addFoundLeadConfirmed}
-                  displayMode={discoveryTab==="map"?"map":"list"}
-                  embedded
-                />
-              )}
-            </div>
-          </section>
-        ) : (
-          // Until account-level Maps entitlements are implemented, preserve
-          // the established public-compatible advanced search for other users.
-          <SearchLeadsView
-            existingLeads={leads}
-            mode={searchMode}
-            onModeChange={setSearchMode}
-            onAddLead={addFoundLeadConfirmed}
-            onPresenceDiscovered={applyPresenceToLead}
-            onMessage={openMessageComposer}
-          />
-        )
+      ) : view === "search" ? (
+        <SearchLeadsView
+          existingLeads={leads}
+          mode={searchMode}
+          onModeChange={setSearchMode}
+          onAddLead={addFoundLeadConfirmed}
+          onPresenceDiscovered={applyPresenceToLead}
+          onMessage={openMessageComposer}
+        />
       ) : view === "prospecting" ? (
         <ProspectingInformationView
           leads={leads}
