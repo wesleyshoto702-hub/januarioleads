@@ -124,7 +124,7 @@ function decodeRows(value:unknown):Row[]{
       throw new Error("Registro do Supabase inválido.");
     const d=raw as Record<string,unknown>;
     const key=d.document_key;
-    if(typeof key!=="string"||!allowed.has(key)||!Number.isInteger(d.revision)||
+    if(typeof key!=="string"||!allowed.has(key)||typeof d.revision!=="number"||!Number.isInteger(d.revision)||
       (d.revision as number)<1)
       throw new Error("Registro do Supabase fora do esquema esperado.");
     return {document_key:key as CloudDocumentKey,
