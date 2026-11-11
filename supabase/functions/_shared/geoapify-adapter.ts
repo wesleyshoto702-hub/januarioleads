@@ -158,16 +158,22 @@ const NAME_TERMS:Record<string,string> = {
   "sistemas de irrigacao":"irrigação",
   "motoboy / entregas":"motoboy",
 };
-export function geoapifySearchPlanForSegment(value:string):GeoapifySearchPlan|null{
+export function geoapifyNameFallbackPlanForSegment(value:string):GeoapifySearchPlan|null{
   const canonical=resolveSearchSegment(value);
   if(!canonical)return null;
-  const mapped=geoapifyCategoryForSegment(canonical);
-  if(mapped)return {categories:mapped,name:null,matchMode:"category"};
   const group=SEGMENT_GROUPS.find(g=>g.items.includes(canonical));
   const categories=group ? GROUP_FALLBACK_CATEGORIES[group.label] : null;
   if(!categories)return null;
   const name=NAME_TERMS[normalize(canonical)]??canonical;
   return {categories,name:name.slice(0,80),matchMode:"name"};
+}
+export function geoapifySearchPlanForSegment(value:string):GeoapifySearchPlan|null{
+  const canonical=resolveSearchSegment(value);
+  if(!canonical)return null;
+  const mapped=geoapifyCategoryForSegment(canonical);
+  return mapped
+    ? {categories:mapped,name:null,matchMode:"category"}
+    : geoapifyNameFallbackPlanForSegment(canonical);
 }
 
 /** Retain strict barber matches; distinguish uncertain related hairdressers. */
