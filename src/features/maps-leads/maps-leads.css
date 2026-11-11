@@ -575,6 +575,7 @@
   color:#c9d5df;font-size:9px;
 }
 .bms-keyless-map .maplibregl-ctrl-attrib a { color:#cfe4ed; }
+.bms-keyless-marker { display:grid;place-items:center;width:46px;height:52px; }
 .bms-keyless-pin {
   display:grid;place-items:center;width:35px;height:42px;
   padding:0 0 7px;border:2px solid #fff0f5;border-radius:48% 48% 48% 8px;
@@ -584,6 +585,7 @@
   font:800 11px Inter,system-ui,sans-serif;cursor:pointer;
   transition:border-color .15s,background .15s,box-shadow .15s;
 }
+.bms-keyless-pin>span { transform:rotate(45deg);display:block;line-height:1; }
 .bms-keyless-pin.is-active {
   background:linear-gradient(145deg,#ff7593,#e41e54);border-color:#ffffff;
   box-shadow:0 0 0 5px rgba(235,48,91,.19),0 5px 24px rgba(239,32,81,.6);
