@@ -8,6 +8,12 @@ const PREFIX = "januarioleads:workspace:v2:";
 // This UUID identifies the one-time data migration target, not an authorization rule.
 const LEGACY_WORKSPACE_OWNER = "531d0690-bdb5-4549-b07a-76da37e2ff96";
 const LEGACY_PREFIXES = ["leadflow:", "januarioleads:business-presence"];
+const CLOUD_SYNCED_KEYS = new Set([
+  "proposals:v1","digital-presence:reports:v1",
+  ...["campaigns","sequences","enrollments","agenda","objections","projects","goals"]
+    .map(key=>"commercial:v1:"+key),
+]);
+const CLOUD_CHANGE_EVENT = "januarioleads:cloud-document-change";
 
 function workspaceUserId(): string | null {
   if (typeof window === "undefined") return null;
@@ -41,6 +47,11 @@ export const accountLocalStorage = {
     const scoped = scopedKey(key);
     if (!scoped) return;
     localStorage.setItem(scoped, value);
+    // The authenticated cloud bridge persists only these explicitly permitted
+    // commercial snapshots. Local storage always remains the crash-recovery copy.
+    if (CLOUD_SYNCED_KEYS.has(key)) {
+      window.dispatchEvent(new CustomEvent(CLOUD_CHANGE_EVENT,{detail:{key}}));
+    }
   },
   removeItem(key: string): void {
     const scoped = scopedKey(key);
