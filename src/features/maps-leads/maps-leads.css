@@ -716,7 +716,7 @@
 }
 .jl-unified-search-tabs button:hover { background:rgba(247,105,146,.09); color:#ffe9f1; }
 .jl-unified-search-tabs button.active,
-.jl-unified-search-tabs button[aria-selected="true"] {
+.jl-unified-search-tabs button[aria-pressed="true"] {
   color:#fff4f7; background:linear-gradient(125deg,rgba(169,33,69,.48),rgba(93,28,53,.35));
   border-color:rgba(250,126,159,.3);
 }
