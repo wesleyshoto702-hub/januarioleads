@@ -60,3 +60,21 @@
 @media(max-width:620px){.cx-page{padding:14px 11px 29px}.cx-page .saas-page-header{padding:18px}.cx-page .cx-card{padding:15px}.cx-page .cx-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.cx-page .cx-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.cx-page .cx-inline-actions{justify-content:flex-start}}
 @media(prefers-reduced-motion:reduce){.cx-page *{transition:none!important;animation:none!important}}
 .saas-shell.js-settings-reduce-motion .cx-page *{transition:none!important;animation:none!important}
+
+
+/* Follow-up sequence timeline and linked CRM enrollments */
+.cx-page .cx-steps{display:grid;gap:12px;margin:18px 0}
+.cx-page .cx-step{display:grid;grid-template-columns:29px minmax(145px,1fr) 105px minmax(150px,1.1fr) auto;gap:9px;align-items:end;padding:14px;border:1px solid rgba(179,207,213,.13);background:#0d1a1e;border-radius:12px;min-width:0}
+.cx-page .cx-step-index{display:grid;place-items:center;width:27px;height:27px;background:var(--primary-soft);border:1px solid color-mix(in srgb,var(--primary) 26%,transparent);border-radius:50%;font-size:11px;font-weight:800;color:var(--primary);margin-bottom:6px}
+.cx-page .cx-step :is(input,select){margin-top:5px;font-size:11px}
+.cx-page .cx-section{margin-top:24px;padding-top:22px;border-top:1px solid rgba(181,208,213,.12)}
+.cx-page .cx-section h2{font-size:15px;margin-bottom:14px}
+.cx-page .cx-inline-form{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.cx-page .cx-inline-form select{flex:1;min-width:220px}
+.cx-page .cx-enrollment{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:14px 0;border-bottom:1px solid rgba(183,209,211,.12)}
+.cx-page .cx-enrollment>div:first-child{min-width:180px;flex:1}
+.cx-page .cx-enrollment strong{font-size:12px;color:#e3f0f2}
+.cx-page .cx-enrollment p{font-size:11px;color:#a5bdc0;line-height:1.65;margin:5px 0}
+.cx-page .cx-enrollment small{color:var(--primary);font-size:10px}
+@media(max-width:1280px){.cx-page .cx-step{grid-template-columns:30px minmax(130px,1fr) 100px}.cx-page .cx-step label:nth-of-type(3){grid-column:2 / -1}.cx-page .cx-step>button:last-child{grid-column:3}}
+@media(max-width:640px){.cx-page .cx-step{grid-template-columns:1fr 1fr}.cx-page .cx-step-index{grid-column:1 / -1}.cx-page .cx-step label:nth-of-type(1){grid-column:1 / -1}.cx-page .cx-step label:nth-of-type(3){grid-column:1 / -1}.cx-page .cx-step>button:last-child{grid-column:2}.cx-page .cx-enrollment{align-items:flex-start}.cx-page .cx-inline-form select{min-width:100%}}
