@@ -66,11 +66,11 @@ function isPointValid(point:RealMapPoint):boolean{
   return Number.isFinite(point.lat)&&Number.isFinite(point.lng)&&
     Math.abs(point.lat)<=90&&Math.abs(point.lng)<=180;
 }
-function escapeSelectedIframe(points:RealMapPoint[],selectedId:string|null):string{
+function escapeSelectedIframe(points:RealMapPoint[],selectedId:string|null,zoomOffset:number):string{
   const point=points.find(x=>x.id===selectedId&&isPointValid(x))??points.find(isPointValid);
   const lon=point?.lng??BRAZIL_CENTER[0];
   const lat=point?.lat??BRAZIL_CENTER[1];
-  const spread=point?0.045:22;
+  const spread=(point?0.045:22)/Math.pow(2,zoomOffset);
   const south=Math.max(-85,lat-spread), north=Math.min(85,lat+spread);
   const west=Math.max(-180,lon-spread), east=Math.min(180,lon+spread);
   const url=new URL("https://www.openstreetmap.org/export/embed.html");
@@ -94,6 +94,7 @@ export function KeylessInteractiveMap({
   const callback=useRef(onSelect);
   const [mode,setMode]=useState<"loading"|"ready"|"fallback">("loading");
   const [retry,setRetry]=useState(0);
+  const [fallbackZoom,setFallbackZoom]=useState(0);
   const [message,setMessage]=useState("");
   useEffect(()=>{callback.current=onSelect;},[onSelect]);
 
@@ -212,7 +213,12 @@ export function KeylessInteractiveMap({
   },[points,selectedId,mode]);
 
   useEffect(()=>{
-    if(mode!=="ready"||!zoomAction.id||!map.current)return;
+    if(!zoomAction.id)return;
+    if(mode==="fallback"){
+      setFallbackZoom(level=>Math.max(-2,Math.min(7,level+zoomAction.delta)));
+      return;
+    }
+    if(mode!=="ready"||!map.current)return;
     const current=map.current.getZoom();
     map.current.zoomTo(Math.max(2.5,Math.min(19,current+zoomAction.delta)),{duration:250});
   },[zoomAction,mode]);
@@ -226,7 +232,7 @@ export function KeylessInteractiveMap({
     </div>}
     {mode==="fallback"&&<div className="bms-map-osm-fallback" role="status">
       <iframe title="Mapa geográfico alternativo do OpenStreetMap"
-        src={escapeSelectedIframe(points,selectedId)} loading="lazy"
+        src={escapeSelectedIframe(points,selectedId,fallbackZoom)} loading="lazy"
         referrerPolicy="strict-origin-when-cross-origin"/>
       <div className="bms-map-fallback-note">
         <span>{message} Selecione empresas na lista para centralizar o marcador.</span>
