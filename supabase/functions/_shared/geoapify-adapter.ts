@@ -2,6 +2,7 @@ import { findBrazilianState } from "./brazil-locations.ts";
 
 /** Explicit OSM categories: a niche without a reviewed mapping does not trigger a broad query. */
 const SEGMENT_CATEGORIES: Record<string, string> = {
+  "clinica medica": "healthcare.clinic_or_praxis",
   barbearia: "service.beauty.hairdresser",
   "salao de beleza": "service.beauty.hairdresser",
   academia: "sport.fitness.gym",
