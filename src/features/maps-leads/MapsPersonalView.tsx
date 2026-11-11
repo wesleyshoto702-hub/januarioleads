@@ -185,8 +185,16 @@ export function MapsPersonalView({
         setError(geo.message+". A busca automática foi interrompida para proteger o orçamento das APIs.");
         return;
       }
-      // This can trigger a separate provider-billed search; Google has an
-      // existing server-side per-account budget/rate-limiting circuit breaker.
+      // Google Places content must NOT be displayed on a non-Google map.
+      // Without a site-level Google Maps key, keep the open map + Geoapify only:
+      // no Google Places search/billing and no Google Places mixed into OSM.
+      if(!browserKey||googleUnavailable){
+        setError("Não foram encontrados estabelecimentos na base aberta para esta pesquisa. "+
+          "A consulta complementar do Google só funciona quando o site dispõe de Google Maps configurado.");
+        return;
+      }
+      // Optional, separately billed Google fallback (only with a Google basemap).
+      // Server-side quotas and rate limits remain in force.
       const google=await searchBusinesses({city:input.city,state:input.state,segment:canonical});
       if(!google.ok){setError(google.message);return;}
       let results=google.results;
@@ -283,13 +291,20 @@ export function MapsPersonalView({
       {error&&<p className="bms-alert" role="alert">{error}</p>}
       <div className="bms-layout">
         <div className="bms-map-frame">
-          {browserKey&&!googleUnavailable
+          {resultProvider==="google"&&browserKey&&!googleUnavailable
             ? <RealGoogleMap key={browserKey} browserKey={browserKey}
               points={mapPoints} selectedId={activeId}
               onSelect={choose} zoomAction={zoomAction}
-              onUnavailable={()=>setGoogleUnavailable(true)}/>
+              onUnavailable={()=>{
+                // Google Places data cannot appear on an OpenFreeMap basemap.
+                setGoogleUnavailable(true);
+                setGoogleResults([]);setResultProvider(null);setSelection(null);setApplied(null);
+                setError("Google Maps indisponível neste domínio. O mapa aberto continuará disponível "+
+                  "para pesquisas na base Geoapify / OpenStreetMap.");
+              }}/>
             : <KeylessInteractiveMap
-              points={mapPoints} selectedId={activeId}
+              points={resultProvider==="geoapify"?mapPoints:[]}
+              selectedId={resultProvider==="geoapify"?activeId:null}
               onSelect={choose} zoomAction={zoomAction}/>}
           <div className="bms-coverage">
             <div className="bms-coverage-kicker"><span className="bms-dot"/> COBERTURA TERRITORIAL</div>
