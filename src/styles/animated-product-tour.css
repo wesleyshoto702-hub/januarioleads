@@ -470,3 +470,18 @@
   .jl-tour-stage[data-stage="4"] .jl-tour-commercial-summary,
   .jl-tour-stage[data-stage="5"] .jl-tour-commercial-summary { animation:none!important; }
 }
+
+/* Step selector is now keyboard accessible; clicking a step restarts its animation. */
+.jl-tour-step-indicator { padding:0;gap:0; }
+.jl-tour-step-indicator>button {
+  display:flex;align-items:center;gap:12px;width:100%;min-height:53px;
+  padding:11px 14px;border:0;border-radius:inherit;background:transparent;
+  color:inherit;font:inherit;text-align:left;cursor:pointer;
+}
+.jl-tour-step-indicator>button>svg { color:#ff6e89;flex:none; }
+.jl-tour-step-indicator>button>span { flex:1;min-width:0;line-height:1.35; }
+.jl-tour-step-indicator>button:focus-visible { outline:2px solid #ff829b;outline-offset:3px; }
+@media(max-width:600px){
+  .jl-tour-step-indicator { min-height:45px;padding:0; }
+  .jl-tour-step-indicator>button { min-height:45px;padding:9px;gap:7px;font-size:10px; }
+}
