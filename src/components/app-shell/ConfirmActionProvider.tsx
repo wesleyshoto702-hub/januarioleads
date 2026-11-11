@@ -21,6 +21,7 @@ const ConfirmationContext = createContext<ConfirmAction | null>(null);
 export function ConfirmActionProvider({ children }: { children: ReactNode }) {
   const [active, setActive] = useState<ActiveConfirmation | null>(null);
   const pending = useRef<ActiveConfirmation | null>(null);
+  const previousFocus = useRef<HTMLElement | null>(null);
 
   const finish = useCallback((accepted: boolean) => {
     const request = pending.current;
@@ -34,6 +35,8 @@ export function ConfirmActionProvider({ children }: { children: ReactNode }) {
       resolve(false);
       return;
     }
+    previousFocus.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement : null;
     const request: ActiveConfirmation = { ...options, resolve };
     pending.current = request;
     setActive(request);
@@ -54,7 +57,17 @@ export function ConfirmActionProvider({ children }: { children: ReactNode }) {
       >
         <AlertDialog.Portal>
           <AlertDialog.Overlay className="jl-confirm-overlay" />
-          <AlertDialog.Content className="jl-confirm-dialog">
+          <AlertDialog.Content
+            className="jl-confirm-dialog"
+            onCloseAutoFocus={(event) => {
+              // Imperative dialogs have no Radix Trigger; restore keyboard focus
+              // to the original button if it is still present after the action.
+              event.preventDefault();
+              const target = previousFocus.current;
+              previousFocus.current = null;
+              if (target?.isConnected) target.focus();
+            }}
+          >
             <div className={"jl-confirm-icon " + (danger ? "danger" : "warning")} aria-hidden="true">
               {danger ? <Trash2 size={22} strokeWidth={1.85} /> :
                 <AlertTriangle size={22} strokeWidth={1.85} />}
