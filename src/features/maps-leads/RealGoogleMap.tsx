@@ -176,19 +176,23 @@ export function RealGoogleMap(props: {
   selectedId: string | null;
   onSelect: (id: string) => void;
   zoomAction: { id: number; delta: number };
+  onUnavailable?: () => void;
 }) {
   return <LocalMapErrorBoundary><RealGoogleMapCanvas {...props}/></LocalMapErrorBoundary>;
 }
 
 function RealGoogleMapCanvas({
-  browserKey, points, selectedId, onSelect, zoomAction,
+  browserKey, points, selectedId, onSelect, zoomAction, onUnavailable,
 }: {
   browserKey: string;
   points: RealMapPoint[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   zoomAction: { id: number; delta: number };
+  onUnavailable?: () => void;
 }) {
+  const unavailableRef = useRef(onUnavailable);
+  useEffect(() => { unavailableRef.current = onUnavailable; }, [onUnavailable]);
   const canvas = useRef<HTMLDivElement>(null);
   const map = useRef<MapInstance | null>(null);
   const sdk = useRef<GoogleMapsSDK | null>(null);
@@ -215,7 +219,8 @@ function RealGoogleMapCanvas({
     const onAuthFailure = () => {
       if (!live) return;
       setReady(false);
-      setError("O Google Maps recusou a chave pública. Verifique a Maps JavaScript API, o domínio autorizado e o faturamento no Google Cloud.");
+      setError("O Google Maps não autorizou este domínio. Alternando para o mapa sem chave.");
+      unavailableRef.current?.();
     };
     window.addEventListener(GOOGLE_MAPS_AUTH_ERROR, onAuthFailure);
     void loadMapsSDK(browserKey).then(async (google) => {
@@ -255,7 +260,8 @@ function RealGoogleMapCanvas({
       } catch (reason) {
         if (!live) return;
         console.error("[JanuárioLeads Maps] Não foi possível iniciar o mapa:", reason);
-        setError("Não foi possível exibir o mapa real. Confira a API JavaScript e a chave pública no Google Cloud.");
+        setError("O mapa do Google não iniciou. Alternando para o mapa sem chave.");
+        unavailableRef.current?.();
         setReady(false);
       }
     }).catch((reason: unknown) => {
@@ -263,6 +269,7 @@ function RealGoogleMapCanvas({
       console.error("[JanuárioLeads Maps] Falha ao carregar o SDK:", reason);
       setError(reason instanceof Error ? reason.message : "Falha ao carregar o Google Maps.");
       setReady(false);
+      unavailableRef.current?.();
     });
     return () => {
       live = false;

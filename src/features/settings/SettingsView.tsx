@@ -1,6 +1,6 @@
 import {
   Bell, CheckCircle2, ChevronRight, Database,
-  KeyRound, LogOut, MapPinned, Palette, RefreshCw, Settings2, ShieldCheck,
+  LogOut, MapPinned, Palette, RefreshCw, Settings2, ShieldCheck,
   SlidersHorizontal, Smartphone, UserRound, Users, type LucideIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -9,13 +9,7 @@ import { useConfirmAction } from "../../components/app-shell/ConfirmActionProvid
 import { USE_HTTPONLY_SESSION } from "../../lib/supabase-config";
 import { isLegacyWorkspaceOwner } from "../../lib/account-storage";
 import type { PersistedLead } from "../leads/remote-leads";
-import {
-  browserGoogleMapsKeySource,
-  clearBrowserGoogleMapsKey,
-  isValidBrowserGoogleMapsKey,
-  saveBrowserGoogleMapsKey,
-  type BrowserMapsKeySource,
-} from "../maps-leads/browser-map-key";
+import { getBrowserGoogleMapsKey } from "../maps-leads/browser-map-key";
 import type { AccentColor, UserSettings, SettingsHomeView } from "./user-settings";
 
 type SectionId = "account" | "security" | "preferences" | "notifications"
@@ -92,10 +86,7 @@ export function SettingsView({
   const [working,setWorking]=useState(false);
   const [error,setError]=useState("");
   const [notice,setNotice]=useState("");
-  const [browserKeyDraft,setBrowserKeyDraft]=useState("");
-  const [browserKeySource,setBrowserKeySource]=useState<BrowserMapsKeySource>(browserGoogleMapsKeySource);
-  const [browserKeyError,setBrowserKeyError]=useState("");
-  const [browserKeyNotice,setBrowserKeyNotice]=useState("");
+  const mapUsesGoogle=Boolean(getBrowserGoogleMapsKey());
   const owner=isLegacyWorkspaceOwner();
   useEffect(()=>setDraft(settings),[settings]);
   useEffect(()=>{
@@ -136,35 +127,6 @@ export function SettingsView({
       setNotice("Outras sessões encerradas. Tokens de acesso já emitidos podem valer até expirar.");
     }catch(err){setError(err instanceof Error?err.message:"Não foi possível encerrar outras sessões.");}
     finally{setWorking(false);}
-  }
-  function storeMapKey(){
-    setBrowserKeyError("");
-    setBrowserKeyNotice("");
-    try {
-      saveBrowserGoogleMapsKey(browserKeyDraft);
-      setBrowserKeyDraft("");
-      setBrowserKeySource(browserGoogleMapsKeySource());
-      setBrowserKeyNotice("Chave salva neste navegador. Abra Buscar via Maps para testar a conexão.");
-    } catch (reason) {
-      setBrowserKeyError(reason instanceof Error ? reason.message : "Não foi possível salvar a chave.");
-    }
-  }
-  async function removeMapKey(){
-    if(!(await confirmAction({
-      title:"Remover chave local do Maps?",
-      description:"A chave pública do Google Maps será removida deste navegador. Se houver uma chave configurada no site, ela continuará disponível.",
-      confirmLabel:"Remover chave",
-    })))return;
-    setBrowserKeyError("");
-    setBrowserKeyNotice("");
-    try {
-      clearBrowserGoogleMapsKey();
-      setBrowserKeySource(browserGoogleMapsKeySource());
-      setBrowserKeyDraft("");
-      setBrowserKeyNotice("Chave local removida. Se houver uma chave configurada no site, ela continuará disponível.");
-    } catch(reason){
-      setBrowserKeyError(reason instanceof Error?reason.message:"Não foi possível remover a chave.");
-    }
   }
   const activeTab=TABS.find(x=>x.id===section)!;
   const Icon=activeTab.icon;
@@ -309,60 +271,35 @@ export function SettingsView({
             <small>Seus registros carregados no CRM</small>
           </div></div>
           <div className="js-settings-map-config">
-            <div className="js-settings-map-header">
-              <MapPinned size={22} aria-hidden="true"/>
-              <div>
-                <strong>Mapa interativo</strong>
-                <p>Recupere a exibição do Google Maps neste dispositivo.</p>
-              </div>
-            </div>
-            <div className="js-settings-map-status" role="status">
-              <span className="js-settings-status-dot" data-configured={browserKeySource!=="missing"}/>
-              {browserKeySource==="browser"
-                ? "Chave pública salva neste navegador (ainda não verificada)"
-                : browserKeySource==="site"
-                ? "Chave pública encontrada na configuração do site"
-                : "Nenhuma chave pública disponível neste navegador"}
-            </div>
-            <form className="js-settings-map-form" onSubmit={event=>{event.preventDefault();storeMapKey();}}>
-              <label htmlFor="js-settings-browser-maps-key">
-                <KeyRound size={15} aria-hidden="true"/> Chave pública da Google Maps JavaScript API
-              </label>
-              <input id="js-settings-browser-maps-key" type="password" autoComplete="off"
-                spellCheck={false} placeholder="AIza..." maxLength={128}
-                value={browserKeyDraft} onChange={event=>{
-                  setBrowserKeyDraft(event.target.value);
-                  setBrowserKeyError("");setBrowserKeyNotice("");
-                }}/>
-              <div className="js-settings-map-actions">
-                <button type="submit" className="js-settings-button primary"
-                  disabled={!isValidBrowserGoogleMapsKey(browserKeyDraft)}>
-                  <KeyRound size={15}/> Salvar chave do mapa
-                </button>
-                {browserKeySource==="browser"&&<button type="button"
-                  className="js-settings-button secondary" onClick={()=>void removeMapKey()}>
-                  Remover chave local
-                </button>}
-                {browserKeySource!=="missing"&&<button type="button"
-                  className="js-settings-button secondary" onClick={()=>onNavigate("maps")}>
-                  <MapPinned size={15}/> Abrir Buscar via Maps
-                </button>}
-              </div>
-            </form>
-            {browserKeyError&&<p className="js-settings-map-error" role="alert">{browserKeyError}</p>}
-            {browserKeyNotice&&<p className="js-settings-map-confirmation" role="status">{browserKeyNotice}</p>}
-            <p className="js-settings-map-origin">
-              Endereço atual do Workspace: <code>{typeof window!=="undefined"?window.location.origin:""}</code>
-            </p>
-            <p className="js-settings-map-help">
-              Use apenas uma chave <strong>pública de navegador</strong>, restrita ao domínio deste site
-              e à <strong>Maps JavaScript API</strong> no Google Cloud. Nunca informe a chave privada
-              do Google Places utilizada no servidor. A configuração fica neste navegador e não
-              altera sua conta no Supabase. Em outro endereço ou dispositivo, pode ser necessário
-              configurá-la novamente. A API também exige faturamento ativo no Google Cloud.
-            </p>
-          </div>
-          <p className="js-settings-inline-note">Controles públicos de usuários, planos, cobrança e cotas devem ser implementados separadamente com autorização no servidor antes do lançamento.</p>
+             <div className="js-settings-map-header">
+               <MapPinned size={22} aria-hidden="true"/>
+               <div>
+                 <strong>Mapa interativo</strong>
+                 <p>Configurado para funcionar sem nenhuma chave inserida pelo usuário.</p>
+               </div>
+             </div>
+             <div className="js-settings-map-status" role="status">
+               <span className="js-settings-status-dot" data-configured="true"/>
+               {mapUsesGoogle
+                 ? "Google Maps configurado para o site, com mapa aberto alternativo"
+                 : "Mapa aberto com OpenFreeMap e OpenStreetMap · sem chave"}
+             </div>
+             <div className="js-settings-map-actions">
+               <button type="button" className="js-settings-button primary" onClick={()=>onNavigate("maps")}>
+                 <MapPinned size={15}/> Abrir mapa interativo
+               </button>
+             </div>
+             <p className="js-settings-map-help">
+               O mapa base é compartilhado por todos os usuários autorizados, sem
+               configurar nada em cada dispositivo. Se o Google Maps estiver habilitado
+               por uma chave pública restrita ao domínio nas configurações da hospedagem,
+               ele será utilizado; caso contrário, o mapa aberto é a opção padrão.
+               A busca de empresas continua sujeita a autenticação, limites e custos dos
+               serviços de pesquisa. O acesso ao Buscar via Maps ainda é restrito ao
+               proprietário até a liberação pública.
+             </p>
+           </div>
+           <p className="js-settings-inline-note">Controles públicos de usuários, planos, cobrança e cotas devem ser implementados separadamente com autorização no servidor antes do lançamento.</p>
         </>}
         {(["account","preferences","notifications","appearance"] as SectionId[]).includes(section)&&
           <div className="js-settings-savebar">

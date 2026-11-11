@@ -21,7 +21,8 @@ import { ALL_SEARCH_SEGMENTS, resolveSearchSegment } from "../search-leads/segme
 import { searchPersonalGeoapify, type PersonalGeoapifyPlace } from "./personal-geoapify";
 import { buildMapPoints } from "./map-points";
 import { RealGoogleMap } from "./RealGoogleMap";
-import { getBrowserGoogleMapsKey } from "./browser-map-key";
+import { KeylessInteractiveMap } from "./KeylessInteractiveMap";
+import { canDisplayGooglePlaces, getBrowserGoogleMapsKey } from "./browser-map-key";
 
 type ResultsProvider = "google" | "geoapify";
 type SearchInput = {city:string;state:string;segment:string;neighborhood:string};
@@ -98,19 +99,10 @@ export function MapsPersonalView({
   const [isSaving,setSaving]=useState(false);
   const [error,setError]=useState("");
   const [zoomAction,setZoomAction]=useState<ZoomAction>({id:0,delta:0});
-  // Existing device key remains supported while public deployments can inject
-  // a site-restricted VITE_GOOGLE_MAPS_BROWSER_KEY at build time.
-  const [browserKey,setBrowserKey] = useState(getBrowserGoogleMapsKey);
-  useEffect(() => {
-    // A different tab (or a Settings navigation) may have repaired the key.
-    const update = () => setBrowserKey(getBrowserGoogleMapsKey());
-    window.addEventListener("focus", update);
-    window.addEventListener("storage", update);
-    return () => {
-      window.removeEventListener("focus", update);
-      window.removeEventListener("storage", update);
-    };
-  }, []);
+  // A single optional site key enables Google Maps for everyone on the domain.
+  // Without it, MapLibre/OpenFreeMap provides a real map without per-user keys.
+  const browserKey=getBrowserGoogleMapsKey();
+  const [googleUnavailable,setGoogleUnavailable]=useState(false);
   const requestLock=useRef(false);
   const saveLock=useRef(false);
   const listRef=useRef<HTMLOListElement>(null);
@@ -193,8 +185,19 @@ export function MapsPersonalView({
         setError(geo.message+". A busca automática foi interrompida para proteger o orçamento das APIs.");
         return;
       }
-      // This can trigger a separate provider-billed search; Google has an
-      // existing server-side per-account budget/rate-limiting circuit breaker.
+      // Google Places content must NOT be displayed on a non-Google map.
+      // Without a site-level Google Maps key, keep the open map + Geoapify only:
+      // no Google Places search/billing and no Google Places mixed into OSM.
+      if(!canDisplayGooglePlaces(browserKey,googleUnavailable)){
+        setError(geo.ok
+          ? "Nenhum estabelecimento foi encontrado na base aberta para esta pesquisa. "+
+            "Tente outra cidade ou nicho."
+          : "Não foi possível consultar a base aberta: "+geo.message+
+            " A consulta complementar Google não está habilitada para este mapa.");
+        return;
+      }
+      // Optional, separately billed Google fallback (only with a Google basemap).
+      // Server-side quotas and rate limits remain in force.
       const google=await searchBusinesses({city:input.city,state:input.state,segment:canonical});
       if(!google.ok){setError(google.message);return;}
       let results=google.results;
@@ -291,28 +294,33 @@ export function MapsPersonalView({
       {error&&<p className="bms-alert" role="alert">{error}</p>}
       <div className="bms-layout">
         <div className="bms-map-frame">
-          {browserKey
+          {resultProvider==="google"&&canDisplayGooglePlaces(browserKey,googleUnavailable)
             ? <RealGoogleMap key={browserKey} browserKey={browserKey}
               points={mapPoints} selectedId={activeId}
-              onSelect={choose} zoomAction={zoomAction}/>
-            : <div className="bms-map-placeholder" role="status">
-              <MapPin size={34}/>
-              <strong>Google Maps precisa ser ativado neste navegador</strong>
-              <p>Abra Configurações → Administração → Mapa interativo e informe sua chave pública da Maps JavaScript API.</p>
-              <p>A lista de empresas e o botão Adicionar lead continuam funcionando.</p>
-            </div>}
+              onSelect={choose} zoomAction={zoomAction}
+              onUnavailable={()=>{
+                // Google Places data cannot appear on an OpenFreeMap basemap.
+                setGoogleUnavailable(true);
+                setGoogleResults([]);setResultProvider(null);setSelection(null);setApplied(null);
+                setError("Google Maps indisponível neste domínio. O mapa aberto continuará disponível "+
+                  "para pesquisas na base Geoapify / OpenStreetMap.");
+              }}/>
+            : <KeylessInteractiveMap
+              points={resultProvider==="geoapify"?mapPoints:[]}
+              selectedId={resultProvider==="geoapify"?activeId:null}
+              onSelect={choose} zoomAction={zoomAction}/>}
           <div className="bms-coverage">
             <div className="bms-coverage-kicker"><span className="bms-dot"/> COBERTURA TERRITORIAL</div>
             <div className="bms-coverage-place">{applied?titleCity:"Brasil · mapa real"}</div>
             <p>{applied?`${count} empresas retornadas · ${applied.segment}`:"Pesquise por nicho e município"}</p>
           </div>
-          {browserKey&&<div className="bms-map-controls" aria-label="Controles do mapa">
+          <div className="bms-map-controls" aria-label="Controles do mapa">
             <button type="button" aria-label="Ampliar mapa"
               onClick={()=>setZoomAction(prev=>({id:prev.id+1,delta:1}))}><Plus size={20}/></button>
             <span>ZOOM</span>
             <button type="button" aria-label="Reduzir mapa"
               onClick={()=>setZoomAction(prev=>({id:prev.id+1,delta:-1}))}><Minus size={20}/></button>
-          </div>}
+          </div>
 
           {selected&&<article className="bms-business-card" aria-label={"Empresa selecionada: "+selected.name}>
             <button type="button" className="bms-business-close" aria-label="Fechar detalhes do lead"
