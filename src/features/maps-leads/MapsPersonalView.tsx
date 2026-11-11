@@ -48,7 +48,7 @@ function osmBusiness(place:PersonalGeoapifyPlace):BusinessSearchResult {
     placeId:"", name:place.name,
     primaryCategory:place.category, address:place.address,
     city:place.city, state:place.state,
-    description:`Fonte: ${place.source==="osm"?"OpenStreetMap / Overpass":"Geoapify / OpenStreetMap"}. ${osmReference(place.sourceId)}.`,
+    description:`Fonte: ${place.source==="osm"?"OpenStreetMap / Overpass":"Geoapify / OpenStreetMap"}. ${osmReference(place.sourceId)}. ${place.matchQuality==="related"||place.matchQuality==="name"?"Atividade não validada, conferir manualmente.":""}`,
     latitude:place.latitude, longitude:place.longitude,
   };
 }
@@ -91,6 +91,7 @@ export function MapsPersonalView({
   const [municipalityState,setMunicipalityState]=useState("");
   const [googleResults,setGoogleResults]=useState<BusinessSearchResult[]>([]);
   const [geoResults,setGeoResults]=useState<PersonalGeoapifyPlace[]>([]);
+  const [geoMatchMode,setGeoMatchMode]=useState<"category"|"name"|"related"|null>(null);
   const [resultProvider,setResultProvider]=useState<ResultsProvider|null>(null);
   const [selection,setSelection]=useState<string|null>(null);
   const [applied,setApplied]=useState<SearchInput|null>(null);
@@ -167,7 +168,7 @@ export function MapsPersonalView({
     requestLock.current=true;
     // Invalidate the previous search before requesting another city/niche.
     // A failed or quota-limited request must never appear to return old places.
-    setGeoResults([]);setGoogleResults([]);setResultProvider(null);
+    setGeoResults([]);setGoogleResults([]);setResultProvider(null);setGeoMatchMode(null);
     setSelection(null);setApplied(null);setSavedIds([]);
     setLoading(true);setError("");
     try{
@@ -175,7 +176,7 @@ export function MapsPersonalView({
       // authenticated Google Places query only if no valid OSM match.
       const geo=await searchPersonalGeoapify({...input,segment:canonical});
       if(geo.ok&&geo.places.length){
-        setGeoResults(geo.places);setGoogleResults([]);
+        setGeoResults(geo.places);setGoogleResults([]);setGeoMatchMode(geo.matchMode);
         setResultProvider("geoapify");setSelection(geo.places[0]?.sourceId??null);
         setApplied({...input,segment:canonical});
         saveSearchLocation({city:input.city,state:input.state});
@@ -190,8 +191,8 @@ export function MapsPersonalView({
       // no Google Places search/billing and no Google Places mixed into OSM.
       if(!canDisplayGooglePlaces(browserKey,googleUnavailable)){
         setError(geo.ok
-          ? "Nenhum estabelecimento foi encontrado na base aberta para esta pesquisa. "+
-            "Tente outra cidade ou nicho."
+          ? "A busca foi concluída, mas a base aberta não possui estabelecimentos classificados "+
+            "ou identificados pelo nome para este nicho e município. Isso não significa que não existam empresas no local."
           : "Não foi possível consultar a base aberta: "+geo.message+
             " A consulta complementar Google não está habilitada para este mapa.");
         return;
@@ -292,6 +293,10 @@ export function MapsPersonalView({
         <span><Layers size={15}/> {applied?`${count} empresas encontradas`:"Escolha um nicho e uma região"}</span>
       </div>
       {error&&<p className="bms-alert" role="alert">{error}</p>}
+      {resultProvider==="geoapify"&&geoMatchMode==="related"&&
+        <p className="bms-source-hint" role="status">Foram localizados estabelecimentos de uma categoria relacionada, mas a atividade exata não foi confirmada. Confira cada empresa antes de adicionar ao CRM.</p>}
+      {resultProvider==="geoapify"&&geoMatchMode==="name"&&
+        <p className="bms-source-hint" role="status">Resultados encontrados pela correspondência de nome na base aberta. A cobertura pode ser parcial e a atividade deve ser confirmada antes da prospecção.</p>}
       <div className="bms-layout">
         <div className="bms-map-frame">
           {resultProvider==="google"&&canDisplayGooglePlaces(browserKey,googleUnavailable)
@@ -355,7 +360,7 @@ export function MapsPersonalView({
             <div className="bms-business-top">
               <span className="bms-business-icon"><MapPin size={23}/></span>
               <div className="bms-business-title">
-                <span>{selectedGeo.category??"ESTABELECIMENTO"} · {selectedGeo.source==="osm"?"OPENSTREETMAP":"GEOAPIFY / OSM"}</span>
+                <span>{applied?.segment??"ESTABELECIMENTO"} · {selectedGeo.matchQuality==="related"?"ATIVIDADE A CONFERIR":selectedGeo.matchQuality==="name"?"NOME COMPATÍVEL":selectedGeo.source==="osm"?"OPENSTREETMAP":"GEOAPIFY / OSM"}</span>
                 <h2>{selectedGeo.name}</h2>
               </div>
               <span className="bms-business-counter">
@@ -394,7 +399,7 @@ export function MapsPersonalView({
               sub:item.website?"Site identificado":"Google Places",
             })):geoResults.map(item=>({
               id:item.sourceId,name:item.name,address:item.address??titleCity,
-              sub:item.source==="osm"?"OpenStreetMap / Overpass":"Geoapify / OpenStreetMap",
+              sub:item.matchQuality==="related"?"Serviço relacionado · confirmar atividade":item.matchQuality==="name"?"Nome compatível · confirmar atividade":item.source==="osm"?"OpenStreetMap / Overpass":"Geoapify / OpenStreetMap",
             }))).map((item,index)=><li key={item.id} className="bms-result-row">
               <button type="button"
                 className={selection===item.id?"bms-result selected":"bms-result"}

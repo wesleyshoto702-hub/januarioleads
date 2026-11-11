@@ -5,6 +5,9 @@ import {
   normalizeGeoapifyPlaces,
   resolveGeoapifyCityLocation,
   geoapifyFeatureCount,
+  geoapifySearchPlanForSegment,
+  geoapifyNameFallbackPlanForSegment,
+  selectGeoapifyPlaces,
   type GeoapifyPlacePreview,
 } from "./geoapify-adapter.ts";
 
@@ -77,4 +80,51 @@ Deno.test("Barber niche excludes generic salons without fabricating a classifica
     "Generic salons must not be listed as barbershops");
   assert(filterGeoapifyForNiche(places, "Salão de Beleza").length === 2,
     "Salons can retain mixed hairdresser results");
+});
+
+import { ALL_SEARCH_SEGMENTS, SEGMENT_GROUPS } from "./niche-catalog.ts";
+
+Deno.test("All catalog niches have a bounded Geoapify query",()=>{
+  assert(SEGMENT_GROUPS.length===16,"Wrong number of catalog groups");
+  assert(ALL_SEARCH_SEGMENTS.length===196,"Catalog size changed; reassess coverage");
+  for(const segment of ALL_SEARCH_SEGMENTS){
+    const plan=geoapifySearchPlanForSegment(segment);
+    assert(Boolean(plan),"No search plan for "+segment);
+    assert((plan?.categories.split(",").length??0)<=5,"Excessive category scope");
+    if(plan?.matchMode==="name")assert(Boolean(plan.name),"Broad searches require name match");
+    const fallback=geoapifyNameFallbackPlanForSegment(segment);
+    assert(Boolean(fallback?.name),"No name fallback");
+  }
+  assert(geoapifySearchPlanForSegment("Unknown Niche")===null,"Reject arbitrary niches");
+});
+
+Deno.test("Barbershop candidates are ranked without fabricating certainty",()=>{
+  const p:GeoapifyPlacePreview={
+    source:"geoapify",sourceId:"geoapify:1",name:"Studio Moderno",
+    category:"service.beauty.hairdresser",address:null,
+    city:"Lavras",state:"MG",latitude:-21,longitude:-45,
+  };
+  const unknown=selectGeoapifyPlaces([p],"Barbearia");
+  assert(unknown.matchMode==="related"&&unknown.places[0]?.matchQuality==="related",
+    "Ambiguous shop must be identified as related");
+  const certain=selectGeoapifyPlaces([p,{...p,sourceId:"geoapify:2",name:"Barber Shop"}],"Barbearia");
+  assert(certain.matchMode==="category"&&certain.places.length===1,
+    "Prioritize confident barber names");
+});
+
+Deno.test("A barber shop near the end of a larger provider page is not lost",()=>{
+  const features=Array.from({length:120},(_,i)=>({
+    type:"Feature",
+    properties:{
+      place_id:"b"+(i+1000), name:i===119?"Barbearia Avenida":"Studio "+i,
+      city:"Lavras",state_code:"MG",country_code:"br",
+      categories:["service.beauty.hairdresser"],
+    },
+    geometry:{type:"Point",coordinates:[-45,-21.25]},
+  }));
+  const records=normalizeGeoapifyPlaces({features},{city:"Lavras",state:"MG"},150);
+  assert(records.length===120,"Provider candidates were truncated early");
+  const selection=selectGeoapifyPlaces(records,"Barbearia");
+  assert(selection.matchMode==="category"&&selection.places[0]?.name==="Barbearia Avenida",
+    "Find confirmed names before limiting the response");
 });

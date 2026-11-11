@@ -623,3 +623,8 @@
 @media(prefers-reduced-motion:reduce){
   .bms-keyless-pin { transition:none!important; }
 }
+
+/* Partial provider coverage is informational, not an error or confirmation of activity. */
+.bms-source-hint { margin: 10px 0 13px; padding: 10px 14px; border-radius: 10px;
+  border: 1px solid rgba(42, 190, 146, .24); color: #9ccbbf;
+  background: rgba(30, 88, 75, .12); font-size: .82rem; line-height: 1.5; }

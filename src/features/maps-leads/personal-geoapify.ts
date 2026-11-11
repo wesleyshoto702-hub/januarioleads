@@ -11,9 +11,10 @@ export type PersonalGeoapifyPlace = {
   state: string;
   latitude: number;
   longitude: number;
+  matchQuality?: "related" | "name";
 };
 export type PersonalGeoapifyResponse =
-  | {ok:true;provider:"geoapify" | "osm";places:PersonalGeoapifyPlace[];limit:25;source:string}
+  | {ok:true;provider:"geoapify" | "osm";places:PersonalGeoapifyPlace[];limit:25;source:string;matchMode:"category"|"name"|"related"}
   | {ok:false;code:string;message:string};
 
 export async function searchPersonalGeoapify(input:{
@@ -44,6 +45,7 @@ export async function searchPersonalGeoapify(input:{
     if(!Array.isArray(data["places"]))throw Error("INVALID_PLACES");
     return {
       ok:true,provider:data["provider"]==="osm"?"osm":"geoapify",limit:25,
+      matchMode:data["matchMode"]==="name"||data["matchMode"]==="related"?data["matchMode"]:"category",
       source:typeof data["source"]==="string"?data["source"]:"© OpenStreetMap contributors",
       places:data["places"] as PersonalGeoapifyPlace[],
     };
