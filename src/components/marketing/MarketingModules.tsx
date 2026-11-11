@@ -70,7 +70,7 @@ export function ChallengeStory() {
 const steps = [
   { title: "Explore", description: "Escolha o segmento e a cidade.", icon: Compass },
   { title: "Organize", description: "Salve os negócios que importam.", icon: FolderKanban },
-  { title: "Acompanhe", description: "Registre atividades e defina retornos.", icon: CalendarCheck2 },
+  { title: "Acompanhe", description: "Planeje retornos, propostas e entregas.", icon: CalendarCheck2 },
 ] as const;
 
 export function WorkflowRibbon() {
@@ -142,7 +142,7 @@ export function WorkflowRibbon() {
             <span className="jl-eyebrow">DA PESQUISA À ROTINA</span>
             <h2 id="workflow-title">Um caminho claro para cada <span>oportunidade.</span></h2>
           </div>
-          <p>Três movimentos que mantêm sua prospecção conectada. O tour acima mostra como eles se relacionam na plataforma.</p>
+          <p>Três fundamentos conectam pesquisa, CRM e gestão comercial. No tour acima, veja também como análises, propostas e projetos entram nesse caminho.</p>
         </div>
         <ol className="jl-workflow-track" data-stage={activeStep}>
           {steps.map(({ title, description, icon: Icon }, index) => (
