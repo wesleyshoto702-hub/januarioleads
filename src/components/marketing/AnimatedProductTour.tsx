@@ -12,6 +12,13 @@ import {
   Search,
   Sparkles,
   Users,
+  ScanSearch,
+  Files,
+  BriefcaseBusiness,
+  FolderKanban,
+  ListOrdered,
+  Target,
+  ClipboardList,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -44,6 +51,20 @@ const scenes = [
     text: "Prepare uma mensagem, marque um retorno e saiba quem precisa de atenção. Você continua responsável por enviar suas abordagens.",
     cue: "Próxima ação visível",
     icon: CalendarCheck2,
+  },
+  {
+    title: "Analise um site e organize uma proposta",
+    short: "Análise e proposta",
+    text: "Consulte indicadores técnicos disponíveis e prepare um orçamento com escopo, serviços e prévia para PDF. O envio ao cliente é manual.",
+    cue: "Do diagnóstico ao orçamento",
+    icon: ScanSearch,
+  },
+  {
+    title: "Acompanhe campanhas, metas e entregas",
+    short: "Gestão comercial",
+    text: "Organize campanhas, sequências, agenda, objeções, metas e projetos em um fluxo de trabalho. Os registros são atualizados por você.",
+    cue: "Acompanhamento comercial",
+    icon: BriefcaseBusiness,
   },
 ] as const;
 
@@ -187,6 +208,83 @@ function FollowupScene() {
   );
 }
 
+/**
+ * Illustrative screens inspired by actual personal-workspace modules.
+ * These are static, fictional examples and never query PageSpeed or a CRM.
+ */
+function AnalysisProposalScene() {
+  return (
+    <div className="jl-tour-scene-content">
+      <div className="jl-tour-scene-heading">
+        <div><span>DIAGNÓSTICO E ORÇAMENTO</span><h4>Da análise à proposta</h4></div>
+        <span className="jl-tour-counter">Exemplo ilustrativo</span>
+      </div>
+      <div className="jl-tour-commercial-pair">
+        <div className="jl-tour-commercial-card">
+          <div className="jl-tour-commercial-card-head">
+            <span className="jl-tour-commercial-icon"><ScanSearch size={17} aria-hidden="true" /></span>
+            <div><strong>Análise Digital</strong><small>empresa-exemplo.com.br</small></div>
+          </div>
+          <div className="jl-tour-commercial-checklist">
+            <span><CheckCircle2 size={14} aria-hidden="true" /> Consultar indicadores do site</span>
+            <span><CheckCircle2 size={14} aria-hidden="true" /> Revisar pontos de melhoria</span>
+            <span><CheckCircle2 size={14} aria-hidden="true" /> Guardar contexto comercial</span>
+          </div>
+          <div className="jl-tour-commercial-footnote">Dados técnicos dependem da fonte consultada</div>
+        </div>
+        <div className="jl-tour-commercial-card proposal">
+          <div className="jl-tour-commercial-card-head">
+            <span className="jl-tour-commercial-icon"><Files size={17} aria-hidden="true" /></span>
+            <div><strong>Proposta Comercial</strong><small>Site institucional · exemplo</small></div>
+          </div>
+          <div className="jl-tour-commercial-proposal">
+            <div><span>Serviço</span><strong>Criação de site</strong></div>
+            <div><span>Escopo</span><strong>Definido com o cliente</strong></div>
+            <div><span>Condições</span><strong>Preenchimento manual</strong></div>
+          </div>
+          <div className="jl-tour-commercial-file"><ClipboardList size={14} aria-hidden="true" /> Prévia pronta para salvar em PDF</div>
+        </div>
+      </div>
+      <div className="jl-tour-commercial-summary"><CheckCircle2 size={15} aria-hidden="true" />
+        Análise e proposta organizadas — sem envio automático ao cliente
+      </div>
+    </div>
+  );
+}
+
+function CommercialManagementScene() {
+  return (
+    <div className="jl-tour-scene-content">
+      <div className="jl-tour-scene-heading">
+        <div><span>GESTÃO COMERCIAL</span><h4>Do contato à entrega</h4></div>
+        <span className="jl-tour-counter">Exemplo ilustrativo</span>
+      </div>
+      <div className="jl-tour-commercial-journey">
+        <div className="jl-tour-journey-title"><FolderKanban size={17} aria-hidden="true" />
+          <strong>Campanha: empresas da região</strong><span>Organização manual</span>
+        </div>
+        <div className="jl-tour-journey-steps">
+          <div><span className="jl-tour-journey-mark"><FolderKanban size={16} aria-hidden="true" /></span>
+            <strong>Campanha</strong><small>Leads agrupados</small></div>
+          <div><span className="jl-tour-journey-mark"><ListOrdered size={16} aria-hidden="true" /></span>
+            <strong>Sequência</strong><small>Contatos planejados</small></div>
+          <div><span className="jl-tour-journey-mark"><CalendarCheck2 size={16} aria-hidden="true" /></span>
+            <strong>Agenda</strong><small>Retorno agendado</small></div>
+        </div>
+        <div className="jl-tour-journey-bottom">
+          <div><BriefcaseBusiness size={17} aria-hidden="true" />
+            <span><strong>Projetos</strong><small>Tarefas e fases de entrega</small></span></div>
+          <div><Target size={17} aria-hidden="true" />
+            <span><strong>Metas e objeções</strong><small>Registros da sua rotina</small></span></div>
+        </div>
+      </div>
+      <div className="jl-tour-commercial-summary"><CheckCircle2 size={15} aria-hidden="true" />
+        Acompanhamento de ponta a ponta — sem disparos automáticos
+      </div>
+    </div>
+  );
+}
+
 export function AnimatedProductTour() {
   const [current, setCurrent] = useState(0);
   const [pageVisible, setPageVisible] = useState(true);
@@ -212,9 +310,9 @@ export function AnimatedProductTour() {
   const isRunning = pageVisible && !reducedMotion;
   useEffect(() => {
     if (!isRunning) return;
-    const timer = window.setInterval(() => setCurrent((step) => (step + 1) % scenes.length), 4900);
-    return () => window.clearInterval(timer);
-  }, [isRunning]);
+    const timer = window.setTimeout(() => setCurrent((step) => (step + 1) % scenes.length), 4900);
+    return () => window.clearTimeout(timer);
+  }, [isRunning,current]);
 
   const currentScene = scenes[current] ?? scenes[0];
   const Icon = currentScene.icon;
@@ -223,20 +321,22 @@ export function AnimatedProductTour() {
       <div className="jl-tour-side">
         <p className="jl-tour-side-overline">SEU FLUXO, EM MOVIMENTO</p>
         <h3>Não é só uma lista. <span>É um processo.</span></h3>
-        <p>Assista ao fluxo completo: a demonstração avança automaticamente da busca de empresas ao próximo contato.</p>
+        <p>Veja como os módulos se conectam: da busca de empresas ao acompanhamento de propostas e projetos, em uma simulação com dados fictícios.</p>
         <ul className="jl-tour-step-buttons" aria-label="Etapas da demonstração automática">
           {scenes.map(({ icon: StepIcon, short }, index) => (
-            <li
-              key={short}
-              className={"jl-tour-step-indicator " + (current === index ? "active" : "")}
-              aria-current={current === index ? "step" : undefined}
-            >
-              <StepIcon size={17} aria-hidden="true" />
-              <span>{short}</span>
+            <li key={short}
+              className={"jl-tour-step-indicator " + (current === index ? "active" : "")}>
+              <button type="button"
+                aria-current={current === index ? "step" : undefined}
+                aria-label={"Mostrar etapa: " + short}
+                onClick={() => setCurrent(index)}>
+                <StepIcon size={17} aria-hidden="true" />
+                <span>{short}</span>
+              </button>
             </li>
           ))}
         </ul>
-        {reducedMotion && <p className="jl-tour-reduced-note">Movimento reduzido ativado: o exemplo permanece estático e as quatro etapas estão descritas acima.</p>}
+        {reducedMotion && <p className="jl-tour-reduced-note">Movimento reduzido ativado: o exemplo permanece estático e as seis etapas estão descritas acima.</p>}
       </div>
       <div className="jl-tour-stage" data-stage={current} data-playing={isRunning} data-reduced={reducedMotion}>
         <div className="jl-tour-player-topbar">
@@ -251,16 +351,20 @@ export function AnimatedProductTour() {
             <Users size={16} />
             <LayoutDashboard size={16} />
             <CalendarCheck2 size={16} />
+            <ScanSearch size={16} />
+            <BriefcaseBusiness size={16} />
           </div>
           <div className="jl-tour-viewport-content" key={current}>
             {current === 0 && <SearchScene />}
             {current === 1 && <SelectScene />}
             {current === 2 && <CrmScene />}
             {current === 3 && <FollowupScene />}
+            {current === 4 && <AnalysisProposalScene />}
+            {current === 5 && <CommercialManagementScene />}
           </div>
         </div>
         <div className="jl-tour-progress">
-          <div className="jl-tour-progress-track">
+          <div className="jl-tour-progress-track" style={{gridTemplateColumns:`repeat(${scenes.length}, minmax(0, 1fr))`}}>
             {scenes.map((scene, index) => (
               <span key={scene.short} className={index < current ? "completed" : index === current ? "current" : ""}>
                 {index === current && <span key={current} className="jl-tour-progress-fill" />}

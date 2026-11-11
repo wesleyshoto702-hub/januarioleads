@@ -8,7 +8,7 @@ export const Route = createFileRoute("/produto")({
     links: [...MARKETING_STYLES],
     meta: [
       { title: "Januário Leads — Conheça a plataforma" },
-      { name: "description", content: "Descubra como pesquisar empresas por região e organizar a prospecção comercial no Januário Leads." },
+      { name: "description", content: "Conheça o Januário Leads: pesquisa por região, CRM, análises digitais, propostas e ferramentas de acompanhamento comercial." },
       { name: "robots", content: "noindex,follow" },
     ],
   }),

@@ -1,7 +1,8 @@
 import {
   ArrowRight, BarChart3, Building2, CalendarCheck2, Check, CheckCircle2,
   Clock3, Compass, FolderKanban, Globe2, Layers3, LayoutDashboard, MessageCircle,
-  Search, ShieldCheck, Target, Users, WalletCards,
+  Search, ShieldCheck, Target, Users, WalletCards, ScanSearch, Files,
+  ListOrdered, CalendarDays, BriefcaseBusiness, MessageSquareWarning,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -69,7 +70,7 @@ export function ChallengeStory() {
 const steps = [
   { title: "Explore", description: "Escolha o segmento e a cidade.", icon: Compass },
   { title: "Organize", description: "Salve os negócios que importam.", icon: FolderKanban },
-  { title: "Acompanhe", description: "Registre atividades e defina retornos.", icon: CalendarCheck2 },
+  { title: "Acompanhe", description: "Planeje retornos, propostas e entregas.", icon: CalendarCheck2 },
 ] as const;
 
 export function WorkflowRibbon() {
@@ -141,7 +142,7 @@ export function WorkflowRibbon() {
             <span className="jl-eyebrow">DA PESQUISA À ROTINA</span>
             <h2 id="workflow-title">Um caminho claro para cada <span>oportunidade.</span></h2>
           </div>
-          <p>Três movimentos que mantêm sua prospecção conectada. O tour acima mostra como eles se relacionam na plataforma.</p>
+          <p>Três fundamentos conectam pesquisa, CRM e gestão comercial. No tour acima, veja também como análises, propostas e projetos entram nesse caminho.</p>
         </div>
         <ol className="jl-workflow-track" data-stage={activeStep}>
           {steps.map(({ title, description, icon: Icon }, index) => (
@@ -156,92 +157,184 @@ export function WorkflowRibbon() {
   );
 }
 
+type ModuleCategory = "prospecting" | "commercial";
+const moduleCategories: {id:ModuleCategory;title:string;description:string}[] = [
+  { id:"prospecting",title:"Prospecção e CRM",
+    description:"A base da operação: pesquisar, selecionar e acompanhar seus contatos." },
+  { id:"commercial",title:"Gestão Comercial",
+    description:"Da análise de um negócio ao orçamento, aos retornos e à entrega de um projeto." },
+];
+
+/** Descriptions reflect implemented code, not a guarantee of public access. */
 const productModules = [
   {
-    id: "dashboard", icon: LayoutDashboard, name: "Dashboard", label: "Sua rotina em um painel",
+    id: "dashboard", category: "prospecting", icon: LayoutDashboard, name: "Dashboard", label: "Sua rotina em um painel",
     headline: "Visualize o que precisa de atenção na sua carteira.",
     description: "Consulte indicadores comerciais, ações agendadas ou atrasadas e sugestões de follow-up em um só painel.",
     bullets: ["Indicadores da carteira", "Próximas ações para hoje", "Retornos que precisam de atenção"],
     visual: ["Consultar indicadores", "Revisar retornos", "Abrir o lead"],
   },
   {
-    id: "carteira", icon: Users, name: "Meus Leads", label: "Organize seus contatos",
+    id: "carteira", category: "prospecting", icon: Users, name: "Meus Leads", label: "Organize seus contatos",
     headline: "Tenha contexto para acompanhar cada empresa.",
     description: "Salve empresas na carteira e organize dados, status, anotações e histórico de atividades registradas no CRM. Conversas do WhatsApp não são sincronizadas automaticamente.",
     bullets: ["Leads em lista e cartões", "Anotações e atividades registradas", "Datas de retorno por lead"],
     visual: ["Adicionar empresa", "Registrar atividade", "Definir próxima ação"],
   },
   {
-    id: "busca", icon: Search, name: "Buscar Leads", label: "Pesquise por cidade e nicho",
+    id: "busca", category: "prospecting", icon: Search, name: "Buscar Leads", label: "Pesquise por cidade e nicho",
     headline: "Pesquise empresas no mercado que você escolhe.",
     description: "Selecione estado, município e segmento. Revise os resultados disponíveis na fonte consultada e escolha quais negócios adicionar à sua carteira.",
     bullets: ["Pesquisa por cidade e nicho", "Dados conforme disponibilidade da fonte", "Seleção manual de empresas"],
     visual: ["Defina uma região", "Escolha o segmento", "Revise as empresas"],
   },
   {
-    id: "oportunidades", icon: Target, name: "Oportunidades", label: "Analise cidades e nichos",
+    id: "oportunidades", category: "prospecting", icon: Target, name: "Oportunidades", label: "Analise cidades e nichos",
     headline: "Identifique regiões e segmentos com sinais de oportunidade.",
     description: "Compare rankings de cidades e nichos a partir de amostras de empresas já pesquisadas. Os resultados dependem de dados disponíveis e de amostras suficientes; não é um funil de negociações.",
     bullets: ["Análise por cidade e segmento", "Indicadores baseados nas amostras", "Rankings conforme dados disponíveis"],
     visual: ["Pesquisas realizadas", "Análise de amostras", "Oportunidades identificadas"],
   },
   {
-    id: "mensagens", icon: MessageCircle, name: "Mensagens", label: "Prepare abordagens",
+    id: "mensagens", category: "prospecting", icon: MessageCircle, name: "Mensagens", label: "Prepare abordagens",
     headline: "Personalize sua comunicação sem perder o contexto.",
     description: "Use modelos de abordagem, revise a mensagem e inicie a conversa pelo WhatsApp quando fizer sentido. O envio é manual.",
     bullets: ["Modelos reutilizáveis", "Comunicação personalizada", "Envio sempre sob seu controle"],
     visual: ["Selecionar modelo", "Personalizar texto", "Abrir conversa"],
   },
   {
-    id: "financeiro", icon: WalletCards, name: "Financeiro", label: "Registre pagamentos",
+    id: "financeiro", category: "prospecting", icon: WalletCards, name: "Financeiro", label: "Registre pagamentos",
     headline: "Acompanhe valores e pagamentos ligados aos seus leads.",
     description: "Registre valores de projetos e pagamentos por empresa e consulte o que foi recebido ou ainda falta receber. Não é um sistema de cobrança automática.",
     bullets: ["Valores registrados por lead", "Pagamentos e saldos", "Resumo financeiro da carteira"],
     visual: ["Registrar valor", "Anotar pagamento", "Consultar saldo"],
   },
+  {
+    id: "analise", category: "commercial", icon: ScanSearch, name: "Análise Digital", label: "Diagnostique sites",
+    headline: "Transforme informações técnicas em contexto para conversar.",
+    description: "Consulte indicadores disponíveis do PageSpeed para avaliar o site de uma empresa. O diagnóstico utiliza dados reais da fonte, quando disponíveis, e não substitui uma auditoria completa.",
+    bullets: ["Consulta técnica de páginas", "Histórico de análises", "Subsídios para uma proposta"],
+    visual: ["Informar o site", "Consultar indicadores", "Organizar achados"],
+  },
+  {
+    id: "propostas", category: "commercial", icon: Files, name: "Propostas", label: "Prepare orçamentos",
+    headline: "Apresente seus serviços com mais organização.",
+    description: "Monte propostas ligadas a um lead ou avulsas, com escopo, serviços, valores, prazos e prévia para imprimir ou salvar em PDF. O envio e o aceite do cliente não são automáticos.",
+    bullets: ["Modelos de serviços", "Valores e condições editáveis", "Prévia para PDF"],
+    visual: ["Definir o escopo", "Adicionar serviços", "Preparar proposta"],
+  },
+  {
+    id: "campanhas", category: "commercial", icon: FolderKanban, name: "Campanhas", label: "Agrupe suas ações",
+    headline: "Dê um objetivo a cada grupo de empresas.",
+    description: "Organize leads existentes em campanhas, defina metas e acompanhe os status registrados no CRM. Os indicadores não comprovam envio de mensagens.",
+    bullets: ["Leads por campanha", "Metas de empresas", "Progresso do CRM"],
+    visual: ["Criar campanha", "Vincular empresas", "Acompanhar status"],
+  },
+  {
+    id: "sequencias", category: "commercial", icon: ListOrdered, name: "Sequências", label: "Planeje follow-ups",
+    headline: "Saiba qual abordagem vem depois.",
+    description: "Configure etapas de contato com prazos e modelos de mensagens, acompanhe cada lead e marque conclusões manualmente. Não existem disparos automáticos.",
+    bullets: ["Etapas e prazos", "Modelos de mensagens", "Conclusão manual"],
+    visual: ["Montar sequência", "Associar um lead", "Registrar etapas"],
+  },
+  {
+    id: "agenda", category: "commercial", icon: CalendarDays, name: "Agenda", label: "Reúna compromissos",
+    headline: "Veja suas atividades comerciais no calendário.",
+    description: "Cadastre reuniões e tarefas e consulte próximos contatos do CRM e das sequências em visualizações de mês, semana ou dia. Não envia lembretes externos.",
+    bullets: ["Calendário comercial", "Compromissos vinculados", "Acompanhamento dos retornos"],
+    visual: ["Escolher a data", "Criar compromisso", "Conferir atividades"],
+  },
+  {
+    id: "objecoes", category: "commercial", icon: MessageSquareWarning, name: "Objeções", label: "Entenda as recusas",
+    headline: "Registre o contexto das respostas que recebeu.",
+    description: "Anote motivos reais de objeção dentro da ficha do lead, com data opcional de retomada, e acompanhe a frequência desses motivos na carteira.",
+    bullets: ["Histórico por empresa", "Motivos registrados", "Resumo por categoria"],
+    visual: ["Registrar motivo", "Anotar contexto", "Revisar padrões"],
+  },
+  {
+    id: "projetos", category: "commercial", icon: BriefcaseBusiness, name: "Projetos", label: "Organize entregas",
+    headline: "Continue organizado depois de fechar um serviço.",
+    description: "Acompanhe projetos e tarefas em um quadro de etapas, associe leads e propostas aceitas e registre entregas manualmente. Concluir um projeto não confirma pagamentos.",
+    bullets: ["Quadro de etapas", "Checklist de tarefas", "Acompanhamento de prazos"],
+    visual: ["Criar projeto", "Organizar tarefas", "Marcar entrega"],
+  },
+  {
+    id: "metas", category: "commercial", icon: BarChart3, name: "Metas", label: "Acompanhe sua evolução",
+    headline: "Meça a rotina com os registros que você faz.",
+    description: "Defina objetivos semanais ou mensais e acompanhe contagens de leads, propostas, compromissos e projetos entregues a partir dos dados registrados.",
+    bullets: ["Objetivos por período", "Progresso por indicador", "Dados registrados, sem estimativas"],
+    visual: ["Definir indicador", "Estabelecer meta", "Ver progresso"],
+  },
 ] as const;
 
 export function FeatureExplorer() {
+  const [category, setCategory] = useState<ModuleCategory>("prospecting");
   const [selected, setSelected] = useState<(typeof productModules)[number]["id"]>("dashboard");
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => setHydrated(true), []);
   const active = productModules.find((mod) => mod.id === selected) ?? productModules[0];
   const ActiveIcon = active.icon;
+  const visibleModules = productModules.filter((mod) => mod.category === category);
+  const categoryDetails = moduleCategories.find((item) => item.id === category)!;
+
+  function selectCategory(next: ModuleCategory) {
+    setCategory(next);
+    const first = productModules.find((item) => item.category === next);
+    if (first) setSelected(first.id);
+  }
 
   return (
-    <div className="jl-modules" aria-label="Explore os módulos do Januário Leads">
-      <div className="jl-module-menu" role="group" aria-label="Módulos da plataforma">
-        {productModules.map(({ id, icon: Icon, name, label }) => (
-          <button
-            key={id} type="button" id={"jl-module-tab-" + id}
-            aria-controls="jl-module-panel" aria-pressed={selected === id}
-            disabled={!hydrated}
-            className={"jl-module-tab" + (selected === id ? " active" : "")}
-            onClick={() => setSelected(id)}
-          >
-            <span className="jl-module-tab-icon"><Icon size={19} aria-hidden="true" /></span>
-            <span><strong>{name}</strong><small>{label}</small></span>
+    <div className="jl-module-explorer">
+      <div className="jl-module-groups" role="group" aria-label="Grupos de funcionalidades">
+        {moduleCategories.map((item) => (
+          <button key={item.id} type="button" disabled={!hydrated}
+            aria-pressed={category === item.id}
+            className={"jl-module-group" + (category === item.id ? " active" : "")}
+            onClick={() => selectCategory(item.id)}>
+            {item.id === "commercial" ? <BriefcaseBusiness size={17} aria-hidden="true" /> :
+              <Search size={17} aria-hidden="true" />}
+            <span>{item.title}</span>
           </button>
         ))}
       </div>
-      <div className="jl-module-detail" role="region" aria-live="polite" id="jl-module-panel" aria-labelledby={"jl-module-tab-" + selected}>
-        <div key={selected} className="jl-module-detail-inner">
-          <span className="jl-module-eyebrow"><ActiveIcon size={18} aria-hidden="true" /> {active.name}</span>
-          <h3>{active.headline}</h3>
-          <p>{active.description}</p>
-          <ul className="jl-module-bullets">
-            {active.bullets.map((bullet) => <li key={bullet}><CheckCircle2 size={16} aria-hidden="true" />{bullet}</li>)}
-          </ul>
-          <div className="jl-module-visual" aria-label="Resumo das etapas do módulo">
-            <span className="jl-module-visual-top"><span /> FLUXO DO MÓDULO</span>
-            <div>
-              {active.visual.map((v, i) => (
-                <span className="jl-module-visual-item" key={v}>
-                  <strong>{v}</strong>
-                  {i < active.visual.length - 1 && <ArrowRight size={13} aria-hidden="true" />}
-                </span>
-              ))}
+      <p className="jl-module-group-description">{categoryDetails.description}</p>
+      <div className="jl-modules" aria-label="Explore os módulos do Januário Leads">
+        <div className="jl-module-menu" role="group" aria-label="Módulos da plataforma">
+          {visibleModules.map(({ id, icon: Icon, name, label }) => (
+            <button
+              key={id} type="button" id={"jl-module-tab-" + id}
+              aria-controls="jl-module-panel" aria-pressed={selected === id}
+              disabled={!hydrated}
+              className={"jl-module-tab" + (selected === id ? " active" : "")}
+              onClick={() => setSelected(id)}
+            >
+              <span className="jl-module-tab-icon"><Icon size={19} aria-hidden="true" /></span>
+              <span><strong>{name}</strong><small>{label}</small></span>
+            </button>
+          ))}
+        </div>
+        <div className="jl-module-detail" role="region" aria-live="polite" id="jl-module-panel" aria-labelledby={"jl-module-tab-" + selected}>
+          <div key={selected} className="jl-module-detail-inner">
+            <span className="jl-module-eyebrow"><ActiveIcon size={18} aria-hidden="true" /> {active.name}</span>
+            <h3>{active.headline}</h3>
+            <p>{active.description}</p>
+            <ul className="jl-module-bullets">
+              {active.bullets.map((bullet) => <li key={bullet}><CheckCircle2 size={16} aria-hidden="true" />{bullet}</li>)}
+            </ul>
+            <div className="jl-module-visual" aria-label="Resumo das etapas do módulo">
+              <span className="jl-module-visual-top"><span /> FLUXO DO MÓDULO</span>
+              <div>
+                {active.visual.map((v, i) => (
+                  <span className="jl-module-visual-item" key={v}>
+                    <strong>{v}</strong>
+                    {i < active.visual.length - 1 && <ArrowRight size={13} aria-hidden="true" />}
+                  </span>
+                ))}
+              </div>
             </div>
+            {category === "commercial" && <p className="jl-module-availability">
+              Ferramentas em validação para ampliação de acesso. A disponibilidade depende da autorização da conta e da liberação de cada módulo.
+            </p>}
           </div>
         </div>
       </div>

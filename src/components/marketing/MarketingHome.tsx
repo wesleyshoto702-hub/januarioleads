@@ -56,7 +56,7 @@ const faq = [
   {
     question: "O que é o Januário Leads?",
     answer:
-      "Uma plataforma de prospecção e CRM. Você pesquisa empresas por região e nicho, salva negócios na carteira, registra atividades e datas de retorno e consulta oportunidades com base nas pesquisas realizadas.",
+      "Uma plataforma de prospecção e organização comercial. Você pesquisa empresas por cidade e nicho, organiza leads no CRM e encontra ferramentas para planejar contatos, analisar sites, preparar propostas e acompanhar projetos. A liberação de cada recurso depende do acesso da conta.",
   },
   {
     question: "Posso buscar empresas de outras cidades?",
@@ -67,6 +67,26 @@ const faq = [
     question: "O sistema envia mensagens automaticamente?",
     answer:
       "Não. Você pode preparar modelos de mensagens e abrir o WhatsApp para conversar. O envio da abordagem continua sob seu controle.",
+  },
+  {
+    question: "O Januário Leads cria e envia propostas automaticamente?",
+    answer:
+      "Você pode montar propostas com escopo, serviços, preços, prazos e prévia para salvar em PDF. O envio, a negociação e a confirmação de aceite são feitos por você; o sistema não cobra o cliente automaticamente.",
+  },
+  {
+    question: "Para que servem as campanhas, sequências e projetos?",
+    answer:
+      "Campanhas agrupam leads, sequências ajudam a planejar contatos e projetos organizam tarefas após uma negociação. A agenda, as objeções e as metas complementam essa rotina. O acompanhamento e as mensagens permanecem sob seu controle.",
+  },
+  {
+    question: "Criar uma conta libera todas as ferramentas?",
+    answer:
+      "Não. Criar uma conta não concede acesso imediato ao Workspace. No momento, o acesso exige autorização, e algumas ferramentas estão em validação antes de uma disponibilização mais ampla.",
+  },
+  {
+    question: "A busca pelo mapa já está disponível para qualquer usuário?",
+    answer:
+      "Não. O Buscar via Maps ainda é uma ferramenta de uso pessoal restrita ao proprietário, com configuração própria e dependência dos serviços de mapas. A página pública destaca a busca convencional por cidade e nicho.",
   },
   {
     question: "Preciso instalar algum programa?",
@@ -322,14 +342,14 @@ export function MarketingHome() {
           <div className="jl-container jl-hero-grid">
             <div className="jl-hero-copy">
               <span className="jl-kicker"><span className="jl-kicker-dot" /> PROSPECÇÃO B2B COM ORGANIZAÇÃO</span>
-              <h1>Boas oportunidades começam com <em>uma busca direcionada.</em></h1>
+              <h1>Encontre empresas. <em>Organize sua jornada comercial.</em></h1>
               <p className="jl-hero-description">
-                Busque empresas por cidade e segmento, selecione negócios para sua carteira
-                e organize os próximos contatos no CRM — com mais clareza em cada etapa.
+                Pesquise negócios por cidade e nicho, organize leads no CRM e conheça
+                ferramentas para analisar sites, preparar propostas e acompanhar a rotina comercial.
               </p>
               <div className="jl-hero-highlights">
                 <span><Check size={15} aria-hidden="true" /> Busca por cidade e nicho</span>
-                <span><Check size={15} aria-hidden="true" /> CRM e próximos contatos</span>
+                <span><Check size={15} aria-hidden="true" /> CRM e gestão comercial</span>
                 <span><Check size={15} aria-hidden="true" /> Acesso pelo navegador</span>
               </div>
             </div>
@@ -354,7 +374,7 @@ export function MarketingHome() {
             <div className="jl-section-heading jl-centered">
               <span className="jl-eyebrow"><CirclePlay size={15} aria-hidden="true" /> DEMONSTRAÇÃO ANIMADA DO PRODUTO</span>
               <h2 id="tour-title">Como funciona o Januário Leads? <span>Veja na prática.</span></h2>
-              <p>Uma prévia animada, feita especialmente para o Januário Leads. Da busca de empresas ao CRM e ao próximo contato, sem gravar dados ou realizar operações reais.</p>
+              <p>Uma prévia animada do caminho comercial: da busca e do CRM à análise digital, proposta e acompanhamento de projetos. Tudo com dados fictícios, sem executar operações reais.</p>
             </div>
             <AnimatedProductTour />
           </div>
@@ -369,11 +389,12 @@ export function MarketingHome() {
               <div className="jl-spotlight-text">
                 <span className="jl-eyebrow">MAIS DO QUE ENCONTRAR CONTATOS</span>
                 <h2>Encontrou um lead. <span>E agora?</span></h2>
-                <p>O diferencial do Januário Leads é ajudar você a transformar uma lista de empresas em um acompanhamento comercial organizado.</p>
+                <p>O Januário Leads ajuda a transformar uma pesquisa em um processo: organizar os contatos, analisar oportunidades, preparar propostas e acompanhar o trabalho depois da negociação.</p>
                 <div className="jl-spotlight-points">
                   <span><CheckCircle2 size={17} aria-hidden="true" /> Histórico de atividades e anotações por empresa</span>
                   <span><CheckCircle2 size={17} aria-hidden="true" /> Datas de retorno e próximas ações no CRM</span>
                   <span><CheckCircle2 size={17} aria-hidden="true" /> Análise de oportunidades por cidade e nicho</span>
+                  <span><CheckCircle2 size={17} aria-hidden="true" /> Diagnósticos digitais, propostas e acompanhamento de projetos</span>
                 </div>
               </div>
               <div className="jl-followup-preview" aria-label="Exemplo ilustrativo de organização comercial">
@@ -390,7 +411,7 @@ export function MarketingHome() {
             <div className="jl-section-heading jl-centered jl-feature-subheading">
               <span className="jl-eyebrow">CONHEÇA A PLATAFORMA POR DENTRO</span>
               <h2 id="features-title">Cada módulo com um <span>papel no seu processo.</span></h2>
-              <p>Explore as ferramentas por área: da primeira busca até o acompanhamento comercial.</p>
+              <p>Conheça as funções de Prospecção e CRM e as ferramentas de Gestão Comercial, com detalhes sobre o que cada uma faz.</p>
             </div>
             <FeatureExplorer />
           </div>
@@ -423,6 +444,7 @@ export function MarketingHome() {
                   <li><CheckCircle2 size={16}/> Salve contatos direto no CRM</li>
                   <li><CheckCircle2 size={16}/> Organize retornos e próximas ações</li>
                   <li><CheckCircle2 size={16}/> Consulte oportunidades por cidade e nicho</li>
+                  <li><CheckCircle2 size={16}/> Organize propostas, retornos e projetos conforme seu acesso</li>
                 </ul>
               </div>
             </div>
@@ -434,7 +456,7 @@ export function MarketingHome() {
             <div className="jl-faq-intro">
               <span className="jl-eyebrow">PERGUNTAS FREQUENTES</span>
               <h2 id="faq-title">Antes de começar, <span>saiba como funciona.</span></h2>
-              <p>Respostas diretas sobre a pesquisa de empresas e a organização de contatos.</p>
+              <p>Entenda o funcionamento do CRM, das novas ferramentas comerciais e das condições de acesso à plataforma.</p>
             </div>
             <div className="jl-faq-list">
               {faq.map((item) => (
