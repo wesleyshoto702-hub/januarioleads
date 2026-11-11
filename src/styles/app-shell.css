@@ -1735,3 +1735,108 @@ body{
  .saas-mobile-drawer .saas-commercial-toggle{min-height:46px;font-size:13px}
  .saas-mobile-drawer .saas-commercial-nav{margin-top:14px}
 }
+
+
+/* Gold bookmark favorites — deliberately independent of the theme accent. */
+.saas-main .lead-favorite-button {
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color .15s ease, transform .15s ease, border-color .15s ease;
+}
+.saas-main .lead-favorite-button:hover {
+  background: rgba(255, 190, 45, .12);
+  border-color: rgba(255, 190, 45, .3);
+  transform: translateY(-1px);
+}
+.saas-main .lead-favorite-button:focus-visible {
+  outline: 2px solid #ffbd3b;
+  outline-offset: 2px;
+}
+.saas-main .lead-favorite-ribbon {
+  fill: rgba(251, 183, 42, .10);
+  stroke: #ffb72f;
+}
+.saas-main .lead-favorite-star {
+  fill: #ffb72f;
+  stroke: #ffb72f;
+  stroke-width: 1;
+}
+.saas-main .lead-favorite-button.is-favorite .lead-favorite-ribbon {
+  fill: #ffb72f;
+  stroke: #ffb72f;
+}
+.saas-main .lead-favorite-button.is-favorite .lead-favorite-star {
+  fill: #fffdf3;
+  stroke: #fffdf3;
+}
+.saas-main .lead-kanban-card-top .lead-favorite-button {
+  margin-left: auto;
+}
+.saas-main .lead-favorites-switch {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 13px 14px 4px;
+}
+.saas-main .lead-favorite-filter {
+  border: 1px solid var(--border, #3d3540);
+  background: transparent;
+  color: var(--muted, #c3b5bd);
+  border-radius: 11px;
+  padding: 8px 12px;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.saas-main .lead-favorite-filter:hover {
+  background: rgba(255, 183, 47, .07);
+}
+.saas-main .lead-favorite-filter.active {
+  color: var(--text, #fff);
+  border-color: var(--border-strong, #786a75);
+  background: var(--surface-2, #242027);
+}
+.saas-main .lead-favorite-filter--star.active {
+  color: #ffcc61;
+  background: rgba(255, 183, 47, .13);
+  border-color: rgba(255, 183, 47, .48);
+}
+.saas-main .lead-favorite-filter:focus-visible {
+  outline: 2px solid #ffbd3b;
+  outline-offset: 2px;
+}
+.saas-main .favorite-filter-count {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(255, 183, 47, .13);
+  color: #ffcc61;
+  font-variant-numeric: tabular-nums;
+}
+.saas-main .lead-favorites-empty {
+  padding: 18px 16px;
+  margin: 10px 14px;
+  background: rgba(255, 183, 47, .045);
+  border: 1px dashed rgba(255, 183, 47, .3);
+  color: var(--muted, #c4b8bd);
+  border-radius: 11px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+@media (prefers-reduced-motion: reduce) {
+  .saas-main .lead-favorite-button { transition: none; }
+}

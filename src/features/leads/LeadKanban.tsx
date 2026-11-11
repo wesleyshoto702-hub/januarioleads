@@ -3,6 +3,7 @@ import { CalendarClock, GripVertical } from "lucide-react";
 import type { PersistedLead, LeadStatus } from "./remote-leads";
 import { STATUS_LABEL } from "./lead-status";
 import { getLeadActionSummary } from "../next-actions/next-actions";
+import { LeadFavoriteButton } from "./LeadFavoriteButton";
 
 const COLUMNS: readonly LeadStatus[] = ["send_message", "waiting", "accepted", "rejected"];
 
@@ -11,11 +12,12 @@ const COLUMNS: readonly LeadStatus[] = ["send_message", "waiting", "accepted", "
  * negotiation stages. Updates use existing persistence + activity history.
  */
 export function LeadKanban({
-  leads, onChangeStatus, onOpenLead,
+  leads, onChangeStatus, onOpenLead, onFavorite,
 }: {
   leads: PersistedLead[];
   onChangeStatus: (id: string, status: LeadStatus) => void;
   onOpenLead: (lead: PersistedLead) => void;
+  onFavorite: (lead: PersistedLead) => void;
 }) {
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropColumn, setDropColumn] = useState<LeadStatus | null>(null);
@@ -73,6 +75,11 @@ export function LeadKanban({
                       <div className="lead-kanban-card-top">
                         <GripVertical size={15} aria-hidden="true"/>
                         <strong>{lead.company}</strong>
+                        <LeadFavoriteButton
+                          company={lead.company}
+                          isFavorite={lead.isFavorite === true}
+                          onToggle={() => onFavorite(lead)}
+                        />
                       </div>
                       <small>{lead.segment}{lead.city ? " · " + lead.city : ""}</small>
                       {next.saved && (

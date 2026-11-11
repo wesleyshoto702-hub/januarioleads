@@ -354,6 +354,7 @@ function LeadFlowApp() {
   const [leadLocationError, setLeadLocationError] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | Status>("all");
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [actionFilter, setActionFilter] = useState<LeadActionFilter>("all");
   const [financialFilter, setFinancialFilter] = useState<"all" | FinancialStatus>("all");
   const [segmentFilter, setSegmentFilter] = useState("all");
@@ -588,6 +589,11 @@ function LeadFlowApp() {
     };
   }, [financeByLead, leadPayments]);
 
+  const favoriteCount = useMemo(
+    () => leads.filter((lead) => lead.isFavorite === true).length,
+    [leads],
+  );
+
   const visibleLeads = useMemo(() => {
     const query = normalizeLocationText(search);
     const phoneQuery = search.replace(/\D/g, "");
@@ -604,6 +610,7 @@ function LeadFlowApp() {
             normalizeLocationText(state.name).includes(query),
         ) ||
         (phoneQuery.length > 0 && lead.phone.replace(/\D/g, "").includes(phoneQuery));
+      const matchesFavorite = !favoritesOnly || lead.isFavorite === true;
       const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
       const matchesSegment = segmentFilter === "all" || lead.segment === segmentFilter;
       const matchesState =
@@ -626,6 +633,7 @@ function LeadFlowApp() {
         (actionFilter === "overdue" && actionSummary.temporal.urgency === "overdue");
       return (
         matchesSearch &&
+        matchesFavorite &&
         matchesStatus &&
         matchesSegment &&
         matchesState &&
@@ -667,6 +675,7 @@ function LeadFlowApp() {
   }, [
     leads,
     search,
+    favoritesOnly,
     statusFilter,
     actionFilter,
     financialFilter,
@@ -686,7 +695,7 @@ function LeadFlowApp() {
 
   useEffect(() => {
     setRenderLimit(40);
-  }, [search, statusFilter, actionFilter, financialFilter, segmentFilter, stateFilter, cityFilter, sort, leadLayout]);
+  }, [search, favoritesOnly, statusFilter, actionFilter, financialFilter, segmentFilter, stateFilter, cityFilter, sort, leadLayout]);
 
   const actionCounts = useMemo(() => {
     let today = 0;
@@ -1129,6 +1138,15 @@ function LeadFlowApp() {
       setRemoteError("Contatos importados na cópia local; sincronização pendente até a conexão voltar.");
       return { count: fresh.length, synced: false };
     }
+  }
+
+  function toggleFavorite(lead: Lead) {
+    // Use the existing per-account offline queue and Supabase synchronization.
+    // Favorite state belongs to the saved lead, not to the Google Places result.
+    updateLeadLocally(lead.id, (current) => ({
+      ...current,
+      isFavorite: current.isFavorite !== true,
+    }));
   }
 
   function changeStatus(id: string, status: Status) {
@@ -1873,6 +1891,33 @@ function LeadFlowApp() {
           <ManualLeadTransfer leads={leads} onImport={importManualLeads} />
 
           <div className="lead-panel">
+            <div className="lead-favorites-switch" role="group" aria-label="Visualizar leads favoritos">
+              <button
+                type="button"
+                className={"lead-favorite-filter" + (!favoritesOnly ? " active" : "")}
+                aria-pressed={!favoritesOnly}
+                onClick={() => setFavoritesOnly(false)}
+              >
+                Todos os leads
+              </button>
+              <button
+                type="button"
+                className={"lead-favorite-filter lead-favorite-filter--star" + (favoritesOnly ? " active" : "")}
+                aria-pressed={favoritesOnly}
+                onClick={() => {
+                  setFavoritesOnly(true);
+                  setSearch("");
+                  setStatusFilter("all");
+                  setActionFilter("all");
+                  setFinancialFilter("all");
+                  setSegmentFilter("all");
+                  setStateFilter("all");
+                  setCityFilter("all");
+                }}
+              >
+                <span aria-hidden="true">⭐</span> Favoritos <span className="favorite-filter-count">{favoriteCount}</span>
+              </button>
+            </div>
             <div className="panel-toolbar">
               <div className="search-box">
                 <Search size={17} />
@@ -1998,13 +2043,22 @@ function LeadFlowApp() {
               ))}
             </div>
 
+            {favoritesOnly && visibleLeads.length === 0 && (
+              <p className="lead-favorites-empty" role="status">
+                {favoriteCount === 0
+                  ? "Nenhum lead favoritado ainda. Clique no marcador amarelo de um lead para encontrá-lo aqui."
+                  : "Nenhum favorito corresponde aos filtros selecionados."}
+              </p>
+            )}
+
             <div className="lead-layout-switch" role="group" aria-label="Visualização da carteira">
               <button type="button" aria-pressed={leadLayout === "list"} onClick={() => setLeadLayout("list")}>Lista</button>
               <button type="button" aria-pressed={leadLayout === "kanban"} onClick={() => { setLeadLayout("kanban"); setStatusFilter("all"); }}>Kanban</button>
             </div>
 
             {leadLayout === "kanban" ? (
-              <LeadKanban leads={renderedLeads} onChangeStatus={changeStatus} onOpenLead={openLeadDetails} />
+              <LeadKanban leads={renderedLeads} onChangeStatus={changeStatus}
+                onOpenLead={openLeadDetails} onFavorite={toggleFavorite} />
             ) : (
               <>
             <div className="desktop-table">
@@ -2031,10 +2085,11 @@ function LeadFlowApp() {
                     onFollowUp={startFollowUp}
                     onEdit={openEditLead}
                     onDelete={setDeleteLead}
+                    onFavorite={toggleFavorite}
                   />
                 ))
               ) : (
-                <EmptyState onNew={openNewLead} hasLeads={leads.length > 0} />
+                !favoritesOnly && <EmptyState onNew={openNewLead} hasLeads={leads.length > 0} />
               )}
             </div>
 
@@ -2052,10 +2107,11 @@ function LeadFlowApp() {
                     onFollowUp={startFollowUp}
                     onEdit={openEditLead}
                     onDelete={setDeleteLead}
+                    onFavorite={toggleFavorite}
                   />
                 ))
               ) : (
-                <EmptyState onNew={openNewLead} hasLeads={leads.length > 0} />
+                !favoritesOnly && <EmptyState onNew={openNewLead} hasLeads={leads.length > 0} />
               )}
             </div>
               </>
