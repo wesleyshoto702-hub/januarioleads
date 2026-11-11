@@ -19,8 +19,11 @@ export function chooseMapProvider(siteKey: string): MapProviderChoice {
 }
 
 /**
- * Google Places results must only be requested when their Google basemap
- * can be used. Never spend on Google Places if the site uses an open map.
+ * Controls only whether Google Places results can be drawn on an actual
+ * Google Maps JavaScript basemap. Google Places REST discovery is separately
+ * authorized in the Supabase Edge Function. Without this browser key the
+ * frontend MUST show Google results in an attributed, mapless Google list,
+ * never on a non-Google/OpenFreeMap map.
  */
 export function canDisplayGooglePlaces(siteKey: string, googleUnavailable: boolean): boolean {
   return chooseMapProvider(siteKey) === "google" && !googleUnavailable;
