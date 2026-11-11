@@ -32,7 +32,7 @@ function canonical(value:unknown):unknown {
   return value;
 }
 export function snapshotJson(items:unknown[]):string {
-  return JSON.stringify(canonical(items));
+  return JSON.stringify(canonical(items)) ?? "[]";
 }
 /** Deterministic equality token; not a password/hash of confidential contents. */
 export function snapshotFingerprint(items:unknown[]):string {
