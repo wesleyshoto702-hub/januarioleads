@@ -27,3 +27,15 @@ A política de atribuição do OpenStreetMap permanece visível no mapa e na lis
 ## Verificação
 
 Confirmar após a publicação: entrar com a conta original no Januário Leads, pesquisar **Clínica Médica / Alfenas / MG**, verificar resposta e marcadores sem configurar chave Google. Validar também um nicho não mapeado e a mensagem de quota. GitHub Actions permanece indisponível por limite de franquia, portanto execução de testes de navegador está pendente.
+
+## Ajuste de disponibilidade em 11/11/2026
+
+Após o primeiro fallback sem chave, o navegador mostrou `A consulta comunitária do OpenStreetMap está ocupada` em Clínica Médica / Alfenas / MG. Os logs confirmaram a função no Supabase original com HTTP 503 e a RPC de limite autenticada com HTTP 200; o código anterior não distinguia a resposta do Overpass (HTTP 400, 406, 429 etc.).
+
+A conexão do fallback foi alterada para a instância pública **Private.coffee**, documentada na lista de instâncias do OpenStreetMap e publicada em `https://overpass.private.coffee/api/interpreter`. A instância da FOSSGIS `overpass-api.de` passou a impor restrições mais severas a aplicações e cloud workers em 2026. Usamos **uma instância por vez**, sem contornar bloqueios automaticamente enviando a mesma busca a vários serviços. A disponibilidade ainda é de melhor esforço.
+
+Agora as respostas informam de maneira distinta quando o provedor recusa a sintaxe (400), bloqueia o acesso (403/406), atinge seu limite (429) ou fica temporariamente indisponível (5xx). O Supabase registra somente o código HTTP ou a categoria do erro do fornecedor, sem tokens, dados do usuário ou detalhes da busca. Respostas `200` contendo `remark` de erro não são consideradas sucesso.
+
+A autenticação original e a franquia de 10 tentativas diárias permanecem ativas; **inclusive tentativas com falha consomem a cota** porque a função reserva um acesso antes de consultar o provedor, evitando abusos de requisições concorrentes. Mudanças no controle transacional dessa cota exigem revisão separada.
+
+Pendente: executar uma pesquisa autenticada após o deploy para confirmar dados reais. Não confundir deployment ativo com validação de ponta a ponta. O OpenStreetMap pode não ter clínicas cadastradas para toda cidade.
