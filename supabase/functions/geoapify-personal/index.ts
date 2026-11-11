@@ -359,6 +359,10 @@ Deno.serve(async(request:Request)=>{
       "Limite pessoal de 10 buscas por dia atingido.",429);
     const runOpenSource=async():Promise<Response>=>{
     if(!key){
+      // Do not delay a configured Google fallback with an unreliable public
+      // Overpass request. OSM remains available when neither key exists.
+      if(googleKey)return fail(request,"NOT_CONFIGURED",
+        "Geoapify não configurado. Consultando a alternativa Google Places.",503);
       const osm=await searchPersonalOsm(city,uf.code,segment,text(body?.neighborhood,80));
       if(!osm.ok)return fail(request,osm.code,osm.message,
         osm.code==="LOCATION_NOT_FOUND"?404:
