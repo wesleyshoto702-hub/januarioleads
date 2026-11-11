@@ -169,3 +169,41 @@
 .cx-page .cx-project-tasks .done{text-decoration:line-through;opacity:.62}
 @media(max-width:1220px){.cx-page .cx-project-form{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:650px){.cx-page .cx-project-form,.cx-page .cx-project-details-form{grid-template-columns:1fr}.cx-page .cx-project-wide{grid-column:1}.cx-page .cx-board{grid-template-columns:repeat(6,205px)}}
+
+
+/* Actual commercial productivity goals, embedded in Dashboard */
+.cx-goals{max-width:1480px;margin:18px auto 0;padding:23px;border:1px solid rgba(182,204,208,.13);border-radius:17px;background:linear-gradient(135deg,#152225,#0d171a);color:var(--text)}
+.cx-goals-head{display:flex;align-items:start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.cx-goals-eyebrow{font-size:9px;color:var(--primary);letter-spacing:.14em;font-weight:820;margin:0 0 8px}
+.cx-goals-head h2{display:flex;align-items:center;gap:9px;color:#edf5f6;margin:0 0 8px;font-size:21px;letter-spacing:-.032em}
+.cx-goals-head h2 svg{color:var(--primary)}
+.cx-goals-head p:not(.cx-goals-eyebrow){font-size:12px;color:#9db1b6;line-height:1.6;margin:0}
+.cx-goals-head>span{border:1px solid color-mix(in srgb,var(--primary) 22%,transparent);border-radius:8px;padding:8px 10px;color:var(--primary);font-size:10px;font-weight:780}
+.cx-goals-form{display:grid;grid-template-columns:minmax(180px,1.4fr) minmax(120px,.8fr) minmax(90px,.5fr) auto;gap:11px;align-items:end;margin:24px 0}
+.cx-goals-form label{display:grid;gap:6px;min-width:0;color:#b8ced2;font-size:11px;font-weight:760}
+.cx-goals-form :is(input,select){min-height:40px;width:100%;min-width:0;background:#0e1b1e;color:#f0f5f6;border:1px solid rgba(183,210,212,.18);border-radius:9px;padding:10px;font-size:12px}
+.cx-goals button:focus-visible,.cx-goals input:focus-visible,.cx-goals select:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.cx-goals-add{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--primary-action);border:1px solid var(--primary);color:var(--primary-contrast);min-height:40px;padding:10px 15px;border-radius:9px;font-size:11px;font-weight:780;cursor:pointer}
+.cx-goals-cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px}
+.cx-goal-card{padding:16px;border:1px solid rgba(183,212,214,.12);background:#101f23;border-radius:13px;min-width:0}
+.cx-goal-card-top{display:flex;align-items:center;justify-content:space-between;gap:7px}
+.cx-goal-card-top small{font-size:9px;font-weight:800;letter-spacing:.095em;color:var(--primary)}
+.cx-goal-card-top button{display:grid;place-items:center;width:26px;height:26px;border:1px solid rgba(190,213,214,.14);border-radius:7px;background:#1a2a2e;color:#a5b5b9;cursor:pointer}
+.cx-goal-card h3{min-height:35px;color:#e3eff1;font-size:12px;font-weight:740;line-height:1.55;margin:12px 0}
+.cx-goal-numbers{display:flex;align-items:baseline;gap:6px;margin:7px 0 12px}
+.cx-goal-numbers strong{font-size:28px;color:#eff7f8;letter-spacing:-.055em}
+.cx-goal-numbers span{font-size:12px;color:#94a9ae}
+.cx-goal-track{height:7px;background:#26363a;border-radius:99px;overflow:hidden}
+.cx-goal-track div{height:100%;border-radius:99px;background:var(--primary)}
+.cx-goal-bottom{display:flex;flex-wrap:wrap;gap:7px;justify-content:space-between;color:#95a8ac;font-size:10px;margin-top:12px}
+.cx-goals-empty{grid-column:1 / -1;display:flex;align-items:center;flex-direction:column;text-align:center;gap:10px;padding:30px;color:#96adb1}
+.cx-goals-empty svg{color:var(--primary)}
+.cx-goals-empty strong{color:#e2eff0;font-size:13px}
+.cx-goals-empty p{font-size:11px}
+.cx-goals-alert,.cx-goals-success{border-radius:8px;font-size:11px;padding:10px 12px;margin:13px 0}
+.cx-goals-alert{color:#f6aab5;background:rgba(177,40,63,.12)}
+.cx-goals-success{color:#9ae2bc;background:rgba(63,137,94,.1);display:flex;align-items:center;gap:7px}
+.cx-goals-footer{color:#91a8ad;font-size:10px;line-height:1.75;margin:18px 0 0}
+@media(max-width:1180px){.cx-goals-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:850px){.cx-goals-form{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:580px){.cx-goals{padding:16px;margin:14px 9px}.cx-goals-form,.cx-goals-cards{grid-template-columns:1fr}}
