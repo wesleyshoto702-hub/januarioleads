@@ -2105,30 +2105,30 @@ function LeadFlowApp() {
               <p>Explore empresas em lista ou no mapa usando a mesma pesquisa híbrida.
                 Ao trocar entre Lista e Mapa, os resultados continuam carregados.</p>
             </div>
-            <div className="jl-unified-search-tabs" role="tablist" aria-label="Modo de busca">
-              <button type="button" role="tab" id="jl-discovery-list"
-                aria-selected={discoveryTab==="list"}
+            <div className="jl-unified-search-tabs" role="group" aria-label="Modo de busca">
+              <button type="button" id="jl-discovery-list"
+                aria-pressed={discoveryTab==="list"}
                 aria-controls="jl-discovery-panel"
                 className={discoveryTab==="list"?"active":""}
                 onClick={()=>setDiscoveryTab("list")}>
                 <Search size={16}/> Lista
               </button>
-              <button type="button" role="tab" id="jl-discovery-map"
-                aria-selected={discoveryTab==="map"}
+              <button type="button" id="jl-discovery-map"
+                aria-pressed={discoveryTab==="map"}
                 aria-controls="jl-discovery-panel"
                 className={discoveryTab==="map"?"active":""}
                 onClick={()=>setDiscoveryTab("map")}>
                 <MapPin size={16}/> Mapa
               </button>
-              <button type="button" role="tab" id="jl-discovery-advanced"
-                aria-selected={discoveryTab==="advanced"}
+              <button type="button" id="jl-discovery-advanced"
+                aria-pressed={discoveryTab==="advanced"}
                 aria-controls="jl-discovery-panel"
                 className={discoveryTab==="advanced"?"active":""}
                 onClick={()=>setDiscoveryTab("advanced")}>
                 <Star size={16}/> Busca avançada
               </button>
             </div>
-            <div id="jl-discovery-panel" role="tabpanel"
+            <div id="jl-discovery-panel" role="region"
               aria-labelledby={"jl-discovery-"+discoveryTab}
               className="jl-unified-search-panel">
               {discoveryTab==="advanced" ? (
