@@ -1,6 +1,7 @@
 import { useMemo,useState } from "react";
 import { Archive,Check,FolderKanban,Plus,Search,Target,Trash2,Users,Download } from "lucide-react";
 import { PageHeader } from "../../components/app-shell/PageHeader";
+import { useConfirmAction } from "../../components/app-shell/ConfirmActionProvider";
 import type { PersistedLead } from "../leads/remote-leads";
 import { exportRecords,freshRecord,loadCommercial,saveCommercial,nonemptyText } from "./store";
 import { campaignCounts,isCampaign,type Campaign } from "./campaigns";
@@ -8,6 +9,7 @@ import { campaignCounts,isCampaign,type Campaign } from "./campaigns";
 export function CampaignsView({leads,onOpenLead}:{
   leads:PersistedLead[];onOpenLead:(lead:PersistedLead)=>void;
 }){
+  const confirmAction=useConfirmAction();
   const [items,setItems]=useState<Campaign[]>(()=>loadCommercial("campaigns",isCampaign,100));
   const [active,setActive]=useState("");
   const [name,setName]=useState("");
@@ -43,8 +45,13 @@ export function CampaignsView({leads,onOpenLead}:{
     if(current.size>300){setError("Limite de 300 leads por campanha.");return;}
     update(selected,{leadIds:[...current]},"Participantes atualizados.");
   }
-  function remove(c:Campaign){
-    if(!window.confirm("Excluir a campanha? Os leads do CRM não serão apagados."))return;
+  async function remove(c:Campaign){
+    if(!(await confirmAction({
+      title:"Excluir campanha?",
+      subject:c.name,
+      description:"A campanha e a seleção de participantes serão apagadas. Os leads continuarão no CRM.",
+      confirmLabel:"Excluir campanha",
+    })))return;
     if(commit(items.filter(x=>x.id!==c.id),"Campanha excluída. Seus leads foram preservados."))setActive("");
   }
   const currentCounts=selected?campaignCounts(selected,leads):null;
@@ -83,7 +90,7 @@ export function CampaignsView({leads,onOpenLead}:{
             <p className="cx-muted">{selected.description||"Sem descrição"}</p></div>
             <div className="cx-inline-actions">
               <button className="cx-button" type="button" onClick={()=>update(selected,{archived:!selected.archived})}><Archive size={15}/>{selected.archived?"Reativar":"Arquivar"}</button>
-              <button className="cx-button danger" type="button" onClick={()=>remove(selected)}><Trash2 size={15}/>Excluir</button>
+              <button className="cx-button danger" type="button" onClick={()=>void remove(selected)}><Trash2 size={15}/>Excluir</button>
             </div></div>
           <div className="cx-kpis">
             <div><small>Atribuídos</small><strong>{currentCounts.assigned}</strong></div>
