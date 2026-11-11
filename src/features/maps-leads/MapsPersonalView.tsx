@@ -232,6 +232,8 @@ export function MapsPersonalView({
   const activeId=selection;
   const selected=selectedGoogle;
   const googleMapUrl=safeExternalHref(selected?.googleMapsUrl);
+  const googleListOnly=resultProvider==="google"&&
+    !canDisplayGooglePlaces(browserKey,googleUnavailable);
   const osmlink=selectedGeo?`https://www.openstreetmap.org/?mlat=${selectedGeo.latitude}&mlon=${selectedGeo.longitude}#map=16/${selectedGeo.latitude}/${selectedGeo.longitude}`:null;
 
   return (
@@ -279,6 +281,16 @@ export function MapsPersonalView({
           {isLoading?"Buscando...":"Buscar no mapa"}
         </button>
       </form>
+      <div className="bms-source-choice">
+        <label htmlFor="bms-source-priority">ORDEM DAS FONTES</label>
+        <select id="bms-source-priority" value={searchPriority}
+          onChange={event=>setSearchPriority(event.target.value==="google"?"google":"geoapify")}
+          disabled={isLoading}>
+          <option value="geoapify">Automático · Geoapify primeiro, Google se necessário</option>
+          <option value="google">Google primeiro · Geoapify como alternativa</option>
+        </select>
+        <span>O Google Places pode gerar cobrança quando consultado. A busca respeita o limite diário.</span>
+      </div>
       <div className="bms-meta">
         <span><Layers size={15}/> {applied?`${count} empresas encontradas`:"Escolha um nicho e uma região"}</span>
       </div>
@@ -289,33 +301,44 @@ export function MapsPersonalView({
         <p className="bms-source-hint" role="status">Resultados encontrados pela correspondência de nome na base aberta. A cobertura pode ser parcial e a atividade deve ser confirmada antes da prospecção.</p>}
       <div className="bms-layout">
         <div className="bms-map-frame">
-          {resultProvider==="google"&&canDisplayGooglePlaces(browserKey,googleUnavailable)
-            ? <RealGoogleMap key={browserKey} browserKey={browserKey}
-              points={mapPoints} selectedId={activeId}
-              onSelect={choose} zoomAction={zoomAction}
-              onUnavailable={()=>{
-                // Google Places data cannot appear on an OpenFreeMap basemap.
-                setGoogleUnavailable(true);
-                setGoogleResults([]);setResultProvider(null);setSelection(null);setApplied(null);
-                setError("Google Maps indisponível neste domínio. O mapa aberto continuará disponível "+
-                  "para pesquisas na base Geoapify / OpenStreetMap.");
-              }}/>
+          {resultProvider==="google"
+            ? googleListOnly
+              ? <div className="bms-google-list-panel" role="region"
+                  aria-label="Resultados do Google Places sem mapa">
+                  <div className="bms-google-list-brand">
+                    <a href="https://www.google.com/maps" target="_blank"
+                       rel="noopener noreferrer">Google Maps</a>
+                  </div>
+                  <h2>{applied?.segment??"Estabelecimentos"} · {titleCity}</h2>
+                  <p>{count} estabelecimentos encontrados pelo Google Places.
+                    Selecione uma empresa na lista à direita para ver os detalhes.</p>
+                  <p>Para respeitar os termos de uso, esses resultados não são posicionados
+                     sobre o mapa OpenStreetMap.</p>
+                </div>
+              : <RealGoogleMap key={browserKey} browserKey={browserKey}
+                  points={mapPoints} selectedId={activeId}
+                  onSelect={choose} zoomAction={zoomAction}
+                  onUnavailable={()=>{
+                    // Keep Google data in the attributed list; never plot it
+                    // on a map provided by OpenFreeMap.
+                    setGoogleUnavailable(true);
+                  }}/>
             : <KeylessInteractiveMap
-              points={resultProvider==="geoapify"?mapPoints:[]}
-              selectedId={resultProvider==="geoapify"?activeId:null}
-              onSelect={choose} zoomAction={zoomAction}/>}
-          <div className="bms-coverage">
+                points={resultProvider==="geoapify"?mapPoints:[]}
+                selectedId={resultProvider==="geoapify"?activeId:null}
+                onSelect={choose} zoomAction={zoomAction}/>}
+          {!googleListOnly&&<div className="bms-coverage">
             <div className="bms-coverage-kicker"><span className="bms-dot"/> COBERTURA TERRITORIAL</div>
             <div className="bms-coverage-place">{applied?titleCity:"Brasil · mapa real"}</div>
             <p>{applied?`${count} empresas retornadas · ${applied.segment}`:"Pesquise por nicho e município"}</p>
-          </div>
-          <div className="bms-map-controls" aria-label="Controles do mapa">
+          </div>}
+          {!googleListOnly&&<div className="bms-map-controls" aria-label="Controles do mapa">
             <button type="button" aria-label="Ampliar mapa"
               onClick={()=>setZoomAction(prev=>({id:prev.id+1,delta:1}))}><Plus size={20}/></button>
             <span>ZOOM</span>
             <button type="button" aria-label="Reduzir mapa"
               onClick={()=>setZoomAction(prev=>({id:prev.id+1,delta:-1}))}><Minus size={20}/></button>
-          </div>
+          </div>}
 
           {selected&&<article className="bms-business-card" aria-label={"Empresa selecionada: "+selected.name}>
             <button type="button" className="bms-business-close" aria-label="Fechar detalhes do lead"
@@ -377,7 +400,7 @@ export function MapsPersonalView({
             {resultProvider==="geoapify"?<>
               {geoResults[0]?.source==="osm"?"Fonte: OpenStreetMap / Overpass":<a href="https://www.geoapify.com/" target="_blank" rel="noopener noreferrer">Powered by Geoapify</a>}
               {" · "}<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a>
-            </>:resultProvider==="google"?"Fonte: Google Maps · consulta individual":"Fonte automática definida na pesquisa"}
+            </>:resultProvider==="google"?<a href="https://www.google.com/maps" target="_blank" rel="noopener noreferrer">Fonte: Google Maps · consulta individual</a>:"Fonte automática definida na pesquisa"}
           </p>
           {count===0?<div className="bms-no-results">
             <MapPin size={32}/>
