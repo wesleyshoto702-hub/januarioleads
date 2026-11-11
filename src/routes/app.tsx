@@ -90,6 +90,7 @@ import type { OpportunityRecord } from "../features/opportunities/types";
 import { AppShell, type AppView } from "../components/app-shell/AppShell";
 import { DashboardView } from "../components/dashboard/DashboardView";
 import { GoalsPanel } from "../features/commercial-expansion/GoalsPanel";
+import { CommercialCloudGate } from "../features/commercial-expansion/CommercialCloudGate";
 
 import {
   BusinessDetailsModal,
@@ -1785,6 +1786,7 @@ function LeadFlowApp() {
         navigateTo("leads");
       }}
     >
+      <CommercialCloudGate>
       <Suspense fallback={<div className="page-wrap" role="status" aria-live="polite">Carregando seção...</div>}>
       {view === "dashboard" ? (
         <>
@@ -2482,6 +2484,7 @@ function LeadFlowApp() {
           </div>
         </Modal>
       )}
+      </CommercialCloudGate>
     </AppShell>
   );
 }
