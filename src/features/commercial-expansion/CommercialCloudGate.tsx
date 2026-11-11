@@ -261,14 +261,15 @@ export function CommercialCloudGate({children}:{children:ReactNode}){
       if(!booting&&!timer)timer=window.setTimeout(()=>{timer=null;void flush();},650);
     }
     async function flush(){
-      if(!live||booting||busy||!session)return;
+      const activeSession=session;
+      if(!live||booting||busy||!activeSession)return;
       busy=true;setSyncing(true);
       try{
         while(pending.size&&live){
           const key=pending.values().next().value as CloudDocumentKey;
           pending.delete(key);
           try{
-            const done=await flushOne(session,key,stillActive);
+            const done=await flushOne(activeSession,key,stillActive);
             if(!done){
               // A concurrent update may exist. Never overwrite it blindly.
               setError("Outra sessão alterou os dados de "+key+
