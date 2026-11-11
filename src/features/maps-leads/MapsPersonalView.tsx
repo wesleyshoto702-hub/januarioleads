@@ -22,7 +22,7 @@ import { searchPersonalGeoapify, type PersonalGeoapifyPlace } from "./personal-g
 import { buildMapPoints } from "./map-points";
 import { RealGoogleMap } from "./RealGoogleMap";
 import { KeylessInteractiveMap } from "./KeylessInteractiveMap";
-import { getBrowserGoogleMapsKey } from "./browser-map-key";
+import { canDisplayGooglePlaces, getBrowserGoogleMapsKey } from "./browser-map-key";
 
 type ResultsProvider = "google" | "geoapify";
 type SearchInput = {city:string;state:string;segment:string;neighborhood:string};
@@ -188,7 +188,7 @@ export function MapsPersonalView({
       // Google Places content must NOT be displayed on a non-Google map.
       // Without a site-level Google Maps key, keep the open map + Geoapify only:
       // no Google Places search/billing and no Google Places mixed into OSM.
-      if(!browserKey||googleUnavailable){
+      if(!canDisplayGooglePlaces(browserKey,googleUnavailable)){
         setError("Não foram encontrados estabelecimentos na base aberta para esta pesquisa. "+
           "A consulta complementar do Google só funciona quando o site dispõe de Google Maps configurado.");
         return;
@@ -291,7 +291,7 @@ export function MapsPersonalView({
       {error&&<p className="bms-alert" role="alert">{error}</p>}
       <div className="bms-layout">
         <div className="bms-map-frame">
-          {resultProvider==="google"&&browserKey&&!googleUnavailable
+          {resultProvider==="google"&&canDisplayGooglePlaces(browserKey,googleUnavailable)
             ? <RealGoogleMap key={browserKey} browserKey={browserKey}
               points={mapPoints} selectedId={activeId}
               onSelect={choose} zoomAction={zoomAction}
