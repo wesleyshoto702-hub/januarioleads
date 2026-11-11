@@ -13,12 +13,20 @@ export type PersonalGeoapifyPlace = {
   longitude: number;
   matchQuality?: "related" | "name";
 };
+export type PersonalGooglePlace={
+  placeId:string;name:string;address:string|null;city:string;state:string;
+  latitude:number;longitude:number;googleMapsUrl:string|null;
+};
 export type PersonalGeoapifyResponse =
-  | {ok:true;provider:"geoapify" | "osm";places:PersonalGeoapifyPlace[];limit:25;source:string;matchMode:"category"|"name"|"related"}
+  | {ok:true;provider:"geoapify"|"osm";places:PersonalGeoapifyPlace[];
+     limit:25;source:string;matchMode:"category"|"name"|"related";fallbackNote?:string}
+  | {ok:true;provider:"google";places:PersonalGooglePlace[];
+     limit:20;source:"Google Maps";matchMode:"category";fallbackNote?:string}
   | {ok:false;code:string;message:string};
 
 export async function searchPersonalGeoapify(input:{
   city:string;state:string;segment:string;neighborhood:string;
+  priority?:"geoapify"|"google";
 }):Promise<PersonalGeoapifyResponse>{
   const token=await getAccessToken();
   if(!token)return {ok:false,code:"AUTH_REQUIRED",message:"Sua sessão expirou."};
@@ -43,15 +51,20 @@ export async function searchPersonalGeoapify(input:{
       };
     }
     if(!Array.isArray(data["places"]))throw Error("INVALID_PLACES");
+    const fallbackNote=typeof data["fallbackNote"]==="string"?data["fallbackNote"]:undefined;
+    if(data["provider"]==="google"){
+      return {ok:true,provider:"google",limit:20,matchMode:"category",
+        source:"Google Maps",places:data["places"] as PersonalGooglePlace[],fallbackNote};
+    }
     return {
       ok:true,provider:data["provider"]==="osm"?"osm":"geoapify",limit:25,
       matchMode:data["matchMode"]==="name"||data["matchMode"]==="related"?data["matchMode"]:"category",
       source:typeof data["source"]==="string"?data["source"]:"© OpenStreetMap contributors",
-      places:data["places"] as PersonalGeoapifyPlace[],
+      places:data["places"] as PersonalGeoapifyPlace[],fallbackNote,
     };
   }catch{
     return {ok:false,code:"REQUEST_FAILED",
-      message:"Não foi possível consultar o Geoapify agora."};
+      message:"Não foi possível consultar as fontes de estabelecimentos agora."};
   }
 }
 

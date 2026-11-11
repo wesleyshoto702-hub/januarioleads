@@ -11,14 +11,13 @@ import { safeExternalHref } from "../../lib/safe-external-url";
 import type { PersistedLead } from "../leads/remote-leads";
 import type { BusinessAddResult } from "../search-leads/BusinessDetailsModal";
 import { findBusinessDuplicate } from "../search-leads/identity";
-import { searchBusinesses } from "../search-leads/search-businesses";
 import type { BusinessSearchResult } from "../search-leads/types";
 import {
   DEFAULT_SEARCH_LOCATION, loadSearchLocation, saveSearchLocation,
   loadBrazilianMunicipalities, resolveMunicipality,
 } from "../search-leads/search-location";
 import { ALL_SEARCH_SEGMENTS, resolveSearchSegment } from "../search-leads/segments";
-import { searchPersonalGeoapify, type PersonalGeoapifyPlace } from "./personal-geoapify";
+import { searchPersonalGeoapify, type PersonalGeoapifyPlace, type PersonalGooglePlace } from "./personal-geoapify";
 import { buildMapPoints } from "./map-points";
 import { RealGoogleMap } from "./RealGoogleMap";
 import { KeylessInteractiveMap } from "./KeylessInteractiveMap";
@@ -53,6 +52,13 @@ function osmBusiness(place:PersonalGeoapifyPlace):BusinessSearchResult {
   };
 }
 
+function personalGoogleBusiness(place:PersonalGooglePlace):BusinessSearchResult{
+  return {...emptyBusiness(),
+    placeId:place.placeId,name:place.name,address:place.address,
+    city:place.city,state:place.state,googleMapsUrl:place.googleMapsUrl,
+    latitude:place.latitude,longitude:place.longitude,
+  };
+}
 function googleCrmBusiness(
   place:BusinessSearchResult,
   input:SearchInput,
@@ -71,10 +77,6 @@ function googleCrmBusiness(
   };
 }
 
-function normalize(value:string):string {
-  return value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
-}
-
 export function MapsPersonalView({
   existingLeads, onAddLead,
 }:{
@@ -87,6 +89,7 @@ export function MapsPersonalView({
   const [state,setState]=useState(initialLocation.state);
   const [segment,setSegment]=useState("Barbearia");
   const [neighborhood,setNeighborhood]=useState("");
+  const [searchPriority,setSearchPriority]=useState<"geoapify"|"google">("geoapify");
   const [municipalities,setMunicipalities]=useState<string[]>([]);
   const [municipalityState,setMunicipalityState]=useState("");
   const [googleResults,setGoogleResults]=useState<BusinessSearchResult[]>([]);
@@ -172,45 +175,32 @@ export function MapsPersonalView({
     setSelection(null);setApplied(null);setSavedIds([]);
     setLoading(true);setError("");
     try{
-      // Automatic: Geoapify first for supported OSM categories; a separate
-      // authenticated Google Places query only if no valid OSM match.
-      const geo=await searchPersonalGeoapify({...input,segment:canonical});
-      if(geo.ok&&geo.places.length){
-        setGeoResults(geo.places);setGoogleResults([]);setGeoMatchMode(geo.matchMode);
-        setResultProvider("geoapify");setSelection(geo.places[0]?.sourceId??null);
-        setApplied({...input,segment:canonical});
-        saveSearchLocation({city:input.city,state:input.state});
+      // One owner-authenticated request, one daily claim. The Supabase Edge
+      // Function orchestrates both providers and decides when a fallback is
+      // necessary. Google billing never occurs for successful Geoapify-first
+      // searches with confirmed matches.
+      const result=await searchPersonalGeoapify({
+        ...input,segment:canonical,priority:searchPriority,
+      });
+      if(!result.ok){
+        setError(result.message);
         return;
       }
-      if(!geo.ok&&geo.code==="QUOTA"){
-        setError(geo.message+". A busca automática foi interrompida para proteger o orçamento das APIs.");
+      if(!result.places.length){
+        setError("Nenhuma empresa correspondente foi localizada nas fontes disponíveis. "+
+          "A cobertura varia conforme nicho e município."+
+          (result.fallbackNote?" "+result.fallbackNote:""));
         return;
       }
-      // Google Places content must NOT be displayed on a non-Google map.
-      // Without a site-level Google Maps key, keep the open map + Geoapify only:
-      // no Google Places search/billing and no Google Places mixed into OSM.
-      if(!canDisplayGooglePlaces(browserKey,googleUnavailable)){
-        setError(geo.ok
-          ? "A busca foi concluída, mas a base aberta não possui estabelecimentos classificados "+
-            "ou identificados pelo nome para este nicho e município. Isso não significa que não existam empresas no local."
-          : "Não foi possível consultar a base aberta: "+geo.message+
-            " A consulta complementar Google não está habilitada para este mapa.");
-        return;
+      if(result.provider==="google"){
+        const list=result.places.map(personalGoogleBusiness);
+        setGoogleResults(list);setGeoResults([]);setGeoMatchMode(null);
+        setResultProvider("google");setSelection(list[0]?.placeId??null);
+      }else{
+        setGeoResults(result.places);setGoogleResults([]);
+        setGeoMatchMode(result.matchMode);setResultProvider("geoapify");
+        setSelection(result.places[0]?.sourceId??null);
       }
-      // Optional, separately billed Google fallback (only with a Google basemap).
-      // Server-side quotas and rate limits remain in force.
-      const google=await searchBusinesses({city:input.city,state:input.state,segment:canonical});
-      if(!google.ok){setError(google.message);return;}
-      let results=google.results;
-      if(input.neighborhood.trim()){
-        const n=normalize(input.neighborhood);
-        results=results.filter(place=>
-          normalize(place.neighborhood??"").includes(n)||
-          normalize(place.address??"").includes(n)
-        );
-      }
-      setGeoResults([]);setGoogleResults(results);
-      setResultProvider("google");setSelection(results[0]?.placeId??null);
       setApplied({...input,segment:canonical});
       saveSearchLocation({city:input.city,state:input.state});
     }catch{
@@ -242,6 +232,8 @@ export function MapsPersonalView({
   const activeId=selection;
   const selected=selectedGoogle;
   const googleMapUrl=safeExternalHref(selected?.googleMapsUrl);
+  const googleListOnly=resultProvider==="google"&&
+    !canDisplayGooglePlaces(browserKey,googleUnavailable);
   const osmlink=selectedGeo?`https://www.openstreetmap.org/?mlat=${selectedGeo.latitude}&mlon=${selectedGeo.longitude}#map=16/${selectedGeo.latitude}/${selectedGeo.longitude}`:null;
 
   return (
@@ -289,6 +281,16 @@ export function MapsPersonalView({
           {isLoading?"Buscando...":"Buscar no mapa"}
         </button>
       </form>
+      <div className="bms-source-choice">
+        <label htmlFor="bms-source-priority">ORDEM DAS FONTES</label>
+        <select id="bms-source-priority" value={searchPriority}
+          onChange={event=>setSearchPriority(event.target.value==="google"?"google":"geoapify")}
+          disabled={isLoading}>
+          <option value="geoapify">Automático · Geoapify primeiro, Google se necessário</option>
+          <option value="google">Google primeiro · Geoapify como alternativa</option>
+        </select>
+        <span>O Google Places pode gerar cobrança quando consultado. A busca respeita o limite diário.</span>
+      </div>
       <div className="bms-meta">
         <span><Layers size={15}/> {applied?`${count} empresas encontradas`:"Escolha um nicho e uma região"}</span>
       </div>
@@ -299,33 +301,44 @@ export function MapsPersonalView({
         <p className="bms-source-hint" role="status">Resultados encontrados pela correspondência de nome na base aberta. A cobertura pode ser parcial e a atividade deve ser confirmada antes da prospecção.</p>}
       <div className="bms-layout">
         <div className="bms-map-frame">
-          {resultProvider==="google"&&canDisplayGooglePlaces(browserKey,googleUnavailable)
-            ? <RealGoogleMap key={browserKey} browserKey={browserKey}
-              points={mapPoints} selectedId={activeId}
-              onSelect={choose} zoomAction={zoomAction}
-              onUnavailable={()=>{
-                // Google Places data cannot appear on an OpenFreeMap basemap.
-                setGoogleUnavailable(true);
-                setGoogleResults([]);setResultProvider(null);setSelection(null);setApplied(null);
-                setError("Google Maps indisponível neste domínio. O mapa aberto continuará disponível "+
-                  "para pesquisas na base Geoapify / OpenStreetMap.");
-              }}/>
+          {resultProvider==="google"
+            ? googleListOnly
+              ? <div className="bms-google-list-panel" role="region"
+                  aria-label="Resultados do Google Places sem mapa">
+                  <div className="bms-google-list-brand">
+                    <a href="https://www.google.com/maps" target="_blank"
+                       rel="noopener noreferrer">Google Maps</a>
+                  </div>
+                  <h2>{applied?.segment??"Estabelecimentos"} · {titleCity}</h2>
+                  <p>{count} estabelecimentos encontrados pelo Google Places.
+                    Selecione uma empresa na lista à direita para ver os detalhes.</p>
+                  <p>Para respeitar os termos de uso, esses resultados não são posicionados
+                     sobre o mapa OpenStreetMap.</p>
+                </div>
+              : <RealGoogleMap key={browserKey} browserKey={browserKey}
+                  points={mapPoints} selectedId={activeId}
+                  onSelect={choose} zoomAction={zoomAction}
+                  onUnavailable={()=>{
+                    // Keep Google data in the attributed list; never plot it
+                    // on a map provided by OpenFreeMap.
+                    setGoogleUnavailable(true);
+                  }}/>
             : <KeylessInteractiveMap
-              points={resultProvider==="geoapify"?mapPoints:[]}
-              selectedId={resultProvider==="geoapify"?activeId:null}
-              onSelect={choose} zoomAction={zoomAction}/>}
-          <div className="bms-coverage">
+                points={resultProvider==="geoapify"?mapPoints:[]}
+                selectedId={resultProvider==="geoapify"?activeId:null}
+                onSelect={choose} zoomAction={zoomAction}/>}
+          {!googleListOnly&&<div className="bms-coverage">
             <div className="bms-coverage-kicker"><span className="bms-dot"/> COBERTURA TERRITORIAL</div>
             <div className="bms-coverage-place">{applied?titleCity:"Brasil · mapa real"}</div>
             <p>{applied?`${count} empresas retornadas · ${applied.segment}`:"Pesquise por nicho e município"}</p>
-          </div>
-          <div className="bms-map-controls" aria-label="Controles do mapa">
+          </div>}
+          {!googleListOnly&&<div className="bms-map-controls" aria-label="Controles do mapa">
             <button type="button" aria-label="Ampliar mapa"
               onClick={()=>setZoomAction(prev=>({id:prev.id+1,delta:1}))}><Plus size={20}/></button>
             <span>ZOOM</span>
             <button type="button" aria-label="Reduzir mapa"
               onClick={()=>setZoomAction(prev=>({id:prev.id+1,delta:-1}))}><Minus size={20}/></button>
-          </div>
+          </div>}
 
           {selected&&<article className="bms-business-card" aria-label={"Empresa selecionada: "+selected.name}>
             <button type="button" className="bms-business-close" aria-label="Fechar detalhes do lead"
@@ -387,7 +400,7 @@ export function MapsPersonalView({
             {resultProvider==="geoapify"?<>
               {geoResults[0]?.source==="osm"?"Fonte: OpenStreetMap / Overpass":<a href="https://www.geoapify.com/" target="_blank" rel="noopener noreferrer">Powered by Geoapify</a>}
               {" · "}<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a>
-            </>:resultProvider==="google"?"Fonte: Google Maps · consulta individual":"Fonte automática definida na pesquisa"}
+            </>:resultProvider==="google"?<a href="https://www.google.com/maps" target="_blank" rel="noopener noreferrer">Fonte: Google Maps · consulta individual</a>:"Fonte automática definida na pesquisa"}
           </p>
           {count===0?<div className="bms-no-results">
             <MapPin size={32}/>

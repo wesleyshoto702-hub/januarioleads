@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { findBrazilianState } from "../_shared/brazil-locations.ts";
+import { searchTextForSegment } from "../_shared/niche-catalog.ts";
 import {
   geoapifySearchPlanForSegment, geoapifyNameFallbackPlanForSegment,
   selectGeoapifyPlaces, normalizeGeoapifyPlaces, resolveGeoapifyCityLocation,
@@ -201,6 +202,124 @@ async function searchPersonalOsm(
   }
 }
 
+
+/**
+ * The search engine may return Google Places results without a Google basemap,
+ * but the browser MUST show them in a Google-attributed list-only panel.
+ * Google data must never be plotted on OpenFreeMap / OpenStreetMap tiles.
+ *
+ * Only essential identity/location data is requested. This call happens
+ * after a single authenticated daily quota claim in the outer handler.
+ */
+type GooglePersonalPlace={
+  placeId:string;name:string;address:string|null;city:string;state:string;
+  latitude:number;longitude:number;googleMapsUrl:string|null;
+};
+const GOOGLE_TEXT_FIELD_MASK=[
+  "places.id","places.displayName","places.formattedAddress",
+  "places.addressComponents","places.location","places.googleMapsUri",
+].join(",");
+function normalizedCompare(value:string):string{
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .trim().toLocaleLowerCase("pt-BR").replace(/\s+/g," ");
+}
+function validGoogleLocation(place:Record<string,unknown>,city:string,uf:string):boolean{
+  const components=Array.isArray(place.addressComponents)?place.addressComponents:[];
+  let googleCity="", googleState="", googleCountry="";
+  for(const item of components){
+    const row=asJson(item);
+    const types=Array.isArray(row?.types)?row.types:[];
+    if(types.includes("locality")||types.includes("administrative_area_level_2"))
+      googleCity=typeof row?.longText==="string"?row.longText:googleCity;
+    if(types.includes("administrative_area_level_1"))
+      googleState=typeof row?.shortText==="string"?row.shortText:googleState;
+    if(types.includes("country"))
+      googleCountry=typeof row?.shortText==="string"?row.shortText:googleCountry;
+  }
+  // An explicit locality/UF must match. Never return homonymous cities
+  // or nearby businesses from another state.
+  if(googleCountry && normalizedCompare(googleCountry)!=="br")return false;
+  if(googleState && normalizedCompare(googleState)!==normalizedCompare(uf))return false;
+  if(googleCity && normalizedCompare(googleCity)!==normalizedCompare(city))return false;
+  if(googleCity && googleState)return true;
+  const address=typeof place.formattedAddress==="string"?place.formattedAddress:"";
+  const n=normalizedCompare(address);
+  return Boolean(n&&n.includes(normalizedCompare(city))&&
+    (n.includes(" - "+normalizedCompare(uf))||n.includes(", "+normalizedCompare(uf)+",")));
+}
+
+async function searchPersonalGoogle(
+  request:Request,key:string|undefined,city:string,uf:string,
+  segment:string,neighborhood:string,
+):Promise<Response>{
+  if(!key)return fail(request,"NOT_CONFIGURED",
+    "O Google Places complementar não está configurado no Supabase original.",503);
+  const state=findBrazilianState(uf);
+  if(!state)return fail(request,"INVALID_REQUEST","Estado inválido.",400);
+  const q=searchTextForSegment(segment)??segment;
+  const body={
+    textQuery:q+" em "+city+", "+state.name+", Brasil",
+    languageCode:"pt-BR",regionCode:"BR",pageSize:20,
+  };
+  try{
+    const google=await fetch("https://places.googleapis.com/v1/places:searchText",{
+      method:"POST",
+      headers:{
+        "content-type":"application/json","X-Goog-Api-Key":key,
+        "X-Goog-FieldMask":GOOGLE_TEXT_FIELD_MASK,
+      },
+      body:JSON.stringify(body),
+      signal:AbortSignal.timeout(9000),
+    });
+    const raw:unknown=await google.json();
+    const payload=asJson(raw);
+    if(!google.ok){
+      const err=asJson(payload?.error);
+      const status=typeof err?.status==="string"?err.status:"";
+      console.warn("personal_google_http",google.status,status.slice(0,40));
+      if(google.status===429||status==="RESOURCE_EXHAUSTED")
+        return fail(request,"QUOTA","O Google Places atingiu seu limite de uso.",429);
+      if(status==="BILLING_NOT_ENABLED"||status==="FAILED_PRECONDITION")
+        return fail(request,"BILLING_REQUIRED","O projeto Google Places exige faturamento habilitado.",503);
+      if(google.status===401||google.status===403)
+        return fail(request,"GOOGLE_AUTH","O Google Places não autorizou a chave ou este serviço.",503);
+      return fail(request,"PROVIDER_UNAVAILABLE","A consulta ao Google Places não foi concluída.",502);
+    }
+    const rawPlaces=Array.isArray(payload?.places)?payload.places:
+      payload?.places===undefined?[]:null;
+    if(rawPlaces===null)
+      return fail(request,"PROVIDER_UNAVAILABLE","O Google Places retornou dados inesperados.",502);
+    const seen=new Set<string>();
+    const places:GooglePersonalPlace[]=[];
+    for(const rawPlace of rawPlaces){
+      const place=asJson(rawPlace);
+      if(!place||!validGoogleLocation(place,city,uf))continue;
+      const id=typeof place.id==="string"?place.id.trim():"";
+      const display=asJson(place.displayName);
+      const name=typeof display?.text==="string"?display.text.trim():"";
+      const location=asJson(place.location);
+      const lat=location?.latitude,lon=location?.longitude;
+      if(!id||!name||seen.has(id)||typeof lat!=="number"||
+        typeof lon!=="number"||!Number.isFinite(lat)||!Number.isFinite(lon)||
+        Math.abs(lat)>90||Math.abs(lon)>180)continue;
+      const address=typeof place.formattedAddress==="string"?place.formattedAddress:null;
+      if(neighborhood&& !normalizedCompare(address??"").includes(normalizedCompare(neighborhood)))continue;
+      seen.add(id);
+      const mapsUri=typeof place.googleMapsUri==="string"&&
+        /^https:\/\/(?:www\.)?google\.[^/]+\/maps\b|^https:\/\/maps\.google\./i.test(place.googleMapsUri)
+        ? place.googleMapsUri:null;
+      places.push({placeId:id,name,address,city,state:uf,
+        latitude:lat,longitude:lon,googleMapsUrl:mapsUri});
+    }
+    return answer(request,{ok:true,provider:"google",places,limit:20,
+      matchMode:"category",source:"Google Maps"});
+  }catch(error:unknown){
+    console.warn("personal_google_failure",error instanceof Error?error.name:"unknown");
+    return fail(request,"PROVIDER_UNAVAILABLE",
+      "Não foi possível conectar ao Google Places.",503);
+  }
+}
+
 Deno.serve(async(request:Request)=>{
   if(request.method==="OPTIONS")return new Response(null,{
     status:204,headers:{...HEADERS,...cors(request.headers.get("origin")??"")},
@@ -216,10 +335,11 @@ Deno.serve(async(request:Request)=>{
     const body=asJson(JSON.parse(raw));
     if(!body)return fail(request,"INVALID_REQUEST","Envie um objeto JSON.",400);
     const key=Deno.env.get("GEOAPIFY_API_KEY")?.trim();
+    const googleKey=Deno.env.get("GOOGLE_PLACES_API_KEY")?.trim();
     // Owner-authenticated, zero-cost preflight: no provider call and no quota debit.
     // Do not expose the secret value or any part of it.
     if(body.action==="status")return answer(request,{
-      ok:true,provider:"geoapify",configured:Boolean(key),fallback:"osm",dailyLimit:10,
+      ok:true,provider:"geoapify",configured:Boolean(key),googleConfigured:Boolean(googleKey),fallback:"osm",dailyLimit:10,
     });
     const segment=text(body?.segment,120),city=text(body?.city,80),
       state=text(body?.state,4).toUpperCase();
@@ -237,7 +357,12 @@ Deno.serve(async(request:Request)=>{
     if(!claim.ok)return fail(request,"QUOTA","Não foi possível validar o limite seguro das buscas Geoapify.",429);
     if(await claim.json()!==true)return fail(request,"QUOTA",
       "Limite pessoal de 10 buscas por dia atingido.",429);
+    const runOpenSource=async():Promise<Response>=>{
     if(!key){
+      // Do not delay a configured Google fallback with an unreliable public
+      // Overpass request. OSM remains available when neither key exists.
+      if(googleKey)return fail(request,"NOT_CONFIGURED",
+        "Geoapify não configurado. Consultando a alternativa Google Places.",503);
       const osm=await searchPersonalOsm(city,uf.code,segment,text(body?.neighborhood,80));
       if(!osm.ok)return fail(request,osm.code,osm.message,
         osm.code==="LOCATION_NOT_FOUND"?404:
@@ -323,7 +448,50 @@ Deno.serve(async(request:Request)=>{
       ok:true,provider:"geoapify",places:selected,partial:matchMode!=="category",
       matchMode,limit:25,source:"Geoapify / © OpenStreetMap contributors",
     });
-  }catch{
+    };
+    // A search consumes exactly one personal daily claim, regardless of the
+    // provider order. Google is only called when requested first or when OSM
+    // has zero / uncertain results or an upstream error.
+    const googleFirst=body.priority==="google";
+    const order:("google"|"geoapify")[]=googleFirst
+      ? ["google","geoapify"] : ["geoapify","google"];
+    const errors:string[]=[];
+    let emptyResult:Record<string,unknown>|null=null;
+    let relatedResult:Response|null=null;
+    for(const provider of order){
+      const response=provider==="google"
+        ? await searchPersonalGoogle(request,googleKey,city,uf.code,segment,
+            text(body?.neighborhood,80))
+        : await runOpenSource();
+      const payload=asJson(await response.clone().json());
+      const places=Array.isArray(payload?.places)?payload.places:[];
+      if(payload?.ok===true){
+        if(places.length>0){
+          // Ambiguous OSM hairdresser results are a useful fallback but
+          // Google may confirm the niche. Never show sources on the same map.
+          if(provider==="geoapify"&&payload.matchMode==="related"&&
+             !googleFirst&&googleKey){
+            relatedResult=response;
+            continue;
+          }
+          return response;
+        }
+        if(!emptyResult)emptyResult=payload;
+      }else{
+        const reason=typeof payload?.message==="string"?payload.message:
+          "A fonte não retornou dados válidos.";
+        errors.push((provider==="google"?"Google Places: ":"Geoapify/OSM: ")+reason);
+        // Shared daily search quota was already enforced before this loop.
+        // Provider-specific quota errors can fall back to the other source.
+      }
+    }
+    if(relatedResult)return relatedResult;
+    if(emptyResult)return answer(request,{...emptyResult,
+      fallbackNote:errors.join(" ")});
+    return fail(request,"PROVIDER_UNAVAILABLE",
+      errors.join(" ")||"Nenhum dos provedores conseguiu atender a pesquisa.",503);
+  }catch(error:unknown){
+    console.warn("personal_maps_unhandled",error instanceof Error?error.name:"unknown");
     return fail(request,"REQUEST_FAILED","Busca temporariamente indisponível. Tente mais tarde.",503);
   }
 });

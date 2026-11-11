@@ -19,10 +19,10 @@ Agora:
 
 **Google Places não pode ser apresentado em mapas que não sejam do Google.** Portanto:
 
-- Quando os resultados vierem do Geoapify/OSM, o aplicativo usa **OpenFreeMap** (mesmo que exista uma chave Google no servidor).
-- Quando a pesquisa aberta não encontrar resultados, o fallback Google Places **só acontece** se existir uma chave Google browser válida configurada no site e se o SDK Google ainda estiver disponível. Os dados Google são mostrados exclusivamente no mapa Google.
-- Sem chave pública Google configurada, o aplicativo **não aciona Google Places complementar**. Isso evita cobrança desnecessária e apresentação de Google Places em um mapa de terceiros.
-- Quando a inicialização Google falha durante a exibição de resultados Places, esses resultados temporários são ocultados e o mapa aberto volta a ser usado, sem cruzar dados entre provedores.
+- Quando os resultados vierem do Geoapify/OSM, o aplicativo usa **OpenFreeMap**. Resultados Google usam o mapa Google quando configurado ou um painel separado sem mapa.
+- Quando a pesquisa aberta não encontrar resultados, o fallback Google Places pode ocorrer usando apenas a chave **privada** Google Places no Supabase. Sem chave pública de mapa no site, os resultados aparecem em **listagem Google Maps com atribuição**, sem carregar OpenFreeMap no mesmo painel. Se a chave pública de mapa existir, os dados Google podem ser exibidos no mapa Google.
+- Sem chave pública de mapa configurada, a aplicação **pode acionar Google Places quando Geoapify retornar zero ou falhar**. A busca está sob cota pessoal autenticada e pode ser cobrada pela API Google. Nunca apresenta dados do Places sobre o mapa de terceiros.
+- Quando a inicialização do Google Maps JavaScript falha, o aplicativo mantém os resultados Google numa listagem exclusiva atribuída ao Google Maps, sem desenhá-los no OpenFreeMap.
 - As políticas existentes do Supabase, a chave **privada** do Google Places e as cotas server-side NÃO são alteradas.
 
 As informações Google Places podem ser exibidas em listagens sem mapa somente com as atribuições adequadas, mas a implementação optou por não renderizar Google Places ao lado do mapa de terceiros.
@@ -47,3 +47,7 @@ Fontes oficiais:
 - Testes Deno de validação do padrão de chave e seleção automática de provedor adicionados.
 - Revisão estática dos componentes: sem input de chave, Geoapify e Google não se misturam no basemap, zoom, seleção de marcadores, fallback visual e status.
 - **Ainda falta** executar testes/browser e confirmar o deploy Vercel. O histórico do GitHub Actions apresenta runners indisponíveis, com zero steps executados. Merge no GitHub não equivale a mapa testado em produção.
+
+## Atualização posterior
+
+O motor híbrido Google Places + Geoapify foi implementado depois desta revisão inicial. Consulte `docs/maps-hybrid-provider-2026-11-11.md` para a estratégia atual; afirmações antigas que exigiam chave pública de Google Maps para uma consulta Places estão superadas.
