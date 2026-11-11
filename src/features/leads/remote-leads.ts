@@ -24,6 +24,8 @@ export type PersistedLead = {
   firstContact: string;
   lastContact?: string | undefined;
   notes: string;
+  /** User-marked favorite, synced per account to the CRM. */
+  isFavorite?: boolean;
   createdAt: string;
   placeId?: string | undefined;
   address?: string | undefined;
@@ -99,6 +101,7 @@ type RemoteLead = {
   first_contact: string;
   last_contact: string | null;
   notes: string;
+  is_favorite: boolean;
   created_at: string;
   place_id: string | null;
   address: string | null;
@@ -198,6 +201,7 @@ function toRemote(lead: PersistedLead, userId: string) {
     first_contact: lead.firstContact,
     last_contact: lead.lastContact,
     notes: lead.notes,
+    is_favorite: lead.isFavorite === true,
     created_at: lead.createdAt,
     place_id: lead.placeId,
     address: lead.address,
@@ -257,6 +261,7 @@ function fromRemote(row: RemoteLead): PersistedLead {
     firstContact: row.first_contact,
     lastContact: row.last_contact ?? undefined,
     notes: row.notes,
+    isFavorite: row.is_favorite === true,
     createdAt: row.created_at,
     placeId: row.place_id ?? undefined,
     address: row.address ?? undefined,
