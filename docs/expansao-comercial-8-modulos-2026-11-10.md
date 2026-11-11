@@ -8,8 +8,8 @@ Data: 10/11/2026. Desenvolvimento por módulos independentes no GitHub; sem aç�
 |---|---|---|
 | 1 | Analisador de presença digital | Implementado no código principal (PR #110); validar no navegador |
 | 2 | Gerador de propostas comerciais | Implementado nesta branch; validar no navegador |
-| 3 | Campanhas de prospecção | Próxima |
-| 4 | Sequências de prospecção | Pendente |
+| 3 | Campanhas de prospecção | Implementada no código principal (etapa 3/8); validar no navegador |
+| 4 | Sequências de prospecção | Próxima |
 | 5 | Agenda comercial | Pendente |
 | 6 | Histórico de objeções | Pendente |
 | 7 | Gestão de projetos | Pendente |
