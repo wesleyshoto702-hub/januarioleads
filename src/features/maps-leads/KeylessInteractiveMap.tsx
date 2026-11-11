@@ -28,6 +28,7 @@ type MapLike = {
   once: (event: string, callback: () => void) => void;
   on: (event: string, callback: () => void) => void;
   remove: () => void;
+  resize: () => void;
   getZoom: () => number;
   zoomTo: (level: number, options?: Record<string, unknown>) => void;
   easeTo: (options: Record<string, unknown>) => void;
@@ -107,6 +108,7 @@ export function KeylessInteractiveMap({
     let alive=true;
     let failureCount=0;
     let timeout:number|undefined;
+    let observer:ResizeObserver|undefined;
     setMode("loading");setMessage("");
     ensureMapCss();
     const start=async()=>{
@@ -127,6 +129,10 @@ export function KeylessInteractiveMap({
         });
         map.current=instance;
         sdk.current=lib;
+        if(typeof ResizeObserver!=="undefined"){
+          observer=new ResizeObserver(()=>{if(alive)instance.resize();});
+          observer.observe(canvas.current);
+        }
         instance.once("load",()=>{
           if(!alive)return;
           if(timeout!==undefined)window.clearTimeout(timeout);
@@ -158,6 +164,7 @@ export function KeylessInteractiveMap({
     return ()=>{
       alive=false;
       if(timeout!==undefined)window.clearTimeout(timeout);
+      observer?.disconnect();
       for(const marker of markers.current)marker.remove();
       markers.current=[];
       map.current?.remove();map.current=null;sdk.current=null;
