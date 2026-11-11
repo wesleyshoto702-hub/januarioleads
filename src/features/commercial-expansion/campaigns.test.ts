@@ -1,5 +1,5 @@
 /// <reference lib="deno.ns" />
-import {campaignCounts,isCampaign} from "./CampaignsView.tsx";
+import {campaignCounts,isCampaign} from "./campaigns.ts";
 import {freshRecord,isCommercialRecord} from "./store.ts";
 Deno.test("Campaign record has stable identity and does not change CRM data",()=>{
   const c={...freshRecord(),name:"Lavras",description:"",target:12,leadIds:["one"],archived:false};
