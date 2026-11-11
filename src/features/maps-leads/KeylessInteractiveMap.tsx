@@ -171,6 +171,7 @@ export function KeylessInteractiveMap({
       pin.className="bms-keyless-pin"+(point.id===selectedId?" is-active":"");
       pin.textContent=String(point.listIndex).padStart(2,"0");
       pin.title=point.name;
+      pin.dataset.markerId=point.id;
       pin.setAttribute("aria-label","Selecionar empresa "+point.listIndex+": "+point.name);
       pin.addEventListener("click",()=>callback.current(point.id));
       const marker=new lib.Marker({element:pin,anchor:"bottom"})
@@ -197,7 +198,7 @@ export function KeylessInteractiveMap({
   useEffect(()=>{
     if(mode!=="ready"||!map.current)return;
     const point=points.find(x=>x.id===selectedId&&isPointValid(x));
-    document.querySelectorAll(".bms-keyless-pin").forEach(el=>{
+    canvas.current?.querySelectorAll(".bms-keyless-pin").forEach(el=>{
       el.classList.toggle("is-active",el.getAttribute("data-marker-id")===selectedId);
     });
     if(point)map.current.easeTo({center:[point.lng,point.lat],duration:440});
