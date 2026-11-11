@@ -310,9 +310,9 @@ export function AnimatedProductTour() {
   const isRunning = pageVisible && !reducedMotion;
   useEffect(() => {
     if (!isRunning) return;
-    const timer = window.setInterval(() => setCurrent((step) => (step + 1) % scenes.length), 4900);
-    return () => window.clearInterval(timer);
-  }, [isRunning]);
+    const timer = window.setTimeout(() => setCurrent((step) => (step + 1) % scenes.length), 4900);
+    return () => window.clearTimeout(timer);
+  }, [isRunning,current]);
 
   const currentScene = scenes[current] ?? scenes[0];
   const Icon = currentScene.icon;
@@ -324,13 +324,15 @@ export function AnimatedProductTour() {
         <p>Veja como os módulos se conectam: da busca de empresas ao acompanhamento de propostas e projetos, em uma simulação com dados fictícios.</p>
         <ul className="jl-tour-step-buttons" aria-label="Etapas da demonstração automática">
           {scenes.map(({ icon: StepIcon, short }, index) => (
-            <li
-              key={short}
-              className={"jl-tour-step-indicator " + (current === index ? "active" : "")}
-              aria-current={current === index ? "step" : undefined}
-            >
-              <StepIcon size={17} aria-hidden="true" />
-              <span>{short}</span>
+            <li key={short}
+              className={"jl-tour-step-indicator " + (current === index ? "active" : "")}>
+              <button type="button"
+                aria-current={current === index ? "step" : undefined}
+                aria-label={"Mostrar etapa: " + short}
+                onClick={() => setCurrent(index)}>
+                <StepIcon size={17} aria-hidden="true" />
+                <span>{short}</span>
+              </button>
             </li>
           ))}
         </ul>
