@@ -1,9 +1,11 @@
 import {useState} from "react";
+import {useConfirmAction} from "../../components/app-shell/ConfirmActionProvider";
 import {Check,MessageSquareWarning,Plus,RotateCcw,Trash2} from "lucide-react";
 import {brazilToday,displayDate,freshRecord,loadCommercial,saveCommercial} from "./store";
 import {isObjection,OBJECTION_REASONS,type Objection,type ObjectionReason} from "./objections";
 const KEY="objections";
 export function ObjectionsPanel({leadId}: {leadId:string}){
+ const confirmAction=useConfirmAction();
  const [records,setRecords]=useState<Objection[]>(()=>loadCommercial(KEY,isObjection,500));
  const [reason,setReason]=useState<ObjectionReason>("price");
  const [details,setDetails]=useState("");
@@ -40,8 +42,13 @@ export function ObjectionsPanel({leadId}: {leadId:string}){
     <div className="cx-objection-actions">
       <button type="button" onClick={()=>commit(records.map(x=>x.id===o.id?{...x,resolved:!x.resolved,updatedAt:new Date().toISOString()}:x),"Situação atualizada.")}>
        {o.resolved?<RotateCcw size={14}/>:<Check size={14}/>} {o.resolved?"Reabrir":"Resolvida"}</button>
-      <button type="button" onClick={()=>{
-       if(window.confirm("Excluir este registro de objeção?"))commit(records.filter(x=>x.id!==o.id),"Objeção excluída.");
+      <button type="button" onClick={async()=>{
+       if(await confirmAction({
+         title:"Excluir objeção registrada?",
+         subject:OBJECTION_REASONS[o.reason],
+         description:"O registro de objeção e sua anotação serão removidos. Os dados do lead permanecerão no CRM.",
+         confirmLabel:"Excluir objeção",
+       }))commit(records.filter(x=>x.id!==o.id),"Objeção excluída.");
       }}><Trash2 size={14}/></button>
     </div>
   </article>)}

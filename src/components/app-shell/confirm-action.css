@@ -1,0 +1,51 @@
+/* Januário Leads: unified accessible confirmation dialog (Radix AlertDialog). */
+.jl-confirm-overlay{
+  position:fixed;inset:0;z-index:2147480000;
+  background:rgba(2,8,12,.76);backdrop-filter:blur(8px);
+  animation:jl-confirm-veil .17s ease-out both;
+}
+.jl-confirm-dialog{
+  position:fixed;z-index:2147480001;top:50%;left:50%;
+  transform:translate(-50%,-50%);width:min(440px,calc(100vw - 32px));
+  max-height:min(85vh,760px);overflow-y:auto;box-sizing:border-box;
+  padding:28px;border-radius:20px;border:1px solid rgba(176,196,203,.18);
+  background:linear-gradient(148deg,#172428 0%,#0d181d 100%);
+  box-shadow:0 28px 85px rgba(0,0,0,.62),inset 0 1px rgba(255,255,255,.035);
+  color:#ecf5f6;font-family:Inter,system-ui,sans-serif;
+  animation:jl-confirm-enter .2s cubic-bezier(.18,.82,.24,1) both;
+}
+.jl-confirm-dialog:focus{outline:none}
+.jl-confirm-icon{
+  display:flex;align-items:center;justify-content:center;
+  width:48px;height:48px;border-radius:14px;margin-bottom:20px;
+  border:1px solid rgba(237,128,140,.26);
+}
+.jl-confirm-icon.danger{background:rgba(212,67,85,.13);color:#ff8495}
+.jl-confirm-icon.warning{border-color:rgba(239,190,101,.27);background:rgba(209,148,53,.12);color:#f1c582}
+.jl-confirm-title{font-size:21px;line-height:1.28;letter-spacing:-.025em;font-weight:760;margin:0 0 10px;color:#f3fafb}
+.jl-confirm-description{font-size:13px;line-height:1.75;color:#b0c5c9;margin:0;white-space:pre-line;overflow-wrap:anywhere}
+.jl-confirm-subject{margin-top:15px;padding:12px 13px;background:rgba(207,223,227,.045);
+  border:1px solid rgba(196,219,224,.12);border-radius:10px;color:#e0ecee;
+  font-size:13px;font-weight:710;overflow-wrap:anywhere;max-height:100px;overflow-y:auto}
+.jl-confirm-caution{margin:16px 0 0;color:#d2a2a9;font-size:11px;line-height:1.55}
+.jl-confirm-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:10px;margin-top:26px}
+.jl-confirm-actions button{font-family:inherit;display:inline-flex;align-items:center;justify-content:center;
+  gap:8px;min-height:44px;padding:11px 19px;border-radius:10px;font-size:12px;font-weight:760;cursor:pointer}
+.jl-confirm-cancel{background:#1a2a30;border:1px solid rgba(187,210,217,.18);color:#e1eef1}
+.jl-confirm-cancel:hover{background:#223740;border-color:rgba(192,217,224,.36)}
+.jl-confirm-accept.danger{background:#c7475b;border:1px solid #d8586d;color:white}
+.jl-confirm-accept.danger:hover{background:#d45268}
+.jl-confirm-accept.warning{background:var(--primary-action,#da4b57);border:1px solid var(--primary,#de5868);color:var(--primary-contrast,#fff)}
+.jl-confirm-accept.warning:hover{filter:brightness(1.09)}
+.jl-confirm-actions button:focus-visible{outline:2px solid var(--primary,#f07683);outline-offset:3px}
+@keyframes jl-confirm-veil{from{opacity:0}to{opacity:1}}
+@keyframes jl-confirm-enter{from{opacity:0;transform:translate(-50%,-48%) scale(.98)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+@media(max-width:480px){
+  .jl-confirm-dialog{padding:22px;border-radius:17px}
+  .jl-confirm-title{font-size:19px}
+  .jl-confirm-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .jl-confirm-actions button{padding:10px 8px}
+}
+@media(prefers-reduced-motion:reduce){
+  .jl-confirm-overlay,.jl-confirm-dialog{animation:none!important;transition:none!important}
+}

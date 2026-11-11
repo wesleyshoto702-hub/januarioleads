@@ -1,5 +1,6 @@
 import { CalendarCheck2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useConfirmAction } from "../../components/app-shell/ConfirmActionProvider";
 import type { PersistedLead } from "../leads/remote-leads";
 import {
   DEFAULT_FOLLOW_UP_DAYS,
@@ -68,6 +69,7 @@ export function LeadNextActionSection({
   onSave: (patch: NextActionPatch) => void | Promise<void>;
   onComplete: () => void | Promise<void>;
 }) {
+  const confirmAction = useConfirmAction();
   const summary = getLeadActionSummary(lead);
   const [editing, setEditing] = useState(false);
   const [actionType, setActionType] = useState<NextActionType | "">(
@@ -114,7 +116,13 @@ export function LeadNextActionSection({
     setEditing(false);
   }
 
-  function clear() {
+  async function clear() {
+    if (!(await confirmAction({
+      title:"Remover próxima ação?",
+      subject:lead.company,
+      description:"A data, o tipo e as observações da próxima ação serão removidos deste lead. O histórico de atividades permanece preservado.",
+      confirmLabel:"Remover ação",
+    }))) return;
     void onSave({
       nextActionType: undefined,
       nextActionDate: undefined,
@@ -238,7 +246,7 @@ export function LeadNextActionSection({
           </label>
           <div className="next-action-form-actions">
             {summary.saved && (
-              <button type="button" className="secondary-button" onClick={clear}>
+              <button type="button" className="secondary-button" onClick={()=>void clear()}>
                 Remover ação
               </button>
             )}

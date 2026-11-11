@@ -1,6 +1,7 @@
 import {useMemo,useState} from "react";
 import {CalendarDays,Check,CheckCircle2,ChevronLeft,ChevronRight,Clock3,Plus,Trash2} from "lucide-react";
 import {PageHeader} from "../../components/app-shell/PageHeader";
+import {useConfirmAction} from "../../components/app-shell/ConfirmActionProvider";
 import type {PersistedLead} from "../leads/remote-leads";
 import {brazilToday,displayDate,freshRecord,loadCommercial,saveCommercial} from "./store";
 import {isAgendaItem,calendarVisibleDays,type AgendaItem,type AgendaKind,type CalendarMode} from "./agenda";
@@ -14,6 +15,7 @@ function longMonth(date:string):string{
 export function AgendaView({leads,onOpenLead}:{
  leads:PersistedLead[];onOpenLead:(lead:PersistedLead)=>void;
 }){
+ const confirmAction=useConfirmAction();
  const [items,setItems]=useState<AgendaItem[]>(()=>loadCommercial("agenda",isAgendaItem,300));
  const [sequences]=useState(()=>loadCommercial("sequences",isSequence,60));
  const [enrollments]=useState(()=>loadCommercial("enrollments",isEnrollment,300));
@@ -120,8 +122,13 @@ export function AgendaView({leads,onOpenLead}:{
           <button type="button" className="cx-button" onClick={()=>commit(items.map(x=>x.id===entry.id?{
             ...x,done:!x.done,updatedAt:new Date().toISOString()}:x),"Atividade atualizada.")}>
             <CheckCircle2 size={14}/>{entry.done?"Reabrir":"Concluir"}</button>
-          <button type="button" className="cx-button danger" onClick={()=>{
-            if(window.confirm("Excluir este compromisso?"))commit(items.filter(x=>x.id!==entry.id),"Compromisso excluído.");
+          <button type="button" className="cx-button danger" onClick={async()=>{
+            if(await confirmAction({
+              title:"Excluir compromisso?",
+              subject:entry.title,
+              description:"Este compromisso será removido da agenda. O lead vinculado, se houver, será preservado.",
+              confirmLabel:"Excluir compromisso",
+            }))commit(items.filter(x=>x.id!==entry.id),"Compromisso excluído.");
           }}><Trash2 size={14}/></button>
         </>}
       </div>

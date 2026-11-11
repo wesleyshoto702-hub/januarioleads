@@ -1,6 +1,7 @@
 import {useMemo,useState} from "react";
 import {CalendarClock,Check,CheckCircle2,ClipboardCopy,FileClock,Pause,Play,Plus,Trash2} from "lucide-react";
 import {PageHeader} from "../../components/app-shell/PageHeader";
+import {useConfirmAction} from "../../components/app-shell/ConfirmActionProvider";
 import type {PersistedLead} from "../leads/remote-leads";
 import type {MessageTemplate} from "../messages/message-templates";
 import {brazilToday,displayDate,exportRecords,freshRecord,loadCommercial,saveCommercial,nonemptyText} from "./store";
@@ -8,6 +9,7 @@ import {addDateDays,isEnrollment,isSequence,nextSequenceStep,sequenceProgress,ty
 export function SequencesView({leads,messages,onOpenLead}:{
  leads:PersistedLead[];messages:MessageTemplate[];onOpenLead:(lead:PersistedLead)=>void;
 }){
+ const confirmAction=useConfirmAction();
  const [plans,setPlans]=useState<Sequence[]>(()=>loadCommercial(SEQUENCE_PLAN_KEY,isSequence,60));
  const [entries,setEntries]=useState<Enrollment[]>(()=>loadCommercial(ENROLLMENT_KEY,isEnrollment,300));
  const [selectedId,setSelectedId]=useState("");
@@ -50,8 +52,15 @@ export function SequencesView({leads,messages,onOpenLead}:{
    const step:SequenceStep={id:crypto.randomUUID(),title:"Novo contato",afterDays:last+3,templateId:null};
    savePlans(plans.map(x=>x.id===plan.id?{...x,steps:[...x.steps,step],updatedAt:new Date().toISOString()}:x));
  }
- function removeStep(plan:Sequence,id:string){
+ async function removeStep(plan:Sequence,id:string){
    if(entries.some(e=>e.sequenceId===plan.id)) {setError("Não é possível remover etapas de sequências já iniciadas. Crie outro modelo.");return;}
+   const step=plan.steps.find(s=>s.id===id);
+   if(!(await confirmAction({
+     title:"Remover etapa da sequência?",
+     subject:step?.title??"Etapa selecionada",
+     description:"A etapa será removida deste modelo. Essa alteração não poderá ser recuperada automaticamente.",
+     confirmLabel:"Remover etapa",
+   })))return;
    savePlans(plans.map(x=>x.id===plan.id?{...x,steps:x.steps.filter(s=>s.id!==id)}:x));
  }
  function enroll(){
@@ -67,9 +76,14 @@ export function SequencesView({leads,messages,onOpenLead}:{
  function changeEntry(id:string,update:(e:Enrollment)=>Enrollment,message:string){
    saveEntries(entries.map(e=>e.id===id?{...update(e),updatedAt:new Date().toISOString()}:e),message);
  }
- function deletePlan(plan:Sequence){
+ async function deletePlan(plan:Sequence){
    if(entries.some(e=>e.sequenceId===plan.id)){setError("Há leads vinculados a esta sequência. Remova os acompanhamentos primeiro.");return;}
-   if(!window.confirm("Excluir este modelo de sequência?"))return;
+   if(!(await confirmAction({
+     title:"Excluir modelo de sequência?",
+     subject:plan.name,
+     description:"O modelo e suas etapas serão apagados. Seus leads não serão alterados.",
+     confirmLabel:"Excluir modelo",
+   })))return;
    if(savePlans(plans.filter(p=>p.id!==plan.id),"Modelo excluído."))setSelectedId("");
  }
  async function copyTemplate(plan:Sequence,step:SequenceStep,lead:PersistedLead){
@@ -102,7 +116,7 @@ export function SequencesView({leads,messages,onOpenLead}:{
    </aside>
    <div className="cx-card">{selected?<>
     <div className="cx-split"><h2><CalendarClock size={19}/>{selected.name}</h2>
-      <button type="button" className="cx-button danger" onClick={()=>deletePlan(selected)}><Trash2 size={14}/> Excluir modelo</button></div>
+      <button type="button" className="cx-button danger" onClick={()=>void deletePlan(selected)}><Trash2 size={14}/> Excluir modelo</button></div>
     <p className="cx-helper">Os dias são contados a partir do início da sequência. Não há disparos automáticos.</p>
     <div className="cx-steps">{selected.steps.map((s,i)=><div className="cx-step" key={s.id}>
       <span className="cx-step-index">{i+1}</span>
@@ -115,7 +129,7 @@ export function SequencesView({leads,messages,onOpenLead}:{
         {messages.map(m=><option key={m.id} value={m.id}>{m.title}</option>)}
        </select></label>
       <button type="button" className="cx-button danger" disabled={entries.some(e=>e.sequenceId===selected.id)}
-        onClick={()=>removeStep(selected,s.id)}><Trash2 size={14}/></button>
+        onClick={()=>void removeStep(selected,s.id)}><Trash2 size={14}/></button>
     </div>)}</div>
     <button type="button" className="cx-button" disabled={selected.steps.length>=12||entries.some(e=>e.sequenceId===selected.id)}
       onClick={()=>addStep(selected)}><Plus size={15}/> Adicionar etapa</button>
@@ -144,8 +158,13 @@ export function SequencesView({leads,messages,onOpenLead}:{
          {!done&&!e.paused&&next&&<button type="button" className="cx-button primary" onClick={()=>
            changeEntry(e.id,x=>({...x,completed:{...x.completed,[next.step.id]:new Date().toISOString()}}),"Etapa concluída manualmente.")}>
            <CheckCircle2 size={14}/> Concluir etapa</button>}
-         <button type="button" className="cx-button danger" onClick={()=>{
-           if(window.confirm("Remover este acompanhamento, sem alterar o lead?"))saveEntries(entries.filter(x=>x.id!==e.id),"Acompanhamento removido.");
+         <button type="button" className="cx-button danger" onClick={async()=>{
+           if(await confirmAction({
+             title:"Remover acompanhamento?",
+             subject:lead?.company??"Empresa selecionada",
+             description:"O histórico desta sequência para a empresa será removido. Os dados do lead não serão apagados.",
+             confirmLabel:"Remover acompanhamento",
+           }))saveEntries(entries.filter(x=>x.id!==e.id),"Acompanhamento removido.");
          }}><Trash2 size={14}/></button>
         </div>
        </div>;
