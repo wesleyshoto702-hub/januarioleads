@@ -169,12 +169,19 @@ export function KeylessInteractiveMap({
       const pin=document.createElement("button");
       pin.type="button";
       pin.className="bms-keyless-pin"+(point.id===selectedId?" is-active":"");
-      pin.textContent=String(point.listIndex).padStart(2,"0");
+      const label=document.createElement("span");
+      label.textContent=String(point.listIndex).padStart(2,"0");
+      pin.appendChild(label);
       pin.title=point.name;
       pin.dataset.markerId=point.id;
       pin.setAttribute("aria-label","Selecionar empresa "+point.listIndex+": "+point.name);
       pin.addEventListener("click",()=>callback.current(point.id));
-      const marker=new lib.Marker({element:pin,anchor:"bottom"})
+      // MapLibre sets positioning transforms on its root DOM element.
+      // Keep our rotated pin inside a distinct wrapper so it isn't overwritten.
+      const root=document.createElement("div");
+      root.className="bms-keyless-marker";
+      root.appendChild(pin);
+      const marker=new lib.Marker({element:root,anchor:"bottom"})
         .setLngLat([point.lng,point.lat]).addTo(instance);
       markers.current.push(marker);
     });
