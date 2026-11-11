@@ -1717,3 +1717,21 @@ body{
     margin-top: 12px;
   }
 }
+
+/* Commercial module navigation: one accessible, collapsible group on desktop/mobile. */
+.saas-sidebar .saas-nav-scroll{flex:1;min-height:0;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border-strong) transparent;padding-right:2px}
+.saas-commercial-nav{border-top:1px solid var(--border);margin-top:11px;padding-top:10px}
+.saas-commercial-toggle{display:flex;align-items:center;gap:10px;width:100%;min-height:40px;background:transparent;border:0;border-radius:8px;padding:0 11px;color:var(--muted);font-size:12px;font-weight:710;text-align:left;cursor:pointer}
+.saas-commercial-toggle:hover,.saas-commercial-toggle.open{background:var(--surface-2);color:var(--text)}
+.saas-commercial-toggle>svg:first-child{flex:none;color:var(--primary)}
+.saas-commercial-toggle span{flex:1}
+.saas-commercial-toggle>svg:last-child{flex:none;transition:transform .18s}
+.saas-commercial-toggle.open>svg:last-child{transform:rotate(180deg)}
+.saas-commercial-toggle:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.saas-commercial-items{margin-top:5px;padding-left:8px;border-left:1px solid color-mix(in srgb,var(--primary) 19%,var(--border));}
+.saas-sidebar-footer{flex:none}
+@media(max-width:900px){
+ .saas-mobile-drawer .saas-nav-scroll{flex:0 0 auto;min-height:auto;overflow:visible;padding:0}
+ .saas-mobile-drawer .saas-commercial-toggle{min-height:46px;font-size:13px}
+ .saas-mobile-drawer .saas-commercial-nav{margin-top:14px}
+}
