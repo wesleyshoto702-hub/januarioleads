@@ -111,3 +111,20 @@ Deno.test("Barbershop candidates are ranked without fabricating certainty",()=>{
   assert(certain.matchMode==="category"&&certain.places.length===1,
     "Prioritize confident barber names");
 });
+
+Deno.test("A barber shop near the end of a larger provider page is not lost",()=>{
+  const features=Array.from({length:120},(_,i)=>({
+    type:"Feature",
+    properties:{
+      place_id:"b"+(i+1000), name:i===119?"Barbearia Avenida":"Studio "+i,
+      city:"Lavras",state_code:"MG",country_code:"br",
+      categories:["service.beauty.hairdresser"],
+    },
+    geometry:{type:"Point",coordinates:[-45,-21.25]},
+  }));
+  const records=normalizeGeoapifyPlaces({features},{city:"Lavras",state:"MG"},150);
+  assert(records.length===120,"Provider candidates were truncated early");
+  const selection=selectGeoapifyPlaces(records,"Barbearia");
+  assert(selection.matchMode==="category"&&selection.places[0]?.name==="Barbearia Avenida",
+    "Find confirmed names before limiting the response");
+});
