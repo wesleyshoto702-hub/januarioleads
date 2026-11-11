@@ -333,10 +333,11 @@ Deno.serve(async(request:Request)=>{
     const body=asJson(JSON.parse(raw));
     if(!body)return fail(request,"INVALID_REQUEST","Envie um objeto JSON.",400);
     const key=Deno.env.get("GEOAPIFY_API_KEY")?.trim();
+    const googleKey=Deno.env.get("GOOGLE_PLACES_API_KEY")?.trim();
     // Owner-authenticated, zero-cost preflight: no provider call and no quota debit.
     // Do not expose the secret value or any part of it.
     if(body.action==="status")return answer(request,{
-      ok:true,provider:"geoapify",configured:Boolean(key),fallback:"osm",dailyLimit:10,
+      ok:true,provider:"geoapify",configured:Boolean(key),googleConfigured:Boolean(googleKey),fallback:"osm",dailyLimit:10,
     });
     const segment=text(body?.segment,120),city=text(body?.city,80),
       state=text(body?.state,4).toUpperCase();
@@ -354,6 +355,7 @@ Deno.serve(async(request:Request)=>{
     if(!claim.ok)return fail(request,"QUOTA","Não foi possível validar o limite seguro das buscas Geoapify.",429);
     if(await claim.json()!==true)return fail(request,"QUOTA",
       "Limite pessoal de 10 buscas por dia atingido.",429);
+    const runOpenSource=async():Promise<Response>=>{
     if(!key){
       const osm=await searchPersonalOsm(city,uf.code,segment,text(body?.neighborhood,80));
       if(!osm.ok)return fail(request,osm.code,osm.message,
@@ -440,7 +442,51 @@ Deno.serve(async(request:Request)=>{
       ok:true,provider:"geoapify",places:selected,partial:matchMode!=="category",
       matchMode,limit:25,source:"Geoapify / © OpenStreetMap contributors",
     });
-  }catch{
+    };
+    // A search consumes exactly one personal daily claim, regardless of the
+    // provider order. Google is only called when requested first or when OSM
+    // has zero / uncertain results or an upstream error.
+    const googleFirst=body.priority==="google";
+    const order:("google"|"geoapify")[]=googleFirst
+      ? ["google","geoapify"] : ["geoapify","google"];
+    const errors:string[]=[];
+    let emptyResult:Record<string,unknown>|null=null;
+    let relatedResult:Response|null=null;
+    for(const provider of order){
+      const response=provider==="google"
+        ? await searchPersonalGoogle(request,googleKey,city,uf.code,segment,
+            text(body?.neighborhood,80))
+        : await runOpenSource();
+      const payload=asJson(await response.clone().json());
+      const places=Array.isArray(payload?.places)?payload.places:[];
+      if(payload?.ok===true){
+        if(places.length>0){
+          // Ambiguous OSM hairdresser results are a useful fallback but
+          // Google may confirm the niche. Never show sources on the same map.
+          if(provider==="geoapify"&&payload.matchMode==="related"&&
+             !googleFirst&&googleKey){
+            relatedResult=response;
+            continue;
+          }
+          return response;
+        }
+        if(!emptyResult)emptyResult=payload;
+      }else{
+        const reason=typeof payload?.message==="string"?payload.message:
+          "A fonte não retornou dados válidos.";
+        errors.push((provider==="google"?"Google Places: ":"Geoapify/OSM: ")+reason);
+        // The shared daily claim is protective. Never circumvent its
+        // exhaustion by switching providers.
+        if(provider==="geoapify"&&payload?.code==="QUOTA")return response;
+      }
+    }
+    if(relatedResult)return relatedResult;
+    if(emptyResult)return answer(request,{...emptyResult,
+      fallbackNote:errors.join(" ")});
+    return fail(request,"PROVIDER_UNAVAILABLE",
+      errors.join(" ")||"Nenhum dos provedores conseguiu atender a pesquisa.",503);
+  }catch(error:unknown){
+    console.warn("personal_maps_unhandled",error instanceof Error?error.name:"unknown");
     return fail(request,"REQUEST_FAILED","Busca temporariamente indisponível. Tente mais tarde.",503);
   }
 });
