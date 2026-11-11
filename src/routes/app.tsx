@@ -2111,8 +2111,8 @@ function LeadFlowApp() {
             <div className="jl-unified-search-header">
               <p className="jl-unified-search-eyebrow">PROSPECÇÃO INTELIGENTE</p>
               <h1>Buscar Leads</h1>
-              <p>Pesquise uma única vez e escolha como explorar as empresas: em lista ou no mapa.
-                Os mesmos resultados são preservados ao alternar a visualização.</p>
+              <p>Explore empresas em lista ou no mapa usando a mesma pesquisa híbrida.
+                Ao trocar entre Lista e Mapa, os resultados continuam carregados.</p>
             </div>
             <div className="jl-unified-search-tabs" role="tablist" aria-label="Modo de busca">
               <button type="button" role="tab" id="jl-discovery-list"
