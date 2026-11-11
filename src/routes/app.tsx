@@ -1910,14 +1910,6 @@ function LeadFlowApp() {
               </p>
             )}
 
-            {favoritesOnly && visibleLeads.length === 0 && (
-              <p className="lead-favorites-empty" role="status">
-                {favoriteCount === 0
-                  ? "Nenhum lead favoritado ainda. Clique no marcador amarelo de um lead para encontrá-lo aqui."
-                  : "Nenhum favorito corresponde aos filtros selecionados."}
-              </p>
-            )}
-
             <div className="jl-leads-list-controls">
             <div className="lead-favorites-switch" role="group" aria-label="Visualizar leads favoritos">
               <button
@@ -1951,6 +1943,14 @@ function LeadFlowApp() {
                 <button type="button" aria-pressed={leadLayout === "kanban"} onClick={() => { setLeadLayout("kanban"); setStatusFilter("all"); }}>Kanban</button>
               </div>
             </div>
+
+            {favoritesOnly && visibleLeads.length === 0 && (
+              <p className="lead-favorites-empty" role="status">
+                {favoriteCount === 0
+                  ? "Nenhum lead favoritado ainda. Clique no marcador amarelo de um lead para encontrá-lo aqui."
+                  : "Nenhum favorito corresponde aos filtros selecionados."}
+              </p>
+            )}
 
             {leadLayout === "kanban" ? (
               <LeadKanban leads={renderedLeads} onChangeStatus={changeStatus}
