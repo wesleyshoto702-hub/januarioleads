@@ -121,3 +121,25 @@ test("Excluir proposta mostra diálogo próprio e só apaga após confirmação"
   await expect(page.locator(".pc-saved-item")).toHaveCount(0);
   expect(nativeDialogs).toEqual([]);
 });
+
+test("Remover tarefa exige confirmação e preserva checklist ao cancelar", async ({ page }) => {
+  await openMockWorkspace(page);
+  await page.locator(".saas-sidebar").getByRole("button", { name: "Projetos", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Gestão de projetos" })).toBeVisible();
+
+  await page.getByPlaceholder("Ex.: Site institucional da barbearia").fill("Projeto de teste");
+  await page.getByRole("button", { name: "Criar projeto" }).click();
+  await page.getByPlaceholder("Ex.: Aprovar layout inicial").fill("Aprovar layout");
+  await page.getByRole("button", { name: "Adicionar tarefa" }).click();
+  await expect(page.getByText("Aprovar layout", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Remover tarefa Aprovar layout" }).click();
+  const dialog = page.getByRole("alertdialog", { name: "Remover tarefa do projeto?" });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Cancelar" }).click();
+  await expect(page.getByText("Aprovar layout", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Remover tarefa Aprovar layout" }).click();
+  await dialog.getByRole("button", { name: "Remover tarefa" }).click();
+  await expect(page.getByText("Aprovar layout", { exact: true })).toHaveCount(0);
+});
