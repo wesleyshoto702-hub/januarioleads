@@ -86,6 +86,9 @@ const OSM_TAG_FILTERS:Record<string,readonly string[]> = {
   "escritorio de advocacia": ['["office"="lawyer"]'],
   "estacionamento": ['["amenity"="parking"]'],
 };
+// Use one documented community endpoint for bounded personal searches.
+ // Public overpass-api.de often rejects cloud workers or rate-limits shared IPs.
+const OSM_OVERPASS_URL="https://overpass.private.coffee/api/interpreter";
 const osmCache=new Map<string,{until:number;places:OsmPlace[]}>();
 const normalizeOs=(value:string)=>value.normalize("NFD")
   .replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("pt-BR").trim().replace(/\s+/g," ");
@@ -117,18 +120,38 @@ async function searchPersonalOsm(
     "out center 90;",
   ].join("\n");
   try{
-    const response=await fetch("https://overpass-api.de/api/interpreter",{
-      method:"POST",headers:{"content-type":"application/x-www-form-urlencoded",
-        "User-Agent":"JanuarioLeadsPersonal/1.0 (single-user OSM search)"},
+    const response=await fetch(OSM_OVERPASS_URL,{
+      method:"POST",
+      headers:{
+        "content-type":"application/x-www-form-urlencoded",
+        "accept":"application/json",
+        "User-Agent":"JanuarioLeadsPersonal/1.1 (private OSM search via Supabase)",
+      },
       body:new URLSearchParams({data:ql}),
       signal:AbortSignal.timeout(17000),
     });
-    if(!response.ok)return {ok:false,code:"PROVIDER_UNAVAILABLE",
-      message:"A consulta comunitária do OpenStreetMap está ocupada. Tente novamente mais tarde."};
+    if(!response.ok){
+      // Server-only diagnostics; do not log auth headers, query or place names.
+      console.warn("personal_osm_upstream_http",response.status);
+      if(response.status===400)return {ok:false,code:"PROVIDER_QUERY_INVALID",
+        message:"O servidor OpenStreetMap recusou o formato da consulta (HTTP 400)."};
+      if(response.status===403||response.status===406)return {ok:false,code:"PROVIDER_ACCESS_BLOCKED",
+        message:"O servidor comunitário recusou esta origem de acesso."};
+      if(response.status===429)return {ok:false,code:"PROVIDER_RATE_LIMIT",
+        message:"A fonte comunitária atingiu seu limite temporário de solicitações."};
+      return {ok:false,code:"PROVIDER_UNAVAILABLE",
+        message:"O servidor comunitário OpenStreetMap está temporariamente indisponível (HTTP "+response.status+")."};
+    }
     const raw=await response.text();
     if(raw.length>750000)return {ok:false,code:"PROVIDER_UNAVAILABLE",
       message:"A resposta comunitária excedeu o limite seguro."};
-    const elements:unknown=osmObj(JSON.parse(raw)).elements;
+    const payload=osmObj(JSON.parse(raw));
+    if(typeof payload.remark==="string"&&payload.remark){
+      console.warn("personal_osm_overpass_remark");
+      return {ok:false,code:"PROVIDER_UNAVAILABLE",
+        message:"A consulta comunitária não pôde ser concluída dentro dos limites do servidor."};
+    }
+    const elements:unknown=payload.elements;
     if(!Array.isArray(elements))throw Error("INVALID_OSM_RESPONSE");
     const municipalFound=elements.some(value=>{
       const e=osmObj(value),tags=osmObj(e.tags);
@@ -171,9 +194,10 @@ async function searchPersonalOsm(
     if(osmCache.size>=25)osmCache.delete(osmCache.keys().next().value!);
     osmCache.set(cacheKey,{until:Date.now()+3*60*60*1000,places});
     return {ok:true,places};
-  }catch{
+  }catch(error:unknown){
+    console.warn("personal_osm_upstream_fetch",error instanceof Error?error.name:"unknown");
     return {ok:false,code:"PROVIDER_UNAVAILABLE",
-      message:"A consulta comunitária do OpenStreetMap não respondeu. Tente novamente mais tarde."};
+      message:"Não foi possível conectar ao servidor comunitário OpenStreetMap."};
   }
 }
 
@@ -216,7 +240,9 @@ Deno.serve(async(request:Request)=>{
     if(!key){
       const osm=await searchPersonalOsm(city,uf.code,segment,text(body?.neighborhood,80));
       if(!osm.ok)return fail(request,osm.code,osm.message,
-        osm.code==="LOCATION_NOT_FOUND"?404:osm.code==="UNSUPPORTED_SEGMENT"?400:503);
+        osm.code==="LOCATION_NOT_FOUND"?404:
+        osm.code==="UNSUPPORTED_SEGMENT"?400:
+        osm.code==="PROVIDER_RATE_LIMIT"?429:503);
       return answer(request,{ok:true,provider:"osm",places:osm.places,partial:false,
         limit:25,source:"OpenStreetMap / Overpass · © OpenStreetMap contributors"});
     }
