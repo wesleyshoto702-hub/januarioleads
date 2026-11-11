@@ -13,7 +13,7 @@ Data: 10/11/2026. Desenvolvimento por módulos independentes no GitHub; sem aç�
 | 5 | Agenda comercial | Implementada no código principal; validar no navegador |
 | 6 | Histórico de objeções | Implementado no código principal; validar no navegador |
 | 7 | Gestão de projetos | Implementada no código principal; validar no navegador |
-| 8 | Metas e produtividade | Próxima |
+| 8 | Metas e produtividade | Implementada no código principal; validar no navegador |
 
 ## Módulo 2 — Propostas comerciais
 
@@ -50,4 +50,4 @@ Somente após revisão de schema, backup/restauração e homologação com conta
 - Imprimir oculta o Workspace, preserva somente o papel A4 e não inclui botões;
 - Testes de tipos, build, navegadores e impressão ainda precisam rodar em ambiente com runner disponível.
 
-Próxima implementação após validação: **Campanhas de Prospecção**.
+Próximo passo: executar build, testes Deno e homologação visual. As seis etapas seguintes foram integradas em PRs sequenciais #112 a #117.
