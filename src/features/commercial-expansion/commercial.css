@@ -207,3 +207,22 @@
 @media(max-width:1180px){.cx-goals-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:850px){.cx-goals-form{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:580px){.cx-goals{padding:16px;margin:14px 9px}.cx-goals-form,.cx-goals-cards{grid-template-columns:1fr}}
+
+/* Supabase cloud boot and conflict status, never blocks local edits after a failure. */
+.cx-cloud-loading{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;text-align:center;
+  min-height:280px;margin:35px auto;padding:30px;max-width:520px;border:1px solid var(--border);border-radius:17px;background:var(--surface)}
+.cx-cloud-loading svg{color:var(--primary)}
+.cx-cloud-loading strong{font-size:17px;color:var(--text)}
+.cx-cloud-loading p{font-size:12px;color:var(--muted);line-height:1.7;max-width:380px}
+.cx-cloud-banner{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:12px clamp(14px,2vw,30px) 0;
+  padding:10px 14px;border:1px solid color-mix(in srgb,var(--primary) 24%,var(--border));border-radius:10px;
+  background:var(--surface-2);color:var(--text);font-size:11px;line-height:1.65}
+.cx-cloud-banner svg{color:var(--primary);flex:none}
+.cx-cloud-banner>span{flex:1;min-width:150px}
+.cx-cloud-banner.error{border-color:rgba(236,174,95,.35);color:#e8c391}
+.cx-cloud-banner.error svg{color:#e8c391}
+.cx-cloud-banner button{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);
+  border-radius:8px;padding:8px 11px;background:var(--surface);color:var(--text);
+  cursor:pointer;font-size:11px;font-weight:700}
+.cx-cloud-banner button:hover{border-color:var(--primary)}
+@media(max-width:600px){.cx-cloud-banner{margin:9px 11px 0}.cx-cloud-banner>span{flex-basis:100%}}
