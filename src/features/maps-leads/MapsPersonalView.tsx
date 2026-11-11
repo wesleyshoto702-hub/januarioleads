@@ -78,10 +78,14 @@ function googleCrmBusiness(
 }
 
 export function MapsPersonalView({
-  existingLeads, onAddLead,
+  existingLeads, onAddLead, displayMode="map", embedded=false,
 }:{
   existingLeads:PersistedLead[];
   onAddLead:(business:BusinessSearchResult,segment:string)=>Promise<BusinessAddResult>;
+  /** Only changes presentation. Switching list/map MUST NOT trigger a new API request. */
+  displayMode?:"list"|"map";
+  /** Unified Buscar Leads owns the page heading and search navigation. */
+  embedded?:boolean;
 }){
   const [initialLocation] = useState(() => typeof window==="undefined"
     ? DEFAULT_SEARCH_LOCATION : loadSearchLocation());
@@ -237,14 +241,16 @@ export function MapsPersonalView({
   const osmlink=selectedGeo?`https://www.openstreetmap.org/?mlat=${selectedGeo.latitude}&mlon=${selectedGeo.longitude}#map=16/${selectedGeo.latitude}/${selectedGeo.longitude}`:null;
 
   return (
-    <section className="bms-root saas-page" aria-labelledby="bms-heading">
-      <div className="bms-heading">
+    <section className={"bms-root saas-page"+(embedded?" bms-root--embedded":"")}
+      aria-label={embedded?"Resultados da busca de empresas":undefined}
+      aria-labelledby={embedded?undefined:"bms-heading"}>
+      {!embedded&&<div className="bms-heading">
         <div>
           <div className="bms-eyebrow"><Compass size={14}/> EXPLORAÇÃO GEOGRÁFICA</div>
           <h1 id="bms-heading">Buscar <span>via Maps</span></h1>
           <p>Encontre estabelecimentos por nicho e município em todo o Brasil e adicione novos contatos ao seu CRM.</p>
         </div>
-      </div>
+      </div>}
       <form className="bms-searchbar" onSubmit={submit}>
         <div className="bms-field bms-field--segment">
           <label htmlFor="bms-segment">O QUE VOCÊ PROCURA?</label>
@@ -289,7 +295,7 @@ export function MapsPersonalView({
           <option value="geoapify">Automático · Geoapify primeiro, Google se necessário</option>
           <option value="google">Google primeiro · Geoapify como alternativa</option>
         </select>
-        <span>O Google Places pode gerar cobrança quando consultado. O limite diário do Januário Leads está temporariamente pausado para testes. Google Places pode gerar cobranças.</span>
+        <span>O limite próprio do Januário Leads está pausado para testes. As consultas ao Google Places continuam sujeitas a cobrança e cotas do provedor.</span>
       </div>
       <div className="bms-meta">
         <span><Layers size={15}/> {applied?`${count} empresas encontradas`:"Escolha um nicho e uma região"}</span>
@@ -299,8 +305,8 @@ export function MapsPersonalView({
         <p className="bms-source-hint" role="status">Foram localizados estabelecimentos de uma categoria relacionada, mas a atividade exata não foi confirmada. Confira cada empresa antes de adicionar ao CRM.</p>}
       {resultProvider==="geoapify"&&geoMatchMode==="name"&&
         <p className="bms-source-hint" role="status">Resultados encontrados pela correspondência de nome na base aberta. A cobertura pode ser parcial e a atividade deve ser confirmada antes da prospecção.</p>}
-      <div className="bms-layout">
-        <div className="bms-map-frame">
+      <div className={"bms-layout"+(displayMode==="list"?" bms-layout--list":"")}>
+        {displayMode==="map"&&<div className="bms-map-frame">
           {resultProvider==="google"
             ? googleListOnly
               ? <div className="bms-google-list-panel" role="region"
@@ -390,8 +396,8 @@ export function MapsPersonalView({
               {savedInCrm(selectedGeo.sourceId)?"Lead já adicionado":isSaving?"Adicionando...":"Adicionar lead"}
             </button>
           </article>}
-        </div>
-        <aside className="bms-results" aria-label="Empresas encontradas no mapa">
+        </div>}
+        <aside className="bms-results" aria-label="Empresas encontradas na pesquisa">
           <div className="bms-results-head">
             <div><span>RESULTADOS</span><h2>Empresas encontradas</h2></div>
             <span className="bms-results-count">{count}</span>
@@ -402,6 +408,40 @@ export function MapsPersonalView({
               {" · "}<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a>
             </>:resultProvider==="google"?<a href="https://www.google.com/maps" target="_blank" rel="noopener noreferrer">Fonte: Google Maps · consulta individual</a>:"Fonte automática definida na pesquisa"}
           </p>
+          {displayMode==="list"&&selectedGoogle&&<div className="bms-list-selected" role="region"
+            aria-label={"Detalhes de "+selectedGoogle.name}>
+            <div className="bms-list-selected-details">
+              <span className="bms-list-selected-label">GOOGLE MAPS · EMPRESA SELECIONADA</span>
+              <strong>{selectedGoogle.name}</strong>
+              <span>{selectedGoogle.address??titleCity}</span>
+              {googleMapUrl&&<a href={googleMapUrl} target="_blank" rel="noopener noreferrer">
+                Ver no Google Maps <ArrowUpRight size={13}/>
+              </a>}
+            </div>
+            <button type="button" className="bms-save"
+              onClick={()=>void addLead(selectedGoogle.placeId)}
+              disabled={isSaving||savedInCrm(selectedGoogle.placeId)}>
+              {savedInCrm(selectedGoogle.placeId)?"Lead já adicionado":isSaving?"Salvando...":"Adicionar ao CRM"}
+            </button>
+          </div>}
+          {displayMode==="list"&&selectedGeo&&<div className="bms-list-selected" role="region"
+            aria-label={"Detalhes de "+selectedGeo.name}>
+            <div className="bms-list-selected-details">
+              <span className="bms-list-selected-label">
+                {selectedGeo.source==="osm"?"OPENSTREETMAP":"GEOAPIFY"} · EMPRESA SELECIONADA
+              </span>
+              <strong>{selectedGeo.name}</strong>
+              <span>{selectedGeo.address??titleCity}</span>
+              {osmlink&&<a href={osmlink} target="_blank" rel="noopener noreferrer">
+                Ver no OpenStreetMap <ArrowUpRight size={13}/>
+              </a>}
+            </div>
+            <button type="button" className="bms-save"
+              onClick={()=>void addLead(selectedGeo.sourceId)}
+              disabled={isSaving||savedInCrm(selectedGeo.sourceId)}>
+              {savedInCrm(selectedGeo.sourceId)?"Lead já adicionado":isSaving?"Salvando...":"Adicionar ao CRM"}
+            </button>
+          </div>}
           {count===0?<div className="bms-no-results">
             <MapPin size={32}/>
             <strong>{applied?"Nenhuma empresa encontrada":"Seu próximo cliente pode estar aqui"}</strong>

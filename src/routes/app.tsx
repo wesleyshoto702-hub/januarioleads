@@ -310,6 +310,9 @@ function LeadFlowApp() {
     financeError,
   } = useLeadWorkspace();
   const [view, setView] = useState<AppView>("dashboard");
+  // One search entry: the hybrid result set is reused when switching list/map.
+  // The original rich Google prospecting screen remains as an advanced tool.
+  const [discoveryTab,setDiscoveryTab]=useState<"list"|"map"|"advanced">("list");
   const navigationTouched = useRef(false);
   const [userSettings,setUserSettings]=useState<UserSettings>({...DEFAULT_USER_SETTINGS});
   const [settingsLoading,setSettingsLoading]=useState(true);
@@ -1746,11 +1749,19 @@ function LeadFlowApp() {
   }
 
   function navigateTo(nextView: AppView) {
-    if (nextView === "maps" && !isLegacyWorkspaceOwner()) return;
+    if(nextView==="maps"){
+      // Legacy deep navigation is preserved, but there is no second menu item.
+      if(!isLegacyWorkspaceOwner())return;
+      navigationTouched.current=true;
+      setDiscoveryTab("map");
+      setView("search");
+      return;
+    }
     navigationTouched.current=true;
-    // Abertos Agora is an internal mode of Buscar Leads, not a separate page.
-    // Selecting Buscar Leads from the Workspace always opens the default mode.
-    if (nextView === "search") setSearchMode("all");
+    if(nextView==="search"){
+      setSearchMode("all");
+      setDiscoveryTab("list");
+    }
     setView(nextView);
   }
 
@@ -2085,20 +2096,77 @@ function LeadFlowApp() {
             )}
           </div>
         </section>
-      ) : view === "search" ? (
-        <SearchLeadsView
-          existingLeads={leads}
-          mode={searchMode}
-          onModeChange={setSearchMode}
-          onAddLead={addFoundLeadConfirmed}
-          onPresenceDiscovered={applyPresenceToLead}
-          onMessage={openMessageComposer}
-        />
-      ) : view === "maps" ? (
+      ) : view === "search" || view === "maps" ? (
         isLegacyWorkspaceOwner() ? (
-          <MapsPersonalView existingLeads={leads} onAddLead={addFoundLeadConfirmed}/>
+          <section className="jl-unified-search" aria-label="Buscar Leads">
+            <div className="jl-unified-search-header">
+              <p className="jl-unified-search-eyebrow">PROSPECÇÃO INTELIGENTE</p>
+              <h1>Buscar Leads</h1>
+              <p>Explore empresas em lista ou no mapa usando a mesma pesquisa híbrida.
+                Ao trocar entre Lista e Mapa, os resultados continuam carregados.</p>
+            </div>
+            <div className="jl-unified-search-tabs" role="group" aria-label="Modo de busca">
+              <button type="button" id="jl-discovery-list"
+                aria-pressed={discoveryTab==="list"}
+                aria-controls="jl-discovery-panel"
+                className={discoveryTab==="list"?"active":""}
+                onClick={()=>setDiscoveryTab("list")}>
+                <Search size={16}/> Lista
+              </button>
+              <button type="button" id="jl-discovery-map"
+                aria-pressed={discoveryTab==="map"}
+                aria-controls="jl-discovery-panel"
+                className={discoveryTab==="map"?"active":""}
+                onClick={()=>setDiscoveryTab("map")}>
+                <MapPin size={16}/> Mapa
+              </button>
+              <button type="button" id="jl-discovery-advanced"
+                aria-pressed={discoveryTab==="advanced"}
+                aria-controls="jl-discovery-panel"
+                className={discoveryTab==="advanced"?"active":""}
+                onClick={()=>setDiscoveryTab("advanced")}>
+                <Star size={16}/> Busca avançada
+              </button>
+            </div>
+            <div id="jl-discovery-panel" role="region"
+              aria-labelledby={"jl-discovery-"+discoveryTab}
+              className="jl-unified-search-panel">
+              {discoveryTab==="advanced" ? (
+                <>
+                  <p className="jl-advanced-search-note" role="note">
+                    Busca avançada: filtros, enriquecimento e análise de oportunidades.
+                    Este modo usa a pesquisa completa existente e tem resultados próprios.
+                  </p>
+                  <SearchLeadsView
+                    existingLeads={leads}
+                    mode={searchMode}
+                    onModeChange={setSearchMode}
+                    onAddLead={addFoundLeadConfirmed}
+                    onPresenceDiscovered={applyPresenceToLead}
+                    onMessage={openMessageComposer}
+                  />
+                </>
+              ) : (
+                <MapsPersonalView
+                  existingLeads={leads}
+                  onAddLead={addFoundLeadConfirmed}
+                  displayMode={discoveryTab==="map"?"map":"list"}
+                  embedded
+                />
+              )}
+            </div>
+          </section>
         ) : (
-          <p className="saas-page">Esta ferramenta de Maps está reservada à conta pessoal original.</p>
+          // Until account-level Maps entitlements are implemented, preserve
+          // the established public-compatible advanced search for other users.
+          <SearchLeadsView
+            existingLeads={leads}
+            mode={searchMode}
+            onModeChange={setSearchMode}
+            onAddLead={addFoundLeadConfirmed}
+            onPresenceDiscovered={applyPresenceToLead}
+            onMessage={openMessageComposer}
+          />
         )
       ) : view === "prospecting" ? (
         <ProspectingInformationView
