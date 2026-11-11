@@ -17,3 +17,11 @@ export type MapProviderChoice = "google" | "open";
 export function chooseMapProvider(siteKey: string): MapProviderChoice {
   return isValidBrowserGoogleMapsKey(siteKey) ? "google" : "open";
 }
+
+/**
+ * Google Places results must only be requested when their Google basemap
+ * can be used. Never spend on Google Places if the site uses an open map.
+ */
+export function canDisplayGooglePlaces(siteKey: string, googleUnavailable: boolean): boolean {
+  return chooseMapProvider(siteKey) === "google" && !googleUnavailable;
+}
