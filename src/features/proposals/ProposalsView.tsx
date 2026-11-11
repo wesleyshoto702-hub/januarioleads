@@ -6,6 +6,7 @@ import {
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import type { PersistedLead } from "../leads/remote-leads";
 import { PageHeader } from "../../components/app-shell/PageHeader";
+import { useConfirmAction } from "../../components/app-shell/ConfirmActionProvider";
 import { formatCurrency } from "../lead-finance/finance";
 import { getCachedDigitalReport, normalizePublicWebsite, type DigitalReport } from "../digital-presence/digital-presence";
 import {
@@ -76,6 +77,7 @@ export function ProposalsView({leads,sellerName,onOpenLead}:{
   sellerName:string;
   onOpenLead:(lead:PersistedLead)=>void;
 }){
+  const confirmAction=useConfirmAction();
   const [proposals,setProposals]=useState<ProposalRecord[]>(loadProposals);
   const [restoredDraft]=useState<ProposalRecord|null>(loadWorkingProposal);
   const [selectedId,setSelectedId]=useState<string|null>(()=>
@@ -109,8 +111,14 @@ export function ProposalsView({leads,sellerName,onOpenLead}:{
     }catch{return null;}
   },[linkedLead?.website]);
 
-  function abandonIfDirty():boolean {
-    return !isDirty || window.confirm("Há alterações não salvas nesta proposta. Descartar as alterações?");
+  async function abandonIfDirty():Promise<boolean> {
+    return !isDirty || confirmAction({
+      title:"Descartar alterações não salvas?",
+      subject:draft.clientName||draft.title,
+      description:"As edições desta proposta que ainda não foram salvas serão perdidas.",
+      confirmLabel:"Descartar alterações",
+      variant:"warning",
+    });
   }
   function patch<K extends keyof ProposalRecord>(key:K,value:ProposalRecord[K]){
     setDraft(current=>({...current,[key]:value}));
@@ -121,14 +129,14 @@ export function ProposalsView({leads,sellerName,onOpenLead}:{
       line.id===id?{...line,...updates}:line)}));
     setError("");setMessage("");
   }
-  function newProposal(){
-    if(!abandonIfDirty())return;
+  async function newProposal(){
+    if(!(await abandonIfDirty()))return;
     setSelectedId(null);setDraft(makeProposal(null,sellerName));
     setMessage("");setError("");
   }
-  function selectProposal(proposal:ProposalRecord){
+  async function selectProposal(proposal:ProposalRecord){
     if(selectedId===proposal.id)return;
-    if(!abandonIfDirty())return;
+    if(!(await abandonIfDirty()))return;
     setSelectedId(proposal.id);setDraft({...proposal});
     setMessage("");setError("");
   }
@@ -156,17 +164,28 @@ export function ProposalsView({leads,sellerName,onOpenLead}:{
     }
     commit(draft,"Proposta salva neste navegador.");
   }
-  function changeStatus(status:ProposalStatus) {
+  async function changeStatus(status:ProposalStatus) {
     const message=statusAllowed(draft,status);
     if(message){setError(message);setMessage("");return;}
-    if(status==="accepted" && !window.confirm("Confirmar que o cliente aceitou esta proposta? O Financeiro não será alterado automaticamente."))return;
+    if(status==="accepted"&&!(await confirmAction({
+      title:"Confirmar proposta aceita?",
+      subject:draft.title,
+      description:"Marque como aceita apenas após a confirmação do cliente. Isso não registra pagamentos nem altera o Financeiro.",
+      confirmLabel:"Confirmar aceite",
+      variant:"warning",
+    })))return;
     commit({...draft,status},
       status==="sent"?"Proposta marcada como enviada. Nenhuma mensagem foi enviada pelo Januário Leads.":
       "Status atualizado na proposta.");
   }
-  function deleteProposal(){
-    if(!selectedId){newProposal();return;}
-    if(!window.confirm("Excluir definitivamente esta proposta salva neste navegador?"))return;
+  async function deleteProposal(){
+    if(!selectedId){await newProposal();return;}
+    if(!(await confirmAction({
+      title:"Excluir proposta comercial?",
+      subject:draft.title||draft.clientName||proposalCode(draft),
+      description:"A proposta, seus serviços e as condições comerciais serão removidos. O lead vinculado não será apagado.",
+      confirmLabel:"Excluir proposta",
+    })))return;
     const next=proposals.filter(p=>p.id!==selectedId);
     try{
       saveProposals(next);
@@ -178,8 +197,8 @@ export function ProposalsView({leads,sellerName,onOpenLead}:{
       setError("");
     }catch(reason){setError(reason instanceof Error?reason.message:"Erro ao excluir.");}
   }
-  function duplicate(){
-    if(!abandonIfDirty())return;
+  async function duplicate(){
+    if(!(await abandonIfDirty()))return;
     const copy=duplicateProposal(draft);
     commit(copy,"Cópia criada como novo rascunho.");
   }
@@ -189,11 +208,17 @@ export function ProposalsView({leads,sellerName,onOpenLead}:{
       clientName:lead?.company??current.clientName}));
     setError("");setMessage("");
   }
-  function useTemplate(id:string){
+  async function useTemplate(id:string){
     const template=PROPOSAL_TEMPLATES.find(t=>t.id===id);
     if(!template)return;
     if((draft.scope.trim() || draft.lines.some(line=>line.description.trim()))&&
-      !window.confirm("Aplicar este modelo vai substituir título, descrição e serviços desta proposta. Continuar?"))return;
+      !(await confirmAction({
+        title:"Substituir conteúdo pelo modelo?",
+        subject:template.label,
+        description:"O título, a apresentação, o escopo e os serviços atuais serão substituídos. Os preços do modelo começam em zero.",
+        confirmLabel:"Aplicar modelo",
+        variant:"warning",
+      })))return;
     setDraft(current=>applyProposalTemplate(current,id as ProposalTemplateId));
     setError("");setMessage("");
   }
@@ -215,8 +240,16 @@ export function ProposalsView({leads,sellerName,onOpenLead}:{
     if(draft.lines.length>=30){setError("Limite de 30 serviços por proposta.");return;}
     patch("lines",[...draft.lines,proposalLine()]);
   }
-  function removeLine(id:string){
-    patch("lines",draft.lines.filter(line=>line.id!==id));
+  async function removeLine(id:string){
+    const line=draft.lines.find(item=>item.id===id);
+    if(!line)return;
+    if(!(await confirmAction({
+      title:"Remover serviço da proposta?",
+      subject:line.description||"Serviço sem descrição",
+      description:"Este item será removido do orçamento. O valor total da proposta será recalculado.",
+      confirmLabel:"Remover serviço",
+    })))return;
+    patch("lines",draft.lines.filter(item=>item.id!==id));
   }
   function replacePrice(id:string,event:ChangeEvent<HTMLInputElement>){
     editLine(id,{unitPrice:Number(event.target.value)});
@@ -239,7 +272,7 @@ export function ProposalsView({leads,sellerName,onOpenLead}:{
     }
   }
   async function importBackup(file:File){
-    if(!abandonIfDirty())return;
+    if(!(await abandonIfDirty()))return;
     setError("");setMessage("");
     try{
       if(file.size>3_000_000)throw new Error("O arquivo excede o limite de 3 MB.");
@@ -249,7 +282,12 @@ export function ProposalsView({leads,sellerName,onOpenLead}:{
       if(added.length===0){setMessage("Nenhuma proposta nova para importar. As existentes foram preservadas.");return;}
       if(proposals.length+added.length>120)
         throw new Error("O backup excederia o limite de 120 propostas. Exclua propostas antigas antes de importar.");
-      if(!window.confirm("Importar "+added.length+" proposta(s) deste backup? Propostas já existentes não serão substituídas."))return;
+      if(!(await confirmAction({
+        title:"Importar propostas do backup?",
+        description:"Serão acrescentadas "+added.length+" propostas ao seu navegador. As propostas existentes não serão substituídas.",
+        confirmLabel:"Importar propostas",
+        variant:"warning",
+      })))return;
       const next=[...added,...proposals];
       saveProposals(next);
       setProposals(next);
@@ -264,7 +302,7 @@ export function ProposalsView({leads,sellerName,onOpenLead}:{
   return <section className="saas-page pc-page">
     <PageHeader eyebrow="GESTÃO COMERCIAL" title="Propostas comerciais"
       description="Crie propostas profissionais a partir dos seus leads, organize negociações e imprima ou salve o documento em PDF."
-      actions={<button type="button" className="pc-button pc-primary" onClick={newProposal}>
+      actions={<button type="button" className="pc-button pc-primary" onClick={()=>void newProposal()}>
         <CirclePlus size={17}/> Nova proposta
       </button>}/>
     <div className="pc-workspace">
@@ -286,7 +324,7 @@ export function ProposalsView({leads,sellerName,onOpenLead}:{
             <ClipboardList size={26}/><strong>Nenhuma proposta encontrada</strong>
             <p>Crie sua primeira proposta ou altere os filtros.</p>
           </div>:filtered.map(record=>
-            <button type="button" key={record.id} onClick={()=>selectProposal(record)}
+            <button type="button" key={record.id} onClick={()=>void selectProposal(record)}
               className={"pc-saved-item"+(selectedId===record.id?" selected":"")}>
               <span className="pc-item-head"><strong>{record.clientName||"Cliente não informado"}</strong>
                 <span className={"pc-state "+record.status}>{PROPOSAL_STATUS_LABEL[record.status]}</span></span>
@@ -312,8 +350,8 @@ export function ProposalsView({leads,sellerName,onOpenLead}:{
             <h2>{currentSaved?proposalCode(currentSaved):"Nova proposta"}</h2>
             <p>{isDirty?"Alterações ainda não salvas":"Última atualização: "+formatDateTime(draft.updatedAt)}</p></div>
           <div className="pc-editor-actions">
-            <button type="button" className="pc-button pc-secondary" onClick={duplicate}><Copy size={15}/> Duplicar</button>
-            <button type="button" className="pc-button pc-secondary pc-danger" onClick={deleteProposal}
+            <button type="button" className="pc-button pc-secondary" onClick={()=>void duplicate()}><Copy size={15}/> Duplicar</button>
+            <button type="button" className="pc-button pc-secondary pc-danger" onClick={()=>void deleteProposal()}
               disabled={!selectedId}><Trash2 size={15}/> Excluir</button>
             <button type="button" className="pc-button pc-primary" onClick={save}><Save size={15}/> Salvar</button>
           </div>
@@ -323,7 +361,7 @@ export function ProposalsView({leads,sellerName,onOpenLead}:{
         <div className="pc-form-section">
           <h3><BookOpen size={17}/> Modelo e cliente</h3>
           <label className="pc-field"><span>Modelo de serviço</span>
-            <select defaultValue="" onChange={e=>{if(e.target.value)useTemplate(e.target.value);e.target.value="";}}>
+            <select defaultValue="" onChange={e=>{if(e.target.value)void useTemplate(e.target.value);e.target.value="";}}>
               <option value="">Selecionar um modelo (opcional)</option>
               {PROPOSAL_TEMPLATES.map(t=><option key={t.id} value={t.id}>{t.label}</option>)}
             </select>
@@ -375,7 +413,7 @@ export function ProposalsView({leads,sellerName,onOpenLead}:{
             {draft.lines.map((line,index)=><div className="pc-line" key={line.id}>
               <div className="pc-line-head"><strong>Serviço {index+1}</strong>
                 <button type="button" className="pc-icon-button" aria-label={"Remover serviço "+(index+1)}
-                  onClick={()=>removeLine(line.id)}><Trash2 size={15}/></button></div>
+                  onClick={()=>void removeLine(line.id)}><Trash2 size={15}/></button></div>
               <label className="pc-field pc-line-description"><span>Descrição</span>
                 <input type="text" value={line.description} maxLength={300}
                   placeholder="Descreva o serviço" onChange={e=>editLine(line.id,{description:e.target.value})}/></label>
@@ -401,7 +439,7 @@ export function ProposalsView({leads,sellerName,onOpenLead}:{
             <InputField label="Validade da proposta" type="date" value={draft.validUntil}
               onChange={v=>patch("validUntil",v)}/>
             <label className="pc-field"><span>Situação comercial</span>
-              <select value={draft.status} onChange={e=>changeStatus(e.target.value as ProposalStatus)}>
+              <select value={draft.status} onChange={e=>void changeStatus(e.target.value as ProposalStatus)}>
                 {STATUSES.map(x=><option value={x.id} key={x.id}>{PROPOSAL_STATUS_LABEL[x.id]}</option>)}
               </select>
             </label>
