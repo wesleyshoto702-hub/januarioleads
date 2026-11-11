@@ -628,3 +628,59 @@
 .bms-source-hint { margin: 10px 0 13px; padding: 10px 14px; border-radius: 10px;
   border: 1px solid rgba(42, 190, 146, .24); color: #9ccbbf;
   background: rgba(30, 88, 75, .12); font-size: .82rem; line-height: 1.5; }
+
+/* Hybrid provider preference: no API keys are entered in this UI. */
+.bms-source-choice {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin: 12px 0 10px;
+  color: #aac5bf;
+  font-size: 12px;
+}
+.bms-source-choice label { color: #2bddac; font-weight: 700; font-size: 10px; letter-spacing: .07em; }
+.bms-source-choice select {
+  min-height: 34px;
+  max-width: 100%;
+  border-radius: 8px;
+  border: 1px solid rgba(54, 196, 156, .25);
+  background: #11191b;
+  color: #f0faf7;
+  padding: 5px 28px 5px 10px;
+  font: inherit;
+}
+.bms-source-choice span { color: #869b96; font-size: 11px; }
+/* Google results never share a non-Google map container. Standalone display
+   keeps provider attribution readable even if the Google JS SDK is unavailable. */
+.bms-google-list-panel {
+  min-height: 440px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 32px 28px;
+  background: radial-gradient(ellipse at 20% 20%, #162e2b 0, #101919 55%, #0c1213 100%);
+  color: #e6f3ef;
+}
+.bms-google-list-brand a {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #f4f8ff;
+  border: 1px solid rgba(255,255,255,.15);
+  background: rgba(255,255,255,.06);
+  border-radius: 7px;
+  padding: 6px 10px;
+  text-decoration: underline;
+  font-size: 14px;
+  font-weight: 750;
+}
+.bms-google-list-panel h2 { font-size: clamp(20px, 2.4vw, 29px); font-weight: 750; line-height: 1.25; }
+.bms-google-list-panel p { color: #a7b8b4; font-size: 13px; line-height: 1.7; max-width: 480px; }
+@media (max-width: 768px) {
+  .bms-google-list-panel { min-height: 310px; padding: 24px 18px; }
+  .bms-source-choice { align-items: stretch; flex-direction: column; }
+  .bms-source-choice select { width: 100%; }
+}
