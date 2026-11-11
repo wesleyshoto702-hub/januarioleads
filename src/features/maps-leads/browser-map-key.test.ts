@@ -1,5 +1,5 @@
 /// <reference lib="deno.ns" />
-import { isValidBrowserGoogleMapsKey, chooseMapProvider } from "./browser-map-key.ts";
+import { isValidBrowserGoogleMapsKey, chooseMapProvider, canDisplayGooglePlaces } from "./browser-map-key.ts";
 
 function check(value: unknown, message: string) {
   if (!value) throw new Error(message);
@@ -31,4 +31,7 @@ Deno.test("Mapa aberto funciona sem nenhuma chave; Google só com chave do site"
     "A valid site-wide browser key can enable Google Maps");
   check(chooseMapProvider("sk_live_secret") === "open",
     "Never use a server or billing secret as a Google browser key");
+  check(!canDisplayGooglePlaces("", false), "Do not bill Google Places without Google base map");
+  check(!canDisplayGooglePlaces("AIza" + "A".repeat(35), true), "Google maps auth failure blocks Google Places display");
+  check(canDisplayGooglePlaces("AIza" + "A".repeat(35), false), "Google Places only allowed with working Google basemap");
 });
