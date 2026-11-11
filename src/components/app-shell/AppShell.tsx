@@ -3,6 +3,7 @@ import {
   Bell,
   CalendarDays,
   BriefcaseBusiness,
+  ChevronDown,
   LayoutDashboard,
   LogOut,
   MapPinned,
@@ -60,6 +61,9 @@ const NAV_ITEMS: Array<{
   { view: "finance", label: "Financeiro", icon: WalletCards },
 ];
 
+const COMMERCIAL_VIEWS = new Set<AppView>([
+  "digital-presence", "proposals", "campaigns", "sequences", "agenda", "projects",
+]);
 const VIEW_TITLES: Record<AppView, string> = {
   dashboard: "Dashboard",
   leads: "Meus Leads",
@@ -102,6 +106,7 @@ export function AppShell({
   children: ReactNode;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [commercialOpen,setCommercialOpen] = useState(()=>COMMERCIAL_VIEWS.has(activeView));
   const [globalQuery, setGlobalQuery] = useState("");
   const accountName = accountLabel?.trim() || "Minha conta";
   const initial = accountName.charAt(0).toUpperCase();
@@ -110,6 +115,7 @@ export function AppShell({
 
   useEffect(() => {
     setMobileOpen(false);
+    if (COMMERCIAL_VIEWS.has(activeView)) setCommercialOpen(true);
   }, [activeView]);
 
   useEffect(() => {
@@ -167,25 +173,37 @@ export function AppShell({
 
   const navigation = (
     <>
-      <nav className="saas-nav" aria-label="Navegação principal">
-        {NAV_ITEMS.filter((item) => item.view !== "maps" || isLegacyWorkspaceOwner()).map((item) => {
-          const Icon = item.icon;
-          const active = activeView === item.view;
-          return (
-            <button
-              key={item.view}
-              type="button"
-              className={active ? "saas-nav-item active" : "saas-nav-item"}
-              aria-current={active ? "page" : undefined}
-              onClick={() => navigate(item.view)}
-            >
-              <Icon size={17} strokeWidth={1.8} />
-              <span>{item.label}</span>
-              <i aria-hidden="true" />
-            </button>
-          );
-        })}
-      </nav>
+      <div className="saas-nav-scroll">
+        <nav className="saas-nav" aria-label="Navegação principal">
+          {NAV_ITEMS.filter(item=>!COMMERCIAL_VIEWS.has(item.view) &&
+            (item.view!=="maps"||isLegacyWorkspaceOwner())).map(item=>{
+            const Icon=item.icon;const active=activeView===item.view;
+            return <button key={item.view} type="button" className={active?"saas-nav-item active":"saas-nav-item"}
+              aria-current={active?"page":undefined} onClick={()=>navigate(item.view)}>
+              <Icon size={17} strokeWidth={1.8}/><span>{item.label}</span><i aria-hidden="true"/>
+            </button>;
+          })}
+        </nav>
+        <div className="saas-commercial-nav">
+          <button type="button" className={"saas-commercial-toggle"+(commercialOpen?" open":"")}
+            aria-expanded={commercialOpen} aria-controls="saas-commercial-items"
+            onClick={()=>setCommercialOpen(value=>!value)}>
+            <BriefcaseBusiness size={17} strokeWidth={1.8}/>
+            <span>Gestão Comercial</span><ChevronDown size={15} aria-hidden="true"/>
+          </button>
+          {commercialOpen&&<nav className="saas-nav saas-commercial-items" id="saas-commercial-items"
+            aria-label="Ferramentas de gestão comercial">
+            {NAV_ITEMS.filter(item=>COMMERCIAL_VIEWS.has(item.view)).map(item=>{
+              const Icon=item.icon;const active=activeView===item.view;
+              return <button key={item.view} type="button"
+                className={active?"saas-nav-item active":"saas-nav-item"}
+                aria-current={active?"page":undefined} onClick={()=>navigate(item.view)}>
+                <Icon size={17} strokeWidth={1.8}/><span>{item.label}</span><i aria-hidden="true"/>
+              </button>;
+            })}
+          </nav>}
+        </div>
+      </div>
 
       <div className="saas-sidebar-footer">
         <button
