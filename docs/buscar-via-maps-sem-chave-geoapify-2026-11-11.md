@@ -39,3 +39,25 @@ Agora as respostas informam de maneira distinta quando o provedor recusa a sinta
 A autenticação original e a franquia de 10 tentativas diárias permanecem ativas; **inclusive tentativas com falha consomem a cota** porque a função reserva um acesso antes de consultar o provedor, evitando abusos de requisições concorrentes. Mudanças no controle transacional dessa cota exigem revisão separada.
 
 Pendente: executar uma pesquisa autenticada após o deploy para confirmar dados reais. Não confundir deployment ativo com validação de ponta a ponta. O OpenStreetMap pode não ter clínicas cadastradas para toda cidade.
+
+## Melhoria estrutural do catálogo e da geografia (11/11/2026)
+
+O catálogo canônico tem **196 nichos em 16 grupos**. Antes, a rota de Geoapify só aceitava aproximadamente 40 categorias por nome, enquanto nichos sem mapeamento específico falhavam; o filtro de Barbearia descartava todos os cabeleireiros sem `barber` / `barbearia` / `barbeiro` no nome, mesmo quando a fonte tinha candidatos. A API retornava 25 candidatos antes da seleção.
+
+A solução generalizada faz:
+
+- **Todos os 196 nichos passam a gerar um plano controlado de consulta.** Quando há categoria Geoapify específica e revisada, usa-se a categoria. Quando não há, usa-se uma categoria abrangente correspondente ao grupo do nicho, **obrigatoriamente com filtro de nome**; não se faz uma consulta genérica de todas as empresas.
+- A função busca até 150 candidatos no provedor para categorias específicas e filtra **antes** de limitar a resposta ao usuário a 25 empresas. Quando a categoria retorna zero registros confiáveis, pode haver uma segunda consulta com nome, limitada a 75 candidatos. Cada busca pessoal usa no máximo **1 consulta de geocodificação e 2 consultas de estabelecimentos**, sob a cota diária já existente de **10 buscas autenticadas**. Não altera a política de Google Places nem ativa cobranças do Google.
+- Resultados de `Barbearia` com termos claros no nome têm prioridade. Se a classificação aberta só informar `hairdresser`, o retorno pode incluir **estabelecimentos relacionados**, claramente sinalizados como **atividade a confirmar**, evitando apresentar salões genéricos como barbearias confirmadas.
+- Resultados por **correspondência de nome**, sem categoria específica, recebem indicação de cobertura parcial e atividade a confirmar antes de serem usados para prospecção ou gravados no CRM.
+- Na geocodificação, a restrição ao tipo `city` foi removida para não rejeitar automaticamente municípios classificados como `town` ou outras localidades; a validação por **nome exato, UF e país** permanece ativa para evitar misturar municípios homônimos.
+- O retorno de zero empresas agora deixa explícito que isso significa **sem registro correspondente nessa fonte**, não ausência real de estabelecimentos.
+- A interface identifica a atividade em linguagem natural, conserva a proveniência Geoapify/OSM e não exibe códigos técnicos de categorias no cartão do estabelecimento.
+
+**Limites reais:** a busca aceita todo o catálogo e pode pesquisar municípios brasileiros validáveis pelo Geoapify, mas nenhuma API tem cobertura completa de todas as empresas, nichos, endereços ou cidades. Um resultado vazio após pesquisa legítima não é prova de que não haja empresas. Nichos que usam nome não conseguem encontrar nomes comerciais sem referência à atividade; para cobertura comercial ampla será necessária outra base licenciada e contratada, não uma garantia artificial de sucesso.
+
+A busca segue restrita ao proprietário e protegida por JWT e tabela de acesso privada. A chave `GEOAPIFY_API_KEY` permanece exclusivamente no Supabase. Não altera cota nem preço de nenhum fornecedor. O serviço comunitário Overpass permanece **somente como contingência se a chave Geoapify estiver ausente**, sem ser usado nas pesquisas normais.
+
+**Testes:** inclusão de testes Deno para o catálogo de 196 nichos, bloqueio de nichos inventados, distinção entre barbearias confirmadas e candidatos genéricos, além de busca em uma página com 120 registros. Verificar implantação no Supabase original e pesquisa autenticada com nichos e cidades distintos. O GitHub Actions ainda não executou toda a suíte, de modo que o funcionamento end-to-end em produção precisa de homologação.
+
+Fonte da API: https://apidocs.geoapify.com/docs/places/
