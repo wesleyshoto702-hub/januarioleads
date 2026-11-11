@@ -48,7 +48,7 @@ function osmBusiness(place:PersonalGeoapifyPlace):BusinessSearchResult {
     placeId:"", name:place.name,
     primaryCategory:place.category, address:place.address,
     city:place.city, state:place.state,
-    description:`Fonte: Geoapify / OpenStreetMap. ${osmReference(place.sourceId)}.`,
+    description:`Fonte: ${place.source==="osm"?"OpenStreetMap / Overpass":"Geoapify / OpenStreetMap"}. ${osmReference(place.sourceId)}.`,
     latitude:place.latitude, longitude:place.longitude,
   };
 }
@@ -355,7 +355,7 @@ export function MapsPersonalView({
             <div className="bms-business-top">
               <span className="bms-business-icon"><MapPin size={23}/></span>
               <div className="bms-business-title">
-                <span>{selectedGeo.category??"ESTABELECIMENTO"} · GEOAPIFY / OSM</span>
+                <span>{selectedGeo.category??"ESTABELECIMENTO"} · {selectedGeo.source==="osm"?"OPENSTREETMAP":"GEOAPIFY / OSM"}</span>
                 <h2>{selectedGeo.name}</h2>
               </div>
               <span className="bms-business-counter">
@@ -365,7 +365,7 @@ export function MapsPersonalView({
             <p className="bms-business-address"><MapPin size={15}/>{selectedGeo.address||titleCity}</p>
             {osmlink&&<div className="bms-business-details"><a href={osmlink}
               target="_blank" rel="noopener noreferrer">Ver no OpenStreetMap <ArrowUpRight size={13}/></a></div>}
-            <p className="bms-readonly">Fonte: Geoapify · © OpenStreetMap contributors. Complete contatos manualmente no CRM, se necessário.</p>
+            <p className="bms-readonly">Fonte: {selectedGeo.source==="osm"?"OpenStreetMap / Overpass":"Geoapify"} · © OpenStreetMap contributors. Complete contatos manualmente no CRM, se necessário.</p>
             <button type="button" className="bms-save" disabled={isSaving||savedInCrm(selectedGeo.sourceId)}
               onClick={()=>void addLead(selectedGeo.sourceId)}>
               {savedInCrm(selectedGeo.sourceId)?<CheckCircle2 size={17}/>:<BookmarkPlus size={17}/>}
@@ -380,7 +380,7 @@ export function MapsPersonalView({
           </div>
           <p className="bms-provider-attribution">
             {resultProvider==="geoapify"?<>
-              <a href="https://www.geoapify.com/" target="_blank" rel="noopener noreferrer">Powered by Geoapify</a>
+              {geoResults[0]?.source==="osm"?"Fonte: OpenStreetMap / Overpass":<a href="https://www.geoapify.com/" target="_blank" rel="noopener noreferrer">Powered by Geoapify</a>}
               {" · "}<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a>
             </>:resultProvider==="google"?"Fonte: Google Maps · consulta individual":"Fonte automática definida na pesquisa"}
           </p>
@@ -394,7 +394,7 @@ export function MapsPersonalView({
               sub:item.website?"Site identificado":"Google Places",
             })):geoResults.map(item=>({
               id:item.sourceId,name:item.name,address:item.address??titleCity,
-              sub:"Geoapify / OpenStreetMap",
+              sub:item.source==="osm"?"OpenStreetMap / Overpass":"Geoapify / OpenStreetMap",
             }))).map((item,index)=><li key={item.id} className="bms-result-row">
               <button type="button"
                 className={selection===item.id?"bms-result selected":"bms-result"}

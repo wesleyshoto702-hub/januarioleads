@@ -51,6 +51,132 @@ function asJson(value:unknown):Record<string,unknown>|null {
     ? value as Record<string,unknown>:null;
 }
 
+
+/**
+ * Small personal-use OSM fallback when GEOAPIFY_API_KEY is absent.
+ * Never runs for public users, never issues a broad unrestricted query, and
+ * shares the existing owner-authenticated 10-searches/day server quota.
+ * Community Overpass is not an SLA-backed provider for a public SaaS.
+ */
+type OsmPlace = {
+  source:"osm"; sourceId:string; name:string; category:string|null;
+  address:string|null; city:string; state:string;
+  latitude:number; longitude:number;
+};
+type OSMSearchResult =
+  | {ok:true;places:OsmPlace[]}
+  | {ok:false;code:string;message:string};
+const OSM_TAG_FILTERS:Record<string,readonly string[]> = {
+  "clinica medica": ['["amenity"="clinic"]','["healthcare"="clinic"]','["healthcare"="doctor"]'],
+  "barbearia": ['["shop"="hairdresser"]'],
+  "salao de beleza": ['["shop"="hairdresser"]','["shop"="beauty"]'],
+  "academia": ['["leisure"="fitness_centre"]'],
+  "restaurante": ['["amenity"="restaurant"]'],
+  "cafeteria": ['["amenity"="cafe"]'],
+  "pizzaria": ['["amenity"="restaurant"]["cuisine"~"pizza",i]'],
+  "padaria": ['["shop"="bakery"]'],
+  "acougue": ['["shop"="butcher"]'],
+  "pet shop": ['["shop"="pet"]'],
+  "clinica veterinaria": ['["amenity"="veterinary"]'],
+  "floricultura": ['["shop"="florist"]'],
+  "hotel": ['["tourism"="hotel"]'],
+  "pousada": ['["tourism"="guest_house"]'],
+  "loja de roupas": ['["shop"="clothes"]'],
+  "loja de calcados": ['["shop"="shoes"]'],
+  "escritorio de advocacia": ['["office"="lawyer"]'],
+  "estacionamento": ['["amenity"="parking"]'],
+};
+const osmCache=new Map<string,{until:number;places:OsmPlace[]}>();
+const normalizeOs=(value:string)=>value.normalize("NFD")
+  .replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("pt-BR").trim().replace(/\s+/g," ");
+const osmString=(value:unknown)=>typeof value==="string"?value.trim().slice(0,180):"";
+const osmObj=(value:unknown):Record<string,unknown> =>
+  value!==null && typeof value==="object" && !Array.isArray(value)
+    ? value as Record<string,unknown> : {};
+
+async function searchPersonalOsm(
+  city:string,state:string,segment:string,neighborhood:string,
+):Promise<OSMSearchResult>{
+  const filters=OSM_TAG_FILTERS[normalizeOs(segment)];
+  if(!filters)return {ok:false,code:"UNSUPPORTED_SEGMENT",
+    message:"Este nicho ainda não está disponível na busca aberta sem chave."};
+  const cacheKey=[city,state,segment,neighborhood].map(normalizeOs).join("|");
+  const cached=osmCache.get(cacheKey);
+  if(cached && cached.until>Date.now())return {ok:true,places:cached.places};
+  // Fixed tag allowlist + escaped exact municipality name prevents QL injection.
+  const quotedCity=JSON.stringify(city);
+  const ql=[
+    "[out:json][timeout:14];",
+    'area["ISO3166-2"='+JSON.stringify("BR-"+state)+']["boundary"="administrative"]["admin_level"="4"]->.uf;',
+    'rel(area.uf)["boundary"="administrative"]["admin_level"="8"]["name"='+quotedCity+']->.municipality;',
+    ".municipality out tags;",
+    ".municipality map_to_area->.municipalArea;",
+    "(",
+    ...filters.map(filter=>'nwr'+filter+'["name"](area.municipalArea);'),
+    ");",
+    "out center 90;",
+  ].join("\n");
+  try{
+    const response=await fetch("https://overpass-api.de/api/interpreter",{
+      method:"POST",headers:{"content-type":"application/x-www-form-urlencoded",
+        "User-Agent":"JanuarioLeadsPersonal/1.0 (single-user OSM search)"},
+      body:new URLSearchParams({data:ql}),
+      signal:AbortSignal.timeout(17000),
+    });
+    if(!response.ok)return {ok:false,code:"PROVIDER_UNAVAILABLE",
+      message:"A consulta comunitária do OpenStreetMap está ocupada. Tente novamente mais tarde."};
+    const raw=await response.text();
+    if(raw.length>750000)return {ok:false,code:"PROVIDER_UNAVAILABLE",
+      message:"A resposta comunitária excedeu o limite seguro."};
+    const elements:unknown=osmObj(JSON.parse(raw)).elements;
+    if(!Array.isArray(elements))throw Error("INVALID_OSM_RESPONSE");
+    const municipalFound=elements.some(value=>{
+      const e=osmObj(value),tags=osmObj(e.tags);
+      return e.type==="relation" && tags.boundary==="administrative" &&
+        normalizeOs(osmString(tags.name))===normalizeOs(city);
+    });
+    if(!municipalFound)return {ok:false,code:"LOCATION_NOT_FOUND",
+      message:"O município não foi localizado na base comunitária para a UF selecionada."};
+    const seen=new Set<string>();
+    const places:OsmPlace[]=[];
+    for(const value of elements){
+      const e=osmObj(value),tags=osmObj(e.tags),center=osmObj(e.center);
+      const kind=e.type,id=e.id;
+      if(!["node","way","relation"].includes(String(kind)) ||
+         typeof id!=="number" || !Number.isSafeInteger(id) || id<1)continue;
+      const name=osmString(tags.name);
+      const lat=typeof e.lat==="number"?e.lat:center.lat;
+      const lon=typeof e.lon==="number"?e.lon:center.lon;
+      if(!name||typeof lat!=="number"||typeof lon!=="number"||
+         !Number.isFinite(lat)||!Number.isFinite(lon)||
+         Math.abs(lat)>90||Math.abs(lon)>180)continue;
+      if(normalizeOs(segment)==="barbearia" &&
+        !/\b(barbearia|barbeiro|barber|barbershop)\b/.test(normalizeOs(name)))continue;
+      const address=[
+        osmString(tags["addr:street"]),
+        osmString(tags["addr:housenumber"]),
+        osmString(tags["addr:suburb"])||osmString(tags["addr:neighbourhood"]),
+      ].filter(Boolean).join(", ");
+      if(neighborhood && !normalizeOs(address).includes(normalizeOs(neighborhood)))continue;
+      const sourceId="osm:"+kind+"/"+id;
+      if(seen.has(sourceId))continue;
+      seen.add(sourceId);
+      places.push({source:"osm",sourceId,name,category:
+        osmString(tags.amenity)||osmString(tags.healthcare)||
+        osmString(tags.shop)||osmString(tags.leisure)||osmString(tags.tourism)||null,
+        address:address||null,city,state,latitude:lat,longitude:lon});
+      if(places.length>=25)break;
+    }
+    // Memory-only per-isolate cache; short expiry and bounded size.
+    if(osmCache.size>=25)osmCache.delete(osmCache.keys().next().value!);
+    osmCache.set(cacheKey,{until:Date.now()+3*60*60*1000,places});
+    return {ok:true,places};
+  }catch{
+    return {ok:false,code:"PROVIDER_UNAVAILABLE",
+      message:"A consulta comunitária do OpenStreetMap não respondeu. Tente novamente mais tarde."};
+  }
+}
+
 Deno.serve(async(request:Request)=>{
   if(request.method==="OPTIONS")return new Response(null,{
     status:204,headers:{...HEADERS,...cors(request.headers.get("origin")??"")},
@@ -69,10 +195,8 @@ Deno.serve(async(request:Request)=>{
     // Owner-authenticated, zero-cost preflight: no provider call and no quota debit.
     // Do not expose the secret value or any part of it.
     if(body.action==="status")return answer(request,{
-      ok:true,provider:"geoapify",configured:Boolean(key),dailyLimit:10,
+      ok:true,provider:"geoapify",configured:Boolean(key),fallback:"osm",dailyLimit:10,
     });
-    if(!key)return fail(request,"NOT_CONFIGURED",
-      "A fonte Geoapify ainda precisa de GEOAPIFY_API_KEY no Supabase original.",503);
     const segment=text(body?.segment,120),city=text(body?.city,80),
       state=text(body?.state,4).toUpperCase();
     const uf=findBrazilianState(state);
@@ -88,7 +212,14 @@ Deno.serve(async(request:Request)=>{
     });
     if(!claim.ok)return fail(request,"QUOTA","Não foi possível validar o limite seguro das buscas Geoapify.",429);
     if(await claim.json()!==true)return fail(request,"QUOTA",
-      "Limite pessoal de 10 buscas Geoapify por dia atingido.",429);
+      "Limite pessoal de 10 buscas por dia atingido.",429);
+    if(!key){
+      const osm=await searchPersonalOsm(city,uf.code,segment,text(body?.neighborhood,80));
+      if(!osm.ok)return fail(request,osm.code,osm.message,
+        osm.code==="LOCATION_NOT_FOUND"?404:osm.code==="UNSUPPORTED_SEGMENT"?400:503);
+      return answer(request,{ok:true,provider:"osm",places:osm.places,partial:false,
+        limit:25,source:"OpenStreetMap / Overpass · © OpenStreetMap contributors"});
+    }
 
     const geo=new URL("https://api.geoapify.com/v1/geocode/search");
     geo.searchParams.set("text",city+", "+uf.name+", Brasil");
