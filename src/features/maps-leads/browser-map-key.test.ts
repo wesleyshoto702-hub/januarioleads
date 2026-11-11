@@ -1,5 +1,5 @@
 /// <reference lib="deno.ns" />
-import { isValidBrowserGoogleMapsKey } from "./browser-map-key.ts";
+import { isValidBrowserGoogleMapsKey, chooseMapProvider } from "./browser-map-key.ts";
 
 function check(value: unknown, message: string) {
   if (!value) throw new Error(message);
@@ -22,4 +22,13 @@ Deno.test("Google Maps key recovery rejects server secrets and malformed input",
   for (const value of values) {
     check(!isValidBrowserGoogleMapsKey(value), "Malformed public browser key was accepted");
   }
+});
+
+Deno.test("Mapa aberto funciona sem nenhuma chave; Google só com chave do site", () => {
+  check(chooseMapProvider("") === "open", "Missing site key must select OpenFreeMap");
+  check(chooseMapProvider("AIza") === "open", "Malformed site key must not block the map");
+  check(chooseMapProvider("AIza" + "A".repeat(35)) === "google",
+    "A valid site-wide browser key can enable Google Maps");
+  check(chooseMapProvider("sk_live_secret") === "open",
+    "Never use a server or billing secret as a Google browser key");
 });
