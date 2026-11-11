@@ -89,6 +89,7 @@ import { loadOpportunityData } from "../features/opportunities/opportunity-data"
 import type { OpportunityRecord } from "../features/opportunities/types";
 import { AppShell, type AppView } from "../components/app-shell/AppShell";
 import { DashboardView } from "../components/dashboard/DashboardView";
+import { GoalsPanel } from "../features/commercial-expansion/GoalsPanel";
 
 import {
   BusinessDetailsModal,
@@ -1813,6 +1814,7 @@ function LeadFlowApp() {
           onScheduleAction={(id, type, date) => saveNextAction(id, { nextActionType: type, nextActionDate: date, nextActionNotes: undefined })}
           onCompleteAction={completeNextAction}
         />
+        <GoalsPanel leads={leads} />
         </>
       ) : view === "leads" ? (
         <section className="page-wrap leads-page">
