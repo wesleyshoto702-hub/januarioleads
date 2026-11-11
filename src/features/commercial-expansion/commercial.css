@@ -107,3 +107,38 @@
 .cx-page .cx-form-cols{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 @media(max-width:1100px){.cx-page .cx-agenda-layout{grid-template-columns:1fr}}
 @media(max-width:550px){.cx-page .cx-day{min-height:49px;padding:5px}.cx-page .cx-day-head,.cx-page .cx-calendar-grid{gap:3px}.cx-page .cx-day span{font-size:9px}.cx-page .cx-calendar-toolbar{align-items:flex-start}.cx-page .cx-form-cols{grid-template-columns:1fr}}
+
+
+/* Objections are embedded in real lead details, and aggregated in prospecting insights. */
+.cx-objection{display:grid;gap:12px;min-width:0}
+.cx-objection>h3{display:flex;align-items:center;gap:8px}
+.cx-objection>h3 svg{color:var(--primary)}
+.cx-objection>p,.cx-objection>small{font-size:11px;color:var(--muted);line-height:1.65}
+.cx-objection-form{display:grid;gap:10px;min-width:0}
+.cx-objection-form label{display:grid;gap:6px;color:var(--text);font-size:11px;font-weight:710}
+.cx-objection-form :is(input,select,textarea){display:block;width:100%;min-width:0;padding:11px;border:1px solid var(--border);border-radius:9px;background:var(--surface-2);color:var(--text);font-size:12px;line-height:1.5}
+.cx-objection-form textarea{resize:vertical}
+.cx-objection-save{display:inline-flex;align-items:center;gap:8px;justify-content:center;background:var(--primary-action);color:var(--primary-contrast);border:1px solid var(--primary);border-radius:9px;font-size:11px;font-weight:780;min-height:40px;padding:9px 15px;justify-self:start;cursor:pointer}
+.cx-objection-history{display:grid;gap:8px}
+.cx-objection-history article{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:flex-start;padding:13px;border:1px solid var(--border);border-radius:11px;background:var(--surface-2)}
+.cx-objection-history article.resolved{opacity:.75}
+.cx-objection-history article>div:first-child{flex:1;min-width:180px}
+.cx-objection-history strong{display:block;color:var(--text);font-size:12px}
+.cx-objection-history small{display:block;margin:5px 0;color:var(--muted);font-size:10px}
+.cx-objection-history p{margin:5px 0;font-size:12px;color:var(--text);line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
+.cx-objection-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.cx-objection-actions button{display:flex;align-items:center;gap:5px;cursor:pointer;background:var(--surface);border:1px solid var(--border);border-radius:7px;color:var(--text);padding:7px 9px;font-size:10px}
+.cx-objection-error{color:#ffb0bd;font-size:11px}
+.cx-objection-success{color:#8ad7b1;font-size:11px}
+.cx-objection-summary{padding:20px;margin:18px 0 0;border:1px solid color-mix(in srgb,var(--primary) 20%,var(--border));border-radius:15px;background:linear-gradient(132deg,#152124,#0e181b);color:var(--text)}
+.cx-objection-summary>div:first-child{display:flex;align-items:center;gap:12px}
+.cx-objection-summary>div:first-child>svg{color:var(--primary);flex:none}
+.cx-objection-summary h2{font-size:16px;font-weight:780;margin:0 0 5px;color:#f0f6f7}
+.cx-objection-summary p,.cx-objection-summary>small{color:#93a8ae;font-size:11px;line-height:1.7;margin:0}
+.cx-objection-total{display:block;color:var(--primary);font-size:23px;letter-spacing:-.04em;margin:16px 0}
+.cx-objection-bars{display:grid;gap:11px}
+.cx-objection-bar{display:grid;grid-template-columns:minmax(100px,220px) minmax(0,1fr) 40px;gap:12px;align-items:center}
+.cx-objection-bar span{font-size:11px;color:#c7d6d9}
+.cx-objection-bar strong{font-size:12px;text-align:right;color:#e8f2f3}
+.cx-objection-summary>small{display:block;margin-top:15px}
+@media(max-width:560px){.cx-objection-bar{grid-template-columns:1fr 45px}.cx-objection-bar span{grid-column:1 / -1}.cx-objection-history article>div:first-child{min-width:100%}}
