@@ -285,11 +285,13 @@ async function searchPersonalGoogle(
         return fail(request,"GOOGLE_AUTH","O Google Places não autorizou a chave ou este serviço.",503);
       return fail(request,"PROVIDER_UNAVAILABLE","A consulta ao Google Places não foi concluída.",502);
     }
-    if(!payload||!Array.isArray(payload.places))
+    const rawPlaces=Array.isArray(payload?.places)?payload.places:
+      payload?.places===undefined?[]:null;
+    if(rawPlaces===null)
       return fail(request,"PROVIDER_UNAVAILABLE","O Google Places retornou dados inesperados.",502);
     const seen=new Set<string>();
     const places:GooglePersonalPlace[]=[];
-    for(const rawPlace of payload.places){
+    for(const rawPlace of rawPlaces){
       const place=asJson(rawPlace);
       if(!place||!validGoogleLocation(place,city,uf))continue;
       const id=typeof place.id==="string"?place.id.trim():"";
@@ -475,9 +477,8 @@ Deno.serve(async(request:Request)=>{
         const reason=typeof payload?.message==="string"?payload.message:
           "A fonte não retornou dados válidos.";
         errors.push((provider==="google"?"Google Places: ":"Geoapify/OSM: ")+reason);
-        // The shared daily claim is protective. Never circumvent its
-        // exhaustion by switching providers.
-        if(provider==="geoapify"&&payload?.code==="QUOTA")return response;
+        // Shared daily search quota was already enforced before this loop.
+        // Provider-specific quota errors can fall back to the other source.
       }
     }
     if(relatedResult)return relatedResult;
