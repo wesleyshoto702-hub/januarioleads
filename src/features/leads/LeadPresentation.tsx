@@ -20,6 +20,7 @@ import { ChanceBadge } from "../lead-chance/ChanceBadge";
 import { calculateLeadChance, hasEnoughDataForLeadChance } from "../lead-chance/lead-chance";
 import { LeadActionSummary } from "../next-actions/LeadNextActionSection";
 import { STATUS_LABEL } from "./lead-status";
+import { LeadFavoriteButton } from "./LeadFavoriteButton";
 function LeadFinanceMarker({ summary }: { summary: LeadFinanceSummary }) {
   return (
     <div className="lead-finance-marker">
@@ -68,6 +69,7 @@ export function LeadRow({
   onFollowUp,
   onEdit,
   onDelete,
+  onFavorite,
 }: {
   lead: Lead;
   finance: LeadFinanceSummary | null;
@@ -78,6 +80,7 @@ export function LeadRow({
   onFollowUp: (lead: Lead) => void;
   onEdit: (lead: Lead) => void;
   onDelete: (lead: Lead) => void;
+  onFavorite: (lead: Lead) => void;
 }) {
   const chance = hasEnoughDataForLeadChance(lead) ? calculateLeadChance(lead, lead.segment) : null;
 
@@ -114,6 +117,11 @@ export function LeadRow({
         </small>
       </div>
       <div className="actions-cell">
+        <LeadFavoriteButton
+          company={lead.company}
+          isFavorite={lead.isFavorite === true}
+          onToggle={() => onFavorite(lead)}
+        />
         <button className="lead-details-button" onClick={() => onDetails(lead)} type="button">
           Ver empresa
         </button>
@@ -165,6 +173,7 @@ export function LeadCard({
   onFollowUp,
   onEdit,
   onDelete,
+  onFavorite,
 }: {
   lead: Lead;
   finance: LeadFinanceSummary | null;
@@ -175,6 +184,7 @@ export function LeadCard({
   onFollowUp: (lead: Lead) => void;
   onEdit: (lead: Lead) => void;
   onDelete: (lead: Lead) => void;
+  onFavorite: (lead: Lead) => void;
 }) {
   const chance = hasEnoughDataForLeadChance(lead) ? calculateLeadChance(lead, lead.segment) : null;
 
@@ -207,6 +217,11 @@ export function LeadCard({
       </div>
       {lead.notes && <p className="card-notes">{lead.notes}</p>}
       <div className="card-actions">
+        <LeadFavoriteButton
+          company={lead.company}
+          isFavorite={lead.isFavorite === true}
+          onToggle={() => onFavorite(lead)}
+        />
         <button className="lead-details-button" onClick={() => onDetails(lead)} type="button">
           Ver empresa
         </button>
