@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { findBrazilianState } from "../_shared/brazil-locations.ts";
+import { searchTextForSegment } from "../_shared/niche-catalog.ts";
 import {
   geoapifySearchPlanForSegment, geoapifyNameFallbackPlanForSegment,
   selectGeoapifyPlaces, normalizeGeoapifyPlaces, resolveGeoapifyCityLocation,
@@ -198,6 +199,122 @@ async function searchPersonalOsm(
     console.warn("personal_osm_upstream_fetch",error instanceof Error?error.name:"unknown");
     return {ok:false,code:"PROVIDER_UNAVAILABLE",
       message:"Não foi possível conectar ao servidor comunitário OpenStreetMap."};
+  }
+}
+
+
+/**
+ * The search engine may return Google Places results without a Google basemap,
+ * but the browser MUST show them in a Google-attributed list-only panel.
+ * Google data must never be plotted on OpenFreeMap / OpenStreetMap tiles.
+ *
+ * Only essential identity/location data is requested. This call happens
+ * after a single authenticated daily quota claim in the outer handler.
+ */
+type GooglePersonalPlace={
+  placeId:string;name:string;address:string|null;city:string;state:string;
+  latitude:number;longitude:number;googleMapsUrl:string|null;
+};
+const GOOGLE_TEXT_FIELD_MASK=[
+  "places.id","places.displayName","places.formattedAddress",
+  "places.addressComponents","places.location","places.googleMapsUri",
+].join(",");
+function normalizedCompare(value:string):string{
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .trim().toLocaleLowerCase("pt-BR").replace(/\s+/g," ");
+}
+function validGoogleLocation(place:Record<string,unknown>,city:string,uf:string):boolean{
+  const components=Array.isArray(place.addressComponents)?place.addressComponents:[];
+  let googleCity="", googleState="", googleCountry="";
+  for(const item of components){
+    const row=asJson(item);
+    const types=Array.isArray(row?.types)?row.types:[];
+    if(types.includes("locality")||types.includes("administrative_area_level_2"))
+      googleCity=typeof row?.longText==="string"?row.longText:googleCity;
+    if(types.includes("administrative_area_level_1"))
+      googleState=typeof row?.shortText==="string"?row.shortText:googleState;
+    if(types.includes("country"))
+      googleCountry=typeof row?.shortText==="string"?row.shortText:googleCountry;
+  }
+  // An explicit locality/UF must match. Never return homonymous cities
+  // or nearby businesses from another state.
+  if(googleCountry && normalizedCompare(googleCountry)!=="br")return false;
+  if(googleState && normalizedCompare(googleState)!==normalizedCompare(uf))return false;
+  if(googleCity && normalizedCompare(googleCity)!==normalizedCompare(city))return false;
+  if(googleCity && googleState)return true;
+  const address=typeof place.formattedAddress==="string"?place.formattedAddress:"";
+  const n=normalizedCompare(address);
+  return Boolean(n&&n.includes(normalizedCompare(city))&&
+    (n.includes(" - "+normalizedCompare(uf))||n.includes(", "+normalizedCompare(uf)+",")));
+}
+
+async function searchPersonalGoogle(
+  request:Request,key:string|undefined,city:string,uf:string,
+  segment:string,neighborhood:string,
+):Promise<Response>{
+  if(!key)return fail(request,"NOT_CONFIGURED",
+    "O Google Places complementar não está configurado no Supabase original.",503);
+  const state=findBrazilianState(uf);
+  if(!state)return fail(request,"INVALID_REQUEST","Estado inválido.",400);
+  const q=searchTextForSegment(segment)??segment;
+  const body={
+    textQuery:q+" em "+city+", "+state.name+", Brasil",
+    languageCode:"pt-BR",regionCode:"BR",pageSize:20,
+  };
+  try{
+    const google=await fetch("https://places.googleapis.com/v1/places:searchText",{
+      method:"POST",
+      headers:{
+        "content-type":"application/json","X-Goog-Api-Key":key,
+        "X-Goog-FieldMask":GOOGLE_TEXT_FIELD_MASK,
+      },
+      body:JSON.stringify(body),
+      signal:AbortSignal.timeout(9000),
+    });
+    const raw:unknown=await google.json();
+    const payload=asJson(raw);
+    if(!google.ok){
+      const err=asJson(payload?.error);
+      const status=typeof err?.status==="string"?err.status:"";
+      console.warn("personal_google_http",google.status,status.slice(0,40));
+      if(google.status===429||status==="RESOURCE_EXHAUSTED")
+        return fail(request,"QUOTA","O Google Places atingiu seu limite de uso.",429);
+      if(status==="BILLING_NOT_ENABLED"||status==="FAILED_PRECONDITION")
+        return fail(request,"BILLING_REQUIRED","O projeto Google Places exige faturamento habilitado.",503);
+      if(google.status===401||google.status===403)
+        return fail(request,"GOOGLE_AUTH","O Google Places não autorizou a chave ou este serviço.",503);
+      return fail(request,"PROVIDER_UNAVAILABLE","A consulta ao Google Places não foi concluída.",502);
+    }
+    if(!payload||!Array.isArray(payload.places))
+      return fail(request,"PROVIDER_UNAVAILABLE","O Google Places retornou dados inesperados.",502);
+    const seen=new Set<string>();
+    const places:GooglePersonalPlace[]=[];
+    for(const rawPlace of payload.places){
+      const place=asJson(rawPlace);
+      if(!place||!validGoogleLocation(place,city,uf))continue;
+      const id=typeof place.id==="string"?place.id.trim():"";
+      const display=asJson(place.displayName);
+      const name=typeof display?.text==="string"?display.text.trim():"";
+      const location=asJson(place.location);
+      const lat=location?.latitude,lon=location?.longitude;
+      if(!id||!name||seen.has(id)||typeof lat!=="number"||
+        typeof lon!=="number"||!Number.isFinite(lat)||!Number.isFinite(lon)||
+        Math.abs(lat)>90||Math.abs(lon)>180)continue;
+      const address=typeof place.formattedAddress==="string"?place.formattedAddress:null;
+      if(neighborhood&& !normalizedCompare(address??"").includes(normalizedCompare(neighborhood)))continue;
+      seen.add(id);
+      const mapsUri=typeof place.googleMapsUri==="string"&&
+        /^https:\/\/(?:www\.)?google\.[^/]+\/maps\b|^https:\/\/maps\.google\./i.test(place.googleMapsUri)
+        ? place.googleMapsUri:null;
+      places.push({placeId:id,name,address,city,state:uf,
+        latitude:lat,longitude:lon,googleMapsUrl:mapsUri});
+    }
+    return answer(request,{ok:true,provider:"google",places,limit:20,
+      matchMode:"category",source:"Google Maps"});
+  }catch(error:unknown){
+    console.warn("personal_google_failure",error instanceof Error?error.name:"unknown");
+    return fail(request,"PROVIDER_UNAVAILABLE",
+      "Não foi possível conectar ao Google Places.",503);
   }
 }
 
