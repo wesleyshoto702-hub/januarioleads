@@ -3,8 +3,7 @@ import { useLeadWorkspace, STORAGE } from "../features/leads/use-lead-workspace"
 import { PrivateWorkspace } from "../components/app-shell/PrivateWorkspace";
 import { LeadRow, LeadCard, Select, Modal, EmptyState } from "../features/leads/LeadPresentation";
 import { LeadKanban } from "../features/leads/LeadKanban";
-import { ManualLeadTransfer } from "../features/leads/ManualLeadTransfer";
-import { leadIdentity, type ManualLeadCsvRow } from "../features/leads/manual-leads-csv";
+import { LeadPortfolioOverview } from "../features/leads/LeadPortfolioOverview";
 import {
   enqueueLead,
   flushPendingLeads,
@@ -13,21 +12,16 @@ import {
 } from "../features/leads/pending-leads";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
-  BadgeCheck,
-  Ban,
   Check,
   ChevronDown,
-  Clock3,
   Edit3,
   Loader2,
   MapPin,
   MessageCircle,
   Plus,
   Search,
-  Send,
   Star,
   Trash2,
-  UsersRound,
   X,
 } from "lucide-react";
 import { FormEvent, Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
@@ -40,8 +34,6 @@ import { createLeadActivity } from "../features/lead-activities/lead-activities"
 import type { LeadActivityType } from "../features/lead-activities/types";
 import {
   fetchLeadPayments,
-  FINANCIAL_STATUS_LABEL,
-  formatCurrency,
   monthKey,
   summarizeLeadFinance,
   type FinancialStatus,
@@ -108,7 +100,6 @@ import { getValidSession, signOut, subscribeAuthChange } from "../lib/auth";
 import { accountLocalStorage } from "../lib/account-storage";
 import { DEFAULT_USER_SETTINGS, loadUserSettings, saveUserSettings, type UserSettings } from "../features/settings/user-settings";
 import { SettingsReminders } from "../features/settings/SettingsReminders";
-import { AnimatedNumber } from "../components/app-shell/AnimatedNumber";
 import { openWhatsAppLink } from "../lib/whatsapp";
 import { BRAZIL_STATES, normalizeBrazilianStateCode } from "../lib/brazil-locations";
 import { normalizeLocationText } from "../lib/location";
@@ -1112,34 +1103,6 @@ function LeadFlowApp() {
     setEditingLead(null);
   }
 
-  async function importManualLeads(rows: ManualLeadCsvRow[]): Promise<{ count: number; synced: boolean }> {
-    // Final duplicate check at commit time, not only at CSV preview time.
-    const known = new Set(leads.map((lead) => leadIdentity(lead)));
-    const fresh: Lead[] = [];
-    for (const row of rows.slice(0, 100)) {
-      const identity = leadIdentity(row);
-      if (known.has(identity)) continue;
-      known.add(identity);
-      const lead: Lead = {
-        ...row, id: crypto.randomUUID(), source: "manual",
-        firstContact: crmToday(), createdAt: new Date().toISOString(),
-      };
-      fresh.push(lead);
-    }
-    if (!fresh.length) return { count: 0, synced: true };
-    // Queue all writes first; a failed connection keeps the account-scoped
-    // mutations available for retry rather than discarding the new leads.
-    for (const item of fresh) enqueueLead(item.id, item);
-    setLeads((current) => [...fresh, ...current]);
-    try {
-      await flushPendingLeads();
-      return { count: fresh.length, synced: true };
-    } catch {
-      setRemoteError("Contatos importados na cópia local; sincronização pendente até a conexão voltar.");
-      return { count: fresh.length, synced: false };
-    }
-  }
-
   function toggleFavorite(lead: Lead) {
     // Use the existing per-account offline queue and Supabase synchronization.
     // Favorite state belongs to the saved lead, not to the Google Places result.
@@ -1854,70 +1817,8 @@ function LeadFlowApp() {
             </p>
           )}
 
-          <div className="stats-strip">
-            <Stat label="Total de leads" value={counts.all} tone="neutral" />
-            <Stat label="Enviar mensagem" value={counts.send_message} tone="send_message" />
-            <Stat label="Aguardando" value={counts.waiting} tone="waiting" />
-            <Stat label="Aceitos" value={counts.accepted} tone="accepted" />
-            <Stat label="Recusados" value={counts.rejected} tone="rejected" />
-          </div>
-
-          {financeLoaded && (
-            <section className="finance-summary-strip" aria-label="Resumo financeiro">
-              <FinanceStat
-                label="Recebido no mês"
-                value={formatCurrency(financialOverview.receivedThisMonth)}
-              />
-              <FinanceStat label="A receber" value={formatCurrency(financialOverview.receivable)} />
-              <FinanceStat
-                label="Projetos pagos"
-                value={String(financialOverview.paidProjects)}
-                tone="paid"
-              />
-              <FinanceStat
-                label="Pagamento parcial"
-                value={String(financialOverview.partialProjects)}
-                tone="partial"
-              />
-            </section>
-          )}
-
-          {financeError && (
-            <p className="activity-inline-error finance-load-error" role="status">
-              {financeError}
-            </p>
-          )}
-
-          <ManualLeadTransfer leads={leads} onImport={importManualLeads} />
-
-          <div className="lead-panel">
-            <div className="lead-favorites-switch" role="group" aria-label="Visualizar leads favoritos">
-              <button
-                type="button"
-                className={"lead-favorite-filter" + (!favoritesOnly ? " active" : "")}
-                aria-pressed={!favoritesOnly}
-                onClick={() => setFavoritesOnly(false)}
-              >
-                Todos os leads
-              </button>
-              <button
-                type="button"
-                className={"lead-favorite-filter lead-favorite-filter--star" + (favoritesOnly ? " active" : "")}
-                aria-pressed={favoritesOnly}
-                onClick={() => {
-                  setFavoritesOnly(true);
-                  setSearch("");
-                  setStatusFilter("all");
-                  setActionFilter("all");
-                  setFinancialFilter("all");
-                  setSegmentFilter("all");
-                  setStateFilter("all");
-                  setCityFilter("all");
-                }}
-              >
-                <span aria-hidden="true">⭐</span> Favoritos <span className="favorite-filter-count">{favoriteCount}</span>
-              </button>
-            </div>
+          <div className="lead-panel jl-portfolio-lead-panel">
+            <div className="jl-leads-filter-bar">
             <div className="panel-toolbar">
               <div className="search-box">
                 <Search size={17} />
@@ -1979,68 +1880,68 @@ function LeadFlowApp() {
                 />
               </div>
             </div>
-
-            <div className="filter-row">
-              {(
-                [
-                  ["all", "Todos", counts.all],
-                  ["send_message", "Enviar mensagem", counts.send_message],
-                  ["waiting", "Aguardando", counts.waiting],
-                  ["accepted", "Aceitos", counts.accepted],
-                  ["rejected", "Recusados", counts.rejected],
-                ] as const
-              ).map(([value, label, count]) => (
-                <button
-                  key={value}
-                  type="button"
-                  className={statusFilter === value ? "filter-chip active" : "filter-chip"}
-                  onClick={() => setStatusFilter(value)}
-                >
-                  {label} <span>{count}</span>
-                </button>
-              ))}
             </div>
 
-            <div className="filter-row action-filter-row">
-              <span className="filter-row-label">Acompanhamento</span>
-              {(
-                [
-                  ["all", "Todas as ações", leads.length],
-                  ["today", "Ações para hoje", actionCounts.today],
-                  ["follow-up", "Follow-up", actionCounts.followUp],
-                  ["overdue", "Atrasadas", actionCounts.overdue],
-                ] as const
-              ).map(([value, label, count]) => (
-                <button
-                  key={value}
-                  type="button"
-                  className={actionFilter === value ? "filter-chip active" : "filter-chip"}
-                  onClick={() => setActionFilter(value)}
-                >
-                  {label} <span>{count}</span>
-                </button>
-              ))}
-            </div>
+            <LeadPortfolioOverview
+              statusCounts={counts}
+              selectedStatus={statusFilter}
+              onStatusChange={setStatusFilter}
+              actionCounts={{
+                all: leads.length,
+                today: actionCounts.today,
+                followUp: actionCounts.followUp,
+                overdue: actionCounts.overdue,
+              }}
+              selectedAction={actionFilter}
+              onActionChange={setActionFilter}
+              financeCounts={{
+                all: leads.length,
+                pending: financialOverview.pendingProjects,
+                partial: financialOverview.partialProjects,
+                paid: financialOverview.paidProjects,
+              }}
+              financeLoaded={financeLoaded}
+              selectedFinance={financialFilter}
+              onFinanceChange={setFinancialFilter}
+            />
+            {financeError && (
+              <p className="activity-inline-error finance-load-error" role="status">
+                {financeError}
+              </p>
+            )}
 
-            <div className="filter-row financial-filter-row">
-              <span className="filter-row-label">Financeiro</span>
-              {(
-                [
-                  ["all", "Todos", leads.length],
-                  ["pending", "Pendente", financialOverview.pendingProjects],
-                  ["partial", "Parcial", financialOverview.partialProjects],
-                  ["paid", "Pago", financialOverview.paidProjects],
-                ] as const
-              ).map(([value, label, count]) => (
-                <button
-                  key={value}
-                  type="button"
-                  className={financialFilter === value ? "filter-chip active" : "filter-chip"}
-                  onClick={() => setFinancialFilter(value)}
-                >
-                  {label} <span>{count}</span>
-                </button>
-              ))}
+            <div className="jl-leads-list-controls">
+            <div className="lead-favorites-switch" role="group" aria-label="Visualizar leads favoritos">
+              <button
+                type="button"
+                className={"lead-favorite-filter" + (!favoritesOnly ? " active" : "")}
+                aria-pressed={!favoritesOnly}
+                onClick={() => setFavoritesOnly(false)}
+              >
+                Todos os leads
+              </button>
+              <button
+                type="button"
+                className={"lead-favorite-filter lead-favorite-filter--star" + (favoritesOnly ? " active" : "")}
+                aria-pressed={favoritesOnly}
+                onClick={() => {
+                  setFavoritesOnly(true);
+                  setSearch("");
+                  setStatusFilter("all");
+                  setActionFilter("all");
+                  setFinancialFilter("all");
+                  setSegmentFilter("all");
+                  setStateFilter("all");
+                  setCityFilter("all");
+                }}
+              >
+                <span aria-hidden="true">⭐</span> Favoritos <span className="favorite-filter-count">{favoriteCount}</span>
+              </button>
+            </div>
+              <div className="lead-layout-switch" role="group" aria-label="Visualização da carteira">
+                <button type="button" aria-pressed={leadLayout === "list"} onClick={() => setLeadLayout("list")}>Lista</button>
+                <button type="button" aria-pressed={leadLayout === "kanban"} onClick={() => { setLeadLayout("kanban"); setStatusFilter("all"); }}>Kanban</button>
+              </div>
             </div>
 
             {favoritesOnly && visibleLeads.length === 0 && (
@@ -2050,11 +1951,6 @@ function LeadFlowApp() {
                   : "Nenhum favorito corresponde aos filtros selecionados."}
               </p>
             )}
-
-            <div className="lead-layout-switch" role="group" aria-label="Visualização da carteira">
-              <button type="button" aria-pressed={leadLayout === "list"} onClick={() => setLeadLayout("list")}>Lista</button>
-              <button type="button" aria-pressed={leadLayout === "kanban"} onClick={() => { setLeadLayout("kanban"); setStatusFilter("all"); }}>Kanban</button>
-            </div>
 
             {leadLayout === "kanban" ? (
               <LeadKanban leads={renderedLeads} onChangeStatus={changeStatus}
@@ -2529,39 +2425,6 @@ function LeadFlowApp() {
       )}
       </CommercialCloudGate>
     </AppShell>
-  );
-}
-
-function Stat({ label, value, tone }: { label: string; value: number; tone: "neutral" | Status }) {
-  const Icon = tone === "waiting" ? Clock3 :
-    tone === "accepted" ? BadgeCheck :
-    tone === "rejected" ? Ban :
-    tone === "send_message" ? Send : UsersRound;
-  return (
-    <div className={`stat-item ${tone}`}>
-      <span className={`stat-dot ${tone}`} aria-hidden="true"><Icon size={17} strokeWidth={1.8} /></span>
-      <div>
-        <span className="stat-item-label">{label}</span>
-        <strong><AnimatedNumber value={value} /></strong>
-      </div>
-    </div>
-  );
-}
-
-function FinanceStat({
-  label,
-  value,
-  tone = "neutral",
-}: {
-  label: string;
-  value: string;
-  tone?: "neutral" | "partial" | "paid";
-}) {
-  return (
-    <div className={`finance-summary-item ${tone}`}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
   );
 }
 
