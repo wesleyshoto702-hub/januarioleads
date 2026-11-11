@@ -11,14 +11,13 @@ import { safeExternalHref } from "../../lib/safe-external-url";
 import type { PersistedLead } from "../leads/remote-leads";
 import type { BusinessAddResult } from "../search-leads/BusinessDetailsModal";
 import { findBusinessDuplicate } from "../search-leads/identity";
-import { searchBusinesses } from "../search-leads/search-businesses";
 import type { BusinessSearchResult } from "../search-leads/types";
 import {
   DEFAULT_SEARCH_LOCATION, loadSearchLocation, saveSearchLocation,
   loadBrazilianMunicipalities, resolveMunicipality,
 } from "../search-leads/search-location";
 import { ALL_SEARCH_SEGMENTS, resolveSearchSegment } from "../search-leads/segments";
-import { searchPersonalGeoapify, type PersonalGeoapifyPlace } from "./personal-geoapify";
+import { searchPersonalGeoapify, type PersonalGeoapifyPlace, type PersonalGooglePlace } from "./personal-geoapify";
 import { buildMapPoints } from "./map-points";
 import { RealGoogleMap } from "./RealGoogleMap";
 import { KeylessInteractiveMap } from "./KeylessInteractiveMap";
@@ -53,6 +52,13 @@ function osmBusiness(place:PersonalGeoapifyPlace):BusinessSearchResult {
   };
 }
 
+function personalGoogleBusiness(place:PersonalGooglePlace):BusinessSearchResult{
+  return {...emptyBusiness(),
+    placeId:place.placeId,name:place.name,address:place.address,
+    city:place.city,state:place.state,googleMapsUrl:place.googleMapsUrl,
+    latitude:place.latitude,longitude:place.longitude,
+  };
+}
 function googleCrmBusiness(
   place:BusinessSearchResult,
   input:SearchInput,
@@ -71,10 +77,6 @@ function googleCrmBusiness(
   };
 }
 
-function normalize(value:string):string {
-  return value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
-}
-
 export function MapsPersonalView({
   existingLeads, onAddLead,
 }:{
@@ -87,6 +89,7 @@ export function MapsPersonalView({
   const [state,setState]=useState(initialLocation.state);
   const [segment,setSegment]=useState("Barbearia");
   const [neighborhood,setNeighborhood]=useState("");
+  const [searchPriority,setSearchPriority]=useState<"geoapify"|"google">("geoapify");
   const [municipalities,setMunicipalities]=useState<string[]>([]);
   const [municipalityState,setMunicipalityState]=useState("");
   const [googleResults,setGoogleResults]=useState<BusinessSearchResult[]>([]);
@@ -172,45 +175,32 @@ export function MapsPersonalView({
     setSelection(null);setApplied(null);setSavedIds([]);
     setLoading(true);setError("");
     try{
-      // Automatic: Geoapify first for supported OSM categories; a separate
-      // authenticated Google Places query only if no valid OSM match.
-      const geo=await searchPersonalGeoapify({...input,segment:canonical});
-      if(geo.ok&&geo.places.length){
-        setGeoResults(geo.places);setGoogleResults([]);setGeoMatchMode(geo.matchMode);
-        setResultProvider("geoapify");setSelection(geo.places[0]?.sourceId??null);
-        setApplied({...input,segment:canonical});
-        saveSearchLocation({city:input.city,state:input.state});
+      // One owner-authenticated request, one daily claim. The Supabase Edge
+      // Function orchestrates both providers and decides when a fallback is
+      // necessary. Google billing never occurs for successful Geoapify-first
+      // searches with confirmed matches.
+      const result=await searchPersonalGeoapify({
+        ...input,segment:canonical,priority:searchPriority,
+      });
+      if(!result.ok){
+        setError(result.message);
         return;
       }
-      if(!geo.ok&&geo.code==="QUOTA"){
-        setError(geo.message+". A busca automática foi interrompida para proteger o orçamento das APIs.");
+      if(!result.places.length){
+        setError("Nenhuma empresa correspondente foi localizada nas fontes disponíveis. "+
+          "A cobertura varia conforme nicho e município."+
+          (result.fallbackNote?" "+result.fallbackNote:""));
         return;
       }
-      // Google Places content must NOT be displayed on a non-Google map.
-      // Without a site-level Google Maps key, keep the open map + Geoapify only:
-      // no Google Places search/billing and no Google Places mixed into OSM.
-      if(!canDisplayGooglePlaces(browserKey,googleUnavailable)){
-        setError(geo.ok
-          ? "A busca foi concluída, mas a base aberta não possui estabelecimentos classificados "+
-            "ou identificados pelo nome para este nicho e município. Isso não significa que não existam empresas no local."
-          : "Não foi possível consultar a base aberta: "+geo.message+
-            " A consulta complementar Google não está habilitada para este mapa.");
-        return;
+      if(result.provider==="google"){
+        const list=result.places.map(personalGoogleBusiness);
+        setGoogleResults(list);setGeoResults([]);setGeoMatchMode(null);
+        setResultProvider("google");setSelection(list[0]?.placeId??null);
+      }else{
+        setGeoResults(result.places);setGoogleResults([]);
+        setGeoMatchMode(result.matchMode);setResultProvider("geoapify");
+        setSelection(result.places[0]?.sourceId??null);
       }
-      // Optional, separately billed Google fallback (only with a Google basemap).
-      // Server-side quotas and rate limits remain in force.
-      const google=await searchBusinesses({city:input.city,state:input.state,segment:canonical});
-      if(!google.ok){setError(google.message);return;}
-      let results=google.results;
-      if(input.neighborhood.trim()){
-        const n=normalize(input.neighborhood);
-        results=results.filter(place=>
-          normalize(place.neighborhood??"").includes(n)||
-          normalize(place.address??"").includes(n)
-        );
-      }
-      setGeoResults([]);setGoogleResults(results);
-      setResultProvider("google");setSelection(results[0]?.placeId??null);
       setApplied({...input,segment:canonical});
       saveSearchLocation({city:input.city,state:input.state});
     }catch{
