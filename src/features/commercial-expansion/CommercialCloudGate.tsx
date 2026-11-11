@@ -309,7 +309,7 @@ export function CommercialCloudGate({children}:{children:ReactNode}){
     window.addEventListener(CLOUD_CHANGE_EVENT,onChanged);
     window.addEventListener("online",onOnline);
     window.addEventListener("storage",onStorage);
-    setReady(false);setError("");
+    setReady(false);setError("");setSyncing(false);
     void (async()=>{
       try{
         session=await authSession();
