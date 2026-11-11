@@ -14,7 +14,10 @@ const SDK_URLS = [
   "https://cdn.jsdelivr.net/npm/maplibre-gl@6.17.0/dist/maplibre-gl.mjs",
   "https://unpkg.com/maplibre-gl@6.17.0/dist/maplibre-gl.mjs",
 ] as const;
-const CSS_URL = "https://cdn.jsdelivr.net/npm/maplibre-gl@6.17.0/dist/maplibre-gl.css";
+const CSS_URLS = [
+  "https://cdn.jsdelivr.net/npm/maplibre-gl@6.17.0/dist/maplibre-gl.css",
+  "https://unpkg.com/maplibre-gl@6.17.0/dist/maplibre-gl.css",
+] as const;
 const DEFAULT_STYLE = "https://tiles.openfreemap.org/styles/dark";
 const BRAZIL_CENTER: [number, number] = [-51.9253, -14.235];
 const STYLE_URL = (() => {
@@ -64,7 +67,8 @@ function ensureMapCss(){
   if(document.querySelector('link[data-jl-maplibre-css]'))return;
   const link=document.createElement("link");
   link.rel="stylesheet";
-  link.href=CSS_URL;
+  link.href=CSS_URLS[0];
+  link.onerror=()=>{if(link.href!==CSS_URLS[1])link.href=CSS_URLS[1];};
   link.setAttribute("data-jl-maplibre-css","");
   document.head.appendChild(link);
 }
@@ -145,6 +149,7 @@ export function KeylessInteractiveMap({
           window.clearTimeout(timeout);
           setMessage("O servidor do mapa não respondeu. Exibindo visualização alternativa.");
           setMode("fallback");
+          observer?.disconnect();
           instance.remove();map.current=null;sdk.current=null;
         });
         // CSP, tile services or WebGL may fail without a usable error event.
@@ -152,6 +157,7 @@ export function KeylessInteractiveMap({
           if(!alive)return;
           setMessage("Mapa vetorial indisponível. Exibindo visualização alternativa.");
           setMode("fallback");
+          observer?.disconnect();
           instance.remove();map.current=null;sdk.current=null;
         },14000);
       }catch{
