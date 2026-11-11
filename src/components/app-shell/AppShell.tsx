@@ -25,7 +25,6 @@ export type AppView =
   | "dashboard"
   | "leads"
   | "search"
-  | "maps"
   | "prospecting"
   | "opportunities"
   | "digital-presence"
@@ -65,7 +64,6 @@ const VIEW_TITLES: Record<AppView, string> = {
   dashboard: "Dashboard",
   leads: "Meus Leads",
   search: "Buscar Leads",
-  maps: "Buscar Leads",
   prospecting: "Informações de Prospecção",
   opportunities: "Oportunidades",
   "digital-presence": "Análise Digital",
