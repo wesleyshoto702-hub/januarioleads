@@ -197,6 +197,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--states", default=",".join(STATE_CODES),
                         help="Comma-separated UF codes; default all 27")
+    parser.add_argument("--cities", default="",
+                        help="Optional comma-separated cities, requires exactly one UF; useful for a small pilot")
     parser.add_argument("--boundaries", default=None,
                         help="Optional existing ZIP; defaults to one IBGE ZIP per UF")
     parser.add_argument("--database-max-mb", type=int, default=400)
@@ -215,6 +217,9 @@ def main():
     states = [s.strip().upper() for s in args.states.split(",")]
     if not states or len(set(states)) != len(states) or any(s not in STATE_CODES for s in states):
         parser.error("--states must contain unique Brazilian UF codes")
+    cities = [normalize(s.strip()) for s in args.cities.split(",") if s.strip()]
+    if cities and len(states) != 1:
+        parser.error("--cities requires exactly one UF in --states")
 
     base = os.getenv("SUPABASE_URL", "").rstrip("/")
     key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
@@ -227,6 +232,13 @@ def main():
         boundaries = ensure_state_boundaries(state, args.boundaries)
         municipalities = municipalities_index(boundaries)
         state_munis = municipalities.loc[municipalities.SIGLA_UF == state].copy()
+        if cities:
+            state_munis = state_munis.loc[
+                state_munis.NM_MUN.map(lambda name: normalize(str(name)) in cities)
+            ].copy()
+            found_cities = {normalize(str(name)) for name in state_munis.NM_MUN}
+            if set(cities) != found_cities:
+                raise RuntimeError(f"Municipality not found in {state}: {sorted(set(cities) - found_cities)}")
         if state_munis.empty:
             raise RuntimeError(f"IBGE archive does not cover {state}")
         west, south, east, north = state_munis.total_bounds
@@ -280,7 +292,8 @@ def main():
 
                 if not selected:
                     raise RuntimeError("Overture returned no usable places for this state")
-                partial = city_capped
+                # A municipality-only pilot never marks the whole state as imported.
+                partial = city_capped or bool(cities)
                 if args.max_records_per_state and len(selected) > args.max_records_per_state:
                     selected = selected[:args.max_records_per_state]
                     partial = True
