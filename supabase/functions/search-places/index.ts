@@ -5,8 +5,13 @@ import {
   normalizeBrazilianStateCode,
 } from "../_shared/brazil-locations.ts";
 import { resolveSearchSegment, searchTextForSegment } from "../_shared/niche-catalog.ts";
+import {
+  searchGeoapifyFirst, needsGoogleSupplement, type GeoapifyBusiness,
+} from "../_shared/geoapify-search.ts";
 type BusinessSearchResult = {
   placeId: string;
+  source?: "geoapify" | "google_places";
+  sourceUrl?: string | null;
   name: string;
   primaryCategory: string | null;
   categories: string[];
@@ -95,7 +100,8 @@ const TEXT_FIELD_MASK = [
   "places.displayName",
   "places.primaryTypeDisplayName",
   "places.types",
-  "places.editorialSummary",
+  // Editorial summary elevates Text Search to the costly Atmosphere SKU.
+  // Not necessary for finding and contacting businesses; keep detail-only.
   "places.formattedAddress",
   "places.addressComponents",
   "places.nationalPhoneNumber",
@@ -376,6 +382,8 @@ function parsePlace(place: GooglePlace): BusinessSearchResult | null {
 
   return {
     placeId,
+    source: "google_places",
+    sourceUrl: null,
     name,
     primaryCategory: place.primaryTypeDisplayName?.text?.trim() || null,
     categories: place.types ?? [],
@@ -903,6 +911,41 @@ async function placeDetails(googleApiKey: string, placeId: string) {
   return { ok: true as const, business: parsed };
 }
 
+/**
+ * Comparable identity for dedup only. Do not merge individual data fields
+ * across providers: each result retains one provenance and attribution.
+ */
+function mergeProviderResults(
+  geoResults: readonly GeoapifyBusiness[],
+  googleResults: readonly BusinessSearchResult[],
+): BusinessSearchResult[] {
+  const merged: BusinessSearchResult[] = [...geoResults];
+  for (const google of googleResults) {
+    const exactName = normalize(google.name);
+    const googlePhone = normalizeBrazilianPhone(google.phone || google.internationalPhone);
+    const overlap = merged.findIndex(geo => {
+      if (geo.source !== "geoapify" || normalize(geo.name) !== exactName) return false;
+      const geoPhone = normalizeBrazilianPhone(geo.phone || geo.internationalPhone);
+      if (googlePhone && geoPhone && googlePhone === geoPhone) return true;
+      const close = typeof geo.latitude === "number" &&
+        typeof geo.longitude === "number" &&
+        typeof google.latitude === "number" &&
+        typeof google.longitude === "number" &&
+        Math.abs(geo.latitude - google.latitude) < 0.0015 &&
+        Math.abs(geo.longitude - google.longitude) < 0.0015;
+      return close || Boolean(geo.address && google.address &&
+        normalize(geo.address) === normalize(google.address));
+    });
+    if (overlap >= 0) {
+      // Keep the fully Google-sourced record, not a mixture of provider fields.
+      merged.splice(overlap, 1, google);
+    } else if (!merged.some(item => item.placeId === google.placeId)) {
+      merged.push(google);
+    }
+  }
+  return merged;
+}
+
 async function runSegmentSearch(
   googleApiKey: string,
   body: Record<string, unknown>,
@@ -911,55 +954,90 @@ async function runSegmentSearch(
   const pageToken = body.pageToken;
   const location = requiredSearchLocation(body);
 
-  if (
-    typeof segment !== "string" ||
+  if (typeof segment !== "string" ||
     segment.trim().length < 2 ||
     segment.trim().length > 120 ||
-    !validSearchSegment(segment)
-  ) {
-    return failure(
-      "INVALID_REQUEST",
-      "Informe um segmento válido para realizar a busca.",
-      400,
-    );
+    !validSearchSegment(segment)) {
+    return failure("INVALID_REQUEST",
+      "Informe um segmento válido para realizar a busca.", 400);
   }
-
   if (!location) {
-    return failure(
-      "INVALID_REQUEST",
-      "Informe uma cidade e uma UF válidas do Brasil para realizar a busca.",
-      400,
-    );
+    return failure("INVALID_REQUEST",
+      "Informe uma cidade e uma UF válidas do Brasil para realizar a busca.", 400);
+  }
+  if (pageToken !== undefined &&
+      (typeof pageToken !== "string" ||
+      pageToken.trim().length === 0 || pageToken.length > 4096)) {
+    return failure("INVALID_REQUEST","O token de continuação da busca é inválido.",400);
   }
 
-  if (
-    pageToken !== undefined &&
-    (typeof pageToken !== "string" ||
-      pageToken.trim().length === 0 ||
-      pageToken.length > 4096)
-  ) {
-    return failure(
-      "INVALID_REQUEST",
-      "O token de continuação da busca é inválido.",
-      400,
-    );
+  const query = (searchTextForSegment(segment.trim()) ?? segment.trim()) +
+    " em " + location.city + ", " + stateName(location.state) + ", Brasil";
+  const token = typeof pageToken === "string" ? pageToken.trim() : "";
+  const directGoogle = token.length > 0 && !token.startsWith("geoapify:");
+  // Continuation tokens do not restart Geoapify or repeat the first call.
+  if (directGoogle) {
+    const googleToken = token.startsWith("google:") ? token.slice(7) : token;
+    if (!googleToken) return failure("INVALID_REQUEST","Token da pesquisa inválido.",400);
+    const searched = await textSearch(googleApiKey, query, 20, googleToken);
+    if (!searched.ok) return searched.response;
+    return json({
+      ok: true,
+      results: searched.results.filter(b=>locationMatches(b,location.city,location.state)),
+      nextPageToken: searched.nextPageToken ? "google:" + searched.nextPageToken : null,
+      provider: "google_places",
+    });
+  }
+  const offset = token.startsWith("geoapify:") ? Number(token.slice(9)) : 0;
+  if (!Number.isInteger(offset) || offset < 0 || offset > 80 || offset % 20 !== 0) {
+    return failure("INVALID_REQUEST","Token da pesquisa Geoapify inválido.",400);
   }
 
-  const searched = await textSearch(
-    googleApiKey,
-    `${searchTextForSegment(segment.trim()) ?? segment.trim()} em ${location.city}, ${stateName(location.state)}, Brasil`,
-    20,
-    typeof pageToken === "string" ? pageToken.trim() : undefined,
-  );
+  const geo = await searchGeoapifyFirst({
+    apiKey: Deno.env.get("GEOAPIFY_API_KEY"),
+    segment, city: location.city, state: location.state, offset,
+  });
+  // A Geoapify continuation does not restart Google or duplicate first pages.
+  if (token.startsWith("geoapify:")) {
+    if (!geo.ok) return failure("REQUEST_FAILED",
+      "Não foi possível carregar esta página do Geoapify agora.",503);
+    return json({
+      ok: true, results: geo.results,
+      nextPageToken: geo.nextPageToken, provider: "geoapify",
+    });
+  }
 
-  if (!searched.ok) return searched.response;
-
+  if (geo.ok && !needsGoogleSupplement(geo.results)) {
+    return json({
+      ok: true,
+      results: geo.results,
+      nextPageToken: geo.nextPageToken, provider: "geoapify",
+    });
+  }
+  // No key / category / city / upstream, or too few useful contacts:
+  // ask the existing Google backend; never retry community Overpass APIs.
+  const searched = await textSearch(googleApiKey, query, 20);
+  if (!searched.ok) {
+    if (geo.ok && geo.results.length) {
+      return json({
+        ok: true, results: geo.results,
+        nextPageToken: geo.nextPageToken, provider: "geoapify",
+        providerNotice: "Resultados Geoapify disponíveis; complemento Google temporariamente indisponível.",
+      });
+    }
+    return searched.response;
+  }
+  const filteredGoogle = searched.results.filter(b=>
+    locationMatches(b,location.city,location.state));
+  const results = geo.ok
+    ? mergeProviderResults(geo.results, filteredGoogle)
+    : filteredGoogle;
+  const provider = geo.ok && geo.results.length > 0
+    ? "mixed" : "google_places";
   return json({
-    ok: true,
-    results: searched.results.filter((business) =>
-      locationMatches(business, location.city, location.state)
-    ),
-    nextPageToken: searched.nextPageToken,
+    ok: true, results,
+    nextPageToken: searched.nextPageToken ? "google:" + searched.nextPageToken : null,
+    provider,
   });
 }
 
@@ -1045,7 +1123,7 @@ async function runLeadEnrichment(
 
   const attemptedLayers: EnrichmentMethod[] = [];
 
-  if (typeof lead.placeId === "string" && lead.placeId.trim()) {
+  if (typeof lead.placeId === "string" && lead.placeId.trim() && !lead.placeId.startsWith("geoapify:")) {
     attemptedLayers.push("placeId");
     const details = await placeDetails(googleApiKey, lead.placeId.trim());
     if (!details.ok) return details.response;

@@ -1592,6 +1592,9 @@ function LeadFlowApp() {
       business.city
         ? `Lead encontrado através do buscador de empresas em ${business.city}${business.state ? ` - ${business.state}` : ""}.`
         : "Lead encontrado através do buscador de empresas.",
+      business.source === "geoapify"
+        ? "Fonte: Geoapify / © OpenStreetMap contributors."
+        : "Fonte: Google Maps.",
       business.address ? `Endereço: ${business.address}` : "",
       business.website ? `Site: ${business.website}` : "",
       business.instagram ? `Instagram: ${business.instagram}` : "",
@@ -1714,6 +1717,7 @@ function LeadFlowApp() {
       description: "Empresa adicionada a Meus Leads pelo buscador.",
       metadata: {
         source: "places-search",
+        provider: business.source === "geoapify" ? "geoapify" : "google_places",
         placeId: newLead.placeId ?? null,
       },
     });

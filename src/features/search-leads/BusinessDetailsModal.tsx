@@ -312,6 +312,16 @@ export function BusinessDetailsModal({
               <h2>{business.name}</h2>
               {chance && <ChanceBadge chance={chance} />}
             </div>
+            <div className="business-provider-attribution">
+              {business.source === "geoapify" ? (
+                <span className="business-provider-source">
+                  Dados: Geoapify · <a href="https://www.openstreetmap.org/copyright"
+                    target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a>
+                </span>
+              ) : (
+                <span className="business-provider-source" translate="no">Dados: Google Maps</span>
+              )}
+            </div>
           </div>
           <button
             className="icon-button"
