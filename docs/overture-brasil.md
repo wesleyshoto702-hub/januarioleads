@@ -1,3 +1,20 @@
+## Melhorias sequenciais — busca unificada, leads, custos, dashboard, Brasil (12/11/2026)
+
+As cinco melhorias estão **em desenvolvimento na PR draft**, não publicadas em produção.
+
+1. **Overture → Geoapify → Google Places**: a função `search-places` agora retorna dados Overture sem consultar a Geoapify quando tem 10 ou mais resultados com qualidade de telefone suficiente. Se faltar cobertura, consulta Geoapify; se ainda faltar, o Google é fallback **somente quando autorizado pelo orçamento**.
+2. **Qualidade dos leads**: importação prioriza contatos úteis e reserva até 40% das vagas por cidade para estabelecimentos com telefone/e-mail e sem site identificado. Os links WhatsApp/Instagram/Facebook/linktr.ee/encurtadores não são tratados como site empresarial. Filtros da UI usam a mesma regra; não afirmar que um negócio realmente não possui website.
+3. **Proteção de custos**: migração `20261112130000_search_provider_daily_usage.sql` cria contador diário atômico e privativo. Nova busca `search-places` reserva créditos **antes** de chamar a Geoapify ou Google. Default `GEOAPIFY_SEARCH_DAILY_CAP=120` e `GOOGLE_PLACES_SEARCH_DAILY_CAP=0` — Google desligado para novas pesquisas até habilitação expressa; máximos permitidos 300/dia Geoapify, 20/dia Google. Orçamento zero é condição de segurança; não mudar sem estimar preços. Não cobre outros produtos Google/Geoapify ou faturamento da conta Google Cloud, nem chamadas de enriquecimento/presença em funções distintas. A restrição por usuário `claim_api_request_for_user` continua ativa.
+4. **Dashboard Buscar Leads**: única seção de pesquisa; inclui filtro `Com e-mail`, atalho `Sem site + e-mail`, contadores de leads visíveis com/sem site, telefone, e-mail e origem por provedor. Filtros são locais, sem novas chamadas externas; CSS com wrapping no celular. Nunca recriar `Buscar via Maps`.
+5. **Expansão brasileira planejada, não executada**: `python scripts/plan_overture_expansion.py --states MG,SP,RJ` lista um piloto por cidade, com `--dry-run` e teto de 30 registros/cidade e 100 MiB de banco. `--states ALL` gera um plano para **27 UFs** sem baixar Overture nem escrever no banco. O roteiro começa no Sul de Minas, depois outras localidades; validar cobertura IBGE antes de usar qualquer comando.
+
+### Verificações feitas / pendentes
+
+- **Staging**: 30 estabelecimentos de Lavras/MG continuam no banco, segurança RLS vigente. Migração de orçamento aplicada e função RPC testada sob transação com `ROLLBACK`: duas reservas com teto 2 autorizadas e a terceira negada; orçamento Google zero negado. Nenhum contador real gasto nos testes.
+- **Pendente**: aplicar a nova versão da Edge Function no STAGING e validar login, segmentos, paginação e origem Overture na UI local `bash scripts/preview-buscar-leads-staging.sh`. A interface Lovable na main continua no Supabase de PRODUÇÃO e não é um teste válido do Overture.
+- **Testes offline**: `python -m unittest discover -s tests/overture -v`. GitHub Actions segue bloqueado pela conta; não inferir teste CI aprovado.
+- **Produção**: não migrar nem mesclar até os testes ponta a ponta passarem. Todo custo novo requer confirmação deliberada do limite.
+
 ## Validar Buscar Leads no STAGING (não confundir com Lovable/produção)
 
 **Diagnóstico confirmado em 12/11/2026:** a interface acessada para o teste Hotel/Lavras fez chamadas em `https://czkazbianiflhldenhcj.supabase.co/functions/v1/search-places` (produção), enquanto os 30 Overture importados estão exclusivamente no `https://prlrxjothrslhswpkoza.supabase.co` (staging). O preview do projeto Lovable ainda apontava para a branch `main`, sem a PR #140. Por isso não aparecia a atribuição Overture nos resultados. Não é evidência de falha na tabela nem do importador.
