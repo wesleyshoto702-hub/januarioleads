@@ -30,6 +30,7 @@ type BusinessSearchResult = {
   currentOpeningHours: OpeningHoursSnapshot | null;
   regularOpeningHours: OpeningHoursSnapshot | null;
   website: string | null;
+  email?: string | null;
   instagram: string | null;
   googleMapsUrl: string | null;
   businessStatus: string | null;
