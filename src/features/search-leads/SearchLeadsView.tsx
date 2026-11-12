@@ -16,9 +16,10 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { buildFactualBusinessDescription } from "../business-presence/business-description";
 import { discoverBusinessPresence } from "../business-presence/discover-business-presence";
+import { lookupOutscraperInstagram } from "../business-presence/lookup-outscraper-instagram";
 import { STATUS_LABEL } from "../leads/lead-status";
 import type { LeadStatus } from "../leads/remote-leads";
-import type { BusinessPresence } from "../business-presence/types";
+import type { BusinessPresence, InstagramCandidate } from "../business-presence/types";
 import { ChanceBadge } from "../lead-chance/ChanceBadge";
 import {
   BusinessDetailsModal,
@@ -137,6 +138,11 @@ const DEFAULT_RESULT_FILTERS: ResultFilterState = {
 const SEARCH_LEADS_SESSION_KEY = "leadflow:search-leads-session:v1";
 // Automatic site-only Instagram checks. No OpenAI/web search is launched here.
 const MAX_AUTOMATIC_INSTAGRAM_SITE_CHECKS = 4;
+// Optional paid enrichment happens behind the scenes ONLY after server opt-in
+// and the free official-site check. Never place a paid action in lead cards.
+const MAX_AUTOMATIC_OUTSCRAPER_DOMAINS_PER_SEARCH = 2;
+const OUTSCRAPER_POLL_ATTEMPTS = 6;
+const OUTSCRAPER_POLL_DELAY_MS = 30_000;
 
 type SearchLeadsSession = {
   searchLocation: SearchLocation;
@@ -573,6 +579,7 @@ export function SearchLeadsView({
   const [searchNotice, setSearchNotice] = useState(initialSearchSession?.searchNotice ?? "");
   const [providerNotice, setProviderNotice] = useState("");
   const [instagramCheckingIds, setInstagramCheckingIds] = useState<string[]>([]);
+  const [outscraperAutoEnabled, setOutscraperAutoEnabled] = useState(false);
   const [resultFilters, setResultFilters] = useState<ResultFilterState>(
     initialSearchSession?.resultFilters ?? DEFAULT_RESULT_FILTERS,
   );
@@ -589,11 +596,18 @@ export function SearchLeadsView({
     checked: new Set<string>(),
   });
   const instagramSiteControllersRef = useRef(new Set<AbortController>());
+  const outscraperScanRef = useRef({
+    scope: "",
+    checked: new Set<string>(),
+  });
+  const outscraperControllersRef = useRef(new Set<AbortController>());
 
   useEffect(() => {
     return () => {
       for (const controller of instagramSiteControllersRef.current) controller.abort();
       instagramSiteControllersRef.current.clear();
+      for (const controller of outscraperControllersRef.current) controller.abort();
+      outscraperControllersRef.current.clear();
     };
   }, []);
 
@@ -932,7 +946,10 @@ export function SearchLeadsView({
     // A fresh niche search starts with all results. The "Abertos Agora"
     // filter is offered only after the user sees the fetched companies.
     // Loading another page retains the selected filter.
-    if (!append) onModeChange("all");
+    if (!append) {
+      onModeChange("all");
+      setOutscraperAutoEnabled(false);
+    }
     // A user-initiated search takes precedence over a pending cache refresh.
     hasActiveSearchRef.current = true;
     const requestId = ++searchRequestIdRef.current;
@@ -1028,6 +1045,7 @@ export function SearchLeadsView({
     setResults(uniqueResults);
     setSearchNotice("");
     setProviderNotice(response.providerNotice ?? "");
+    setOutscraperAutoEnabled(response.outscraperAutoEnabled === true);
     storeRecentBusinessSearch(segment,response.results,{
       city: location.city,
       state: location.state,
@@ -1155,6 +1173,29 @@ export function SearchLeadsView({
     setDetails((current) => (current ? merge(current) : current));
   }
 
+  function mergeOutscraperCandidates(placeId: string, incoming: InstagramCandidate[]) {
+    if (!incoming.length) return;
+    const merge = (business: BusinessSearchResult): BusinessSearchResult => {
+      if (business.placeId !== placeId || hasConfirmedInstagram(business)) return business;
+      const rejected = new Set(business.instagramRejectedUrls ?? []);
+      const candidates = [...(business.instagramCandidates ?? []), ...incoming]
+        .filter((candidate, index, all) =>
+          !rejected.has(candidate.url) &&
+          all.findIndex((other) => other.url === candidate.url) === index
+        ).slice(0, 3);
+      if (candidates.length === (business.instagramCandidates?.length ?? 0)) {
+        return business;
+      }
+      return {
+        ...business,
+        instagramCandidates: candidates,
+        instagramNeedsReview: Boolean(candidates.length),
+      };
+    };
+    setResults((current) => current.map(merge));
+    setDetails((current) => current ? merge(current) : current);
+  }
+
   // Progressive first-party verification: after showing search results, inspect
   // at most four public business websites per loaded page. Never trigger the
   // paid web/AI discovery, and never mark a third-party directory link verified.
@@ -1224,6 +1265,84 @@ export function SearchLeadsView({
     );
     void Promise.allSettled(workers);
   }, [screen, loading, results, resultsSegment, resultsLocation.city, resultsLocation.state]);
+
+  // Outscraper is a hidden, optional fallback. The server advertises
+  // availability only after the API key, explicit opt-in, and both cost caps
+  // are present. The normal search never waits for asynchronous scraping.
+  useEffect(() => {
+    if (screen !== "results" || loading || !outscraperAutoEnabled) {
+      for (const controller of outscraperControllersRef.current) controller.abort();
+      outscraperControllersRef.current.clear();
+      return;
+    }
+    const scope = [
+      searchRequestIdRef.current,
+      resultsSegment,
+      resultsLocation.city,
+      resultsLocation.state,
+    ].join("|");
+    if (outscraperScanRef.current.scope !== scope) {
+      for (const controller of outscraperControllersRef.current) controller.abort();
+      outscraperControllersRef.current.clear();
+      outscraperScanRef.current = { scope, checked: new Set<string>() };
+    }
+    const checked = outscraperScanRef.current.checked;
+    const remaining = MAX_AUTOMATIC_OUTSCRAPER_DOMAINS_PER_SEARCH - checked.size;
+    if (remaining <= 0) return;
+    const targets = results.filter((business) =>
+      hasIdentifiedWebsite(business) &&
+      Boolean(business.instagramCheckedAt) && // Free official-site pass completed
+      !hasConfirmedInstagram(business) &&
+      !(business.instagramCandidates?.length) &&
+      !business.instagramNeedsReview &&
+      !checked.has(business.placeId)
+    ).slice(0, remaining);
+    for (const business of targets) checked.add(business.placeId);
+    if (!targets.length) return;
+    setInstagramCheckingIds((old) => [
+      ...new Set([...old, ...targets.map((business) => business.placeId)]),
+    ]);
+
+    // Keep at most two in-flight domains, each with up to six status polls
+    // spread over 3 minutes. Rechecking an existing job cannot submit a
+    // second paid domain task: the Supabase reservation enforces uniqueness.
+    for (const business of targets) {
+      const controller = new AbortController();
+      outscraperControllersRef.current.add(controller);
+      void (async () => {
+        try {
+          let response = await lookupOutscraperInstagram(business, {
+            signal: controller.signal,
+          });
+          for (let attempt = 0; attempt < OUTSCRAPER_POLL_ATTEMPTS &&
+              response.status === "pending" && !controller.signal.aborted; attempt++) {
+            await new Promise<void>((resolve) => {
+              setTimeout(resolve, OUTSCRAPER_POLL_DELAY_MS);
+            });
+            if (controller.signal.aborted ||
+                outscraperScanRef.current.scope !== scope) return;
+            response = await lookupOutscraperInstagram(business, {
+              signal: controller.signal,
+            });
+          }
+          if (!controller.signal.aborted &&
+              outscraperScanRef.current.scope === scope &&
+              response.status === "complete") {
+            mergeOutscraperCandidates(business.placeId, response.candidates);
+          }
+        } catch {
+          // Invalid domain, quota, provider errors or network outages must
+          // never interrupt searches or reveal internal billing details.
+        } finally {
+          outscraperControllersRef.current.delete(controller);
+          setInstagramCheckingIds((old) => old.filter((id) => id !== business.placeId));
+        }
+      })();
+    }
+  }, [
+    screen, loading, outscraperAutoEnabled, results, resultsSegment,
+    resultsLocation.city, resultsLocation.state,
+  ]);
 
   if (screen === "segments") {
     return (
@@ -1825,15 +1944,18 @@ function BusinessCard({
               @{instagramHandle(business)} <ExternalLink size={12} />
             </a>
           ) : (business.instagramCandidates?.length ?? 0) > 0 ? (
-            <button
-              type="button"
-              className="business-instagram-review"
-              onClick={() => onDetails(business)}
-              title="Há perfis possíveis para conferir antes de usar"
+            <a
+              className="business-instagram-handle"
+              href={safeExternalHref(business.instagramCandidates?.[0]?.url) ?? undefined}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Possível perfil do Instagram — identidade da empresa ainda não confirmada"
             >
               <Instagram size={12} aria-hidden="true" />
-              Possível Instagram · Conferir
-            </button>
+              @{business.instagramCandidates?.[0]?.username}
+              <span className="business-instagram-possible">possível</span>
+              <ExternalLink size={12} aria-hidden="true" />
+            </a>
           ) : instagramChecking ? (
             <span role="status">Verificando Instagram…</span>
           ) : business.instagramCheckedAt ? (
