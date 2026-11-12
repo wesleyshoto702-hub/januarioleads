@@ -2557,6 +2557,36 @@ select{
   color: var(--text);
 }
 
+/* Maps shortcut is first in the business links row for every source. */
+.business-presence .business-google-maps-link,
+.detail-links .business-google-maps-link{
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 5px;
+  color: var(--primary);
+  font-weight: 750;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.business-google-maps-link svg{
+  flex: 0 0 auto;
+}
+.business-google-maps-link:focus-visible{
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+@media (max-width: 640px){
+  .business-presence .business-google-maps-link{
+    min-height: 36px;
+  }
+  .detail-links .business-google-maps-link{
+    min-height: 40px;
+  }
+}
+
+
 .business-actions{
   width: 176px;
   display: grid;
