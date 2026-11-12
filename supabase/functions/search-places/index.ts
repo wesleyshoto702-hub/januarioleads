@@ -1015,9 +1015,11 @@ async function runSegmentSearch(
     });
   }
 
-  const overture = await searchOverture({
-    city: location.city, state: location.state, segment,
-  });
+  const overture = token.startsWith("geoapify:")
+    ? { ok: false as const, results: [], nextPageToken: null }
+    : await searchOverture({
+      city: location.city, state: location.state, segment,
+    });
   // Avoid external API calls when the open dataset already has useful leads.
   if (overture.ok && overture.results.length >= 15 &&
       !needsGoogleSupplement(overture.results)) {
