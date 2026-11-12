@@ -179,8 +179,8 @@
 .saas-main .leads-page .jl-portfolio-metric.is-active,
 .saas-main .leads-page .jl-portfolio-mini.is-active {
   border-color: var(--jl-leads-accent);
-  background: linear-gradient(140deg,var(--jl-leads-accent-strong),var(--jl-leads-accent-strong));
-  box-shadow: inset 0 0 0 1px rgba(35,235,155,.13),0 4px 16px rgba(0,0,0,.12);
+  background: linear-gradient(140deg,var(--jl-leads-accent-strong),var(--jl-leads-accent-soft));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 13%, transparent),0 4px 16px rgba(0,0,0,.12);
 }
 .saas-main .leads-page .jl-portfolio-metric.is-active .jl-portfolio-metric-icon {
   background: color-mix(in srgb, var(--primary) 16%, transparent);
@@ -411,7 +411,7 @@
   color: var(--jl-leads-accent);
   font-size: 27px;
   line-height: 1;
-  font-family: system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif;
+  font-family: inherit;
   user-select: none;
 }
 .saas-main .leads-page .jl-lead-niche-icon--compact {
