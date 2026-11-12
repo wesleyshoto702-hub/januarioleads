@@ -957,7 +957,7 @@ function mergeProviderResults(
 }
 
 async function runSegmentSearch(
-  googleApiKey: string,
+  googleApiKey: string | undefined,
   body: Record<string, unknown>,
 ) {
   const segment = body.segment;
@@ -987,6 +987,9 @@ async function runSegmentSearch(
   const directGoogle = token.length > 0 && !token.startsWith("geoapify:") && !token.startsWith("overture:");
   // Continuation tokens do not restart Geoapify or repeat the first call.
   if (directGoogle) {
+    if (!googleApiKey) {
+      return failure("NOT_CONFIGURED", "A pesquisa complementar Google não está configurada.", 503);
+    }
     const googleToken = token.startsWith("google:") ? token.slice(7) : token;
     if (!googleToken) return failure("INVALID_REQUEST","Token da pesquisa inválido.",400);
     const searched = await textSearch(googleApiKey, query, 20, googleToken);
@@ -1068,8 +1071,20 @@ async function runSegmentSearch(
       provider: openResults.length > geo.results.length ? "mixed" : "geoapify",
     });
   }
-  // No key / category / city / upstream, or too few useful contacts:
-  // ask the existing Google backend; never retry community Overpass APIs.
+  // Google is OPTIONAL: free/open search can operate without its credentials.
+  // A missing key or disabled Google never blocks existing Overture/Geoapify data.
+  if (!googleApiKey) {
+    if (openResults.length) {
+      return json({
+        ok: true, results: openResults,
+        nextPageToken: overture.nextPageToken ?? (geo.ok ? geo.nextPageToken : null),
+        provider: overture.results.length && geo.ok && geo.results.length
+          ? "mixed" : overture.results.length ? "overture" : "geoapify",
+      });
+    }
+    return failure("NOT_CONFIGURED", "Nenhuma fonte de busca está disponível agora.", 503);
+  }
+  // Fallback to Google only for insufficient useful results.
   const searched = await textSearch(googleApiKey, query, 20);
   if (!searched.ok) {
     if (openResults.length) {
@@ -2783,13 +2798,6 @@ async function handleRequest(request: Request) {
   }
 
   const googleApiKey = Deno.env.get("GOOGLE_PLACES_API_KEY");
-  if (!googleApiKey) {
-    return failure(
-      "NOT_CONFIGURED",
-      "A credencial privada do Google Places não está configurada no backend.",
-      500,
-    );
-  }
 
   const parsedBody = await readJsonBody(request);
   if (!parsedBody.ok) {
@@ -2852,6 +2860,9 @@ async function handleRequest(request: Request) {
     }
 
     if (mode === "lead-enrichment") {
+      if (!googleApiKey) return failure(
+        "NOT_CONFIGURED",
+        "O enriquecimento Google Places não está configurado.", 503);
       return await runLeadEnrichment(googleApiKey, requestBody);
     }
 
