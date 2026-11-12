@@ -8,24 +8,38 @@ Usa **Outscraper Emails & Contacts Scraper** (`GET https://api.outscraper.cloud/
 
 Importante: sem site próprio reconhecido, esse produto não tem um domínio confiável a pesquisar. **Não** usa Google Maps Scraper nem Instagram scraping para empresas sem site. Outscraper não garante que o perfil encontrado seja oficial.
 
-### Como funciona no dashboard
+### Como funciona no dashboard — **sem qualquer botão Outscraper**
 
-Em `Buscar Leads → Ver empresa → Instagram`, o botão **Ampliar com Outscraper** aparece para empresas sem Instagram confirmado:
-1. Se não houver site próprio, o botão está indisponível com explicação.
-2. Se houver, a chamada autenticada usa `mode: "outscraper-instagram"` na Edge Function `search-places`.
-3. Se o domínio já tiver consulta registrada, a resposta vem do cache ou consulta o status da tarefa previamente criada. **Nenhuma segunda tarefa cobrada é iniciada para o mesmo domínio**.
-4. Quando o Outscraper devolver `Pending`, o botão passa a dizer `Consultar resultado do Outscraper`. O operador pode consultar novamente após alguns minutos, sem reenviar a pesquisa.
-5. Um candidato aparece como **Possível Instagram** com evidência `Outscraper`, sujeito à confirmação/rejeição manual. Nunca altera um Instagram anteriormente confirmado.
+- A única tela de pesquisa continua sendo **Buscar Leads**. O usuário não ativa nem vê
+  um controle específico do Outscraper: a descoberta acontece automaticamente nos bastidores.
+- Na busca, a interface utiliza primeiro os links públicos do Overture/Geoapify/Google
+  Places e verifica o site oficial de até 4 empresas. Se não aparecer um Instagram
+  e o backend tiver opt-in autorizado, consulta automaticamente o Outscraper
+  para **até 2 domínios por pesquisa**. A busca de leads não espera o retorno.
+- O processamento assíncrono consulta o mesmo job no máximo 6 vezes com intervalos
+  de 30 segundos; a tabela `outscraper_instagram_jobs` impede submissões duplicadas
+  e grava candidatos para buscas futuras. O registro da empresa só recebe
+  candidatos com URLs de Instagram, sem informações pessoais colaterais.
+- A linha do cartão exibe diretamente `@perfil` clicável. Se a fonte é apenas
+  Outscraper/um diretório de terceiros, exibe a etiqueta **possível**, não
+  **confirmado**. Isso evita falsos oficiais. Usuários não precisam abrir a
+  janela "Ver empresa" para descobrir ou visualizar o perfil.
+- Empresas **sem domínio/site próprio** não são pesquisáveis pelo endpoint de
+  Emails & Contacts. Permanecem com Instagram informado pelas fontes gratuitas
+  ou `Instagram não identificado`/não pesquisado, conforme a evidência.
+- A opção anterior `Ampliar com Outscraper` foi **removida do modal**:
+  não a recriar em nenhuma parte da interface. Não remover o atalho Maps.
 
 ### Configuração estritamente server-side (sem expor token)
 
 O operador cria sua chave no site do Outscraper (**Profile → API token**) e configura **somente** em **Supabase STAGING → Edge Functions → Secrets**:
 
 - `OUTSCRAPER_API_KEY` = token secreto (nunca no código, chat, GitHub, `VITE_` ou navegador).
+- `OUTSCRAPER_INSTAGRAM_AUTO_ENABLED` = **não configurado** por padrão (desligado); para habilitar explicitamente, usar `true`.
 - `OUTSCRAPER_INSTAGRAM_DAILY_LIMIT` = **0** por padrão (desligado). Piloto sugerido: `2`.
 - `OUTSCRAPER_INSTAGRAM_30DAY_LIMIT` = **0** por padrão. Piloto sugerido: `20`.
 
-Ambas as flags devem ser **positivas** para permitir novos trabalhos. O limite máximo hardcoded é **10 domínios/dia**, **200 domínios/30 dias**. Não se destina a assegurar saldo gratuito em contas que já usaram Outscraper em outros serviços — conferir o saldo, as cobranças e a franquia do fornecedor **antes** de habilitar. A conta Outscraper, e não o banco Supabase, decide o valor final faturado. API aceita chave em header `X-API-KEY`.
+A variável `AUTO_ENABLED` deve ser `true` e **ambos os limites devem ser positivos** para permitir novos trabalhos. Sem essa autorização, a interface continua usando apenas fontes gratuitas. O limite máximo hardcoded é **10 domínios/dia**, **200 domínios/30 dias**. Não se destina a assegurar saldo gratuito em contas que já usaram Outscraper em outros serviços — conferir o saldo, as cobranças e a franquia do fornecedor **antes** de habilitar. A conta Outscraper, e não o banco Supabase, decide o valor final faturado. API aceita chave em header `X-API-KEY`.
 
 ### Segurança e validação
 
@@ -33,7 +47,7 @@ Ambas as flags devem ser **positivas** para permitir novos trabalhos. O limite m
 - Testes SQL em `ROLLBACK`: orçamento zero bloqueia, 1º domínio reservado, repetição usa cache, 2º domínio reservado e 3º excedente bloqueado; **zero trabalhos persistidos** no teste.
 - A função `search-places` **v21 ACTIVE** na homologação, JWT obrigatório, apenas API de leitura e jobs opcionais.
 - Testes offline Deno `deno test supabase/functions/_shared/outscraper-instagram.test.ts` adicionados, porém **ainda não executados**, GitHub Actions bloqueado por conta. Os fluxos reais de consulta/polling e UI precisam ser validados quando houver chave com quota autorizada.
-- Como a PR está draft, a interface web **não foi publicada**. O botão não aparece no site principal até merge e publicação.
+- Como a PR está draft, a interface web **não foi publicada**. A descoberta automática e os `@perfis` provenientes da API nova só aparecerão após homologação e publicação; não haverá botão Outscraper.
 - **Nenhuma nova chamada Outscraper, cobrança, crédito, fatura, autorização financeira ou importação Overture foi iniciada nesta mudança.**
 
 ## Instagram automático no Buscar Leads — etapa gratuita e progressiva (12/11/2026)
