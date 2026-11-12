@@ -100,7 +100,7 @@
 .js-settings-color-section h3{margin:0;font-size:14px;color:var(--text);font-weight:800}
 .js-settings-color-section>p{margin:0;max-width:670px;color:var(--muted);font-size:12px;line-height:1.7}
 .js-settings-color-section>small{display:block;color:var(--faint);font-size:11px;line-height:1.6}
-.js-settings-color-options{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px}
+.js-settings-color-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:9px}
 .js-settings-color-choice{--swatch:#f12d46;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;position:relative;min-height:94px;padding:11px 6px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2);color:var(--muted);font-size:11px;font-weight:700;cursor:pointer;transition:background .17s,border-color .17s,transform .17s}
 .js-settings-color-choice.is-green{--swatch:#34d399}
 .js-settings-color-choice.is-yellow{--swatch:#facc15}
@@ -108,6 +108,11 @@
 .js-settings-color-choice.is-red{--swatch:#f12d46}
 .js-settings-color-choice.is-white{--swatch:#f2f3f6}
 .js-settings-color-choice.is-black{--swatch:#2a2e35;box-shadow:inset 0 0 0 1px #c9ced6}
+.js-settings-color-choice.is-purple{--swatch:#a78bfa}
+.js-settings-color-choice.is-cyan{--swatch:#22d3ee}
+.js-settings-color-choice.is-orange{--swatch:#fb923c}
+.js-settings-color-choice.is-pink{--swatch:#f472b6}
+.js-settings-color-choice.is-indigo{--swatch:#818cf8}
 .js-settings-color-choice:hover:not(:disabled){transform:translateY(-2px);border-color:var(--swatch)}
 .js-settings-color-choice.is-selected{color:var(--text);border-color:var(--swatch);background:color-mix(in srgb,var(--swatch) 10%,var(--surface-2))}
 .js-settings-color-choice:focus-visible{outline:3px solid var(--swatch);outline-offset:3px}
