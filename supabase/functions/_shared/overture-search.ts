@@ -27,6 +27,7 @@ export type OvertureBusiness = {
   currentOpeningHours: null;
   regularOpeningHours: null;
   website: string | null;
+  email: string | null;
   instagram: string | null;
   googleMapsUrl: null;
   businessStatus: string | null;
@@ -37,7 +38,7 @@ export type OvertureBusiness = {
 type Row = {
   id: string; name: string; category: string | null; city: string; state: string;
   address: string | null; latitude: number; longitude: number; phone: string | null;
-  website: string | null; instagram: string | null; operating_status: string | null;
+  website: string | null; email: string | null; instagram: string | null; operating_status: string | null;
 };
 
 const MAX_PAGE = 20;
@@ -91,7 +92,7 @@ function normalize(s: string) {
 }
 
 function apiCredentials(): { url: string; key: string } | null {
-  if (Deno.env.get("OVERTURE_SEARCH_ENABLED") !== "true") return null;
+  if (Deno.env.get("OVERTURE_SEARCH_ENABLED") === "false") return null;
   const url = Deno.env.get("SUPABASE_URL")?.replace(/\/$/, "");
   const legacy = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
   let modern: string | null = null;
@@ -133,7 +134,7 @@ export async function searchOverture(input: {
     "name_key.ilike.*" + nameTerm + "*",
   ];
   const query = new URLSearchParams({
-    select: "id,name,category,city,state,address,latitude,longitude,phone,website,instagram,operating_status",
+    select: "id,name,category,city,state,address,latitude,longitude,phone,email,website,instagram,operating_status",
     state: "eq." + input.state.toUpperCase(),
     city_key: "eq." + normalize(input.city),
     or: "(" + filters.join(",") + ")",
@@ -171,7 +172,7 @@ export async function searchOverture(input: {
       rating: null, reviewCount: null,
       isOpenNow: null, openingHours: [],
       currentOpeningHours: null, regularOpeningHours: null,
-      website: row.website, instagram: row.instagram, googleMapsUrl: null,
+      website: row.website, email: row.email, instagram: row.instagram, googleMapsUrl: null,
       businessStatus: row.operating_status,
       latitude: row.latitude, longitude: row.longitude,
     }));
