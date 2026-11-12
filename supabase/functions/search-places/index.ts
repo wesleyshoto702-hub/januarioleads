@@ -1024,8 +1024,10 @@ async function runSegmentSearch(
     : await searchOverture({
       city: location.city, state: location.state, segment,
     });
-  // Avoid external API calls when the open dataset already has useful leads.
-  if (overture.ok && overture.results.length >= 15 &&
+  // Ten usable open-data leads are enough for the initial page: do not
+  // spend Geoapify credits just to reach an arbitrary 15-result threshold.
+  // Contact quality remains mandatory; poor results still fall back.
+  if (overture.ok && overture.results.length >= 10 &&
       !needsGoogleSupplement(overture.results)) {
     return json({
       ok: true, results: overture.results,
