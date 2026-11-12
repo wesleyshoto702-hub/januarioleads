@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { buildFactualBusinessDescription } from "../business-presence/business-description";
+import { discoverBusinessPresence } from "../business-presence/discover-business-presence";
 import { STATUS_LABEL } from "../leads/lead-status";
 import type { LeadStatus } from "../leads/remote-leads";
 import type { BusinessPresence } from "../business-presence/types";
@@ -133,6 +134,8 @@ const DEFAULT_RESULT_FILTERS: ResultFilterState = {
 };
 
 const SEARCH_LEADS_SESSION_KEY = "leadflow:search-leads-session:v1";
+// Automatic site-only Instagram checks. No OpenAI/web search is launched here.
+const MAX_AUTOMATIC_INSTAGRAM_SITE_CHECKS = 4;
 
 type SearchLeadsSession = {
   searchLocation: SearchLocation;
@@ -579,6 +582,19 @@ export function SearchLeadsView({
   const hasActiveSearchRef = useRef(Boolean(initialSearchSession));
   // A slower search must never replace results from a newer user request.
   const searchRequestIdRef = useRef(0);
+  const instagramSiteScanRef = useRef({
+    scope: "",
+    checked: new Set<string>(),
+  });
+  const instagramSiteControllersRef = useRef(new Set<AbortController>());
+
+  useEffect(() => {
+    return () => {
+      for (const controller of instagramSiteControllersRef.current) controller.abort();
+      instagramSiteControllersRef.current.clear();
+    };
+  }, []);
+
   useEffect(() => {
     // Do not replace the remote last search with an empty default session.
     if (!selectedSegment && !resultsSegment) return;
@@ -1086,7 +1102,15 @@ export function SearchLeadsView({
             ? business.instagramDisplayName ?? null
             : null
         ),
-        instagramCandidates: presence.instagramCandidates,
+        // Keep provider-supplied possible profiles for manual review when
+        // the official website yields no verified profile, except rejections.
+        instagramCandidates: presence.instagramUrl ? [] : [
+          ...presence.instagramCandidates,
+          ...(business.instagramCandidates ?? []).filter((candidate) =>
+            !presence.instagramRejectedUrls.includes(candidate.url) &&
+            !presence.instagramCandidates.some((item) => item.url === candidate.url)
+          ),
+        ].slice(0, 3),
         instagramRejectedUrls: presence.instagramRejectedUrls,
         instagramSearchSignature: presence.instagramSearchSignature,
         ...(presence.instagramSearchScope
@@ -1124,6 +1148,68 @@ export function SearchLeadsView({
     setResults((current) => current.map(merge));
     setDetails((current) => (current ? merge(current) : current));
   }
+
+  // Progressive first-party verification: after showing search results, inspect
+  // at most four public business websites per loaded page. Never trigger the
+  // paid web/AI discovery, and never mark a third-party directory link verified.
+  useEffect(() => {
+    if (screen !== "results" || loading) {
+      for (const controller of instagramSiteControllersRef.current) controller.abort();
+      instagramSiteControllersRef.current.clear();
+      return;
+    }
+    const scope = [
+      searchRequestIdRef.current,
+      resultsSegment,
+      resultsLocation.city,
+      resultsLocation.state,
+    ].join("|");
+    if (instagramSiteScanRef.current.scope !== scope) {
+      for (const controller of instagramSiteControllersRef.current) controller.abort();
+      instagramSiteControllersRef.current.clear();
+      instagramSiteScanRef.current = { scope, checked: new Set<string>() };
+    }
+
+    const checked = instagramSiteScanRef.current.checked;
+    const remaining = MAX_AUTOMATIC_INSTAGRAM_SITE_CHECKS - checked.size;
+    if (remaining <= 0) return;
+    const targets = results.filter((business) =>
+      Boolean(business.website) &&
+      hasIdentifiedWebsite(business) &&
+      !hasConfirmedInstagram(business) &&
+      !business.instagramNeedsReview &&
+      !business.instagramCheckedAt &&
+      !checked.has(business.placeId)
+    ).slice(0, remaining);
+
+    for (const business of targets) checked.add(business.placeId);
+    // Two sequential workers, never four simultaneous site requests.
+    const workers = Array.from({ length: Math.min(2, targets.length) }, (_, worker) =>
+      (async () => {
+        for (let index = worker; index < targets.length; index += 2) {
+          if (instagramSiteScanRef.current.scope !== scope) return;
+          const business = targets[index];
+          const controller = new AbortController();
+          instagramSiteControllersRef.current.add(controller);
+          try {
+            const presence = await discoverBusinessPresence(business, {
+              allowWebSearch: false,
+              signal: controller.signal,
+            });
+            if (presence && !controller.signal.aborted &&
+                instagramSiteScanRef.current.scope === scope) {
+              updateBusinessPresence(business.placeId, presence);
+            }
+          } catch {
+            // A website that cannot be checked must not block lead search.
+          } finally {
+            instagramSiteControllersRef.current.delete(controller);
+          }
+        }
+      })()
+    );
+    void Promise.allSettled(workers);
+  }, [screen, loading, results, resultsSegment, resultsLocation.city, resultsLocation.state]);
 
   if (screen === "segments") {
     return (
