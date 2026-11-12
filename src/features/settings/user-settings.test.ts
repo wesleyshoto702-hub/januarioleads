@@ -43,13 +43,18 @@ Deno.test("Workspace settings reject unknown start pages and corrupt field types
   assert(value.notifyDueToday&&value.notifyOverdue, "Invalid notifications fall back safely");
 });
 
-Deno.test("Only six approved workspace accent colors are accepted",()=>{
-  for(const color of ["green","yellow","blue","red","white","black"]){
+Deno.test("All eleven approved workspace accent colors are accepted and persist safely",()=>{
+  const supported = [
+    "green","yellow","blue","red","white","black",
+    "purple","cyan","orange","pink","indigo",
+  ];
+  assert(supported.length===11, "Expected eleven available accent choices");
+  for(const color of supported){
     assert(isAccentColor(color), "Valid accent missing: "+color);
     assert(parseUserSettings({accent_color:color}).accentColor===color,
-      "Valid accent lost during parsing");
+      "Valid accent lost during parsing: "+color);
   }
-  for(const value of ["purple","light",null,4,{},[]]){
+  for(const value of ["ultraviolet","magenta","light",null,4,{},[]]){
     assert(!isAccentColor(value), "Unapproved accent accepted");
   }
 });
