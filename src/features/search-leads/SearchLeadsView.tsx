@@ -901,7 +901,7 @@ export function SearchLeadsView({
           setLeadStatusFilter("all");
           setScreen("results");
           setSearchNotice(
-            `O Google Places atingiu o limite temporário. Mostrando ${cached.results.length} resultados salvos da última busca (${checkedAt}).`,
+            `A consulta atingiu um limite temporário. Mostrando ${cached.results.length} resultados salvos da última busca (${checkedAt}).`,
           );
           setRecentSearches(
             storeRecentSearch({
@@ -1721,7 +1721,7 @@ function SearchError({ error }: { error: { code: string; message: string } }) {
           : error.code === "API_NOT_ENABLED"
             ? "Places API indisponível"
             : error.code === "GOOGLE_AUTH"
-              ? "Credencial do Google recusada"
+              ? "Credencial da pesquisa indisponível"
               : error.code === "INVALID_REQUEST"
                 ? "Busca inválida"
                 : "Erro na busca";
