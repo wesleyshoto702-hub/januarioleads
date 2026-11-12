@@ -31,6 +31,7 @@ export type BusinessSearchResult = {
   currentOpeningHours?: OpeningHoursSnapshot | null | undefined;
   regularOpeningHours?: OpeningHoursSnapshot | null | undefined;
   website: string | null;
+  email?: string | null;
   instagram: string | null;
   instagramConfidence?: "high" | "medium" | "low" | null | undefined;
   instagramSource?: InstagramSource | null | undefined;
