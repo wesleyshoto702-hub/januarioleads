@@ -34,6 +34,7 @@ import {
 } from "./identity";
 import { searchBusinesses } from "./search-businesses";
 import { SearchResultsAttribution } from "./BusinessSourceCredit";
+import { GoogleMapsLink } from "./GoogleMapsLink";
 import {
   DEFAULT_SEARCH_LOCATION,
   loadBrazilianMunicipalities,
@@ -1699,6 +1700,7 @@ function BusinessCard({
         </div>
 
         <div className="business-presence">
+          <GoogleMapsLink business={business} />
           {hasIdentifiedWebsite(business) ? (
             <a href={safeExternalHref(business.website) ?? undefined} target="_blank" rel="noopener noreferrer">
               Site <ExternalLink size={12} />
