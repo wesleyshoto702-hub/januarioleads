@@ -33,7 +33,7 @@ import {
   type ExistingLeadIdentity,
 } from "./identity";
 import { searchBusinesses } from "./search-businesses";
-import { BusinessSourceCredit } from "./BusinessSourceCredit";
+import { SearchResultsAttribution } from "./BusinessSourceCredit";
 import {
   DEFAULT_SEARCH_LOCATION,
   loadBrazilianMunicipalities,
@@ -1402,22 +1402,25 @@ export function SearchLeadsView({
           </p>
         </div>
       ) : (
-        <div className="business-results">
-          {visibleResults.map(({ business, existingLead, chance }) => (
-            <BusinessCard
-              key={business.placeId}
-              business={business}
-              segmentLabel={resultsSegment}
-              chance={chance}
-              existingLead={existingLead}
-              onDetails={setDetails}
-              onWhatsApp={openWhatsApp}
-              onMessage={onMessage}
-              onAdd={(item) =>
-                onAddLead(withSearchLocation(item, resultsLocation), resultsSegment)
-              }
-            />
-          ))}
+        <div className="business-results-shell">
+          <SearchResultsAttribution sources={visibleResults.map(({ business }) => business.source)} />
+          <div className="business-results">
+            {visibleResults.map(({ business, existingLead, chance }) => (
+              <BusinessCard
+                key={business.placeId}
+                business={business}
+                segmentLabel={resultsSegment}
+                chance={chance}
+                existingLead={existingLead}
+                onDetails={setDetails}
+                onWhatsApp={openWhatsApp}
+                onMessage={onMessage}
+                onAdd={(item) =>
+                  onAddLead(withSearchLocation(item, resultsLocation), resultsSegment)
+                }
+              />
+            ))}
+          </div>
         </div>
       )}
 
@@ -1587,6 +1590,12 @@ function BusinessCard({
         <div className="business-title-row">
           <div>
             <div className="business-name-line">
+              <span
+                className={"business-origin-dot " +
+                  (business.source === "geoapify"
+                    ? "business-origin-dot--geoapify" : "business-origin-dot--google")}
+                aria-hidden="true"
+              />
               <h2>{business.name}</h2>
               {existingLead?.status && (
                 <span
@@ -1663,7 +1672,6 @@ function BusinessCard({
             <span>Instagram não pesquisado</span>
           )}
         </div>
-        <BusinessSourceCredit source={business.source} />
       </div>
 
       <div className="business-actions">
