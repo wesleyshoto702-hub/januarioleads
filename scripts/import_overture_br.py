@@ -139,7 +139,9 @@ def place_record(feature, municipalities, state):
     if not isinstance(lon, (int, float)) or not isinstance(lat, (int, float)):
         return None
     name = (props.get("names") or {}).get("primary")
-    identifier = props.get("id")
+    # GeoJSON exporters may place the Overture GERS id in Feature.id rather
+    # than properties.id. Preserve either representation.
+    identifier = props.get("id") or feature.get("id")
     if not isinstance(name, str) or not name.strip() or not isinstance(identifier, str):
         return None
     if props.get("operating_status") == "permanently_closed":
