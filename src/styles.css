@@ -4643,6 +4643,9 @@ a{
 }
 
 .business-presence .business-instagram-review{
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   border: 0;
   padding: 0;
   background: transparent;
