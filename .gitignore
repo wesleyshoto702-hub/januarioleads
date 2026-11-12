@@ -43,3 +43,8 @@ supabase/functions/.env
 
 # Python test artifacts
 __pycache__/
+
+# Overture pilot artifacts (never commit local downloads or credentials)
+.venv-overture/
+data/ibge/*.zip
+*.geojsonseq
