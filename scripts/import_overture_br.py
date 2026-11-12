@@ -162,13 +162,17 @@ def main():
     parser.add_argument("--boundaries", default="data/BR_Municipios_2024.zip")
     parser.add_argument("--database-max-mb", type=int, default=400)
     parser.add_argument("--max-records-per-state", type=int, default=0,
-                        help="0=all; nonzero limits state rows and marks coverage partial")
+                        help="0=no state cap; nonzero limits state rows and marks coverage partial")
+    parser.add_argument("--max-records-per-city", type=int, default=20,
+                        help="Per-municipality safety cap, default 20 (0=unlimited)")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
     if args.database_max_mb < 30 or args.database_max_mb > 480:
         parser.error("--database-max-mb must be between 30 and 480 MB")
     if args.max_records_per_state < 0:
         parser.error("--max-records-per-state cannot be negative")
+    if args.max_records_per_city < 0:
+        parser.error("--max-records-per-city cannot be negative")
     states = [s.strip().upper() for s in args.states.split(",")]
     if not states or len(set(states)) != len(states) or any(s not in STATE_CODES for s in states):
         parser.error("--states must contain unique Brazilian UF codes")
@@ -206,6 +210,8 @@ def main():
                                check=True)
                 batch = []
                 partial = False
+                city_counts = {}
+                skipped_city_cap = False
                 with out.open("r", encoding="utf-8") as src:
                     for line in src:
                         line = line.lstrip("\x1e").strip()
@@ -214,6 +220,11 @@ def main():
                         row = place_record(json.loads(line), state_munis, state)
                         if row is None:
                             continue
+                        city_key = row["city_key"]
+                        if args.max_records_per_city and city_counts.get(city_key, 0) >= args.max_records_per_city:
+                            skipped_city_cap = True
+                            continue
+                        city_counts[city_key] = city_counts.get(city_key, 0) + 1
                         batch.append(row)
                         if len(batch) < BATCH_SIZE:
                             continue
@@ -232,6 +243,9 @@ def main():
                     else:
                         api(base, key, "/rest/v1/overture_places?on_conflict=id", "POST", batch)
                         total += len(batch)
+                # "complete" means all available records according to configured
+                # caps; not a guarantee that every Overture place was imported.
+                partial = partial or skipped_city_cap
                 status(base, key, state, "partial" if partial else "complete", total)
                 print(f"[{state}] {total} imported; {'PARTIAL' if partial else 'COMPLETE'}", flush=True)
                 if partial and database_bytes(base, key) >= limit_bytes:
