@@ -1586,6 +1586,16 @@ function BusinessCard({
               )}
               <ChanceBadge chance={chance} />
             </div>
+            <div className="business-provider-attribution">
+              {business.source === "geoapify" ? (
+                <span className="business-provider-source">
+                  Geoapify · <a href="https://www.openstreetmap.org/copyright"
+                    target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a>
+                </span>
+              ) : (
+                <span className="business-provider-source" translate="no">Google Maps</span>
+              )}
+            </div>
             {business.primaryCategory && <span>{business.primaryCategory}</span>}
             {existingLead && <span>Nos seus leads</span>}
           </div>
