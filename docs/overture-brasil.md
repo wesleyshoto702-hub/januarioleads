@@ -11,8 +11,9 @@ As cinco melhorias estão **em desenvolvimento na PR draft**, não publicadas em
 ### Verificações feitas / pendentes
 
 - **Staging**: 30 estabelecimentos de Lavras/MG continuam no banco, segurança RLS vigente. Migração de orçamento aplicada e função RPC testada sob transação com `ROLLBACK`: duas reservas com teto 2 autorizadas e a terceira negada; orçamento Google zero negado. Nenhum contador real gasto nos testes.
-- **Pendente**: aplicar a nova versão da Edge Function no STAGING e validar login, segmentos, paginação e origem Overture na UI local `bash scripts/preview-buscar-leads-staging.sh`. A interface Lovable na main continua no Supabase de PRODUÇÃO e não é um teste válido do Overture.
-- **Testes offline**: `python -m unittest discover -s tests/overture -v`. GitHub Actions segue bloqueado pela conta; não inferir teste CI aprovado.
+- **Staging implantado**: a Edge Function `search-places` foi atualizada para a versão **18**, com JWT obrigatório e as regras novas de prioridade e orçamento. Os contadores continuam zerados até chamadas reais; nenhum fallback pago foi invocado nesta implantação.
+- **Pendente**: validar login, segmentos, paginação, atribuição Overture e apresentação de filtros na UI local `bash scripts/preview-buscar-leads-staging.sh`. A interface Lovable na main continua no Supabase de PRODUÇÃO e não é um teste válido do Overture.
+- **Testes offline**: `python -m unittest discover -s tests/overture -v`. Novos casos cobrem classificação de links sociais, cota de empresas sem site, planejamento das 27 UFs e limites municipais. **Ainda não executados nesta revisão**: GitHub Actions segue bloqueado pela conta; não inferir teste CI aprovado.
 - **Produção**: não migrar nem mesclar até os testes ponta a ponta passarem. Todo custo novo requer confirmação deliberada do limite.
 
 ## Validar Buscar Leads no STAGING (não confundir com Lovable/produção)
