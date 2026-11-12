@@ -35,6 +35,7 @@ import { STATUS_LABEL } from "../leads/lead-status";
 import { normalizeBrazilianPhone } from "./identity";
 import type { BusinessSearchResult } from "./types";
 import { BusinessSourceCredit } from "./BusinessSourceCredit";
+import { GoogleMapsLink } from "./GoogleMapsLink";
 
 export type BusinessDetailsMessageTarget = {
   id?: string;
@@ -438,6 +439,7 @@ export function BusinessDetailsModal({
           <div className="detail-section">
             <h3>Presença online</h3>
             <div className="detail-links">
+              <GoogleMapsLink business={business} />
               {business.website ? (
                 <a href={safeExternalHref(business.website) ?? undefined} target="_blank" rel="noopener noreferrer">
                   <Globe size={15} /> Site <ExternalLink size={13} />
