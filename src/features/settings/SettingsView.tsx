@@ -1,6 +1,6 @@
 import {
   Bell, CheckCircle2, ChevronRight, Database,
-  LogOut, MapPinned, Palette, RefreshCw, Settings2, ShieldCheck,
+  LogOut, Palette, RefreshCw, Settings2, ShieldCheck,
   SlidersHorizontal, Smartphone, UserRound, Users, type LucideIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -9,7 +9,6 @@ import { useConfirmAction } from "../../components/app-shell/ConfirmActionProvid
 import { USE_HTTPONLY_SESSION } from "../../lib/supabase-config";
 import { isLegacyWorkspaceOwner } from "../../lib/account-storage";
 import type { PersistedLead } from "../leads/remote-leads";
-import { getBrowserGoogleMapsKey } from "../maps-leads/browser-map-key";
 import type { AccentColor, UserSettings, SettingsHomeView } from "./user-settings";
 
 type SectionId = "account" | "security" | "preferences" | "notifications"
@@ -73,7 +72,7 @@ export function SettingsView({
   loadError:string;
   onRetry:()=>Promise<void>;
   onSave:(next:UserSettings)=>Promise<void>;
-  onNavigate:(view:"leads"|"maps")=>void;
+  onNavigate:(view:"leads")=>void;
   onLogout:()=>Promise<void>;
   leads:PersistedLead[];
 }){
@@ -86,7 +85,6 @@ export function SettingsView({
   const [working,setWorking]=useState(false);
   const [error,setError]=useState("");
   const [notice,setNotice]=useState("");
-  const mapUsesGoogle=Boolean(getBrowserGoogleMapsKey());
   const owner=isLegacyWorkspaceOwner();
   useEffect(()=>setDraft(settings),[settings]);
   useEffect(()=>{
@@ -270,35 +268,6 @@ export function SettingsView({
             <strong>{leads.length} leads na sua carteira</strong>
             <small>Seus registros carregados no CRM</small>
           </div></div>
-          <div className="js-settings-map-config">
-             <div className="js-settings-map-header">
-               <MapPinned size={22} aria-hidden="true"/>
-               <div>
-                 <strong>Mapa interativo</strong>
-                 <p>Configurado para funcionar sem nenhuma chave inserida pelo usuário.</p>
-               </div>
-             </div>
-             <div className="js-settings-map-status" role="status">
-               <span className="js-settings-status-dot" data-configured="true"/>
-               {mapUsesGoogle
-                 ? "Google Maps configurado para o site, com mapa aberto alternativo"
-                 : "Mapa aberto com OpenFreeMap e OpenStreetMap · sem chave"}
-             </div>
-             <div className="js-settings-map-actions">
-               <button type="button" className="js-settings-button primary" onClick={()=>onNavigate("maps")}>
-                 <MapPinned size={15}/> Abrir mapa interativo
-               </button>
-             </div>
-             <p className="js-settings-map-help">
-               O mapa base é compartilhado por todos os usuários autorizados, sem
-               configurar nada em cada dispositivo. Se o Google Maps estiver habilitado
-               por uma chave pública restrita ao domínio nas configurações da hospedagem,
-               ele será utilizado; caso contrário, o mapa aberto é a opção padrão.
-               A busca de empresas continua sujeita a autenticação, limites e custos dos
-               serviços de pesquisa. O acesso ao Buscar via Maps ainda é restrito ao
-               proprietário até a liberação pública.
-             </p>
-           </div>
            <p className="js-settings-inline-note">Controles públicos de usuários, planos, cobrança e cotas devem ser implementados separadamente com autorização no servidor antes do lançamento.</p>
         </>}
         {(["account","preferences","notifications","appearance"] as SectionId[]).includes(section)&&

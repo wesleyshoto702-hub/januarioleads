@@ -227,14 +227,14 @@ export function parseProposalBackup(serialized: string): ProposalRecord[] {
   catch { throw new Error("Arquivo JSON inválido."); }
   if(!isRecord(parsed) || parsed.product!=="JanuarioLeads" ||
     parsed.section!=="proposals" || parsed.version!==1 ||
-    !Array.isArray(parsed.proposals) || parsed.proposals.length>MAX_PROPOSALS)
+    !Array.isArray(parsed["proposals"]) || parsed["proposals"].length>MAX_PROPOSALS)
     throw new Error("Este arquivo não é um backup compatível de propostas do Januário Leads.");
   const result:ProposalRecord[]=[];
   const ids=new Set<string>();
-  for(const raw of parsed.proposals) {
+  for(const raw of parsed["proposals"]) {
     const record=parseProposal(raw);
-    if(!record || !isRecord(raw) || !Array.isArray(raw.lines) ||
-      raw.lines.length>MAX_LINES || ids.has(record.id))
+    if(!record || !isRecord(raw) || !Array.isArray(raw["lines"]) ||
+      raw["lines"].length>MAX_LINES || ids.has(record.id))
       throw new Error("O backup contém propostas inválidas ou duplicadas.");
     ids.add(record.id);
     result.push(record);
