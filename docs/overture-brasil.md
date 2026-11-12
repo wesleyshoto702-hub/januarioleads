@@ -1,3 +1,41 @@
+## Outscraper para ampliar a busca de Instagram — integração opcional e com custos bloqueados
+
+Implementação na PR draft #140, exclusivamente na **homologação** até validação.
+
+### Qual serviço foi integrado?
+
+Usa **Outscraper Emails & Contacts Scraper** (`GET https://api.outscraper.cloud/emails-and-contacts?query=<dominio>&async=true`), que encontra emails, telefones e **redes sociais** de um **domínio/site**. **Somente perfis Instagram** são extraídos/armazenados; outros contatos são descartados. Documentação: https://docs.outscraper.com/endpoints/emails-and-contacts/.
+
+Importante: sem site próprio reconhecido, esse produto não tem um domínio confiável a pesquisar. **Não** usa Google Maps Scraper nem Instagram scraping para empresas sem site. Outscraper não garante que o perfil encontrado seja oficial.
+
+### Como funciona no dashboard
+
+Em `Buscar Leads → Ver empresa → Instagram`, o botão **Ampliar com Outscraper** aparece para empresas sem Instagram confirmado:
+1. Se não houver site próprio, o botão está indisponível com explicação.
+2. Se houver, a chamada autenticada usa `mode: "outscraper-instagram"` na Edge Function `search-places`.
+3. Se o domínio já tiver consulta registrada, a resposta vem do cache ou consulta o status da tarefa previamente criada. **Nenhuma segunda tarefa cobrada é iniciada para o mesmo domínio**.
+4. Quando o Outscraper devolver `Pending`, o botão passa a dizer `Consultar resultado do Outscraper`. O operador pode consultar novamente após alguns minutos, sem reenviar a pesquisa.
+5. Um candidato aparece como **Possível Instagram** com evidência `Outscraper`, sujeito à confirmação/rejeição manual. Nunca altera um Instagram anteriormente confirmado.
+
+### Configuração estritamente server-side (sem expor token)
+
+O operador cria sua chave no site do Outscraper (**Profile → API token**) e configura **somente** em **Supabase STAGING → Edge Functions → Secrets**:
+
+- `OUTSCRAPER_API_KEY` = token secreto (nunca no código, chat, GitHub, `VITE_` ou navegador).
+- `OUTSCRAPER_INSTAGRAM_DAILY_LIMIT` = **0** por padrão (desligado). Piloto sugerido: `2`.
+- `OUTSCRAPER_INSTAGRAM_30DAY_LIMIT` = **0** por padrão. Piloto sugerido: `20`.
+
+Ambas as flags devem ser **positivas** para permitir novos trabalhos. O limite máximo hardcoded é **10 domínios/dia**, **200 domínios/30 dias**. Não se destina a assegurar saldo gratuito em contas que já usaram Outscraper em outros serviços — conferir o saldo, as cobranças e a franquia do fornecedor **antes** de habilitar. A conta Outscraper, e não o banco Supabase, decide o valor final faturado. API aceita chave em header `X-API-KEY`.
+
+### Segurança e validação
+
+- Migração `20261112190000_outscraper_instagram_guard.sql` aplicada **somente STAGING**; RLS na tabela `public.outscraper_instagram_jobs`, sem SELECT para anon/authenticated, com execução de RPC de reserva limitada a service_role.
+- Testes SQL em `ROLLBACK`: orçamento zero bloqueia, 1º domínio reservado, repetição usa cache, 2º domínio reservado e 3º excedente bloqueado; **zero trabalhos persistidos** no teste.
+- A função `search-places` **v21 ACTIVE** na homologação, JWT obrigatório, apenas API de leitura e jobs opcionais.
+- Testes offline Deno `deno test supabase/functions/_shared/outscraper-instagram.test.ts` adicionados, porém **ainda não executados**, GitHub Actions bloqueado por conta. Os fluxos reais de consulta/polling e UI precisam ser validados quando houver chave com quota autorizada.
+- Como a PR está draft, a interface web **não foi publicada**. O botão não aparece no site principal até merge e publicação.
+- **Nenhuma nova chamada Outscraper, cobrança, crédito, fatura, autorização financeira ou importação Overture foi iniciada nesta mudança.**
+
 ## Instagram automático no Buscar Leads — etapa gratuita e progressiva (12/11/2026)
 
 Implementação na branch da PR #140, ainda não publicada na homepage:
