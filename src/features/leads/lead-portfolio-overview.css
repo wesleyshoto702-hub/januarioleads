@@ -728,8 +728,8 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
-/* Switch to responsive cards before columns become cramped on smaller laptops. */
-@media (max-width: 1340px) {
+/* Switch to responsive cards BEFORE desktop columns become cramped behind the sidebar. */
+@media (max-width: 1740px) {
   .saas-main .leads-page .jl-portfolio-lead-panel .desktop-table {
     display: none;
   }
