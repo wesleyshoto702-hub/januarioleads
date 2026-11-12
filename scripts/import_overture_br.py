@@ -63,12 +63,12 @@ BATCH_SIZE = 150
 
 
 def normalize(value):
-    return " ".join(
-        "".join(
-            c for c in unicodedata.normalize("NFD", value.casefold())
-            if unicodedata.category(c) != "Mn"
-        ).split()
+    """Match the TypeScript search adapter's city/name normalization exactly."""
+    letters = "".join(
+        c for c in unicodedata.normalize("NFD", value.casefold())
+        if unicodedata.category(c) != "Mn"
     )
+    return " ".join(re.sub(r"[^a-z0-9]+", " ", letters).split())
 
 
 def first(values):
