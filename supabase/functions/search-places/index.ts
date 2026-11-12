@@ -847,6 +847,14 @@ async function textSearch(
   pageSize = 10,
   pageToken?: string,
 ) {
+  // Reserve for EACH actual Google text request, including enrichment calls
+  // and pagination; never count a single workflow as just one API request.
+  if (!await claimExternalSearchCall("google_places")) {
+    return {
+      ok: false as const,
+      response: failure("QUOTA", "Limite diário seguro de consultas Google atingido ou desativado.", 429),
+    };
+  }
   const body: Record<string, unknown> = {
     textQuery,
     pageSize,
@@ -900,6 +908,12 @@ async function textSearch(
 }
 
 async function placeDetails(googleApiKey: string, placeId: string) {
+  if (!await claimExternalSearchCall("google_places")) {
+    return {
+      ok: false as const,
+      response: failure("QUOTA", "Limite diário seguro de consultas Google atingido ou desativado.", 429),
+    };
+  }
   const response = await fetch(
     `https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}`,
     {
@@ -1027,9 +1041,6 @@ async function runSegmentSearch(
     }
     const googleToken = token.startsWith("google:") ? token.slice(7) : token;
     if (!googleToken) return failure("INVALID_REQUEST","Token da pesquisa inválido.",400);
-    if (!await claimExternalSearchCall("google_places")) {
-      return failure("QUOTA", "Limite diário de consultas externas atingido ou desativado.", 429);
-    }
     const searched = await textSearch(googleApiKey, query, 20, googleToken);
     if (!searched.ok) return searched.response;
     return json({
@@ -1116,10 +1127,10 @@ async function runSegmentSearch(
       provider: openResults.length > geo.results.length ? "mixed" : "geoapify",
     });
   }
-  // Google is OPTIONAL and explicitly opt-in via GOOGLE_PLACES_SEARCH_DAILY_CAP.
-  // Claim atomically before calling the provider; default daily cap is ZERO.
+  // Google is OPTIONAL: the default cap is ZERO. Individual Google request
+  // helpers claim atomically immediately before each external HTTP request.
   const googleAllowed = Boolean(googleApiKey?.trim()) &&
-    await claimExternalSearchCall("google_places");
+    externalSearchDailyCap("google_places") > 0;
   if (!googleAllowed) {
     if (openResults.length) {
       return json({
