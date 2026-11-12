@@ -235,7 +235,8 @@ def main():
         print(f"[{state}] Overture bbox {bbox}", flush=True)
         if args.dry_run:
             continue
-        if database_bytes(base, key) >= limit_bytes:
+        storage_before = database_bytes(base, key)
+        if storage_before >= limit_bytes:
             print(f"STOP: database reached configured {args.database_max_mb} MB safety limit.")
             return 2
         total = 0
@@ -277,6 +278,8 @@ def main():
                         if rank < len(pool):
                             selected.append(pool[rank])
 
+                if not selected:
+                    raise RuntimeError("Overture returned no usable places for this state")
                 partial = city_capped
                 if args.max_records_per_state and len(selected) > args.max_records_per_state:
                     selected = selected[:args.max_records_per_state]
@@ -288,9 +291,15 @@ def main():
                     batch = selected[start:start + BATCH_SIZE]
                     api(base, key, "/rest/v1/overture_places?on_conflict=id", "POST", batch)
                     total += len(batch)
+                storage_after = database_bytes(base, key)
                 status(base, key, state, "partial" if partial else "complete", total)
-                print(f"[{state}] {total} imported; {'PARTIAL' if partial else 'COMPLETE'}", flush=True)
-                if database_bytes(base, key) >= limit_bytes:
+                delta = storage_after - storage_before
+                bytes_per_imported_row = delta // total if total else 0
+                print(f"[{state}] {total} imported; "
+                      f"database before={storage_before}, after={storage_after}, "
+                      f"delta={delta}, average={bytes_per_imported_row} B/row; "
+                      f"{'PARTIAL' if partial else 'COMPLETE'}", flush=True)
+                if storage_after >= limit_bytes:
                     print("STOP: database safety threshold; remaining states NOT imported.", flush=True)
                     return 2
         except Exception as exc:
