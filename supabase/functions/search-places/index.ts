@@ -1,6 +1,7 @@
 import { isAllowedBrowserOrigin as isTrustedBrowserOrigin } from "../_shared/allowed-browser-origins.ts";
 import type { OpeningHoursSnapshot } from "../_shared/open-now.ts";
 import { searchOverture } from "../_shared/overture-search.ts";
+import { providerInstagramCandidate } from "../_shared/public-instagram-candidate.ts";
 import {
   findBrazilianState,
   normalizeBrazilianStateCode,
@@ -417,6 +418,7 @@ function parsePlace(place: GooglePlace): BusinessSearchResult | null {
   if (!placeId || !name) return null;
 
   const online = websiteAndInstagram(place.websiteUri);
+  const instagramCandidate = providerInstagramCandidate(online.instagram, "Google Places");
 
   return {
     placeId,
@@ -452,7 +454,10 @@ function parsePlace(place: GooglePlace): BusinessSearchResult | null {
     currentOpeningHours: place.currentOpeningHours ?? null,
     regularOpeningHours: place.regularOpeningHours ?? null,
     website: online.website,
-    instagram: online.instagram,
+    // A directory-supplied social profile is not automatically official.
+    instagram: null,
+    instagramConfidence: null,
+    instagramCandidates: instagramCandidate ? [instagramCandidate] : [],
     googleMapsUrl: place.googleMapsUri?.trim() || null,
     businessStatus: place.businessStatus?.trim() || null,
     latitude:
