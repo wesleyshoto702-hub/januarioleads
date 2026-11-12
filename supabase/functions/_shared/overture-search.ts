@@ -93,7 +93,16 @@ function normalize(s: string) {
 function apiCredentials(): { url: string; key: string } | null {
   if (Deno.env.get("OVERTURE_SEARCH_ENABLED") !== "true") return null;
   const url = Deno.env.get("SUPABASE_URL")?.replace(/\/$/, "");
-  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
+  const legacy = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
+  let modern: string | null = null;
+  if (!legacy) {
+    try {
+      const secrets = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") || "{}") as Record<string, unknown>;
+      const values = [secrets.default, ...Object.values(secrets)];
+      modern = values.find(v => typeof v === "string" && v.trim()) as string || null;
+    } catch { /* no modern secret available */ }
+  }
+  const key = legacy || modern;
   if (!url || !key) return null;
   return { url, key };
 }
@@ -138,7 +147,9 @@ export async function searchOverture(input: {
     const response = await fetch(credentials.url + "/rest/v1/overture_places?" + query, {
       headers: {
         apikey: credentials.key,
-        Authorization: "Bearer " + credentials.key,
+        ...(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim() ? {
+          Authorization: "Bearer " + credentials.key,
+        } : {}),
         Accept: "application/json",
       },
       signal: controller.signal,
