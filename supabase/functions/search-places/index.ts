@@ -6,6 +6,7 @@ import {
   normalizeBrazilianStateCode,
 } from "../_shared/brazil-locations.ts";
 import { resolveSearchSegment, searchTextForSegment } from "../_shared/niche-catalog.ts";
+import { geoapifyCategoryForSegment } from "../_shared/geoapify-niche-categories.ts";
 import {
   searchGeoapifyFirst, needsGoogleSupplement, type GeoapifyBusiness,
 } from "../_shared/geoapify-search.ts";
@@ -1089,7 +1090,9 @@ async function runSegmentSearch(
   }
 
   const geoApiKey = Deno.env.get("GEOAPIFY_API_KEY");
+  // Unsupported niches must not reserve a Geoapify quota slot.
   const geoAllowed = Boolean(geoApiKey?.trim()) &&
+    Boolean(geoapifyCategoryForSegment(segment)) &&
     await claimExternalSearchCall("geoapify");
   const geo = geoAllowed
     ? await searchGeoapifyFirst({
