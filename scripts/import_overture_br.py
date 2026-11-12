@@ -181,6 +181,18 @@ def place_record(feature, municipalities, state):
     }
 
 
+def lead_quality(row):
+    """Prioritize genuine, contactable establishments within the per-city quota."""
+    confidence = row.get("confidence")
+    weight = float(confidence) * 5 if isinstance(confidence, (int, float)) else 0
+    return (weight
+            + 12 * bool(row.get("phone"))
+            + 11 * bool(row.get("email"))
+            + 7 * bool(row.get("website"))
+            + 3 * bool(row.get("instagram"))
+            + 2 * bool(row.get("category")))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--states", default=",".join(STATE_CODES),
@@ -198,8 +210,8 @@ def main():
         parser.error("--database-max-mb must be between 30 and 480 MB")
     if args.max_records_per_state < 0:
         parser.error("--max-records-per-state cannot be negative")
-    if args.max_records_per_city < 0:
-        parser.error("--max-records-per-city cannot be negative")
+    if not 1 <= args.max_records_per_city <= 100:
+        parser.error("--max-records-per-city must be between 1 and 100")
     states = [s.strip().upper() for s in args.states.split(",")]
     if not states or len(set(states)) != len(states) or any(s not in STATE_CODES for s in states):
         parser.error("--states must contain unique Brazilian UF codes")
@@ -234,47 +246,51 @@ def main():
                 subprocess.run(["overturemaps", "download", f"--bbox={bbox}",
                                 "--type=place", "-f", "geojsonseq", "-o", str(out)],
                                check=True)
-                batch = []
-                partial = False
-                city_counts = {}
-                skipped_city_cap = False
+                # Store only a small, quality-ranked per-city selection in memory.
+                city_records = {}
+                city_capped = False
                 with out.open("r", encoding="utf-8") as src:
                     for line in src:
-                        line = line.lstrip("\x1e").strip()
+                        line = line.lstrip("\\x1e").strip()
                         if not line:
                             continue
                         row = place_record(json.loads(line), state_munis, state)
                         if row is None:
                             continue
-                        city_key = row["city_key"]
-                        if args.max_records_per_city and city_counts.get(city_key, 0) >= args.max_records_per_city:
-                            skipped_city_cap = True
-                            continue
-                        city_counts[city_key] = city_counts.get(city_key, 0) + 1
-                        batch.append(row)
-                        if len(batch) < BATCH_SIZE:
-                            continue
-                        if database_bytes(base, key) >= limit_bytes:
-                            partial = True
-                            break
-                        api(base, key, "/rest/v1/overture_places?on_conflict=id", "POST", batch)
-                        total += len(batch)
-                        batch.clear()
-                        if args.max_records_per_state and total >= args.max_records_per_state:
-                            partial = True
-                            break
-                if batch and not partial:
+                        pool = city_records.setdefault(row["city_key"], [])
+                        if len(pool) < args.max_records_per_city:
+                            pool.append(row)
+                        else:
+                            city_capped = True
+                            worst = min(range(len(pool)),
+                                        key=lambda idx: lead_quality(pool[idx]))
+                            if lead_quality(row) > lead_quality(pool[worst]):
+                                pool[worst] = row
+
+                # Interleave top-ranked candidates across municipalities.
+                for pool in city_records.values():
+                    pool.sort(key=lead_quality, reverse=True)
+                selected = []
+                for rank in range(args.max_records_per_city):
+                    for city in sorted(city_records):
+                        pool = city_records[city]
+                        if rank < len(pool):
+                            selected.append(pool[rank])
+
+                partial = city_capped
+                if args.max_records_per_state and len(selected) > args.max_records_per_state:
+                    selected = selected[:args.max_records_per_state]
+                    partial = True
+                for start in range(0, len(selected), BATCH_SIZE):
                     if database_bytes(base, key) >= limit_bytes:
                         partial = True
-                    else:
-                        api(base, key, "/rest/v1/overture_places?on_conflict=id", "POST", batch)
-                        total += len(batch)
-                # "complete" means all available records according to configured
-                # caps; not a guarantee that every Overture place was imported.
-                partial = partial or skipped_city_cap
+                        break
+                    batch = selected[start:start + BATCH_SIZE]
+                    api(base, key, "/rest/v1/overture_places?on_conflict=id", "POST", batch)
+                    total += len(batch)
                 status(base, key, state, "partial" if partial else "complete", total)
                 print(f"[{state}] {total} imported; {'PARTIAL' if partial else 'COMPLETE'}", flush=True)
-                if partial and database_bytes(base, key) >= limit_bytes:
+                if database_bytes(base, key) >= limit_bytes:
                     print("STOP: database safety threshold; remaining states NOT imported.", flush=True)
                     return 2
         except Exception as exc:
