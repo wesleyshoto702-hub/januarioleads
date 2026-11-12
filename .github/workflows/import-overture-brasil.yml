@@ -42,6 +42,10 @@ jobs:
     env:
       SUPABASE_URL: ${{ secrets.OVERTURE_SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.OVERTURE_SUPABASE_SERVICE_ROLE_KEY }}
+      STATES: ${{ inputs.states }}
+      TARGET: ${{ inputs.target }}
+      MAX_STATE: ${{ inputs.max_records_per_state }}
+      MAX_CITY: ${{ inputs.max_records_per_city }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -57,14 +61,20 @@ jobs:
             echo 'Defina OVERTURE_SUPABASE_URL e OVERTURE_SUPABASE_SERVICE_ROLE_KEY nos secrets do environment selecionado.' >&2
             exit 1
           fi
-          if [[ "$SUPABASE_URL" != https://*.supabase.co ]]; then
-            echo 'Destino inválido. Requer URL direta de projeto Supabase.' >&2
+          case "$TARGET" in
+            homologacao) expected='https://prlrxjothrslhswpkoza.supabase.co' ;;
+            producao) expected='https://czkazbianiflhldenhcj.supabase.co' ;;
+            *) echo 'Ambiente inválido.' >&2; exit 1 ;;
+          esac
+          if [[ "$SUPABASE_URL" != "$expected" ]]; then
+            echo 'A URL do Supabase não pertence ao environment selecionado.' >&2
             exit 1
           fi
-          if [[ ! "${{ inputs.max_records_per_city }}" =~ ^[0-9]+$ ]];
-             then echo 'O limite por município deve ser inteiro não negativo.' >&2; exit 1
+          if [[ ! "$MAX_CITY" =~ ^[0-9]+$ ]]; then
+            echo 'O limite por município deve ser inteiro não negativo.' >&2
+            exit 1
           fi
-          if [[ ! "${{ inputs.max_records_per_state }}" =~ ^[0-9]+$ ]]; then
+          if [[ ! "$MAX_STATE" =~ ^[0-9]+$ ]]; then
             echo 'O limite por UF deve ser um inteiro não negativo.' >&2
             exit 1
           fi
@@ -75,10 +85,10 @@ jobs:
         run: |
           set -euo pipefail
           python scripts/import_overture_br.py \
-            --states "${{ inputs.states }}" \
+            --states "$STATES" \
             --database-max-mb 400 \
-            --max-records-per-state "${{ inputs.max_records_per_state }}" \
-            --max-records-per-city "${{ inputs.max_records_per_city }}"
+            --max-records-per-state "$MAX_STATE" \
+            --max-records-per-city "$MAX_CITY"
       - name: Registrar relatório
         if: always()
         run: |
