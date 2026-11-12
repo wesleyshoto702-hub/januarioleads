@@ -29,3 +29,42 @@ export function BusinessSourceCredit({
     </small>
   );
 }
+
+
+/**
+ * The results grid is one visually grouped region. Attribution appears only
+ * once above the grid, close to the Places data, rather than under every lead.
+ * The source dots on each row match this legend even for mixed-provider lists.
+ * Per-record attribution remains in the business detail modal.
+ */
+export function SearchResultsAttribution({
+  sources,
+}: {
+  sources: Array<BusinessSearchResult["source"]>;
+}) {
+  const google = sources.some(source => source !== "geoapify");
+  const geoapify = sources.some(source => source === "geoapify");
+  if (!google && !geoapify) return null;
+  return (
+    <div className="business-results-attribution" role="note" aria-label="Origem dos resultados">
+      {google && (
+        <span className="business-results-attribution-entry" translate="no">
+          <span className="business-origin-dot business-origin-dot--google" aria-hidden="true" />
+          <span className="business-results-google-attribution">Google Maps</span>
+        </span>
+      )}
+      {geoapify && (
+        <span className="business-results-attribution-entry">
+          <span className="business-origin-dot business-origin-dot--geoapify" aria-hidden="true" />
+          <a href="https://www.geoapify.com/" target="_blank" rel="noopener noreferrer">
+            Powered by Geoapify
+          </a>
+          <span aria-hidden="true">·</span>
+          <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">
+            © OpenStreetMap contributors
+          </a>
+        </span>
+      )}
+    </div>
+  );
+}
