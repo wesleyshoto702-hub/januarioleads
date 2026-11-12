@@ -936,3 +936,45 @@
     grid-template-columns: minmax(0,1fr);
   }
 }
+
+
+/* Higher-specificity legacy dark styles used fixed teal surfaces.
+   Scope overrides exclusively to Meus Leads; other routes are unchanged. */
+.dark .saas-main .leads-page > .page-heading {
+  background:
+    radial-gradient(ellipse 75% 110% at 75% 10%,
+      color-mix(in srgb, var(--primary) 15%, transparent), transparent 65%),
+    linear-gradient(110deg, var(--jl-leads-elevated), var(--jl-leads-surface));
+  border-color: var(--jl-leads-border);
+}
+.dark .saas-main .leads-page .jl-leads-filter-bar .search-box,
+.dark .saas-main .leads-page .jl-leads-filter-bar .toolbar-selects select {
+  background: var(--jl-leads-elevated);
+  border-color: var(--jl-leads-border);
+  color: var(--text);
+}
+.dark .saas-main .leads-page .jl-leads-filter-bar .search-box:focus-within,
+.dark .saas-main .leads-page .jl-leads-filter-bar .toolbar-selects select:focus-visible {
+  border-color: var(--primary);
+  outline-color: var(--primary);
+}
+.dark .saas-main .leads-page .jl-portfolio-lead-panel .jl-lead-actions.actions-cell button:not(.lead-favorite-button) {
+  background: var(--jl-leads-elevated);
+  border-color: var(--jl-leads-border);
+  color: var(--text);
+}
+.dark .saas-main .leads-page .jl-portfolio-lead-panel .jl-lead-actions.actions-cell button:not(.lead-favorite-button):hover {
+  background: var(--jl-leads-accent-soft);
+  border-color: var(--primary);
+  color: var(--text);
+}
+.dark .saas-main .leads-page .jl-portfolio-lead-panel .jl-lead-actions.actions-cell .lead-favorite-button {
+  background: color-mix(in srgb, var(--jl-leads-favorite) 10%, var(--surface));
+  border-color: color-mix(in srgb, var(--jl-leads-favorite) 35%, var(--border));
+}
+.dark .saas-main .leads-page .jl-portfolio-lead-panel .jl-lead-niche-icon,
+.dark .saas-main .leads-page .lead-kanban-card-top .jl-lead-niche-icon {
+  color: var(--primary);
+  background: var(--jl-leads-accent-soft);
+  border-color: var(--jl-leads-border);
+}
