@@ -37,6 +37,44 @@ class ImporterSafetyTests(unittest.TestCase):
         self.assertEqual(importer.first([None, "", "+5535999999999"]), "+5535999999999")
         self.assertIsNone(importer.first(None))
 
+    def test_social_contacts_and_shorteners_are_not_websites(self):
+        for url in ("https://wa.me/5535999999999", "https://instagram.com/empresa",
+                    "https://bit.ly/agendar", "https://linktr.ee/empresa",
+                    "https://www.facebook.com/empresa"):
+            with self.subTest(url=url):
+                self.assertFalse(importer.is_business_website(url))
+        self.assertTrue(importer.is_business_website("https://minhaempresa.com.br"))
+        self.assertTrue(importer.is_business_website("https://sites.google.com/view/empresa"))
+        self.assertEqual(importer.first_website([
+            "https://wa.me/123456", "https://minhaempresa.com.br"
+        ]), "https://minhaempresa.com.br")
+
+    def test_diverse_selection_preserves_website_free_prospects(self):
+        with_site = [
+            {"id": f"site-{i}", "phone": "+5535999999999", "email": "a@exemplo.com",
+             "website": f"https://example{i}.com.br", "category": "hotel"}
+            for i in range(30)
+        ]
+        without_site = [
+            {"id": f"sem-site-{i}", "phone": "+5535999999999", "email": None,
+             "website": None, "category": "hotel"}
+            for i in range(20)
+        ]
+        chosen = importer.select_diverse_pool(with_site + without_site, 30)
+        self.assertEqual(len(chosen), 30)
+        self.assertEqual(len(set(row["id"] for row in chosen)), 30)
+        self.assertGreaterEqual(sum(not row["website"] for row in chosen), 12)
+
+    def test_diverse_selection_fills_quota_when_all_have_website(self):
+        rows = [
+            {"id": f"site-{i}", "phone": "+5535999999999", "website": "https://a.com",
+             "email": None, "category": "hotel"}
+            for i in range(20)
+        ]
+        chosen = importer.select_diverse_pool(rows, 15)
+        self.assertEqual(len(chosen), 15)
+        self.assertTrue(all(row["website"] for row in chosen))
+
 
 if __name__ == "__main__":
     unittest.main()
