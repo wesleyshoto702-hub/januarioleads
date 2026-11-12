@@ -16,7 +16,7 @@ export function GoogleMapsLink({ business }: { business: MapsLinkBusiness }) {
       aria-label={`Pesquisar ${business.name || business.company || "empresa"} no Google Maps (abre em nova aba)`}
     >
       <MapPinned size={15} aria-hidden="true" />
-      <span>Google Maps</span>
+      <span>Maps</span>
       <ExternalLink size={12} aria-hidden="true" />
     </a>
   );
