@@ -4666,36 +4666,16 @@ a{
   overflow-wrap: anywhere;
 }
 
-.instagram-outscraper{
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 10px;
-  margin: 12px 0 8px;
-}
-.instagram-outscraper .presence-retry{
+.business-presence .business-instagram-possible{
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  min-height: 36px;
-}
-.instagram-outscraper small{
-  display: block;
-  flex-basis: 100%;
-  font-size: 11px;
   color: var(--muted);
-  line-height: 1.45;
-}
-.instagram-outscraper button:disabled{
-  opacity: .5;
-  cursor: not-allowed;
-}
-@media(max-width:640px){
-  .instagram-outscraper .presence-retry{
-    max-width: 100%;
-    width: 100%;
-    justify-content: center;
-  }
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .instagram-manual-actions{
