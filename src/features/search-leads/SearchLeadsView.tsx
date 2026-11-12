@@ -1585,7 +1585,7 @@ function BusinessCard({
   }
 
   return (
-    <article className={"business-card business-card--" + (business.source === "geoapify" ? "open" : "places")}>
+    <article className={"business-card business-card--" + (business.source === "geoapify" || business.source === "overture" ? "open" : "places")}>
       <div className="business-card-main">
         <div className="business-title-row">
           <div>
