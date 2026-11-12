@@ -199,7 +199,13 @@ const LEGACY_DEFAULT_CITY = "Lavras";
 const LEGACY_DEFAULT_STATE = "MG";
 
 function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
+  // The frontend only starts optional background Instagram enrichment when the
+  // operator has deliberately enabled it AND both cost caps are positive.
+  const data = body && typeof body === "object" &&
+    (body as { ok?: unknown }).ok === true
+    ? { ...body, outscraperAutoEnabled: outscraperAutoEnabled() }
+    : body;
+  return new Response(JSON.stringify(data), {
     status,
     headers: {
       ...corsHeaders,
@@ -270,6 +276,13 @@ type OutscraperCacheRow = {
 };
 
 /** Outscraper is strictly opt-in and NEVER used by normal lead search. */
+function outscraperAutoEnabled() {
+  return Deno.env.get("OUTSCRAPER_INSTAGRAM_AUTO_ENABLED") === "true" &&
+    Boolean(Deno.env.get("OUTSCRAPER_API_KEY")?.trim()) &&
+    outscraperSafetyCap("OUTSCRAPER_INSTAGRAM_DAILY_LIMIT") > 0 &&
+    outscraperSafetyCap("OUTSCRAPER_INSTAGRAM_30DAY_LIMIT") > 0;
+}
+
 function outscraperSafetyCap(name: "OUTSCRAPER_INSTAGRAM_DAILY_LIMIT" | "OUTSCRAPER_INSTAGRAM_30DAY_LIMIT") {
   const raw = Deno.env.get(name);
   if (!raw || !/^\d+$/.test(raw.trim())) return 0;
@@ -357,12 +370,11 @@ async function runOutscraperInstagram(body: Record<string, unknown>) {
     400,
   );
 
-  // Claim only after checking the safe domain and server-side key.
-  const apiKey = Deno.env.get("OUTSCRAPER_API_KEY")?.trim();
-  if (!apiKey) return failure(
-    "NOT_CONFIGURED",
-    "A chave Outscraper ainda não foi configurada na homologação.", 503,
+  // Hard fail-closed: API key alone never enables billable enrichment.
+  if (!outscraperAutoEnabled()) return failure(
+    "QUOTA", "Enriquecimento automático desativado ou sem orçamento autorizado.", 429,
   );
+  const apiKey = Deno.env.get("OUTSCRAPER_API_KEY")!.trim();
 
   let reservation: string;
   const claim = await adminRest("rpc/claim_outscraper_instagram_domain", {
