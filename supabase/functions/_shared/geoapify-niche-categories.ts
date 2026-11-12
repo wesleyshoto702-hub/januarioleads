@@ -209,8 +209,8 @@ export const GEOAPIFY_CATEGORIES: Record<string, readonly string[] | null> = {
 
 /** Narrow name filter for categories shared by different specialties. */
 const NAME_FILTERS: Record<string, RegExp> = {
-  "Barbearia": /\\b(barbearia|barber|barbeiro)\\b/i,
-  "Salão de Beleza": /\\b(salao|salão|cabeleireir|hair|beleza)\\b/i,
+  "Barbearia": /\b(barbearia|barber|barbeiro)\b/i,
+  "Salão de Beleza": /\b(salao|salão|cabeleireir|hair|beleza)\b/i,
 };
 
 export function geoapifyCategoryForSegment(value: string): {
