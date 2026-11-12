@@ -24,11 +24,37 @@ import time
 import unicodedata
 from urllib import request, error
 
-IBGE_2024_URL = (
+IBGE_2024_ROOT = (
     "https://geoftp.ibge.gov.br/organizacao_do_territorio/"
-    "malhas_territoriais/malhas_municipais/municipio_2024/"
-    "Brasil/BR_Municipios_2024.zip"
+    "malhas_territoriais/malhas_municipais/municipio_2024"
 )
+
+def state_boundaries_url(state):
+    """IBGE offers one ZIP per UF; do not download the 199 MB national file."""
+    if state not in STATE_CODES:
+        raise ValueError("Invalid Brazilian state code")
+    return f"{IBGE_2024_ROOT}/UFs/{state}/{state}_Municipios_2024.zip"
+
+def ensure_state_boundaries(state, source=None):
+    if source:
+        path = Path(source)
+        if not path.is_file():
+            raise RuntimeError(f"IBGE boundaries file not found: {path}")
+        return path
+    path = Path("data/ibge/") / f"{state}_Municipios_2024.zip"
+    if not path.is_file():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        url = state_boundaries_url(state)
+        print(f"[{state}] Downloading IBGE municipal boundaries: {url}", flush=True)
+        temp = path.with_suffix(".partial")
+        try:
+            request.urlretrieve(url, temp)
+            if temp.stat().st_size < 512:
+                raise RuntimeError("IBGE boundaries download appears empty")
+            temp.rename(path)
+        finally:
+            temp.unlink(missing_ok=True)
+    return path
 STATE_CODES = (
     "AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI "
     "RJ RN RS RO RR SC SP SE TO"
@@ -159,7 +185,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--states", default=",".join(STATE_CODES),
                         help="Comma-separated UF codes; default all 27")
-    parser.add_argument("--boundaries", default="data/BR_Municipios_2024.zip")
+    parser.add_argument("--boundaries", default=None,
+                        help="Optional existing ZIP; defaults to one IBGE ZIP per UF")
     parser.add_argument("--database-max-mb", type=int, default=400)
     parser.add_argument("--max-records-per-state", type=int, default=0,
                         help="0=no state cap; nonzero limits state rows and marks coverage partial")
@@ -177,12 +204,6 @@ def main():
     if not states or len(set(states)) != len(states) or any(s not in STATE_CODES for s in states):
         parser.error("--states must contain unique Brazilian UF codes")
 
-    boundaries = Path(args.boundaries)
-    if not boundaries.is_file():
-        boundaries.parent.mkdir(parents=True, exist_ok=True)
-        print(f"Downloading public IBGE boundaries: {IBGE_2024_URL}", flush=True)
-        request.urlretrieve(IBGE_2024_URL, boundaries)
-    municipalities = municipalities_index(boundaries)
     base = os.getenv("SUPABASE_URL", "").rstrip("/")
     key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
     if not args.dry_run and (not base.startswith("https://") or not key):
@@ -190,7 +211,12 @@ def main():
 
     limit_bytes = args.database_max_mb * 1024 * 1024
     for state in states:
+        # Individual state archive keeps network and runner-memory use modest.
+        boundaries = ensure_state_boundaries(state, args.boundaries)
+        municipalities = municipalities_index(boundaries)
         state_munis = municipalities.loc[municipalities.SIGLA_UF == state].copy()
+        if state_munis.empty:
+            raise RuntimeError(f"IBGE archive does not cover {state}")
         west, south, east, north = state_munis.total_bounds
         # Slightly wider rectangle avoids border rounding gaps.
         bbox = ",".join(f"{v:.6f}" for v in (west - .005, south - .005, east + .005, north + .005))
