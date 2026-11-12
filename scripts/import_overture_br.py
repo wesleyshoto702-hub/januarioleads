@@ -251,7 +251,7 @@ def main():
                 city_capped = False
                 with out.open("r", encoding="utf-8") as src:
                     for line in src:
-                        line = line.lstrip("\\x1e").strip()
+                        line = line.lstrip("\x1e").strip()
                         if not line:
                             continue
                         row = place_record(json.loads(line), state_munis, state)
