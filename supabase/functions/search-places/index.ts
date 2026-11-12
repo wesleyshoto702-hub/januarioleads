@@ -272,6 +272,7 @@ type OutscraperCacheRow = {
   domain: string;
   status: "starting" | "pending" | "complete" | "failed";
   request_id: string | null;
+  created_at: string;
   instagram_candidates: PublicInstagramCandidate[];
 };
 
@@ -293,7 +294,7 @@ function outscraperSafetyCap(name: "OUTSCRAPER_INSTAGRAM_DAILY_LIMIT" | "OUTSCRA
 
 async function outscraperCache(domain: string): Promise<OutscraperCacheRow | null> {
   const response = await adminRest(
-    "outscraper_instagram_jobs?select=domain,status,request_id,instagram_candidates&domain=eq." +
+    "outscraper_instagram_jobs?select=domain,status,request_id,created_at,instagram_candidates&domain=eq." +
     encodeURIComponent(domain) + "&limit=1",
   );
   if (!response?.ok) return null;
@@ -410,6 +411,14 @@ async function runOutscraperInstagram(body: Record<string, unknown>) {
         ? job.instagram_candidates : []);
     }
     if (job.status === "failed") return outscraperReply(domain, "failed");
+    // Outscraper only retains completed async results for four hours.
+    // Never re-submit the same potentially billable domain on expiry.
+    const createdAtMs = Date.parse(job.created_at || "");
+    if (!Number.isFinite(createdAtMs) ||
+        Date.now() - createdAtMs > 4 * 60 * 60 * 1000) {
+      await updateOutscraperCache(domain, "failed", job.request_id);
+      return outscraperReply(domain, "failed");
+    }
     if (!job.request_id || !/^[a-zA-Z0-9_-]{8,128}$/.test(job.request_id)) {
       return outscraperReply(domain, "pending");
     }
