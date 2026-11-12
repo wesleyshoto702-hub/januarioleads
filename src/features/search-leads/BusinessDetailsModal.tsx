@@ -362,6 +362,9 @@ export function BusinessDetailsModal({
             {business.phone && (
               <DetailItem label="Telefone" value={business.phone} />
             )}
+            {business.email && /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(business.email) && (
+              <DetailItem label="E-mail" value={business.email} />
+            )}
             {business.rating !== null && (
               <DetailItem
                 label="Avaliação"
