@@ -1,3 +1,53 @@
+## Piloto de expansão real — homologação somente (12/11/2026)
+
+**Solicitação:** ampliar o Overture gradualmente, mantendo o banco no plano
+gratuito e sem expor credenciais. Esta etapa prepara a execução, não afirma
+que os dados já foram importados.
+
+**Situação observada no banco staging:** 30 estabelecimentos reais
+Overture importados de Lavras/MG; 1 município, 1 UF; 14 MB de banco; os
+27 estados estão registrados no controle, mas nenhum foi concluído.
+`MG=partial` e os demais `pending`.
+
+**Workflow novo** `.github/workflows/import-overture-piloto-staging.yml`:
+importação manual de **um município** por execução, com três barreiras:
+o destino deve ser exatamente `https://prlrxjothrslhswpkoza.supabase.co`,
+limite de 1 a 30 estabelecimentos/município, e teto de **100 MiB de banco**.
+Lê segredos apenas do environment do GitHub `homologacao`.
+Não contém opção para produção nem instala serviços pagos.
+
+**Primeira sequência recomendada, quando o GitHub Actions estiver operacional:**
+
+1. `MG` / `Varginha` / `30`
+2. `MG` / `Pouso Alegre` / `30`
+3. `SP` / `Campinas` / `30`
+4. `RJ` / `Niterói` / `30`
+
+Cada etapa exige conferir contagem, contatos, percentual sem site e armazenamento
+antes de iniciar a seguinte. Usar a mesma cidade de novo é idempotente quanto
+ao ID Overture (UPSERT); não confundir uma amostra municipal com cobertura estadual.
+O planejador `scripts/plan_overture_expansion.py --states ALL` contém
+candidatos nas 27 UFs; **não representa importação concluída**.
+
+**Importante:** os jobs recentes do GitHub Actions falharam antes de
+executar etapas e a rede da sessão não alcança os arquivos geográficos.
+Portanto, **nenhuma cidade além de Lavras foi importada nesta etapa**.
+O workflow está na branch da PR #140 (draft), não na `main`; deve ser
+validado e disponibilizado na branch padrão antes de acionar o botão
+*Run workflow*. Não habilitar produção nem pedir gastos para destravar
+a operação sem verificar a causa do bloqueio de Actions.
+
+**Consultas de auditoria (staging):**
+```sql
+select state, status, imported_rows
+from public.overture_import_progress order by state;
+
+select state, count(distinct city_key) as municipios, count(*) as leads
+from public.overture_places group by state order by state;
+
+select pg_size_pretty(pg_database_size(current_database())) as tamanho_total;
+```
+
 ## Instagram automático no Buscar Leads — etapa gratuita e progressiva (12/11/2026)
 
 Implementação na branch da PR #140, ainda não publicada na homepage:
