@@ -19,7 +19,12 @@ on:
       max_records_per_state:
         description: "0 = sem limite por UF, até o teto do banco; 1000 = teste"
         required: true
-        default: "1000"
+        default: "0"
+        type: string
+      max_records_per_city:
+        description: "0 = sem limite (não recomendado); padrão 20 por município"
+        required: true
+        default: "20"
         type: string
 
 permissions:
@@ -56,6 +61,9 @@ jobs:
             echo 'Destino inválido. Requer URL direta de projeto Supabase.' >&2
             exit 1
           fi
+          if [[ ! "${{ inputs.max_records_per_city }}" =~ ^[0-9]+$ ]];
+             then echo 'O limite por município deve ser inteiro não negativo.' >&2; exit 1
+          fi
           if [[ ! "${{ inputs.max_records_per_state }}" =~ ^[0-9]+$ ]]; then
             echo 'O limite por UF deve ser um inteiro não negativo.' >&2
             exit 1
@@ -69,7 +77,8 @@ jobs:
           python scripts/import_overture_br.py \
             --states "${{ inputs.states }}" \
             --database-max-mb 400 \
-            --max-records-per-state "${{ inputs.max_records_per_state }}"
+            --max-records-per-state "${{ inputs.max_records_per_state }}" \
+            --max-records-per-city "${{ inputs.max_records_per_city }}"
       - name: Registrar relatório
         if: always()
         run: |
