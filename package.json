@@ -11,7 +11,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
-    "test": "deno test src/features/leads/lead-niche-emoji.test.ts src/lib/*.test.ts src/features/messages/*.test.ts src/features/digital-presence/digital-presence.test.ts src/features/proposals/proposals.test.ts src/features/commercial-expansion/campaigns.test.ts src/features/commercial-expansion/sequences.test.ts src/features/commercial-expansion/agenda.test.ts src/features/commercial-expansion/objections.test.ts src/features/commercial-expansion/projects.test.ts src/features/commercial-expansion/goals.test.ts src/features/commercial-expansion/commercial-cloud-model.test.ts src/features/settings/user-settings.test.ts supabase/functions/_shared/",
+    "test": "deno test src/features/leads/lead-niche-symbol.test.ts src/lib/*.test.ts src/features/messages/*.test.ts src/features/digital-presence/digital-presence.test.ts src/features/proposals/proposals.test.ts src/features/commercial-expansion/campaigns.test.ts src/features/commercial-expansion/sequences.test.ts src/features/commercial-expansion/agenda.test.ts src/features/commercial-expansion/objections.test.ts src/features/commercial-expansion/projects.test.ts src/features/commercial-expansion/goals.test.ts src/features/commercial-expansion/commercial-cloud-model.test.ts src/features/settings/user-settings.test.ts supabase/functions/_shared/",
     "test:browser": "playwright test"
   },
   "overrides": {

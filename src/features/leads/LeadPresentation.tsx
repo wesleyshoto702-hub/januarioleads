@@ -112,7 +112,7 @@ export function LeadRow({
               {updateCount} {updateCount === 1 ? "atualização" : "atualizações"}
             </small>
           )}
-          {lead.notes && <small className="jl-lead-company-note" title={lead.notes}>{lead.notes}</small>}
+          {lead.notes && <small className="jl-lead-company-note" title={lead.notes}>{leadNotePreview(lead.notes)}</small>}
         </div>
       </div>
 
@@ -206,7 +206,7 @@ export function LeadCard({
         <CalendarDays size={14} aria-hidden="true"/>
         <span>{lead.lastContact ? "Último contato" : "Primeiro contato"}: {formatDate(contactDate)}</span>
       </div>
-      {lead.notes && <p className="card-notes">{lead.notes}</p>}
+      {lead.notes && <p className="card-notes jl-lead-note-preview" title={lead.notes}>{leadNotePreview(lead.notes)}</p>}
       <LeadCardActions
         lead={lead}
         onFavorite={onFavorite}
@@ -397,6 +397,17 @@ export function EmptyState({ onNew, hasLeads }: { onNew: () => void; hasLeads: b
       )}
     </div>
   );
+}
+
+/** Keep search-generated URLs and raw metadata out of the lead card summary.
+ * Complete notes remain intact in CRM and the Ver empresa detail view.
+ */
+function leadNotePreview(notes: string) {
+  const withoutLinks = notes
+    .replace(/(?:Google Maps\s*:\s*)?https?:\/\/\S+/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return withoutLinks.length > 124 ? withoutLinks.slice(0, 121).trimEnd() + "…" : withoutLinks;
 }
 
 function formatDate(value: string) {

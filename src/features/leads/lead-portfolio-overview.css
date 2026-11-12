@@ -728,17 +728,21 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
-/* Switch to responsive cards BEFORE desktop columns become cramped behind the sidebar. */
-@media (max-width: 1740px) {
+/* Maintain the compact horizontal table on desktop, with horizontal
+   scrolling where eight columns cannot fit. Never show two giant cards. */
+@media (max-width: 759px) {
   .saas-main .leads-page .jl-portfolio-lead-panel .desktop-table {
     display: none;
   }
   .saas-main .leads-page .jl-portfolio-lead-panel .mobile-list {
     display: grid;
-    grid-template-columns: repeat(2,minmax(0,1fr));
-    gap: 13px;
+    grid-template-columns: minmax(0,1fr);
+    gap: 9px;
   }
-  .saas-main .leads-page .jl-lead-mobile-card { margin: 0; min-width: 0; }
+  .saas-main .leads-page .jl-lead-mobile-card {
+    margin: 0;
+    min-width: 0;
+  }
 }
 @media (max-width: 830px) {
   .saas-main .leads-page .jl-portfolio-lead-panel .mobile-list {
@@ -763,5 +767,159 @@
   .saas-main .leads-page .jl-portfolio-lead-panel .desktop-table .table-row.jl-lead-row {
     transition: none;
     transform: none;
+  }
+}
+
+
+/* 2026-11-12: horizontal reference layout, no emoji and no double tiles.
+   The older table-to-two-cards breakpoint is deliberately removed above. */
+.saas-main .leads-page .jl-lead-niche-icon {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  font-size: inherit;
+  color: #29e5a4;
+  background: #07372b;
+  border-color: rgba(34,207,151,.15);
+}
+.saas-main .leads-page .jl-lead-niche-icon svg {
+  display: block;
+  width: 27px;
+  height: 27px;
+  stroke: currentColor;
+}
+.saas-main .leads-page .jl-lead-niche-icon--compact {
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+}
+.saas-main .leads-page .jl-lead-niche-icon--compact svg {
+  width: 19px;
+  height: 19px;
+}
+.saas-main .leads-page .jl-portfolio-lead-panel .desktop-table {
+  display: block;
+  overflow-x: auto;
+  padding: 9px;
+  border-radius: 13px;
+}
+.saas-main .leads-page .jl-portfolio-lead-panel .mobile-list {
+  display: none;
+}
+.saas-main .leads-page .jl-portfolio-lead-panel .desktop-table .table-head,
+.saas-main .leads-page .jl-portfolio-lead-panel .desktop-table .table-row.jl-lead-row {
+  grid-template-columns:
+    minmax(225px,2.15fr)
+    minmax(104px,.95fr)
+    minmax(130px,1.10fr)
+    minmax(137px,1.15fr)
+    minmax(162px,1.37fr)
+    minmax(58px,.55fr)
+    minmax(111px,.96fr)
+    minmax(225px,1.85fr);
+  column-gap: 10px;
+  min-width: 1270px;
+}
+.saas-main .leads-page .jl-portfolio-lead-panel .desktop-table .table-head {
+  min-height: 42px;
+  margin-bottom: 7px;
+  padding: 8px 13px;
+}
+.saas-main .leads-page .jl-portfolio-lead-panel .desktop-table .table-row.jl-lead-row {
+  min-height: 124px;
+  margin-bottom: 7px;
+  padding: 13px 12px;
+  border-radius: 13px;
+  box-shadow: none;
+}
+.saas-main .leads-page .jl-portfolio-lead-panel .desktop-table .table-head span:nth-child(4) {
+  display: block;
+}
+.saas-main .leads-page .jl-portfolio-lead-panel .desktop-table .table-row.jl-lead-row .date-cell {
+  display: flex;
+}
+.saas-main .leads-page .jl-lead-company,
+.saas-main .leads-page .jl-lead-company-copy {
+  min-width: 0;
+}
+.saas-main .leads-page .jl-lead-company-copy {
+  gap: 4px;
+}
+.saas-main .leads-page .jl-lead-company-copy .jl-lead-company-name {
+  font-size: 12px;
+}
+.saas-main .leads-page .jl-lead-company-copy .jl-lead-company-note,
+.saas-main .leads-page .jl-lead-note-preview {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  white-space: normal;
+  max-width: 100%;
+  font-size: 10px;
+  line-height: 1.4;
+  color: #86aaa0;
+}
+.saas-main .leads-page .jl-lead-note-preview {
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  margin: 0;
+}
+.saas-main .leads-page .jl-lead-status-control {
+  gap: 5px;
+}
+.saas-main .leads-page .jl-lead-status-pill {
+  min-height: 32px;
+  padding: 6px 8px;
+}
+.saas-main .leads-page .jl-lead-actions {
+  gap: 6px;
+}
+.saas-main .leads-page .jl-lead-actions-top,
+.saas-main .leads-page .jl-lead-actions-bottom {
+  gap: 5px;
+}
+.saas-main .leads-page .jl-lead-actions .lead-details-button,
+.saas-main .leads-page .jl-lead-actions .message-button,
+.saas-main .leads-page .jl-lead-actions .follow-up-action-button,
+.saas-main .leads-page .jl-lead-actions .row-icon {
+  min-height: 32px;
+  padding: 6px 7px;
+  font-size: 10px;
+}
+.saas-main .leads-page .jl-lead-actions .row-icon {
+  width: 32px;
+  height: 32px;
+  padding: 5px;
+}
+.saas-main .leads-page .jl-lead-actions .lead-favorite-button {
+  min-width: 34px;
+  width: 34px;
+  height: 34px;
+}
+.saas-main .leads-page .jl-lead-actions .lead-details-button {
+  min-height: 34px;
+}
+.saas-main .leads-page .jl-lead-mobile-card {
+  gap: 12px;
+  padding: 15px;
+  border-radius: 13px;
+}
+.saas-main .leads-page .jl-lead-mobile-action {
+  padding: 10px 12px;
+  gap: 7px;
+}
+.saas-main .leads-page .jl-lead-mobile-card .jl-lead-actions {
+  padding-top: 9px;
+}
+@media (max-width: 759px) {
+  .saas-main .leads-page .jl-portfolio-lead-panel .desktop-table {
+    display: none;
+  }
+  .saas-main .leads-page .jl-portfolio-lead-panel .mobile-list {
+    display: grid;
+    grid-template-columns: minmax(0,1fr);
   }
 }
