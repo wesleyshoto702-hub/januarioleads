@@ -1598,7 +1598,7 @@ function LeadFlowApp() {
     ].filter(Boolean);
 
     const discoveredPresence = presenceFromBusiness(business);
-    const factualDescription = buildFactualBusinessDescription(business);
+    const factualDescription = buildFactualBusinessDescription(business, selectedSegment);
 
     const newLead: Lead = {
       id: crypto.randomUUID(),
