@@ -315,3 +315,453 @@
   .saas-main .leads-page .jl-portfolio-metric,
   .saas-main .leads-page .jl-portfolio-mini {transition:none;}
 }
+
+/* Approved Meus Leads list redesign: spacious, non-overlapping row cards. */
+.saas-main .leads-page .jl-portfolio-lead-panel .desktop-table {
+  overflow-x: auto;
+  display: block;
+  padding: 12px;
+  border: 1px solid #254941;
+  border-radius: 17px;
+  background: #071a1a;
+  scrollbar-width: thin;
+  scrollbar-color: #37695f transparent;
+}
+.saas-main .leads-page .jl-portfolio-lead-panel .desktop-table .table-head,
+.saas-main .leads-page .jl-portfolio-lead-panel .desktop-table .table-row.jl-lead-row {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns:
+    minmax(268px,2.3fr)
+    minmax(122px,.98fr)
+    minmax(146px,1.12fr)
+    minmax(166px,1.35fr)
+    minmax(188px,1.55fr)
+    minmax(76px,.62fr)
+    minmax(134px,1.07fr)
+    minmax(245px,1.96fr);
+  column-gap: 12px;
+  align-items: center;
+  min-width: 1480px;
+}
+.saas-main .leads-page .jl-portfolio-lead-panel .desktop-table .table-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  min-height: 44px;
+  margin: 0 0 11px;
+  padding: 10px 19px;
+  background: #0e2a29;
+  border: 1px solid #255048;
+  border-radius: 12px;
+  color: #b3d2cb;
+  font-size: 10px;
+  letter-spacing: .08em;
+  font-weight: 800;
+}
+.saas-main .leads-page .jl-portfolio-lead-panel .desktop-table .table-row.jl-lead-row {
+  min-height: 154px;
+  padding: 20px 18px;
+  margin: 0 0 10px;
+  border: 1px solid #235249;
+  border-radius: 17px;
+  background: radial-gradient(ellipse at 15% 2%,rgba(18,70,62,.24),transparent 50%),
+    linear-gradient(115deg,#0b211f,#091a1a 72%);
+  box-shadow: 0 6px 20px rgba(0,0,0,.16);
+  transition: border-color .16s ease, background-color .16s ease, transform .16s ease;
+}
+.saas-main .leads-page .jl-portfolio-lead-panel .desktop-table .table-row.jl-lead-row:hover {
+  border-color: #3f9c7c;
+  background: linear-gradient(115deg,#10312a,#0c2523);
+  transform: translateY(-1px);
+}
+.saas-main .leads-page .jl-portfolio-lead-panel .desktop-table .table-row.jl-lead-row:last-child {
+  margin-bottom: 0;
+}
+.saas-main .leads-page .jl-portfolio-lead-panel .jl-lead-company,
+.saas-main .leads-page .jl-lead-mobile-company {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.saas-main .leads-page .jl-lead-niche-icon {
+  width: 54px;
+  height: 54px;
+  min-width: 54px;
+  display: grid;
+  place-items: center;
+  border-radius: 13px;
+  background: #0c3830;
+  border: 1px solid rgba(47,228,163,.12);
+  color: #61e9b6;
+  font-size: 27px;
+  line-height: 1;
+  font-family: system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif;
+  user-select: none;
+}
+.saas-main .leads-page .jl-lead-niche-icon--compact {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 9px;
+  font-size: 20px;
+}
+.saas-main .leads-page .jl-lead-company-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  min-width: 0;
+  flex: 1 1 0;
+}
+.saas-main .leads-page .jl-lead-company-copy .jl-lead-company-name {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.45;
+  font-size: 13px;
+  font-weight: 760;
+  color: #f3f9f6;
+}
+.saas-main .leads-page .jl-lead-company-copy .lead-segment {
+  color: #a5c3ba;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.saas-main .leads-page .jl-lead-company-copy .chance-wrap {
+  margin: 1px 0 0;
+}
+.saas-main .leads-page .jl-lead-company-copy .jl-lead-company-note {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #819f99;
+  font-size: 10px;
+}
+.saas-main .leads-page .jl-lead-row > div {
+  min-width: 0;
+}
+.saas-main .leads-page .jl-lead-row .lead-location,
+.saas-main .leads-page .jl-lead-phone {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: #d5e9e3;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.saas-main .leads-page .jl-lead-row .lead-location svg,
+.saas-main .leads-page .jl-lead-phone svg {
+  color: #35d9a1;
+  flex: 0 0 auto;
+}
+.saas-main .leads-page .jl-lead-phone span {
+  overflow-wrap: anywhere;
+}
+.saas-main .leads-page .jl-lead-status-control {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 9px;
+}
+.saas-main .leads-page .jl-lead-status-pill {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 9px;
+  border: 1px solid #2b755b;
+  border-radius: 999px;
+  color: #71e5ac;
+  background: #0b3b2b;
+  min-height: 36px;
+  box-sizing: border-box;
+}
+.saas-main .leads-page .jl-lead-status-pill--waiting {
+  border-color: #8c6b32;
+  background: #393014;
+  color: #ffc85c;
+}
+.saas-main .leads-page .jl-lead-status-pill--rejected {
+  border-color: #895255;
+  background: #3b2226;
+  color: #ffa2a5;
+}
+.saas-main .leads-page .jl-lead-status-pill--accepted {
+  border-color: #237854;
+  background: #07472f;
+  color: #84f6b8;
+}
+.saas-main .leads-page .jl-lead-status-pill > svg {
+  flex: 0 0 auto;
+}
+.saas-main .leads-page .jl-lead-status-pill select {
+  appearance: none;
+  border: 0;
+  outline: 0;
+  min-width: 0;
+  flex: 1 1 0;
+  width: 100%;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 11px;
+  line-height: 1.4;
+  font-weight: 750;
+  cursor: pointer;
+}
+.saas-main .leads-page .jl-lead-status-pill select option {
+  background: #10221f;
+  color: #e7f9f3;
+}
+.saas-main .leads-page .jl-lead-status-pill:focus-within {
+  outline: 2px solid #58e3b4;
+  outline-offset: 2px;
+}
+.saas-main .leads-page .jl-lead-waiting-help {
+  font-size: 11px;
+  line-height: 1.4;
+  color: #d3c5a1;
+  white-space: normal;
+}
+.saas-main .leads-page .jl-lead-action-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 9px;
+  min-width: 0;
+}
+.saas-main .leads-page .jl-lead-action-title {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+}
+.saas-main .leads-page .jl-lead-action-title svg {
+  color: #b6e3d4;
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+.saas-main .leads-page .jl-lead-action-title strong {
+  color: #eefaf5;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+  font-size: 12px;
+  font-weight: 740;
+}
+.saas-main .leads-page .jl-lead-action-preview small {
+  color: #94b7ab;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: normal;
+}
+.saas-main .leads-page .jl-lead-row .lead-value-cell {
+  font-size: 13px;
+  color: #f0f9f6;
+  font-weight: 700;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.saas-main .leads-page .jl-lead-date {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.saas-main .leads-page .jl-lead-date > div {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #d5eee5;
+  font-size: 12px;
+}
+.saas-main .leads-page .jl-lead-date svg {
+  color: #c0e6d8;
+  flex: 0 0 auto;
+}
+.saas-main .leads-page .jl-lead-date small {
+  color: #9db6ac;
+  font-size: 10px;
+  line-height: 1.45;
+  white-space: normal;
+}
+.saas-main .leads-page .jl-lead-actions {
+  display: grid;
+  grid-template-columns: minmax(0,1fr);
+  align-content: center;
+  gap: 10px;
+  min-width: 0;
+  justify-items: stretch;
+}
+.saas-main .leads-page .jl-lead-actions-top,
+.saas-main .leads-page .jl-lead-actions-bottom {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+}
+.saas-main .leads-page .jl-lead-actions .lead-details-button,
+.saas-main .leads-page .jl-lead-actions .message-button,
+.saas-main .leads-page .jl-lead-actions .follow-up-action-button,
+.saas-main .leads-page .jl-lead-actions .row-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 36px;
+  box-sizing: border-box;
+  border-radius: 9px;
+  background: #112a28;
+  border: 1px solid #345c53;
+  color: #e5f8ef;
+  padding: 7px 10px;
+  font-size: 10.5px;
+  line-height: 1.25;
+  font-weight: 700;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+.saas-main .leads-page .jl-lead-actions .lead-details-button {
+  min-height: 38px;
+}
+.saas-main .leads-page .jl-lead-actions .row-icon {
+  padding: 7px;
+  width: 36px;
+  height: 36px;
+}
+.saas-main .leads-page .jl-lead-actions .row-icon.danger:hover {
+  border-color: #db6464;
+  color: #ffa9a9;
+}
+.saas-main .leads-page .jl-lead-actions .lead-favorite-button {
+  height: 38px;
+  width: 38px;
+  min-width: 38px;
+  border: 1px solid #63522c;
+  background: #1b231d;
+  border-radius: 9px;
+}
+.saas-main .leads-page .jl-lead-actions .lead-favorite-button:hover {
+  border-color: #ffc34f;
+}
+.saas-main .leads-page .jl-lead-actions .message-button:hover,
+.saas-main .leads-page .jl-lead-actions .follow-up-action-button:hover,
+.saas-main .leads-page .jl-lead-actions .lead-details-button:hover {
+  border-color: #43d49f;
+  background: #163b30;
+}
+.saas-main .leads-page .jl-portfolio-lead-panel .mobile-list {
+  border: none;
+  background: transparent;
+  border-radius: 0;
+}
+.saas-main .leads-page .jl-lead-mobile-card {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  margin-bottom: 12px;
+  background: linear-gradient(135deg,#0c2722,#0a1919);
+  border: 1px solid #28564c;
+  border-radius: 17px;
+  box-shadow: 0 6px 20px rgba(0,0,0,.14);
+}
+.saas-main .leads-page .jl-lead-mobile-top {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 14px;
+}
+.saas-main .leads-page .jl-lead-mobile-company {
+  flex: 1 1 225px;
+}
+.saas-main .leads-page .jl-lead-mobile-top > .jl-lead-status-control {
+  flex: 0 1 170px;
+}
+.saas-main .leads-page .jl-lead-mobile-details {
+  display: flex;
+  gap: 12px 24px;
+  flex-wrap: wrap;
+  align-items: center;
+  font-size: 12px;
+}
+.saas-main .leads-page .jl-lead-mobile-action {
+  padding: 12px 14px;
+  border: 1px solid #244c42;
+  border-radius: 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.saas-main .leads-page .jl-lead-mobile-contact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #acd1c3;
+  font-size: 12px;
+}
+.saas-main .leads-page .jl-lead-mobile-contact svg {color:#42dba3;}
+.saas-main .leads-page .jl-lead-mobile-card .jl-lead-actions {
+  padding-top: 13px;
+  border-top: 1px solid #285348;
+}
+.saas-main .leads-page .jl-lead-mobile-card .jl-lead-actions-top,
+.saas-main .leads-page .jl-lead-mobile-card .jl-lead-actions-bottom {
+  justify-content: flex-start;
+}
+.saas-main .leads-page .lead-kanban-card-top .jl-lead-niche-icon {
+  flex: 0 0 36px;
+  font-size: 20px;
+}
+.saas-main .leads-page .lead-kanban-card-top > strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+/* Switch to responsive cards BEFORE desktop columns become cramped behind the sidebar. */
+@media (max-width: 1740px) {
+  .saas-main .leads-page .jl-portfolio-lead-panel .desktop-table {
+    display: none;
+  }
+  .saas-main .leads-page .jl-portfolio-lead-panel .mobile-list {
+    display: grid;
+    grid-template-columns: repeat(2,minmax(0,1fr));
+    gap: 13px;
+  }
+  .saas-main .leads-page .jl-lead-mobile-card { margin: 0; min-width: 0; }
+}
+@media (max-width: 830px) {
+  .saas-main .leads-page .jl-portfolio-lead-panel .mobile-list {
+    grid-template-columns: minmax(0,1fr);
+  }
+  .saas-main .leads-page .jl-lead-mobile-card {
+    padding: 16px;
+  }
+}
+@media (max-width: 450px) {
+  .saas-main .leads-page .jl-lead-actions-bottom {
+    justify-content: flex-start;
+  }
+  .saas-main .leads-page .jl-lead-mobile-company {
+    flex-basis: 100%;
+  }
+  .saas-main .leads-page .jl-lead-status-control {
+    max-width: 190px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .saas-main .leads-page .jl-portfolio-lead-panel .desktop-table .table-row.jl-lead-row {
+    transition: none;
+    transform: none;
+  }
+}

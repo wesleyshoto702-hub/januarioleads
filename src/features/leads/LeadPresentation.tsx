@@ -1,11 +1,18 @@
 import {
-  Check,
+  BadgeCheck,
+  Ban,
+  CalendarClock,
+  CalendarDays,
   ChevronDown,
+  Clock3,
   Edit3,
+  ExternalLink,
   MapPin,
   MessageCircle,
+  Phone,
   Plus,
   Search,
+  Send,
   Trash2,
   X,
 } from "lucide-react";
@@ -18,7 +25,8 @@ import {
 import { normalizeBrazilianStateCode } from "../../lib/brazil-locations";
 import { ChanceBadge } from "../lead-chance/ChanceBadge";
 import { calculateLeadChance, hasEnoughDataForLeadChance } from "../lead-chance/lead-chance";
-import { LeadActionSummary } from "../next-actions/LeadNextActionSection";
+import { getLeadActionSummary } from "../next-actions/next-actions";
+import { LeadNicheIcon } from "./LeadNicheIcon";
 import { STATUS_LABEL } from "./lead-status";
 import { LeadFavoriteButton } from "./LeadFavoriteButton";
 function LeadFinanceMarker({ summary }: { summary: LeadFinanceSummary }) {
@@ -59,6 +67,11 @@ function LeadLocation({ lead }: { lead: Lead }) {
   );
 }
 
+
+/**
+ * Spacious lead row: all information is column-aligned, while the selected
+ * status and elapsed waiting time stay together in a vertical stack.
+ */
 export function LeadRow({
   lead,
   finance,
@@ -83,86 +96,61 @@ export function LeadRow({
   onFavorite: (lead: Lead) => void;
 }) {
   const chance = hasEnoughDataForLeadChance(lead) ? calculateLeadChance(lead, lead.segment) : null;
+  const contactDate = lead.lastContact || lead.firstContact;
 
   return (
-    <article className="table-row">
-      <div className="company-cell">
-        <div className="lead-company-name-line">
-          <strong>{lead.company}</strong>
+    <article className="table-row jl-lead-row">
+      <div className="company-cell jl-lead-company">
+        <LeadNicheIcon segment={lead.segment} />
+        <div className="jl-lead-company-copy">
+          <strong className="jl-lead-company-name" title={lead.company}>{lead.company}</strong>
+          <span className="lead-segment">{lead.segment || "Nicho não informado"}</span>
           {chance && <ChanceBadge chance={chance} />}
+          {lead.enrichedAt && <small className="enriched-badge">Dados enriquecidos</small>}
+          {updateCount > 0 && (
+            <small className="lead-update-badge">
+              {updateCount} {updateCount === 1 ? "atualização" : "atualizações"}
+            </small>
+          )}
+          {lead.notes && <small className="jl-lead-company-note" title={lead.notes}>{lead.notes}</small>}
         </div>
-        <span className="lead-segment">{lead.segment}</span>
-        {finance && <LeadFinanceMarker summary={finance} />}
-        {lead.enrichedAt && <small className="enriched-badge">Dados enriquecidos</small>}
-        {updateCount > 0 && (
-          <small className="lead-update-badge">
-            {updateCount} {updateCount === 1 ? "atualização" : "atualizações"}
-          </small>
-        )}
-        {lead.notes && <small title={lead.notes}>{lead.notes}</small>}
       </div>
+
       <div className="lead-location-cell"><LeadLocation lead={lead} /></div>
-      <div className="phone-cell">{lead.phone || "Sem telefone"}</div>
+      <div className="phone-cell jl-lead-phone">
+        <Phone size={14} aria-hidden="true" />
+        <span>{lead.phone || "Sem telefone"}</span>
+      </div>
       <div className="lead-status-stack">
         <StatusControl lead={lead} onStatus={onStatus} />
       </div>
       <div className="lead-next-action-cell">
-        <LeadActionSummary lead={lead} compact hideFollowUp />
+        <LeadActionPreview lead={lead} />
       </div>
-      <div className="lead-value-cell">{finance ? formatCurrency(finance.projectValue) : "—"}</div>
-      <div className="date-cell">
-        <span>{formatDate(lead.firstContact)}</span>
-        <small>
-          {lead.lastContact ? `Último: ${formatDate(lead.lastContact)}` : "Sem novo contato"}
-        </small>
+      <div className="lead-value-cell">
+        {finance ? formatCurrency(finance.projectValue) : "—"}
       </div>
-      <div className="actions-cell">
-        <LeadFavoriteButton
-          company={lead.company}
-          isFavorite={lead.isFavorite === true}
-          onToggle={() => onFavorite(lead)}
-        />
-        <button className="lead-details-button" onClick={() => onDetails(lead)} type="button">
-          Ver empresa
-        </button>
-        {lead.phone && (
-          <button
-            className="message-button"
-            onClick={() => onMessage(lead)}
-            type="button"
-            title="Mandar mensagem"
-          >
-            <MessageCircle size={16} />
-            <span>Mandar mensagem</span>
-          </button>
-        )}
-        {lead.status === "waiting" && Boolean(lead.phone) && (
-          <button
-            className="enrichment-button follow-up-action-button"
-            onClick={() => onFollowUp(lead)}
-            type="button"
-            title="Fazer follow-up"
-          >
-            <MessageCircle size={15} />
-            <span>Fazer follow-up</span>
-          </button>
-        )}
-        <button className="row-icon" onClick={() => onEdit(lead)} type="button" title="Editar">
-          <Edit3 size={16} />
-        </button>
-        <button
-          className="row-icon danger"
-          onClick={() => onDelete(lead)}
-          type="button"
-          title="Excluir"
-        >
-          <Trash2 size={16} />
-        </button>
+      <div className="date-cell jl-lead-date">
+        <div><CalendarDays size={14} aria-hidden="true"/>
+          <time dateTime={contactDate}>{formatDate(contactDate)}</time>
+        </div>
+        <small>{lead.lastContact ? "Último contato" : "Primeiro contato · sem retorno"}</small>
       </div>
+      <LeadCardActions
+        lead={lead}
+        onFavorite={onFavorite}
+        onDetails={onDetails}
+        onMessage={onMessage}
+        onFollowUp={onFollowUp}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        desktop
+      />
     </article>
   );
 }
 
+/** Mobile cards use the same niche icon, statuses and actions as desktop. */
 export function LeadCard({
   lead,
   finance,
@@ -187,99 +175,146 @@ export function LeadCard({
   onFavorite: (lead: Lead) => void;
 }) {
   const chance = hasEnoughDataForLeadChance(lead) ? calculateLeadChance(lead, lead.segment) : null;
+  const contactDate = lead.lastContact || lead.firstContact;
 
   return (
-    <article className="lead-card">
-      <div className="card-top">
-        <div>
-          <div className="lead-company-name-line">
-            <strong>{lead.company}</strong>
+    <article className="lead-card jl-lead-mobile-card">
+      <div className="jl-lead-mobile-top">
+        <div className="jl-lead-mobile-company">
+          <LeadNicheIcon segment={lead.segment} />
+          <div className="jl-lead-company-copy">
+            <strong className="jl-lead-company-name" title={lead.company}>{lead.company}</strong>
+            <span className="lead-segment">{lead.segment || "Nicho não informado"}</span>
             {chance && <ChanceBadge chance={chance} />}
+            {lead.enrichedAt && <small className="enriched-badge">Dados enriquecidos</small>}
+            {updateCount > 0 && (
+              <small className="lead-update-badge">{updateCount} {updateCount === 1 ? "atualização" : "atualizações"}</small>
+            )}
           </div>
-          <span className="lead-segment">{lead.segment}</span>
-          <LeadLocation lead={lead} />
-          {lead.enrichedAt && <small className="enriched-badge">Dados enriquecidos</small>}
-          {updateCount > 0 && (
-            <small className="lead-update-badge">
-              {updateCount} {updateCount === 1 ? "atualização" : "atualizações"}
-            </small>
-          )}
         </div>
-        <span className={`status-badge ${lead.status}`}>{STATUS_LABEL[lead.status]}</span>
+        <StatusControl lead={lead} onStatus={onStatus} />
       </div>
-      <div className="card-phone">{lead.phone || "Sem telefone disponível"}</div>
-      {finance && <LeadFinanceMarker summary={finance} />}
-      <StatusControl lead={lead} onStatus={onStatus} />
-      <LeadActionSummary lead={lead} hideFollowUp />
-      <div className="card-meta">
-        <span>Primeiro contato: {formatDate(lead.firstContact)}</span>
-        {lead.lastContact && <span>Último contato: {formatDate(lead.lastContact)}</span>}
+      <div className="jl-lead-mobile-details">
+        <LeadLocation lead={lead}/>
+        <div className="jl-lead-phone"><Phone size={14} aria-hidden="true" /><span>{lead.phone || "Sem telefone disponível"}</span></div>
+      </div>
+      <div className="jl-lead-mobile-action">
+        <LeadActionPreview lead={lead} />
+        {finance && <LeadFinanceMarker summary={finance} />}
+      </div>
+      <div className="jl-lead-mobile-contact">
+        <CalendarDays size={14} aria-hidden="true"/>
+        <span>{lead.lastContact ? "Último contato" : "Primeiro contato"}: {formatDate(contactDate)}</span>
       </div>
       {lead.notes && <p className="card-notes">{lead.notes}</p>}
-      <div className="card-actions">
+      <LeadCardActions
+        lead={lead}
+        onFavorite={onFavorite}
+        onDetails={onDetails}
+        onMessage={onMessage}
+        onFollowUp={onFollowUp}
+        onEdit={onEdit}
+        onDelete={onDelete}
+      />
+    </article>
+  );
+}
+
+function LeadCardActions({
+  lead, onFavorite, onDetails, onMessage, onFollowUp, onEdit, onDelete, desktop = false,
+}: {
+  lead: Lead;
+  onFavorite: (lead: Lead) => void;
+  onDetails: (lead: Lead) => void;
+  onMessage: (lead: Lead) => void;
+  onFollowUp: (lead: Lead) => void;
+  onEdit: (lead: Lead) => void;
+  onDelete: (lead: Lead) => void;
+  desktop?: boolean;
+}) {
+  return (
+    <div className={desktop ? "actions-cell jl-lead-actions" : "card-actions jl-lead-actions"}>
+      <div className="jl-lead-actions-top">
         <LeadFavoriteButton
           company={lead.company}
           isFavorite={lead.isFavorite === true}
           onToggle={() => onFavorite(lead)}
         />
         <button className="lead-details-button" onClick={() => onDetails(lead)} type="button">
-          Ver empresa
+          Ver empresa <ExternalLink size={13} aria-hidden="true"/>
         </button>
+      </div>
+      <div className="jl-lead-actions-bottom">
         {lead.phone && (
           <button className="message-button" onClick={() => onMessage(lead)} type="button">
-            <MessageCircle size={16} />
-            Mandar mensagem
+            <MessageCircle size={15} aria-hidden="true"/>
+            <span>Mandar mensagem</span>
           </button>
         )}
         {lead.status === "waiting" && Boolean(lead.phone) && (
-          <button
-            className="enrichment-button follow-up-action-button"
+          <button className="enrichment-button follow-up-action-button"
             onClick={() => onFollowUp(lead)}
-            type="button"
-            title="Fazer follow-up"
-          >
-            <MessageCircle size={15} />
-            Fazer follow-up
+            type="button" title="Fazer follow-up">
+            <CalendarClock size={15} aria-hidden="true"/>
+            <span>Fazer follow-up</span>
           </button>
         )}
-        <button className="row-icon" onClick={() => onEdit(lead)} type="button" aria-label="Editar">
-          <Edit3 size={17} />
+        <button className="row-icon" onClick={() => onEdit(lead)} type="button"
+          title="Editar" aria-label={"Editar " + lead.company}>
+          <Edit3 size={16} aria-hidden="true"/>
         </button>
-        <button
-          className="row-icon danger"
-          onClick={() => onDelete(lead)}
-          type="button"
-          aria-label="Excluir"
-        >
-          <Trash2 size={17} />
+        <button className="row-icon danger" onClick={() => onDelete(lead)} type="button"
+          title="Excluir" aria-label={"Excluir " + lead.company}>
+          <Trash2 size={16} aria-hidden="true"/>
         </button>
       </div>
-    </article>
+    </div>
   );
 }
 
-function StatusControl({
-  lead,
-  onStatus,
-}: {
+function LeadActionPreview({ lead }: { lead: Lead }) {
+  const summary = getLeadActionSummary(lead);
+  const action = summary.action;
+  const label = action?.label ??
+    (lead.status === "waiting" ? "Aguardando retorno" : "Sem próxima ação");
+  const context = summary.saved?.date
+    ? summary.temporal.label || "Ação registrada"
+    : summary.saved
+      ? "Ação registrada"
+      : summary.suggested
+        ? "Sugestão do sistema"
+        : "Nenhuma próxima ação agendada";
+  const Icon = lead.status === "waiting" ? CalendarClock : MessageCircle;
+  return (
+    <div className="jl-lead-action-preview">
+      <div className="jl-lead-action-title"><Icon size={16} aria-hidden="true"/><strong>{label}</strong></div>
+      <small>{context}</small>
+    </div>
+  );
+}
+
+function StatusControl({ lead, onStatus }: {
   lead: Lead;
   onStatus: (id: string, status: Status) => void;
 }) {
+  const waitingLabel = getLeadActionSummary(lead).waitingLabel;
+  const Icon = lead.status === "waiting" ? Clock3 :
+    lead.status === "accepted" ? BadgeCheck :
+    lead.status === "rejected" ? Ban : Send;
   return (
-    <div className="inline-status" aria-label="Alterar status">
-      {(["send_message", "waiting", "accepted", "rejected"] as Status[]).map((status) => (
-        <button
-          key={status}
-          type="button"
-          className={`status-tick ${status} ${lead.status === status ? "selected" : ""}`}
-          onClick={() => onStatus(lead.id, status)}
-          title={STATUS_LABEL[status]}
-          aria-label={STATUS_LABEL[status]}
-        >
-          {lead.status === status && <Check size={11} />}
-        </button>
-      ))}
-      <span className={`status-text ${lead.status}`}>{STATUS_LABEL[lead.status]}</span>
+    <div className="jl-lead-status-control">
+      <label className={"jl-lead-status-pill jl-lead-status-pill--" + lead.status}>
+        <Icon size={15} aria-hidden="true"/>
+        <select value={lead.status}
+          onChange={(event) => onStatus(lead.id, event.target.value as Status)}
+          aria-label={"Alterar status de " + lead.company}>
+          {(["send_message", "waiting", "accepted", "rejected"] as Status[]).map((status) => (
+            <option key={status} value={status}>{STATUS_LABEL[status]}</option>
+          ))}
+        </select>
+        <ChevronDown size={13} aria-hidden="true"/>
+      </label>
+      {waitingLabel && <small className="jl-lead-waiting-help">{waitingLabel}</small>}
     </div>
   );
 }

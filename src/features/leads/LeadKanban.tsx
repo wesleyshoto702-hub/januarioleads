@@ -4,6 +4,7 @@ import type { PersistedLead, LeadStatus } from "./remote-leads";
 import { STATUS_LABEL } from "./lead-status";
 import { getLeadActionSummary } from "../next-actions/next-actions";
 import { LeadFavoriteButton } from "./LeadFavoriteButton";
+import { LeadNicheIcon } from "./LeadNicheIcon";
 
 const COLUMNS: readonly LeadStatus[] = ["send_message", "waiting", "accepted", "rejected"];
 
@@ -74,6 +75,7 @@ export function LeadKanban({
                     >
                       <div className="lead-kanban-card-top">
                         <GripVertical size={15} aria-hidden="true"/>
+                        <LeadNicheIcon segment={lead.segment} compact/>
                         <strong>{lead.company}</strong>
                         <LeadFavoriteButton
                           company={lead.company}
