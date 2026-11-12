@@ -978,3 +978,127 @@
   background: var(--jl-leads-accent-soft);
   border-color: var(--jl-leads-border);
 }
+
+
+/* Meus Leads responsive table — fix actions clipped at the right edge.
+   React renders the same eight data fields and every existing action.
+   Reflow the SINGLE horizontal lead row based on available panel width,
+   not the viewport (the app sidebar reduces content width on desktop). */
+.saas-main .leads-page .jl-portfolio-lead-panel {
+  container: jl-leads-table / inline-size;
+  width: 100%;
+  min-width: 0;
+}
+.saas-main .leads-page .jl-portfolio-lead-panel .desktop-table {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.saas-main .leads-page .jl-portfolio-lead-panel .desktop-table .table-head,
+.saas-main .leads-page .jl-portfolio-lead-panel .desktop-table .table-row.jl-lead-row {
+  box-sizing: border-box;
+}
+/* Desktop with sidebar: show all columns, arranged over two tight rows.
+   There is NO 1270px minimum width in this layout. */
+@container jl-leads-table (max-width: 1390px) {
+  .saas-main .leads-page .jl-portfolio-lead-panel .desktop-table .table-head,
+  .saas-main .leads-page .jl-portfolio-lead-panel .desktop-table .table-row.jl-lead-row {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns:
+      minmax(190px,2.1fr)
+      minmax(100px,1fr)
+      minmax(123px,1.15fr)
+      minmax(132px,1.25fr)
+      minmax(76px,.7fr)
+      minmax(215px,2.2fr);
+    grid-template-areas:
+      "company city phone status value actions"
+      "company follow follow contactDate contactDate actions";
+    column-gap: 9px;
+    row-gap: 8px;
+  }
+  .saas-main .leads-page .jl-portfolio-lead-panel .desktop-table .table-head {
+    min-height: 63px;
+    align-items: center;
+    padding: 9px 13px;
+    margin-bottom: 8px;
+  }
+  .saas-main .leads-page .jl-portfolio-lead-panel .desktop-table .table-row.jl-lead-row {
+    min-height: 139px;
+    padding: 13px 13px;
+    align-items: center;
+  }
+  .saas-main .leads-page .jl-portfolio-lead-panel .desktop-table .table-head > span:nth-child(1),
+  .saas-main .leads-page .jl-lead-row > .jl-lead-company { grid-area: company; }
+  .saas-main .leads-page .jl-portfolio-lead-panel .desktop-table .table-head > span:nth-child(2),
+  .saas-main .leads-page .jl-lead-row > .lead-location-cell { grid-area: city; }
+  .saas-main .leads-page .jl-portfolio-lead-panel .desktop-table .table-head > span:nth-child(3),
+  .saas-main .leads-page .jl-lead-row > .jl-lead-phone { grid-area: phone; }
+  .saas-main .leads-page .jl-portfolio-lead-panel .desktop-table .table-head > span:nth-child(4),
+  .saas-main .leads-page .jl-lead-row > .lead-status-stack { grid-area: status; }
+  .saas-main .leads-page .jl-portfolio-lead-panel .desktop-table .table-head > span:nth-child(5),
+  .saas-main .leads-page .jl-lead-row > .lead-next-action-cell { grid-area: follow; }
+  .saas-main .leads-page .jl-portfolio-lead-panel .desktop-table .table-head > span:nth-child(6),
+  .saas-main .leads-page .jl-lead-row > .lead-value-cell { grid-area: value; }
+  .saas-main .leads-page .jl-portfolio-lead-panel .desktop-table .table-head > span:nth-child(7),
+  .saas-main .leads-page .jl-lead-row > .jl-lead-date { grid-area: contactDate; }
+  .saas-main .leads-page .jl-portfolio-lead-panel .desktop-table .table-head > span:nth-child(8),
+  .saas-main .leads-page .jl-lead-row > .jl-lead-actions { grid-area: actions; }
+  .saas-main .leads-page .jl-lead-row > .jl-lead-actions {
+    justify-self: stretch;
+    align-self: center;
+    width: 100%;
+  }
+  .saas-main .leads-page .jl-lead-actions-top,
+  .saas-main .leads-page .jl-lead-actions-bottom {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+  .saas-main .leads-page .jl-lead-actions .message-button span,
+  .saas-main .leads-page .jl-lead-actions .follow-up-action-button span {
+    white-space: nowrap;
+  }
+}
+/* Narrow workspaces: preserve one lead per row, with buttons on the
+   right. Distribute information over three compact lines, no clipping. */
+@container jl-leads-table (max-width: 1080px) {
+  .saas-main .leads-page .jl-portfolio-lead-panel .desktop-table .table-head,
+  .saas-main .leads-page .jl-portfolio-lead-panel .desktop-table .table-row.jl-lead-row {
+    grid-template-columns:
+      minmax(175px,2.1fr)
+      minmax(104px,1.1fr)
+      minmax(137px,1.35fr)
+      minmax(225px,2.1fr);
+    grid-template-areas:
+      "company city status actions"
+      "company phone follow actions"
+      "company value contactDate actions";
+    row-gap: 8px;
+  }
+  .saas-main .leads-page .jl-portfolio-lead-panel .desktop-table .table-head { min-height: 86px; }
+  .saas-main .leads-page .jl-portfolio-lead-panel .desktop-table .table-row.jl-lead-row { min-height: 164px; }
+}
+/* When there truly isn't room for an eight-column table, use the already
+   implemented SINGLE-column mobile lead card (all actions remain visible).
+   Never show the previous two-large-tiles layout. */
+@container jl-leads-table (max-width: 790px) {
+  .saas-main .leads-page .jl-portfolio-lead-panel .desktop-table { display: none; }
+  .saas-main .leads-page .jl-portfolio-lead-panel .mobile-list {
+    display: grid;
+    grid-template-columns: minmax(0,1fr);
+    gap: 10px;
+    min-width: 0;
+  }
+  .saas-main .leads-page .jl-lead-mobile-card {
+    margin: 0;
+    min-width: 0;
+  }
+  .saas-main .leads-page .jl-lead-mobile-card .jl-lead-actions-top,
+  .saas-main .leads-page .jl-lead-mobile-card .jl-lead-actions-bottom {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+}
