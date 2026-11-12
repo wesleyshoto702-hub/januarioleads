@@ -2584,6 +2584,37 @@ select{
   color: var(--text);
 }
 
+/* Universal Maps shortcut: always visible at the left of contact links,
+   regardless of the data source (Overture, Geoapify or Google Places). */
+.business-presence .business-google-maps-link,
+.detail-links .business-google-maps-link{
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 5px;
+  color: var(--primary);
+  font-weight: 750;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.business-google-maps-link svg{
+  flex: 0 0 auto;
+}
+.business-google-maps-link:focus-visible{
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+@media (max-width: 640px){
+  .business-presence .business-google-maps-link{
+    min-height: 36px;
+  }
+  .detail-links .business-google-maps-link{
+    min-height: 40px;
+  }
+}
+
+
 .business-actions{
   width: 176px;
   display: grid;
