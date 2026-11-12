@@ -62,6 +62,8 @@ export type BusinessSearchSuccess = {
   nextPageToken: string | null;
   provider?: "geoapify" | "google_places" | "overture" | "mixed";
   providerNotice?: string;
+  /** Server-controlled switch: true only with Outscraper key, explicit opt-in and budgets. */
+  outscraperAutoEnabled?: boolean;
 };
 
 export type BusinessSearchFailure = {
