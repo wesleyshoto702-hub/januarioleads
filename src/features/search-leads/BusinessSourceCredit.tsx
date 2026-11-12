@@ -32,9 +32,8 @@ export function BusinessSourceCredit({
 
 
 /**
- * The results grid is one visually grouped region. Attribution appears only
- * once above the grid, close to the Places data, rather than under every lead.
- * The source dots on each row match this legend even for mixed-provider lists.
+ * A single required attribution follows the results within the same visual
+ * container. Card borders, not dots, distinguish sources in mixed lists.
  * Per-record attribution remains in the business detail modal.
  */
 export function SearchResultsAttribution({
@@ -48,14 +47,12 @@ export function SearchResultsAttribution({
   return (
     <div className="business-results-attribution" role="note" aria-label="Origem dos resultados">
       {google && (
-        <span className="business-results-attribution-entry" translate="no">
-          <span className="business-origin-dot business-origin-dot--google" aria-hidden="true" />
+        <span className="business-results-attribution-entry business-results-attribution-entry--places" translate="no">
           <span className="business-results-google-attribution">Google Maps</span>
         </span>
       )}
       {geoapify && (
-        <span className="business-results-attribution-entry">
-          <span className="business-origin-dot business-origin-dot--geoapify" aria-hidden="true" />
+        <span className="business-results-attribution-entry business-results-attribution-entry--open">
           <a href="https://www.geoapify.com/" target="_blank" rel="noopener noreferrer">
             Powered by Geoapify
           </a>

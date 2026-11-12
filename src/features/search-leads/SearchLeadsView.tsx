@@ -1403,7 +1403,6 @@ export function SearchLeadsView({
         </div>
       ) : (
         <div className="business-results-shell">
-          <SearchResultsAttribution sources={visibleResults.map(({ business }) => business.source)} />
           <div className="business-results">
             {visibleResults.map(({ business, existingLead, chance }) => (
               <BusinessCard
@@ -1421,6 +1420,7 @@ export function SearchLeadsView({
               />
             ))}
           </div>
+          <SearchResultsAttribution sources={visibleResults.map(({ business }) => business.source)} />
         </div>
       )}
 
@@ -1585,17 +1585,11 @@ function BusinessCard({
   }
 
   return (
-    <article className="business-card">
+    <article className={"business-card business-card--" + (business.source === "geoapify" ? "open" : "places")}>
       <div className="business-card-main">
         <div className="business-title-row">
           <div>
             <div className="business-name-line">
-              <span
-                className={"business-origin-dot " +
-                  (business.source === "geoapify"
-                    ? "business-origin-dot--geoapify" : "business-origin-dot--google")}
-                aria-hidden="true"
-              />
               <h2>{business.name}</h2>
               {existingLead?.status && (
                 <span
