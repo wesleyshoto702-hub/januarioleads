@@ -21,6 +21,9 @@ export function outscraperCompanyDomain(input: unknown): string | null {
         url.username || url.password || url.port) return null;
     const host = url.hostname.toLowerCase().replace(/^www\./, "");
     if (host.length < 4 || host.length > 253 ||
+        // Numeric IPv4 addresses and internal hosts must never become
+        // Outscraper billable domain requests.
+        /^(?:\d{1,3}\.){3}\d{1,3}$/.test(host) ||
         !/^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/.test(host) ||
         host.endsWith(".local") || host.endsWith(".internal") ||
         host.endsWith(".test") || host.endsWith(".localhost") ||
