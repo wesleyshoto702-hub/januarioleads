@@ -134,7 +134,7 @@ def place_record(feature, municipalities, state):
     confidence = props.get("confidence")
     socials = props.get("socials") or []
     instagram = first([s for s in socials if isinstance(s, str) and
-                       re.search(r"https?://(?:www\\.)?instagram\\.com/", s, re.I)])
+                       re.search(r"https?://(?:www\.)?instagram\.com/", s, re.I)])
     return {
         "id": identifier[:100],
         "name": name.strip()[:240],
