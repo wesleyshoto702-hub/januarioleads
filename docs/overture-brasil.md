@@ -1,3 +1,18 @@
+## Instagram automático no Buscar Leads — etapa gratuita e progressiva (12/11/2026)
+
+Implementação na branch da PR #140, ainda não publicada na homepage:
+
+- **Fonte pública Overture**: `overture_places.instagram` é normalizada como **possível perfil**, com origem Overture; não fica automaticamente "confirmado".
+- **Fonte pública Geoapify / OSM**: campos `contact.instagram`, `contact:instagram`, `social:instagram`, `instagram` e links sociais podem originar um **possível perfil**; um endereço instagram.com não é tratado como site próprio.
+- **Google Places**: quando o cadastro usa Instagram como `websiteUri`, o link é mostrado como **possível perfil**, não como site empresarial nem como confirmação automática.
+- **Confirmação automática**: na interface Buscar Leads, após carregar resultados, faz checagem **somente no site público da própria empresa** para no máximo **4 empresas com site por pesquisa/página**, usando dois workers. Não faz a busca pública/IA paga. Quando o site publica um único perfil, a verificação existente no backend marca alta confiança com fonte `official_website`. Vários perfis ficam como candidatos a revisar.
+- **Estados visíveis**: `@usuario` confirmado, `Possível Instagram · Conferir` (precisa validar), `Verificando Instagram…`, ou `Instagram não identificado`.
+- **Preservar decisão humana**: confirmação manual de um perfil não é sobrescrita por checagem automática; candidatos rejeitados não reaparecem. Os resultados ficam cacheados por até 7 dias quando confirmados, e por até 24 horas quando inconclusivos.
+- **Desempenho e segurança**: sites externos passam pela proteção do backend contra URLs não públicas, DNS/endereço privado, redirects e HTML excessivo; erros não quebram a busca. A API `search-places` continua autenticada, e cada verificação respeita o `claim_api_request_for_user` já existente.
+- **Custos**: nenhuma chamada automática Google Places adicional nem ao serviço pago de pesquisa pública/IA. Verificação de sites públicos consome apenas recursos normais da Edge Function (que também têm limites).
+- **Cobertura real**: dos 30 registros Overture de Lavras já importados, **0 têm instagram armazenado**. A cobertura não é 100% e só poderá ser estimada após testar vários segmentos. Um link em cadastro público ou site não garante atualidade.
+- **Testes**: `supabase/functions/_shared/public-instagram-candidate.test.ts` verifica URLs válidas/inválidas e nível de confiança. O deploy **v20** de `search-places` foi confirmado ativo com JWT na **homologação**. Testes Deno automatizados e UI ponta a ponta ainda pendentes (Actions bloqueado), portanto não publicar/mesclar antes dessa validação.
+
 ## Atalho Google Maps em todos os leads encontrados
 
 A interface **Buscar Leads** mantém uma única busca, mas cada cartão agora exibe um atalho
