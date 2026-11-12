@@ -220,6 +220,41 @@ async function readJsonBody(request: Request) {
   }
 }
 
+type ExternalSearchProvider = "geoapify" | "google_places";
+
+/**
+ * Global safety switch, independent of per-user rate limits.
+ * Google search is opt-in with a default cap of ZERO, so an existing API key
+ * cannot silently create paid usage. Geoapify is limited conservatively.
+ */
+function externalSearchDailyCap(provider: ExternalSearchProvider): number {
+  const google = provider === "google_places";
+  const raw = Deno.env.get(google
+    ? "GOOGLE_PLACES_SEARCH_DAILY_CAP"
+    : "GEOAPIFY_SEARCH_DAILY_CAP");
+  const fallback = google ? 0 : 120;
+  if (raw === undefined || raw.trim() === "") return fallback;
+  if (!/^\d+$/.test(raw.trim())) return 0;
+  const parsed = Number(raw);
+  if (!Number.isSafeInteger(parsed)) return 0;
+  return Math.min(parsed, google ? 20 : 300);
+}
+
+async function claimExternalSearchCall(provider: ExternalSearchProvider) {
+  const limit = externalSearchDailyCap(provider);
+  if (limit <= 0) return false;
+  try {
+    const response = await adminRest("rpc/claim_search_provider_call", {
+      method: "POST",
+      body: JSON.stringify({ p_provider: provider, p_daily_limit: limit }),
+    });
+    // If migration or credentials are missing, FAIL CLOSED to protect spend.
+    return Boolean(response?.ok && await response.json() === true);
+  } catch {
+    return false;
+  }
+}
+
 async function claimApiBudget(
   userId: string,
   bucket: "places_search" | "lead_enrichment" | "presence_discovery" | "presence_site",
@@ -992,6 +1027,9 @@ async function runSegmentSearch(
     }
     const googleToken = token.startsWith("google:") ? token.slice(7) : token;
     if (!googleToken) return failure("INVALID_REQUEST","Token da pesquisa inválido.",400);
+    if (!await claimExternalSearchCall("google_places")) {
+      return failure("QUOTA", "Limite diário de consultas externas atingido ou desativado.", 429);
+    }
     const searched = await textSearch(googleApiKey, query, 20, googleToken);
     if (!searched.ok) return searched.response;
     return json({
@@ -1039,10 +1077,15 @@ async function runSegmentSearch(
     return failure("INVALID_REQUEST","Token da pesquisa Geoapify inválido.",400);
   }
 
-  const geo = await searchGeoapifyFirst({
-    apiKey: Deno.env.get("GEOAPIFY_API_KEY"),
-    segment, city: location.city, state: location.state, offset,
-  });
+  const geoApiKey = Deno.env.get("GEOAPIFY_API_KEY");
+  const geoAllowed = Boolean(geoApiKey?.trim()) &&
+    await claimExternalSearchCall("geoapify");
+  const geo = geoAllowed
+    ? await searchGeoapifyFirst({
+        apiKey: geoApiKey,
+        segment, city: location.city, state: location.state, offset,
+      })
+    : { ok: false as const, reason: "NOT_CONFIGURED" as const };
   // A Geoapify continuation does not restart Google or duplicate first pages.
   if (token.startsWith("geoapify:")) {
     if (!geo.ok) return failure("REQUEST_FAILED",
@@ -1073,9 +1116,11 @@ async function runSegmentSearch(
       provider: openResults.length > geo.results.length ? "mixed" : "geoapify",
     });
   }
-  // Google is OPTIONAL: free/open search can operate without its credentials.
-  // A missing key or disabled Google never blocks existing Overture/Geoapify data.
-  if (!googleApiKey) {
+  // Google is OPTIONAL and explicitly opt-in via GOOGLE_PLACES_SEARCH_DAILY_CAP.
+  // Claim atomically before calling the provider; default daily cap is ZERO.
+  const googleAllowed = Boolean(googleApiKey?.trim()) &&
+    await claimExternalSearchCall("google_places");
+  if (!googleAllowed) {
     if (openResults.length) {
       return json({
         ok: true, results: openResults,
@@ -1084,7 +1129,10 @@ async function runSegmentSearch(
           ? "mixed" : overture.results.length ? "overture" : "geoapify",
       });
     }
-    return failure("NOT_CONFIGURED", "Nenhuma fonte de busca está disponível agora.", 503);
+    return json({
+      ok: true, results: [], nextPageToken: null, provider: "overture",
+      providerNotice: "Nenhum resultado nos dados abertos disponíveis. A consulta Google está desativada ou atingiu o limite de segurança.",
+    });
   }
   // Fallback to Google only for insufficient useful results.
   const searched = await textSearch(googleApiKey, query, 20);
