@@ -404,8 +404,8 @@ export function EmptyState({ onNew, hasLeads }: { onNew: () => void; hasLeads: b
  */
 function leadNotePreview(notes: string) {
   const withoutLinks = notes
-    .replace(/(?:Google Maps\\s*:\\s*)?https?:\\/\\/\\S+/gi, "")
-    .replace(/\\s+/g, " ")
+    .replace(/(?:Google Maps\s*:\s*)?https?:\/\/\S+/gi, "")
+    .replace(/\s+/g, " ")
     .trim();
   return withoutLinks.length > 124 ? withoutLinks.slice(0, 121).trimEnd() + "…" : withoutLinks;
 }
