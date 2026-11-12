@@ -1,3 +1,32 @@
+## Status da implementação automática — 12/11/2026
+
+**Interface sem botões ou opções Outscraper**: no Buscar Leads, a linha de
+contatos mostra o `@perfil` clicável (com indicação `possível` quando não
+há evidências de oficialidade), ao lado de Maps/Site. O botão
+`Ampliar com Outscraper` foi removido de Ver empresa. O suporte a
+confirmar/rejeitar candidatos em Ver empresa permanece como proteção
+contra atribuir perfis a empresas erradas.
+
+**Ordem interna**: Overture/Geoapify/Google Places → até 4 verificações
+gratuitas de sites oficiais → Outscraper (somente se habilitado no backend
+e somente quando as verificações gratuitas não retornaram perfil).
+No máximo **2 domínios por busca**, tarefas assíncronas por domínio com
+cache e até 6 consultas de status em intervalos de 30 s, canceláveis
+ao sair da pesquisa. A lista de leads não espera pelo Outscraper.
+
+**Proteção financeira**: os limites
+`OUTSCRAPER_INSTAGRAM_DAILY_LIMIT` e
+`OUTSCRAPER_INSTAGRAM_30DAY_LIMIT` valem 0 por padrão, e a variável
+`OUTSCRAPER_INSTAGRAM_AUTO_ENABLED` tem de ser `true`; chave Outscraper
+permanece exclusivamente no Supabase Secrets. Não habilitar o serviço
+sem revisar franquia/saldo no Outscraper e autorização do proprietário.
+
+**Validação atual**: Edge Function `search-places` v24 **ACTIVE** no
+Supabase STAGING; migração de cache e orçamento aplicada somente em STAGING.
+Sem uso real da API Outscraper (0 trabalhos registrados). Não alterou
+produção. A PR #140 continua como rascunho; execução de testes e
+avaliação da interface em navegador ainda necessárias.
+
 ## Outscraper para ampliar a busca de Instagram — integração opcional e com custos bloqueados
 
 Implementação na PR draft #140, exclusivamente na **homologação** até validação.
@@ -45,7 +74,7 @@ A variável `AUTO_ENABLED` deve ser `true` e **ambos os limites devem ser positi
 
 - Migração `20261112190000_outscraper_instagram_guard.sql` aplicada **somente STAGING**; RLS na tabela `public.outscraper_instagram_jobs`, sem SELECT para anon/authenticated, com execução de RPC de reserva limitada a service_role.
 - Testes SQL em `ROLLBACK`: orçamento zero bloqueia, 1º domínio reservado, repetição usa cache, 2º domínio reservado e 3º excedente bloqueado; **zero trabalhos persistidos** no teste.
-- A função `search-places` **v21 ACTIVE** na homologação, JWT obrigatório, apenas API de leitura e jobs opcionais.
+- A função `search-places` **v24 ACTIVE** na homologação, JWT obrigatório, apenas API de leitura e jobs opcionais.
 - Testes offline Deno `deno test supabase/functions/_shared/outscraper-instagram.test.ts` adicionados, porém **ainda não executados**, GitHub Actions bloqueado por conta. Os fluxos reais de consulta/polling e UI precisam ser validados quando houver chave com quota autorizada.
 - Como a PR está draft, a interface web **não foi publicada**. A descoberta automática e os `@perfis` provenientes da API nova só aparecerão após homologação e publicação; não haverá botão Outscraper.
 - **Nenhuma nova chamada Outscraper, cobrança, crédito, fatura, autorização financeira ou importação Overture foi iniciada nesta mudança.**
