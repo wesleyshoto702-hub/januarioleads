@@ -3,6 +3,9 @@ import type { OpeningHoursSnapshot } from "../_shared/open-now.ts";
 import { searchOverture } from "../_shared/overture-search.ts";
 import { providerInstagramCandidate, type PublicInstagramCandidate } from "../_shared/public-instagram-candidate.ts";
 import {
+  outscraperCompanyDomain, outscraperInstagramCandidates, outscraperResponseStatus,
+} from "../_shared/outscraper-instagram.ts";
+import {
   findBrazilianState,
   normalizeBrazilianStateCode,
 } from "../_shared/brazil-locations.ts";
@@ -257,6 +260,180 @@ async function claimExternalSearchCall(provider: ExternalSearchProvider) {
   } catch {
     return false;
   }
+}
+
+type OutscraperCacheRow = {
+  domain: string;
+  status: "starting" | "pending" | "complete" | "failed";
+  request_id: string | null;
+  instagram_candidates: PublicInstagramCandidate[];
+};
+
+/** Outscraper is strictly opt-in and NEVER used by normal lead search. */
+function outscraperSafetyCap(name: "OUTSCRAPER_INSTAGRAM_DAILY_LIMIT" | "OUTSCRAPER_INSTAGRAM_30DAY_LIMIT") {
+  const raw = Deno.env.get(name);
+  if (!raw || !/^\d+$/.test(raw.trim())) return 0;
+  const value = Number(raw);
+  const hardMax = name === "OUTSCRAPER_INSTAGRAM_DAILY_LIMIT" ? 10 : 200;
+  return Number.isSafeInteger(value) && value <= hardMax ? value : 0;
+}
+
+async function outscraperCache(domain: string): Promise<OutscraperCacheRow | null> {
+  const response = await adminRest(
+    "outscraper_instagram_jobs?select=domain,status,request_id,instagram_candidates&domain=eq." +
+    encodeURIComponent(domain) + "&limit=1",
+  );
+  if (!response?.ok) return null;
+  const rows = await response.json() as OutscraperCacheRow[];
+  return Array.isArray(rows) && rows.length ? rows[0] : null;
+}
+
+async function updateOutscraperCache(
+  domain: string, status: OutscraperCacheRow["status"],
+  requestId: string | null, candidates: PublicInstagramCandidate[] = [],
+) {
+  const response = await adminRest(
+    "outscraper_instagram_jobs?domain=eq." + encodeURIComponent(domain), {
+      method: "PATCH",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({
+        status, request_id: requestId,
+        instagram_candidates: candidates.slice(0, 3),
+        checked_at: new Date().toISOString(),
+      }),
+    },
+  );
+  return Boolean(response?.ok);
+}
+
+function outscraperReply(
+  domain: string, status: "pending" | "complete" | "failed",
+  candidates: PublicInstagramCandidate[] = [],
+) {
+  return json({
+    ok: true, mode: "outscraper-instagram", status,
+    domain, candidates: candidates.slice(0, 3),
+    // Never claim an outsider's profile is official without first-party evidence.
+    message: status === "pending"
+      ? "Pesquisa do Outscraper iniciada. Consulte novamente daqui a alguns minutos."
+      : status === "failed"
+        ? "O Outscraper não conseguiu concluir a consulta deste domínio."
+        : candidates.length
+          ? "Possível Instagram encontrado. Confira o perfil antes de confirmar."
+          : "O Outscraper não encontrou Instagram neste domínio.",
+  });
+}
+
+async function outscraperJson(
+  url: URL, apiKey: string,
+): Promise<{ok:boolean; payload:unknown}> {
+  try {
+    const response = await fetch(url.toString(), {
+      headers: { "X-API-KEY": apiKey, Accept: "application/json" },
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (!response.ok) return { ok: false, payload: null };
+    const data = await response.text();
+    if (data.length > 200_000) return { ok: false, payload: null };
+    return { ok: true, payload: JSON.parse(data) as unknown };
+  } catch {
+    return { ok: false, payload: null };
+  }
+}
+
+/**
+ * Outscraper Emails & Contacts is a billed DOMAIN enrichment endpoint.
+ * Start at most once per domain (atomic DB reservation) and poll by request ID.
+ * Default budgets = 0; no key or cap means ZERO external billable calls.
+ */
+async function runOutscraperInstagram(body: Record<string, unknown>) {
+  const business = body.business;
+  const raw = business && typeof business === "object"
+    ? business as Record<string, unknown> : {};
+  const domain = outscraperCompanyDomain(raw.website);
+  if (!domain) return failure(
+    "INVALID_REQUEST",
+    "Outscraper precisa do site próprio da empresa; não pesquisa perfis sem domínio.",
+    400,
+  );
+
+  // Claim only after checking the safe domain and server-side key.
+  const apiKey = Deno.env.get("OUTSCRAPER_API_KEY")?.trim();
+  if (!apiKey) return failure(
+    "NOT_CONFIGURED",
+    "A chave Outscraper ainda não foi configurada na homologação.", 503,
+  );
+
+  let reservation: string;
+  const claim = await adminRest("rpc/claim_outscraper_instagram_domain", {
+    method: "POST",
+    body: JSON.stringify({
+      p_domain: domain,
+      p_daily_limit: outscraperSafetyCap("OUTSCRAPER_INSTAGRAM_DAILY_LIMIT"),
+      p_rolling_30day_limit: outscraperSafetyCap("OUTSCRAPER_INSTAGRAM_30DAY_LIMIT"),
+    }),
+  });
+  if (!claim?.ok) return failure("REQUEST_FAILED", "Controle de consumo Outscraper indisponível.", 503);
+  reservation = await claim.json() as string;
+
+  if (reservation === "disabled" || reservation === "quota") return failure(
+    "QUOTA",
+    "Outscraper desativado ou limite de custos atingido. Nenhuma nova consulta foi enviada.",
+    429,
+  );
+  if (reservation !== "existing" && reservation !== "reserved") return failure(
+    "INVALID_REQUEST", "Domínio não autorizado para enriquecimento.", 400,
+  );
+
+  if (reservation === "existing") {
+    const job = await outscraperCache(domain);
+    if (!job) return failure("REQUEST_FAILED", "Não foi possível consultar o cache do Outscraper.", 503);
+    if (job.status === "complete") {
+      return outscraperReply(domain, "complete", Array.isArray(job.instagram_candidates)
+        ? job.instagram_candidates : []);
+    }
+    if (job.status === "failed") return outscraperReply(domain, "failed");
+    if (!job.request_id || !/^[a-zA-Z0-9_-]{8,128}$/.test(job.request_id)) {
+      return outscraperReply(domain, "pending");
+    }
+    const statusUrl = new URL("https://api.outscraper.cloud/requests/" + job.request_id);
+    const result = await outscraperJson(statusUrl, apiKey);
+    if (!result.ok) return outscraperReply(domain, "pending");
+
+    const state = outscraperResponseStatus(result.payload);
+    if (state === "pending") return outscraperReply(domain, "pending");
+    const candidates = state === "complete"
+      ? outscraperInstagramCandidates(result.payload) : [];
+    await updateOutscraperCache(domain, state, job.request_id, candidates);
+    return outscraperReply(domain, state, candidates);
+  }
+
+  // Only a first successful reservation can submit an outsourced billed job.
+  const url = new URL("https://api.outscraper.cloud/emails-and-contacts");
+  url.searchParams.set("query", domain);
+  url.searchParams.set("async", "true");
+  const result = await outscraperJson(url, apiKey);
+  if (!result.ok) {
+    await updateOutscraperCache(domain, "failed", null);
+    return failure(
+      "REQUEST_FAILED",
+      "Outscraper não aceitou a consulta; confirme chave, créditos e permissões.",
+      502,
+    );
+  }
+  const state = outscraperResponseStatus(result.payload);
+  const obj = result.payload && typeof result.payload === "object"
+    ? result.payload as Record<string, unknown> : {};
+  const requestId = typeof obj.id === "string" &&
+    /^[a-zA-Z0-9_-]{8,128}$/.test(obj.id) ? obj.id : null;
+  if (state === "pending" && !requestId) {
+    await updateOutscraperCache(domain, "failed", null);
+    return failure("REQUEST_FAILED", "Outscraper respondeu sem identificador de consulta.", 502);
+  }
+  const candidates = state === "complete"
+    ? outscraperInstagramCandidates(result.payload) : [];
+  await updateOutscraperCache(domain, state, requestId, candidates);
+  return outscraperReply(domain, state, candidates);
 }
 
 async function claimApiBudget(
@@ -2899,7 +3076,9 @@ async function handleRequest(request: Request) {
       ? "lead-enrichment"
       : requestBody.mode === "presence-discovery"
         ? "presence-discovery"
-        : "segment-search";
+        : requestBody.mode === "outscraper-instagram"
+          ? "outscraper-instagram"
+          : "segment-search";
 
   const rateLimitBucket =
     mode === "lead-enrichment"
@@ -2908,7 +3087,9 @@ async function handleRequest(request: Request) {
         ? requestBody.allowWebSearch === true
           ? "presence_discovery"
           : "presence_site"
-        : "places_search";
+        : mode === "outscraper-instagram"
+          ? "presence_site"
+          : "places_search";
   const withinBudget = await claimApiBudget(
     userId,
     rateLimitBucket,
@@ -2933,6 +3114,10 @@ async function handleRequest(request: Request) {
       return await runPresenceDiscovery(requestBody);
     }
 
+    if (mode === "outscraper-instagram") {
+      return await runOutscraperInstagram(requestBody);
+    }
+
     if (mode === "lead-enrichment") {
       if (!googleApiKey) return failure(
         "NOT_CONFIGURED",
@@ -2944,7 +3129,7 @@ async function handleRequest(request: Request) {
   } catch {
     return failure(
       "REQUEST_FAILED",
-      mode === "presence-discovery"
+      mode === "presence-discovery" || mode === "outscraper-instagram"
         ? "Não foi possível verificar a presença online agora."
         : "Não foi possível comunicar com o Google Places agora.",
       502,
