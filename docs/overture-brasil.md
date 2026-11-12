@@ -1,3 +1,18 @@
+## Validar Buscar Leads no STAGING (não confundir com Lovable/produção)
+
+**Diagnóstico confirmado em 12/11/2026:** a interface acessada para o teste Hotel/Lavras fez chamadas em `https://czkazbianiflhldenhcj.supabase.co/functions/v1/search-places` (produção), enquanto os 30 Overture importados estão exclusivamente no `https://prlrxjothrslhswpkoza.supabase.co` (staging). O preview do projeto Lovable ainda apontava para a branch `main`, sem a PR #140. Por isso não aparecia a atribuição Overture nos resultados. Não é evidência de falha na tabela nem do importador.
+
+Para testar a busca integrada corretamente com interface web **sem GitHub Actions**:
+
+1. Baixar/atualizar a branch `feat/overture-brasil-nacional` (o ZIP antigo não recebe arquivos novos automaticamente).
+2. Abrir Ubuntu/WSL na raiz da branch e rodar `bash scripts/preview-buscar-leads-staging.sh`.
+3. O script obriga `VITE_DEPLOY_TARGET=staging`, `VITE_HTTPONLY_SESSION=false`, URL e **chave pública** do Supabase staging; nunca usa `service_role`.
+4. Instala dependências (Bun ou Node 22+ com npm, se já disponíveis) e inicia Vite no localhost. Abra o endereço localhost exibido no terminal e entre com conta do *staging*.
+5. Em **Buscar Leads** (única seção), pesquise **Hotel**, **Lavras/MG**. Confirme `Serema Palace Hotel`, `Lavras Apart Hotel` ou `Hotel Ouro Lavras` e atribuição Overture no rodapé, quando houver registros Overture na resposta.
+6. Os sites de produção permanecem intactos. Não confunda esse preview local com o preview Lovable sincronizado à branch `main`.
+
+Se não aparecer Overture neste preview, inspecionar logs da função `search-places` do Supabase staging antes de qualquer merge. **Não criar outra tela Buscar via Maps.**
+
 # Overture Places — Integração para o Brasil inteiro
 
 **Status (2026-11-12):** código da busca preparado; função `search-places` implantada somente na homologação; esquema privado migrado e validado; **nenhum dado Overture importado ainda**. Não declarar cobertura nacional como concluída até conferir o relatório por UF e por município.
