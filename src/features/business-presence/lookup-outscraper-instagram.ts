@@ -12,9 +12,10 @@ type OutscraperResult = {
   message: string;
 };
 
-/** Explicit per-business fallback; no API key ever reaches the browser. */
+/** Automatic cost-guarded fallback after free checks; secret never reaches browser. */
 export async function lookupOutscraperInstagram(
   business: PresenceBusiness,
+  options?: { signal?: AbortSignal },
 ): Promise<OutscraperResult> {
   const token = await getAccessToken();
   if (!token) throw new Error("Sessão expirada. Entre novamente para pesquisar.");
@@ -28,6 +29,7 @@ export async function lookupOutscraperInstagram(
   try {
     response = await fetch(baseUrl.replace(/\/$/, "") + "/functions/v1/search-places", {
       method: "POST",
+      ...(options?.signal ? { signal: options.signal } : {}),
       headers: {
         "Content-Type": "application/json",
         apikey: publicKey,
@@ -41,7 +43,8 @@ export async function lookupOutscraperInstagram(
         },
       }),
     });
-  } catch {
+  } catch (error) {
+    if (options?.signal?.aborted) throw error;
     throw new Error("Não foi possível consultar o Outscraper agora.");
   }
 
