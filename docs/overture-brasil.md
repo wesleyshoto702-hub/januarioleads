@@ -1,3 +1,25 @@
+## Atalho Google Maps em todos os leads encontrados
+
+A interface **Buscar Leads** mantém uma única busca, mas cada cartão agora exibe um atalho
+**Google Maps** com ícone à esquerda, independente da origem Overture/Geoapify/Google
+Places. O mesmo atalho fica disponível na janela **Ver empresa**.
+
+- Google Places: respeita URL direta do Google Maps, quando fornecida, ou combina nome + Google Place ID válido.
+- Geoapify e Overture: monta `https://www.google.com/maps/search/?api=1&query=...`
+  com nome e endereço/cidade. Isso é uma **pesquisa pelo estabelecimento**, não
+  significa que o Google confirmou ficha própria daquele local.
+- Nenhuma chamada adicional ao Google Places é feita: é apenas um link HTTPS
+  aberto pelo navegador. Não altera limites de créditos nem dados persistidos.
+- `src/lib/google-maps-url.ts` constrói URLs e impede redirecionamento para
+  endereços falsos; `src/features/search-leads/GoogleMapsLink.tsx` renderiza ícone
+  + texto em todos os segmentos, com CSS acessível e responsivo.
+- Testes: `deno test src/lib/google-maps-url.test.ts` (GitHub Actions está bloqueado
+  por faturamento, por isso a validação automatizada ainda precisa de execução local).
+
+**Atribuição ≠ atalho:** os créditos de origem Overture/Geoapify/Google continuam
+separados e corretos no rodapé. O atalho **Google Maps** não muda a procedência
+dos dados. Código permanece na PR draft até validação do preview staging.
+
 ## Melhorias sequenciais — busca unificada, leads, custos, dashboard, Brasil (12/11/2026)
 
 As cinco melhorias estão **em desenvolvimento na PR draft**, não publicadas em produção.
