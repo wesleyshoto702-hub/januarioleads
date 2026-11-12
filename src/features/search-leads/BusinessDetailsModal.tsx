@@ -7,7 +7,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { buildFactualBusinessDescription } from "../business-presence/business-description";
+import { displayBusinessDescription } from "../business-presence/business-description";
 import { normalizeBrazilianStateCode } from "../../lib/brazil-locations";
 import { discoverBusinessPresence } from "../business-presence/discover-business-presence";
 import { canonicalManualInstagramUrl, presenceFromBusiness } from "../business-presence/storage";
@@ -135,7 +135,7 @@ export function BusinessDetailsModal({
   const [commercialError, setCommercialError] = useState("");
 
   const factualDescription =
-    business.factualDescription ?? buildFactualBusinessDescription(business);
+    displayBusinessDescription(business, segmentLabel);
   const confirmedInstagram =
     business.instagram &&
     business.instagramConfidence !== "medium" &&
