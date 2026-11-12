@@ -119,30 +119,30 @@ export function applyProposalTemplate(proposal: ProposalRecord,id:ProposalTempla
   };
 }
 function parseProposal(value: unknown): ProposalRecord | null {
-  if(!isRecord(value) || typeof value.id!=="string" ||
-    !/^[0-9a-f-]{36}$/i.test(value.id) ||
-    typeof value.createdAt!=="string" || !Number.isFinite(Date.parse(value.createdAt)) ||
-    typeof value.updatedAt!=="string" || !Number.isFinite(Date.parse(value.updatedAt)) ||
-    !Array.isArray(value.lines))return null;
-  const lines: ProposalLine[]=value.lines.slice(0,MAX_LINES).flatMap(x=>{
-    if(!isRecord(x) || typeof x.id!=="string" || !/^[0-9a-f-]{36}$/i.test(x.id))return [];
-    return [{id:x.id,description:text(x.description,300),quantity:validQty(x.quantity),
-      unitPrice:validPrice(x.unitPrice)}];
+  if(!isRecord(value) || typeof value["id"]!=="string" ||
+    !/^[0-9a-f-]{36}$/i.test(value["id"]) ||
+    typeof value["createdAt"]!=="string" || !Number.isFinite(Date.parse(value["createdAt"])) ||
+    typeof value["updatedAt"]!=="string" || !Number.isFinite(Date.parse(value["updatedAt"])) ||
+    !Array.isArray(value["lines"]))return null;
+  const lines: ProposalLine[]=value["lines"].slice(0,MAX_LINES).flatMap(x=>{
+    if(!isRecord(x) || typeof x["id"]!=="string" || !/^[0-9a-f-]{36}$/i.test(x["id"]))return [];
+    return [{id:x["id"],description:text(x["description"],300),quantity:validQty(x["quantity"]),
+      unitPrice:validPrice(x["unitPrice"])}];
   });
-  const leadId=typeof value.leadId==="string" && /^[0-9a-f-]{36}$/i.test(value.leadId)
-    ?value.leadId:null;
+  const leadId=typeof value["leadId"]==="string" && /^[0-9a-f-]{36}$/i.test(value["leadId"])
+    ?value["leadId"]:null;
   return {
-    id:value.id,leadId,clientName:text(value.clientName,160),
-    clientEmail:text(value.clientEmail,180),title:text(value.title,160),
-    sellerName:text(value.sellerName,160),sellerContact:text(value.sellerContact,180),
-    introduction:text(value.introduction,2400),scope:text(value.scope,6000),
-    deadline:text(value.deadline,300),paymentTerms:text(value.paymentTerms,1200),
-    validUntil:dateOnly(value.validUntil),notes:text(value.notes,2500),
-    lines,status:PROPOSAL_STATUSES.includes(value.status as ProposalStatus)
-      ?value.status as ProposalStatus:"draft",
-    revision:typeof value.revision==="number"&&Number.isInteger(value.revision)
-      ?Math.min(9999,Math.max(1,value.revision)):1,
-    createdAt:value.createdAt,updatedAt:value.updatedAt,
+    id:value["id"],leadId,clientName:text(value["clientName"],160),
+    clientEmail:text(value["clientEmail"],180),title:text(value["title"],160),
+    sellerName:text(value["sellerName"],160),sellerContact:text(value["sellerContact"],180),
+    introduction:text(value["introduction"],2400),scope:text(value["scope"],6000),
+    deadline:text(value["deadline"],300),paymentTerms:text(value["paymentTerms"],1200),
+    validUntil:dateOnly(value["validUntil"]),notes:text(value["notes"],2500),
+    lines,status:PROPOSAL_STATUSES.includes(value["status"] as ProposalStatus)
+      ?value["status"] as ProposalStatus:"draft",
+    revision:typeof value["revision"]==="number"&&Number.isInteger(value["revision"])
+      ?Math.min(9999,Math.max(1,value["revision"])):1,
+    createdAt:value["createdAt"],updatedAt:value["updatedAt"],
   };
 }
 /** Preserve an unfinished edit when the user opens another Workspace section. */
@@ -225,8 +225,8 @@ export function parseProposalBackup(serialized: string): ProposalRecord[] {
   let parsed: unknown;
   try { parsed = JSON.parse(serialized); }
   catch { throw new Error("Arquivo JSON inválido."); }
-  if(!isRecord(parsed) || parsed.product!=="JanuarioLeads" ||
-    parsed.section!=="proposals" || parsed.version!==1 ||
+  if(!isRecord(parsed) || parsed["product"]!=="JanuarioLeads" ||
+    parsed["section"]!=="proposals" || parsed["version"]!==1 ||
     !Array.isArray(parsed["proposals"]) || parsed["proposals"].length>MAX_PROPOSALS)
     throw new Error("Este arquivo não é um backup compatível de propostas do Januário Leads.");
   const result:ProposalRecord[]=[];

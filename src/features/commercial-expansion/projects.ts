@@ -11,13 +11,13 @@ export type ClientProject=CommercialRecord&{
 };
 export function isClientProject(x:unknown):x is ClientProject {
  return isCommercialRecord(x)&&isObject(x)&&
- (x.leadId===null||typeof x.leadId==="string")&&
- (x.proposalId===null||typeof x.proposalId==="string")&&
- typeof x.name==="string"&&typeof x.description==="string"&&
- Object.hasOwn(PROJECT_STAGES,String(x.status))&&
- typeof x.dueDate==="string"&&(x.dueDate===""||/^\d{4}-\d{2}-\d{2}$/.test(x.dueDate))&&
- (x.deliveredAt===null||typeof x.deliveredAt==="string")&&Array.isArray(x.tasks)&&x.tasks.length<=60&&
- x.tasks.every(t=>isObject(t)&&typeof t.id==="string"&&typeof t.title==="string"&&typeof t.done==="boolean");
+ (x["leadId"]===null||typeof x["leadId"]==="string")&&
+ (x["proposalId"]===null||typeof x["proposalId"]==="string")&&
+ typeof x["name"]==="string"&&typeof x["description"]==="string"&&
+ Object.hasOwn(PROJECT_STAGES,String(x["status"]))&&
+ typeof x["dueDate"]==="string"&&(x["dueDate"]===""||/^\d{4}-\d{2}-\d{2}$/.test(x["dueDate"]))&&
+ (x["deliveredAt"]===null||typeof x["deliveredAt"]==="string")&&Array.isArray(x["tasks"])&&x["tasks"].length<=60&&
+  x["tasks"].every(t=>isObject(t)&&typeof t["id"]==="string"&&typeof t["title"]==="string"&&typeof t["done"]==="boolean");
 }
 export function projectProgress(project:ClientProject):number {
  if(!project.tasks.length)return 0;

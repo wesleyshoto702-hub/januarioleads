@@ -8,10 +8,10 @@ export function nonemptyText(x:unknown,max=160):string {
 export function isObject(x:unknown):x is Record<string,unknown> {
   return x!==null&&typeof x==="object"&&!Array.isArray(x);
 }
-export function isCommercialRecord(x:unknown):x is CommercialRecord {
-  return isObject(x)&&typeof x.id==="string"&&/^[0-9a-f-]{36}$/i.test(x.id)&&
-    typeof x.createdAt==="string"&&Number.isFinite(Date.parse(x.createdAt))&&
-    typeof x.updatedAt==="string"&&Number.isFinite(Date.parse(x.updatedAt));
+export function isCommercialRecord(x:unknown):x is CommercialRecord & Record<string,unknown> {
+  return isObject(x)&&typeof x["id"]==="string"&&/^[0-9a-f-]{36}$/i.test(x["id"])&&
+    typeof x["createdAt"]==="string"&&Number.isFinite(Date.parse(x["createdAt"]))&&
+    typeof x["updatedAt"]==="string"&&Number.isFinite(Date.parse(x["updatedAt"]));
 }
 export function loadCommercial<T extends CommercialRecord>(
   key:string,guard:(x:unknown)=>x is T,limit=300,

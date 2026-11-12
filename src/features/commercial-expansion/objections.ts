@@ -6,10 +6,10 @@ export const OBJECTION_REASONS:Record<ObjectionReason,string>={
  no_interest:"Sem interesse",no_reply:"Sem resposta",other:"Outro motivo",
 };
 export function isObjection(x:unknown):x is Objection{
- return isCommercialRecord(x)&&isObject(x)&&typeof x.leadId==="string"&&
- Object.hasOwn(OBJECTION_REASONS,String(x.reason))&&
- typeof x.details==="string"&&x.details.length<=2000&&typeof x.revisitOn==="string"&&
- (x.revisitOn===""||/^\d{4}-\d{2}-\d{2}$/.test(x.revisitOn))&&typeof x.resolved==="boolean";
+ return isCommercialRecord(x)&&isObject(x)&&typeof x["leadId"]==="string"&&
+  Object.hasOwn(OBJECTION_REASONS,String(x["reason"]))&&
+ typeof x["details"]==="string"&&x["details"].length<=2000&&typeof x["revisitOn"]==="string"&&
+ (x["revisitOn"]===""||/^\d{4}-\d{2}-\d{2}$/.test(x["revisitOn"]))&&typeof x["resolved"]==="boolean";
 }
 export function summarizeObjections(records:readonly Objection[],eligibleIds?:ReadonlySet<string>){
  const filtered=eligibleIds?records.filter(x=>eligibleIds.has(x.leadId)):records;

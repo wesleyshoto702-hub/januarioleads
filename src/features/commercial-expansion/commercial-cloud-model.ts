@@ -48,15 +48,15 @@ function identifier(key:CloudDocumentKey,item:unknown):string|null {
   if(!item||typeof item!=="object"||Array.isArray(item))return null;
   const data=item as Record<string,unknown>;
   if(key==="digital-reports"){
-    return typeof data.url==="string"&&
-      (data.device==="mobile"||data.device==="desktop")
-      ?data.url+"\u0000"+data.device:null;
+    return typeof data["url"]==="string"&&
+      (data["device"]==="mobile"||data["device"]==="desktop")
+      ?data["url"]+"\u0000"+data["device"]:null;
   }
-  return typeof data.id==="string"&&data.id.length>0?data.id:null;
+  return typeof data["id"]==="string"&&data["id"].length>0?data["id"]:null;
 }
 function modifiedAt(key:CloudDocumentKey,item:unknown):number {
   const data=item as Record<string,unknown>;
-  const time=key==="digital-reports"?data.checkedAt:data.updatedAt;
+  const time=key==="digital-reports"?data["checkedAt"]:data["updatedAt"];
   const value=typeof time==="string"?Date.parse(time):NaN;
   return Number.isFinite(value)?value:0;
 }

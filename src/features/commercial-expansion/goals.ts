@@ -8,9 +8,9 @@ export const GOAL_METRICS:Record<GoalMetric,string>={
 };
 export type CommercialGoal=CommercialRecord&{metric:GoalMetric;period:GoalPeriod;target:number};
 export function isCommercialGoal(x:unknown):x is CommercialGoal{
- return isCommercialRecord(x)&&isObject(x)&&Object.hasOwn(GOAL_METRICS,String(x.metric))&&
- (x.period==="week"||x.period==="month")&&typeof x.target==="number"&&
- Number.isInteger(x.target)&&x.target>=1&&x.target<=100000;
+ return isCommercialRecord(x)&&isObject(x)&&Object.hasOwn(GOAL_METRICS,String(x["metric"]))&&
+ (x["period"]==="week"||x["period"]==="month")&&typeof x["target"]==="number"&&
+ Number.isInteger(x["target"])&&x["target"]>=1&&x["target"]<=100000;
 }
 export function goalPeriodRange(day:string,period:GoalPeriod):{start:string;end:string}{
  const start=period==="week"?calendarWeekStart(day):day.slice(0,7)+"-01";

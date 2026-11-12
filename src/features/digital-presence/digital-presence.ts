@@ -66,30 +66,31 @@ export function parsePageSpeedResponse(
   payload: unknown, requestedUrl: string, device: AuditDevice,
 ): DigitalReport {
   const root = object(payload);
-  const lighthouse = object(root.lighthouseResult);
-  const groups = object(lighthouse.categories);
-  const auditMap = object(lighthouse.audits);
+  const lighthouse = object(root["lighthouseResult"]);
+  const groups = object(lighthouse["categories"]);
+  const auditMap = object(lighthouse["audits"]);
   if (!Object.keys(groups).length || !Object.keys(auditMap).length)
     throw new Error("O PageSpeed não retornou medições suficientes para esta página.");
   const scores = {} as DigitalReport["scores"];
-  for (const cat of categories) scores[keyToScore[cat]] = safeScore(object(groups[cat]).score);
-  const metrics = [
+  for (const cat of categories) scores[keyToScore[cat]] = safeScore(object(groups[cat])["score"]);
+  const metricDefinitions: ReadonlyArray<readonly [string,string]> = [
     ["first-contentful-paint", "Primeiro conteúdo"],
     ["largest-contentful-paint", "Maior conteúdo (LCP)"],
     ["cumulative-layout-shift", "Estabilidade visual (CLS)"],
     ["total-blocking-time", "Tempo de bloqueio"],
-  ].flatMap(([id,label]) => {
+  ];
+  const metrics = metricDefinitions.flatMap(([id,label]) => {
     const audit = object(auditMap[id]);
-    const raw = audit.displayValue;
+    const raw = audit["displayValue"];
     return typeof raw === "string" && raw.length < 65
       ? [{ id, label, value: raw }] : [];
   });
 
   const findings = Object.entries(auditMap).flatMap(([id,raw]) => {
     const audit = object(raw);
-    const score = finiteNumber(audit.score);
-    const title = audit.title;
-    const mode = audit.scoreDisplayMode;
+    const score = finiteNumber(audit["score"]);
+    const title = audit["title"];
+    const mode = audit["scoreDisplayMode"];
     if (
       score === null || score >= 0.9 || score < 0 || score > 1 ||
       typeof title !== "string" || !title.trim() || title.length > 180 ||
@@ -100,17 +101,19 @@ export function parsePageSpeedResponse(
   }).sort((a,b) => a.score-b.score).slice(0,7);
 
   let final = requestedUrl;
-  if (typeof root.id === "string") {
-    try { final = normalizePublicWebsite(root.id); }
+  const responseId = root["id"];
+  if (typeof responseId === "string") {
+    try { final = normalizePublicWebsite(responseId); }
     catch { /* Never display or cache private URL parameters from redirects. */ }
   }
+  const analysisTimestamp = root["analysisUTCTimestamp"];
   return {
     url: requestedUrl,
     finalUrl: final,
     device,
-    checkedAt: typeof root.analysisUTCTimestamp === "string"
-      && Number.isFinite(Date.parse(root.analysisUTCTimestamp))
-      ? root.analysisUTCTimestamp : new Date().toISOString(),
+    checkedAt: typeof analysisTimestamp === "string"
+      && Number.isFinite(Date.parse(analysisTimestamp))
+      ? analysisTimestamp : new Date().toISOString(),
     scores,
     metrics,
     findings,
@@ -122,11 +125,11 @@ function readCache(): DigitalReport[] {
     const parsed: unknown = JSON.parse(accountLocalStorage.getItem(CACHE_KEY) ?? "[]");
     return Array.isArray(parsed) ? parsed.filter((item): item is DigitalReport => {
       const data = object(item);
-      const time = Date.parse(String(data.checkedAt ?? ""));
-      return typeof data.url === "string" && typeof data.finalUrl === "string" &&
-        (data.device === "mobile" || data.device === "desktop") &&
-        Boolean(data.scores && typeof data.scores === "object") &&
-        Array.isArray(data.findings) && Array.isArray(data.metrics) &&
+      const time = Date.parse(String(data["checkedAt"] ?? ""));
+      return typeof data["url"] === "string" && typeof data["finalUrl"] === "string" &&
+        (data["device"] === "mobile" || data["device"] === "desktop") &&
+        Boolean(data["scores"] && typeof data["scores"] === "object") &&
+        Array.isArray(data["findings"]) && Array.isArray(data["metrics"]) &&
         Number.isFinite(time) && Date.now() >= time &&
         Date.now() - time <= CACHE_TTL_MS;
     }).slice(0,15) : [];
@@ -147,8 +150,8 @@ function dailyCalls(): { date: string; count: number } {
   }).format(new Date());
   try {
     const data = object(JSON.parse(accountLocalStorage.getItem(BUDGET_KEY) ?? "{}"));
-    if (data.date === today && typeof data.count === "number")
-      return { date: today, count: Math.max(0, data.count) };
+    if (data["date"] === today && typeof data["count"] === "number")
+      return { date: today, count: Math.max(0, data["count"]) };
   } catch { /* Use today's counter */ }
   return {date:today,count:0};
 }
@@ -173,7 +176,9 @@ export async function analyzeDigitalPresence(
   for (const category of categories) query.searchParams.append("category",category);
   let response: Response;
   try {
-    response = await fetch(query.toString(), { method:"GET", signal, cache:"no-store" });
+    response = await fetch(query.toString(), {
+      method:"GET", cache:"no-store", ...(signal === undefined ? {} : {signal}),
+    });
   } catch (reason) {
     if (signal?.aborted) throw new Error("Análise cancelada.");
     throw new Error("O PageSpeed está inacessível neste navegador. Tente mais tarde ou abra o relatório no site oficial.");

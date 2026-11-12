@@ -46,11 +46,11 @@ function safeData(kind:CloudDocumentKey,raw:unknown):unknown[]{
     return raw.filter((item)=>{
       if(!item||typeof item!=="object"||Array.isArray(item))return false;
       const d=item as Record<string,unknown>;
-      return typeof d.url==="string"&&d.url.length<=500&&
-        (d.device==="mobile"||d.device==="desktop")&&
-        typeof d.checkedAt==="string"&&Number.isFinite(Date.parse(d.checkedAt))&&
-        d.scores!==null&&typeof d.scores==="object"&&
-        Array.isArray(d.metrics)&&Array.isArray(d.findings);
+      return typeof d["url"]==="string"&&d["url"].length<=500&&
+        (d["device"]==="mobile"||d["device"]==="desktop")&&
+        typeof d["checkedAt"]==="string"&&Number.isFinite(Date.parse(d["checkedAt"]))&&
+        d["scores"]!==null&&typeof d["scores"]==="object"&&
+        Array.isArray(d["metrics"])&&Array.isArray(d["findings"]);
     });
   }
   const validator=guard[kind];
@@ -82,9 +82,9 @@ function readMeta():VersionTable{
       const val=data[kind];
       if(val&&typeof val==="object"&&!Array.isArray(val)){
         const entry=val as Record<string,unknown>;
-        if(typeof entry.revision==="number"&&Number.isInteger(entry.revision)&&
-          entry.revision>=0&&typeof entry.fingerprint==="string"){
-          meta[kind]={revision:entry.revision,fingerprint:entry.fingerprint};
+        if(typeof entry["revision"]==="number"&&Number.isInteger(entry["revision"])&&
+          entry["revision"]>=0&&typeof entry["fingerprint"]==="string"){
+          meta[kind]={revision:entry["revision"],fingerprint:entry["fingerprint"]};
         }
       }
     }
@@ -109,9 +109,9 @@ async function authSession():Promise<ApiSession>{
 }
 async function request(session:ApiSession,path:string,method="GET",body?:unknown):Promise<Response>{
   const headers:Record<string,string>={apikey:SUPABASE_PUBLISHABLE_KEY};
-  if(session.token)headers.Authorization="Bearer "+session.token;
+  if(session.token)headers["Authorization"]="Bearer "+session.token;
   if(body!==undefined)headers["Content-Type"]="application/json";
-  if(method==="POST"||method==="PATCH")headers.Prefer="return=representation";
+  if(method==="POST"||method==="PATCH")headers["Prefer"]="return=representation";
   return fetch(SUPABASE_URL+"/rest/v1/commercial_workspace_documents"+path,{
     method,cache:"no-store",credentials:"same-origin",headers,
     ...(body!==undefined?{body:JSON.stringify(body)}:{}),
@@ -123,13 +123,13 @@ function decodeRows(value:unknown):Row[]{
     if(!raw||typeof raw!=="object"||Array.isArray(raw))
       throw new Error("Registro do Supabase inválido.");
     const d=raw as Record<string,unknown>;
-    const key=d.document_key;
-    if(typeof key!=="string"||!allowed.has(key)||typeof d.revision!=="number"||!Number.isInteger(d.revision)||
-      (d.revision as number)<1)
+    const key=d["document_key"];
+    if(typeof key!=="string"||!allowed.has(key)||typeof d["revision"]!=="number"||!Number.isInteger(d["revision"])||
+      (d["revision"] as number)<1)
       throw new Error("Registro do Supabase fora do esquema esperado.");
     return {document_key:key as CloudDocumentKey,
-      revision:d.revision as number,
-      content:safeData(key as CloudDocumentKey,d.content)};
+      revision:d["revision"] as number,
+      content:safeData(key as CloudDocumentKey,d["content"])};
   });
 }
 async function allRemote(session:ApiSession):Promise<Map<CloudDocumentKey,Row>>{
