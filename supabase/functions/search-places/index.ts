@@ -345,6 +345,11 @@ async function outscraperJson(
       headers: { "X-API-KEY": apiKey, Accept: "application/json" },
       signal: AbortSignal.timeout(12_000),
     });
+    // Outscraper documents HTTP 204 as a finished, failed task.
+    // Response 204 has no body, so never try to JSON.parse it.
+    if (response.status === 204) return {
+      ok: true, payload: { status: "Failure" },
+    };
     if (!response.ok) return { ok: false, payload: null };
     const data = await response.text();
     if (data.length > 200_000) return { ok: false, payload: null };
