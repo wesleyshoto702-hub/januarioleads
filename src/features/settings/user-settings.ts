@@ -5,8 +5,11 @@ import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "../../lib/supabase-confi
 export type SettingsHomeView =
   | "dashboard" | "leads" | "search" | "prospecting"
   | "opportunities" | "messages" | "finance";
-export type AccentColor = "green" | "yellow" | "blue" | "red" | "white" | "black";
-export const ACCENT_COLORS: readonly AccentColor[] = ["green","yellow","blue","red","white","black"];
+export const ACCENT_COLORS = [
+  "green", "yellow", "blue", "red", "white", "black",
+  "purple", "cyan", "orange", "pink", "indigo",
+] as const;
+export type AccentColor = (typeof ACCENT_COLORS)[number];
 export function isAccentColor(value:unknown): value is AccentColor {
   return typeof value === "string" && ACCENT_COLORS.includes(value as AccentColor);
 }
@@ -62,7 +65,7 @@ function validateSettings(value: UserSettings): UserSettings {
   if (displayName.length > 80)
     throw new Error("O nome de exibição deve ter até 80 caracteres.");
   if (!isAccentColor(value.accentColor))
-    throw new Error("Selecione uma das cinco cores disponíveis.");
+    throw new Error("Selecione uma das onze cores disponíveis.");
   if (!HOME_VIEWS.includes(value.homeView))
     throw new Error("A página inicial selecionada é inválida.");
   return { ...value, displayName };
