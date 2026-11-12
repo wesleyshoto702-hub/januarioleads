@@ -1939,10 +1939,10 @@ body{
 }
 /* Distinguish records visually in mixed-source lists without extra icons
    or visible provider names on individual cards. */
-.search-leads-page .business-card--places {
+.saas-main .search-leads-page .business-results-shell .business-card--places {
   border-left: 2px solid color-mix(in srgb, #74a9f9 60%, var(--border));
 }
-.search-leads-page .business-card--open {
+.saas-main .search-leads-page .business-results-shell .business-card--open {
   border-left: 2px solid color-mix(in srgb, #56cc99 60%, var(--border));
 }
 .search-leads-page .business-results-attribution-entry--places {
