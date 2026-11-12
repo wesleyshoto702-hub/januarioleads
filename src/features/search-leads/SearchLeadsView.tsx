@@ -34,6 +34,7 @@ import {
 } from "./identity";
 import { searchBusinesses } from "./search-businesses";
 import { SearchResultsAttribution } from "./BusinessSourceCredit";
+import { GoogleMapsLink } from "./GoogleMapsLink";
 import {
   DEFAULT_SEARCH_LOCATION,
   loadBrazilianMunicipalities,
@@ -71,6 +72,7 @@ export type SearchMessageTarget = {
 type ResultFilter =
   | "all"
   | "phone"
+  | "email"
   | "whatsapp"
   | "with-site"
   | "without-site"
@@ -87,7 +89,7 @@ type ResultSort =
 
 type LeadStatusFilter = "all" | "new" | LeadStatus;
 
-type ContactFilter = "all" | "phone" | "whatsapp";
+type ContactFilter = "all" | "phone" | "email" | "whatsapp";
 type WebsiteFilter = "all" | "with-site" | "without-site";
 type InstagramFilter = "all" | "with-instagram" | "without-instagram";
 type ChanceFilter = "all" | "high";
@@ -101,6 +103,7 @@ type ResultFilterState = {
 
 type SmartFilterId =
   | "no-site-phone"
+  | "no-site-email"
   | "no-site-whatsapp"
   | "high-chance-no-site"
   | "not-contacted"
@@ -175,7 +178,7 @@ function loadSearchLeadsSession(): SearchLeadsSession | null {
       (saved.nextPageToken !== null && typeof saved.nextPageToken !== "string") ||
       (saved.screen !== "segments" && saved.screen !== "results") ||
       !filters ||
-      !["all", "phone", "whatsapp"].includes(filters.contact) ||
+      !["all", "phone", "email", "whatsapp"].includes(filters.contact) ||
       !["all", "with-site", "without-site"].includes(filters.website) ||
       !["all", "with-instagram", "without-instagram"].includes(filters.instagram) ||
       !["all", "high"].includes(filters.chance) ||
@@ -199,6 +202,7 @@ function loadSearchLeadsSession(): SearchLeadsSession | null {
 const RESULT_FILTER_OPTIONS: Array<[ResultFilter, string]> = [
   ["all", "Todos"],
   ["phone", "Com telefone"],
+  ["email", "Com e-mail"],
   ["whatsapp", "Com WhatsApp"],
   ["with-site", "Com site"],
   ["without-site", "Sem site"],
@@ -214,6 +218,17 @@ const SMART_FILTERS: SmartFilterPreset[] = [
     resultFilters: {
       ...DEFAULT_RESULT_FILTERS,
       contact: "phone",
+      website: "without-site",
+    },
+    leadStatusFilter: "all",
+  },
+  {
+    id: "no-site-email",
+    label: "Sem site + e-mail",
+    title: "Empresas sem site identificado, mas com um e-mail cadastrado.",
+    resultFilters: {
+      ...DEFAULT_RESULT_FILTERS,
+      contact: "email",
       website: "without-site",
     },
     leadStatusFilter: "all",
@@ -282,7 +297,26 @@ function hasUsableWhatsApp(business: BusinessSearchResult) {
 }
 
 function hasIdentifiedWebsite(business: BusinessSearchResult) {
-  return Boolean(business.website?.trim());
+  const value = business.website?.trim();
+  if (!value) return false;
+  try {
+    const url = new URL(value);
+    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+    const nonWebsites = [
+      "wa.me", "whatsapp.com", "instagram.com", "facebook.com", "fb.me",
+      "linktr.ee", "bit.ly", "tinyurl.com", "youtube.com", "tiktok.com",
+      "beacons.ai", "goo.gl",
+    ];
+    return ["http:", "https:"].includes(url.protocol) && !nonWebsites.some(
+      (blocked) => host === blocked || host.endsWith("." + blocked)
+    );
+  } catch {
+    return false;
+  }
+}
+
+function hasBusinessEmail(business: BusinessSearchResult) {
+  return Boolean(business.email?.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(business.email.trim()));
 }
 
 function hasConfirmedInstagram(business: BusinessSearchResult) {
@@ -317,6 +351,9 @@ function manualResultFilters(value: ResultFilter): ResultFilterState {
   if (value === "whatsapp") {
     return { ...DEFAULT_RESULT_FILTERS, contact: "whatsapp" };
   }
+  if (value === "email") {
+    return { ...DEFAULT_RESULT_FILTERS, contact: "email" };
+  }
   if (value === "with-site") {
     return { ...DEFAULT_RESULT_FILTERS, website: "with-site" };
   }
@@ -339,6 +376,7 @@ function isManualResultFilterActive(
   if (value === "all") return sameResultFilters(filters, DEFAULT_RESULT_FILTERS);
   if (value === "phone") return filters.contact === "phone";
   if (value === "whatsapp") return filters.contact === "whatsapp";
+  if (value === "email") return filters.contact === "email";
   if (value === "with-site") return filters.website === "with-site";
   if (value === "without-site") return filters.website === "without-site";
   if (value === "with-instagram") return filters.instagram === "with-instagram";
@@ -365,6 +403,9 @@ function matchesResultFilters(
     return false;
   }
   if (filters.contact === "whatsapp" && !hasUsableWhatsApp(business)) {
+    return false;
+  }
+  if (filters.contact === "email" && !hasBusinessEmail(business)) {
     return false;
   }
 
@@ -767,11 +808,16 @@ export function SearchLeadsView({
               }
             : business;
 
+        // Social and short links are not verified company websites, even when
+        // a provider filled its generic "website" field with those URLs.
+        const cleanBusiness = hasIdentifiedWebsite(hydratedBusiness)
+          ? hydratedBusiness
+          : { ...hydratedBusiness, website: null };
         return {
-          business: hydratedBusiness,
+          business: cleanBusiness,
           existingLead,
           alreadyAdded: Boolean(existingLead),
-          chance: calculateLeadChance(hydratedBusiness, resultsSegment),
+          chance: calculateLeadChance(cleanBusiness, resultsSegment),
         };
       }),
     [results, existingLeads, resultsSegment, resultsLocation],
@@ -794,6 +840,17 @@ export function SearchLeadsView({
       return (b.business.rating ?? -1) - (a.business.rating ?? -1);
     });
   }, [resultWithExisting, resultFilters, sort, leadStatusFilter, mode]);
+
+  const resultsInsights = useMemo(() => ({
+    visible: visibleResults.length,
+    noSite: visibleResults.filter(({ business }) => !hasIdentifiedWebsite(business)).length,
+    withSite: visibleResults.filter(({ business }) => hasIdentifiedWebsite(business)).length,
+    withEmail: visibleResults.filter(({ business }) => hasBusinessEmail(business)).length,
+    withPhone: visibleResults.filter(({ business }) => hasValidBusinessPhone(business)).length,
+    overture: visibleResults.filter(({ business }) => business.source === "overture").length,
+    geoapify: visibleResults.filter(({ business }) => business.source === "geoapify").length,
+    google: visibleResults.filter(({ business }) => business.source === "google_places").length,
+  }), [visibleResults]);
 
   const quickFilterCounts = useMemo(
     () =>
@@ -1291,6 +1348,15 @@ export function SearchLeadsView({
         </div>
       )}
 
+      <div className="search-leads-insights" role="status" aria-label="Resumo dos resultados filtrados">
+        <span>Exibidos <strong>{resultsInsights.visible}</strong> de {results.length}</span>
+        <span>Sem site identificado <strong>{resultsInsights.noSite}</strong></span>
+        <span>Com site <strong>{resultsInsights.withSite}</strong></span>
+        <span>Com telefone <strong>{resultsInsights.withPhone}</strong></span>
+        <span>Com e-mail <strong>{resultsInsights.withEmail}</strong></span>
+        <span>Fontes: Overture <strong>{resultsInsights.overture}</strong> · Geoapify <strong>{resultsInsights.geoapify}</strong> · Google <strong>{resultsInsights.google}</strong></span>
+      </div>
+
       <div className="results-toolbar">
         <div className="quick-filters">
           <div className="quick-filters-heading">
@@ -1585,7 +1651,7 @@ function BusinessCard({
   }
 
   return (
-    <article className={"business-card business-card--" + (business.source === "geoapify" ? "open" : "places")}>
+    <article className={"business-card business-card--" + (business.source === "geoapify" || business.source === "overture" ? "open" : "places")}>
       <div className="business-card-main">
         <div className="business-title-row">
           <div>
@@ -1634,7 +1700,8 @@ function BusinessCard({
         </div>
 
         <div className="business-presence">
-          {business.website ? (
+          <GoogleMapsLink business={business} />
+          {hasIdentifiedWebsite(business) ? (
             <a href={safeExternalHref(business.website) ?? undefined} target="_blank" rel="noopener noreferrer">
               Site <ExternalLink size={12} />
             </a>

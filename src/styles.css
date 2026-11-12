@@ -2070,6 +2070,33 @@ select{
   letter-spacing: -0.05em;
 }
 
+.search-leads-insights{
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 12px;
+  min-width: 0;
+}
+.search-leads-insights span{
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 7px 10px;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+  white-space: normal;
+}
+.search-leads-insights strong{
+  color: var(--text);
+  font-weight: 700;
+}
+
 .results-toolbar{
   margin-bottom: 14px;
   border: 1px solid var(--border);
@@ -2556,6 +2583,37 @@ select{
 .business-presence a:hover{
   color: var(--text);
 }
+
+/* Universal Maps shortcut: always visible at the left of contact links,
+   regardless of the data source (Overture, Geoapify or Google Places). */
+.business-presence .business-google-maps-link,
+.detail-links .business-google-maps-link{
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 5px;
+  color: var(--primary);
+  font-weight: 750;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.business-google-maps-link svg{
+  flex: 0 0 auto;
+}
+.business-google-maps-link:focus-visible{
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+@media (max-width: 640px){
+  .business-presence .business-google-maps-link{
+    min-height: 36px;
+  }
+  .detail-links .business-google-maps-link{
+    min-height: 40px;
+  }
+}
+
 
 .business-actions{
   width: 176px;

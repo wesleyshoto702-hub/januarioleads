@@ -1,0 +1,121 @@
+## Atalho Google Maps em todos os leads encontrados
+
+A interface **Buscar Leads** mantém uma única busca, mas cada cartão agora exibe um atalho
+**Google Maps** com ícone à esquerda, independente da origem Overture/Geoapify/Google
+Places. O mesmo atalho fica disponível na janela **Ver empresa**.
+
+- Google Places: respeita URL direta do Google Maps, quando fornecida, ou combina nome + Google Place ID válido.
+- Geoapify e Overture: monta `https://www.google.com/maps/search/?api=1&query=...`
+  com nome e endereço/cidade. Isso é uma **pesquisa pelo estabelecimento**, não
+  significa que o Google confirmou ficha própria daquele local.
+- Nenhuma chamada adicional ao Google Places é feita: é apenas um link HTTPS
+  aberto pelo navegador. Não altera limites de créditos nem dados persistidos.
+- `src/lib/google-maps-url.ts` constrói URLs e impede redirecionamento para
+  endereços falsos; `src/features/search-leads/GoogleMapsLink.tsx` renderiza ícone
+  + texto em todos os segmentos, com CSS acessível e responsivo.
+- Testes: `deno test src/lib/google-maps-url.test.ts` (GitHub Actions está bloqueado
+  por faturamento, por isso a validação automatizada ainda precisa de execução local).
+
+**Atribuição ≠ atalho:** os créditos de origem Overture/Geoapify/Google continuam
+separados e corretos no rodapé. O atalho **Google Maps** não muda a procedência
+dos dados. Código permanece na PR draft até validação do preview staging.
+
+## Melhorias sequenciais — busca unificada, leads, custos, dashboard, Brasil (12/11/2026)
+
+As cinco melhorias estão **em desenvolvimento na PR draft**, não publicadas em produção.
+
+1. **Overture → Geoapify → Google Places**: a função `search-places` agora retorna dados Overture sem consultar a Geoapify quando tem 10 ou mais resultados com qualidade de telefone suficiente e pelo menos dois negócios sem site identificado. Se faltar cobertura, consulta Geoapify; se ainda faltar, o Google é fallback **somente quando autorizado pelo orçamento**.
+2. **Qualidade dos leads**: importação prioriza contatos úteis e reserva até 40% das vagas por cidade para estabelecimentos com telefone/e-mail e sem site identificado. Os links WhatsApp/Instagram/Facebook/linktr.ee/encurtadores não são tratados como site empresarial. Filtros da UI usam a mesma regra; não afirmar que um negócio realmente não possui website.
+3. **Proteção de custos**: migração `20261112130000_search_provider_daily_usage.sql` cria contador diário atômico e privativo. Nova busca `search-places` reserva créditos **antes** de chamar a Geoapify ou Google. Default `GEOAPIFY_SEARCH_DAILY_CAP=120` e `GOOGLE_PLACES_SEARCH_DAILY_CAP=0` — Google desligado para novas pesquisas até habilitação expressa; máximos permitidos 300/dia Geoapify, 20/dia Google. Orçamento zero é condição de segurança; não mudar sem estimar preços. Abrange chamadas Google Text Search e Place Details desta função, inclusive enriquecimento, mas **não** cobre outros produtos, funções independentes ou o faturamento global da conta Google Cloud. A restrição por usuário `claim_api_request_for_user` continua ativa.
+4. **Dashboard Buscar Leads**: única seção de pesquisa; inclui filtro `Com e-mail`, atalho `Sem site + e-mail`, contadores de leads visíveis com/sem site, telefone, e-mail e origem por provedor. Filtros são locais, sem novas chamadas externas; CSS com wrapping no celular. Nunca recriar `Buscar via Maps`.
+5. **Expansão brasileira planejada, não executada**: `python scripts/plan_overture_expansion.py --states MG,SP,RJ` lista um piloto por cidade, com `--dry-run` e teto de 30 registros/cidade e 100 MiB de banco. `--states ALL` gera um plano para **27 UFs** sem baixar Overture nem escrever no banco. O roteiro começa no Sul de Minas, depois outras localidades; validar cobertura IBGE antes de usar qualquer comando.
+
+### Verificações feitas / pendentes
+
+- **Staging**: 30 estabelecimentos de Lavras/MG continuam no banco, segurança RLS vigente. Migração de orçamento aplicada e função RPC testada sob transação com `ROLLBACK`: duas reservas com teto 2 autorizadas e a terceira negada; orçamento Google zero negado. Nenhum contador real gasto nos testes.
+- **Staging implantado**: a Edge Function `search-places` foi atualizada para a versão **19**, com JWT obrigatório e as regras novas de prioridade e orçamento. Os contadores continuam zerados até chamadas reais; nenhum fallback pago foi invocado nesta implantação.
+- **Pendente**: validar login, segmentos, paginação, atribuição Overture e apresentação de filtros na UI local `bash scripts/preview-buscar-leads-staging.sh`. A interface Lovable na main continua no Supabase de PRODUÇÃO e não é um teste válido do Overture.
+- **Testes offline**: `python -m unittest discover -s tests/overture -v`. Novos casos cobrem classificação de links sociais, cota de empresas sem site, planejamento das 27 UFs e limites municipais. **Ainda não executados nesta revisão**: GitHub Actions segue bloqueado pela conta; não inferir teste CI aprovado.
+- **Produção**: não migrar nem mesclar até os testes ponta a ponta passarem. Todo custo novo requer confirmação deliberada do limite.
+
+## Validar Buscar Leads no STAGING (não confundir com Lovable/produção)
+
+**Diagnóstico confirmado em 12/11/2026:** a interface acessada para o teste Hotel/Lavras fez chamadas em `https://czkazbianiflhldenhcj.supabase.co/functions/v1/search-places` (produção), enquanto os 30 Overture importados estão exclusivamente no `https://prlrxjothrslhswpkoza.supabase.co` (staging). O preview do projeto Lovable ainda apontava para a branch `main`, sem a PR #140. Por isso não aparecia a atribuição Overture nos resultados. Não é evidência de falha na tabela nem do importador.
+
+Para testar a busca integrada corretamente com interface web **sem GitHub Actions**:
+
+1. Baixar/atualizar a branch `feat/overture-brasil-nacional` (o ZIP antigo não recebe arquivos novos automaticamente).
+2. Abrir Ubuntu/WSL na raiz da branch e rodar `bash scripts/preview-buscar-leads-staging.sh`.
+3. O script obriga `VITE_DEPLOY_TARGET=staging`, `VITE_HTTPONLY_SESSION=false`, URL e **chave pública** do Supabase staging; nunca usa `service_role`.
+4. Instala dependências (Bun ou Node 22+ com npm, se já disponíveis) e inicia Vite no localhost. Abra o endereço localhost exibido no terminal e entre com conta do *staging*.
+5. Em **Buscar Leads** (única seção), pesquise **Hotel**, **Lavras/MG**. Confirme `Serema Palace Hotel`, `Lavras Apart Hotel` ou `Hotel Ouro Lavras` e atribuição Overture no rodapé, quando houver registros Overture na resposta.
+6. Os sites de produção permanecem intactos. Não confunda esse preview local com o preview Lovable sincronizado à branch `main`.
+
+Se não aparecer Overture neste preview, inspecionar logs da função `search-places` do Supabase staging antes de qualquer merge. **Não criar outra tela Buscar via Maps.**
+
+# Overture Places — Integração para o Brasil inteiro
+
+**Status (2026-11-12):** código da busca preparado; função `search-places` implantada somente na homologação; esquema privado migrado e validado; **nenhum dado Overture importado ainda**. Não declarar cobertura nacional como concluída até conferir o relatório por UF e por município.
+
+## Objetivo e limites
+
+- As 27 unidades federativas são suportadas pelo importador, sem usar serviços de raspagem ou Google para copiar dados.
+- O Overture não é uma API de pesquisa em tempo real. É um conjunto de dados mensal que precisa de atualização.
+- O primeiro plano usa até **20 estabelecimentos por município** (ajustável entre 1 e 100), com prioridade para contatos úteis, distribuindo o orçamento de armazenamento e não prometendo cobertura exaustiva.
+- O importador interrompe novas inserções quando o banco alcança o teto configurado (400 MB por padrão). O tamanho da última transação e índices podem produzir pequena margem, portanto monitore o limite real no provedor.
+- A infraestrutura do Supabase, downloads e GitHub Actions consomem recursos sujeitos a cotas. **R$ 0 não é garantido em qualquer escala.**
+- O código da busca usa Overture antes do Geoapify e do Google Places, e mantém os resultados de cada provedor separados para respeitar suas licenças.
+- Atribuição Overture é exibida no resultado. Consulte sempre os avisos de licenças por fonte em https://docs.overturemaps.org/attribution/
+
+## Bancos
+
+- Homologação: Supabase `prlrxjothrslhswpkoza`.
+- Produção: Supabase `czkazbianiflhldenhcj` — **não alterar até revisão e aprovação dos testes.**
+- Migration `20261112080000_overture_national_places.sql` cria `overture_places`, `overture_import_progress` e a guarda `overture_storage_bytes()`.
+- Migration `20261112083000_overture_national_progress.sql` cadastra 27 UFs com estado `pending`.
+- As tabelas Overture possuem RLS e não são acessíveis diretamente a `anon` ou `authenticated`. O adaptador `_shared/overture-search.ts` lê no servidor usando chave privada.
+- A função `search-places` mantém autenticação de usuário, limites e CORS existentes.
+
+## Alternativa sem GitHub Actions — Windows
+
+O orçamento GitHub Actions desta conta está bloqueado. Para não cadastrar cartão nem gerar cobrança de execução, existem dois arquivos `.cmd` na raiz do repositório:
+
+1. `TESTAR-OVERTURE.cmd` — instala dependências Python em `.venv-overture`, executa testes offline e valida o recorte IBGE de **Lavras/MG**, sem gravar no Supabase.
+2. `IMPORTAR-OVERTURE-STAGING.cmd` — pede confirmação e chave privada **somente do projeto de homologação**, importa no máximo **30 estabelecimentos de Lavras** e imprime bytes de banco antes/depois. Não executa no projeto de produção.
+
+Pré-requisitos: Windows 10/11, Python 3.11+ (com `py` ou `python` disponível no PATH), internet e uma cópia local desta **branch**. Clique em **Code → Download ZIP** após selecionar a branch `feat/overture-brasil-nacional`. Alternativamente, `git clone -b feat/overture-brasil-nacional https://github.com/wesleyshoto702-hub/januarioleads.git`.
+
+Segredo: na área do projeto staging em Supabase, copie a **chave LEGACY service_role** (JWT, não a `anon` e não a `publishable`), insira apenas no prompt protegido do PowerShell, e **nunca** compartilhe a chave em capturas de tela, chats ou repositórios. O script descarta a variável de ambiente ao terminar. Se não quiser fornecer a chave nem mesmo localmente, rode só `TESTAR-OVERTURE.cmd` (sem gravação).
+
+**Nota:** a execução local depende da conexão com o IBGE e o repositório Overture; ambientes de avaliação sem acesso de rede podem validar o código, mas não conseguem importar estabelecimentos reais. O primeiro teste de dados deve ser exclusivamente na homologação.
+
+## Como executar uma importação (operador do projeto)
+
+1. Revise e integre a PR após os testes. O workflow manual de importação deve estar na branch padrão para o botão **Run workflow** aparecer.
+2. No GitHub, configure dois environments com proteção adequada: `homologacao` e `producao`. Cada um terá os secrets `OVERTURE_SUPABASE_URL` e `OVERTURE_SUPABASE_SERVICE_ROLE_KEY`, pertencentes **ao projeto correto**. Não cole essa chave no código, no chat ou no frontend.
+3. Acesse **Actions > Importar Overture Places Brasil (manual, com limite) > Run workflow**. Primeiro rode em `homologacao`, `states=MG` ou um conjunto pequeno, com `max_records_per_city=20` e `max_records_per_state=0`.
+4. Confira tabela `overture_import_progress`, total de linhas, cidades presentes e tamanho do banco. O importador agora registra os bytes antes/depois e a média de bytes consumidos por registro em cada UF. Não interprete `partial` como concluído; `complete` significa que a seleção configurada daquela UF foi varrida, não que todos os POIs possíveis foram importados.
+5. Quando validado, rode outras UFs em lotes, sem ultrapassar o teto, e faça testes reais do dashboard com usuários autorizados. Como o workflow é manual, nenhuma execução é iniciada automaticamente.
+6. Só depois de validação, aprove migrações em produção, publique a Edge Function no projeto de produção e use os **segredos de produção** protegidos para importação controlada.
+
+**Comando local equivalente** (não envie segredos pelo terminal compartilhado):
+```bash
+python -m pip install overturemaps geopandas shapely pyogrio
+python scripts/import_overture_br.py \
+  --states AC,AL,AP,AM,BA,CE,DF,ES,GO,MA,MT,MS,MG,PA,PB,PR,PE,PI,RJ,RN,RS,RO,RR,SC,SP,SE,TO \
+  --max-records-per-city 20 --database-max-mb 400
+```
+
+A malha municipal base utilizada é o arquivo público `BR_Municipios_2024.zip` do IBGE. O importador baixa apenas a malha municipal de cada UF para `data/ibge/`, conforme necessário. Ex.: MG tem cerca de 29 MB, evitando os 199 MB do arquivo nacional. Não versione os arquivos.
+
+## Checklist de liberação
+
+- [x] Código da função e importador preparados na PR.
+- [x] Tabelas privadas criadas em staging com RLS e grants verificados.
+- [x] Edge Function em staging publicada com Overture opcional.
+- [ ] Teste de importação real em município e UF, verificar contagens e contatos.
+- [ ] Verificar qualidade do mapeamento das categorias para os nichos brasileiros.
+- [ ] Confirmar limites de banco, execução e mensalidades gratuitas.
+- [ ] Testes automáticos TypeScript, build, browser e ingestão passando. GitHub Actions está encerrando jobs quase imediatamente; verificar o bloqueio antes de merge.
+- [ ] Migração e deploy aprovados em produção.
+- [ ] Importar as 27 UFs e avaliar cobertura efetiva (não presumir 100%).

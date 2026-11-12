@@ -1,0 +1,96 @@
+name: Importar Overture Places Brasil (manual, com limite)
+
+on:
+  workflow_dispatch:
+    inputs:
+      states:
+        description: "UFs separadas por vírgula. Comece com MG; após validar, expanda para as 27."
+        required: true
+        default: "MG"
+        type: string
+      target:
+        description: "Ambiente autorizado: homologacao ou producao"
+        required: true
+        default: "homologacao"
+        type: choice
+        options:
+          - homologacao
+          - producao
+      max_records_per_state:
+        description: "0 = sem limite por UF, até o teto do banco; 1000 = teste"
+        required: true
+        default: "100"
+        type: string
+      max_records_per_city:
+        description: "1 a 100; padrão 20 por município"
+        required: true
+        default: "20"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: overture-national-import
+  cancel-in-progress: false
+
+jobs:
+  import-places:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    environment: ${{ inputs.target }}
+    env:
+      SUPABASE_URL: ${{ secrets.OVERTURE_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.OVERTURE_SUPABASE_SERVICE_ROLE_KEY }}
+      STATES: ${{ inputs.states }}
+      TARGET: ${{ inputs.target }}
+      MAX_STATE: ${{ inputs.max_records_per_state }}
+      MAX_CITY: ${{ inputs.max_records_per_city }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validar configuração sem exibir segredos
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$SUPABASE_URL" || -z "$SUPABASE_SERVICE_ROLE_KEY" ]]; then
+            echo 'Defina OVERTURE_SUPABASE_URL e OVERTURE_SUPABASE_SERVICE_ROLE_KEY nos secrets do environment selecionado.' >&2
+            exit 1
+          fi
+          case "$TARGET" in
+            homologacao) expected='https://prlrxjothrslhswpkoza.supabase.co' ;;
+            producao) expected='https://czkazbianiflhldenhcj.supabase.co' ;;
+            *) echo 'Ambiente inválido.' >&2; exit 1 ;;
+          esac
+          if [[ "$SUPABASE_URL" != "$expected" ]]; then
+            echo 'A URL do Supabase não pertence ao environment selecionado.' >&2
+            exit 1
+          fi
+          if [[ ! "$MAX_CITY" =~ ^[0-9]+$ ]] || (( MAX_CITY < 1 || MAX_CITY > 100 )); then
+            echo 'O limite por município deve ficar entre 1 e 100.' >&2
+            exit 1
+          fi
+          if [[ ! "$MAX_STATE" =~ ^[0-9]+$ ]]; then
+            echo 'O limite por UF deve ser um inteiro não negativo.' >&2
+            exit 1
+          fi
+      - name: Instalar cliente Overture e suporte GIS
+        run: python -m pip install overturemaps geopandas shapely pyogrio
+      - name: Importar estados autorizados com limite de espaço
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/import_overture_br.py \
+            --states "$STATES" \
+            --database-max-mb 400 \
+            --max-records-per-state "$MAX_STATE" \
+            --max-records-per-city "$MAX_CITY"
+      - name: Registrar relatório
+        if: always()
+        run: |
+          echo 'A cobertura real fica registrada em public.overture_import_progress.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Importações parciais ou interrompidas não significam cobertura nacional concluída.' >> "$GITHUB_STEP_SUMMARY"
