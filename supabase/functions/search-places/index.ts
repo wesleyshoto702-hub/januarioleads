@@ -1,7 +1,7 @@
 import { isAllowedBrowserOrigin as isTrustedBrowserOrigin } from "../_shared/allowed-browser-origins.ts";
 import type { OpeningHoursSnapshot } from "../_shared/open-now.ts";
 import { searchOverture } from "../_shared/overture-search.ts";
-import { providerInstagramCandidate } from "../_shared/public-instagram-candidate.ts";
+import { providerInstagramCandidate, type PublicInstagramCandidate } from "../_shared/public-instagram-candidate.ts";
 import {
   findBrazilianState,
   normalizeBrazilianStateCode,
@@ -34,6 +34,8 @@ type BusinessSearchResult = {
   website: string | null;
   email?: string | null;
   instagram: string | null;
+  instagramConfidence?: "high" | "medium" | "low" | null;
+  instagramCandidates?: PublicInstagramCandidate[];
   googleMapsUrl: string | null;
   businessStatus: string | null;
   latitude: number | null;
