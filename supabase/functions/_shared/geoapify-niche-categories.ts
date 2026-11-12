@@ -92,7 +92,7 @@ export const GEOAPIFY_CATEGORIES: Record<string, readonly string[] | null> = {
   "Esquadrias de Alumínio": null,
   "Gesso / Drywall": null,
   "Impermeabilização": null,
-  "Loja de Tintas": ["commercial.houseware_and_hardware.building_materials.paint"],
+  "Loja de Tintas": null, // Geoapify does not define a paint-shop subtype; use precise Google search.
   "Marmoraria": null,
   "Reformas Residenciais": null,
   "Estofaria": null,
