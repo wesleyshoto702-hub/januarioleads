@@ -1077,8 +1077,11 @@ async function runSegmentSearch(
   // Ten usable open-data leads are enough for the initial page: do not
   // spend Geoapify credits just to reach an arbitrary 15-result threshold.
   // Contact quality remains mandatory; poor results still fall back.
+  // For site prospecting, an all-with-website sample is insufficient even
+  // if it has plenty of phone numbers; include at least 2 site-unknown leads.
+  const noSiteOverture = overture.results.filter(row => !row.website).length;
   if (overture.ok && overture.results.length >= 10 &&
-      !needsGoogleSupplement(overture.results)) {
+      noSiteOverture >= 2 && !needsGoogleSupplement(overture.results)) {
     return json({
       ok: true, results: overture.results,
       nextPageToken: overture.nextPageToken, provider: "overture",
