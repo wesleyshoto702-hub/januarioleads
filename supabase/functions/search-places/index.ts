@@ -100,7 +100,8 @@ const TEXT_FIELD_MASK = [
   "places.displayName",
   "places.primaryTypeDisplayName",
   "places.types",
-  "places.editorialSummary",
+  // Editorial summary elevates Text Search to the costly Atmosphere SKU.
+  // Not necessary for finding and contacting businesses; keep detail-only.
   "places.formattedAddress",
   "places.addressComponents",
   "places.nationalPhoneNumber",
