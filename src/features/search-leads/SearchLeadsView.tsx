@@ -525,6 +525,7 @@ export function SearchLeadsView({
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<{ code: string; message: string } | null>(null);
   const [searchNotice, setSearchNotice] = useState(initialSearchSession?.searchNotice ?? "");
+  const [providerNotice, setProviderNotice] = useState("");
   const [resultFilters, setResultFilters] = useState<ResultFilterState>(
     initialSearchSession?.resultFilters ?? DEFAULT_RESULT_FILTERS,
   );
@@ -862,7 +863,10 @@ export function SearchLeadsView({
       setLoadingMore(false);
     }
     setError(null);
-    if (!append) setSearchNotice("");
+    if (!append) {
+      setSearchNotice("");
+      setProviderNotice("");
+    }
 
     const response = await searchBusinesses({
       segment,
@@ -943,6 +947,7 @@ export function SearchLeadsView({
 
     setResults(uniqueResults);
     setSearchNotice("");
+    setProviderNotice(response.providerNotice ?? "");
     storeRecentBusinessSearch(segment,response.results,{
       city: location.city,
       state: location.state,
@@ -1275,6 +1280,9 @@ export function SearchLeadsView({
         </p>
       )}
 
+      {providerNotice && (
+        <p className="search-provider-notice" role="status">{providerNotice}</p>
+      )}
       {searchNotice && (
         <div className="search-cache-notice" role="status">
           <strong>Resultados salvos</strong>
