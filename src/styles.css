@@ -6819,7 +6819,7 @@ a{
 
 /*
  * Januário Leads — per-account dark workspace palettes.
- * The browser receives only a five-value allow-listed data attribute.
+ * The browser receives only an eleven-value allow-listed data attribute.
  * Backgrounds and semantic success/warning/error colors remain legible.
  */
 :root.dark[data-jl-accent="red"]{
@@ -6857,4 +6857,37 @@ a{
   --primary-action:#e6e7eb;--primary-action-hover:#ffffff;
   --primary-soft:rgba(242,243,246,.09);--primary-soft-strong:rgba(242,243,246,.17);
   --primary-contrast:#0f1014;
+}
+
+/* Additional dark-workspace accents; share the existing background and
+   semantic waiting/error tokens. Button labels use dark contrast text. */
+:root.dark[data-jl-accent="purple"]{
+  --primary:#a78bfa;--primary-hover:#bea9ff;
+  --primary-action:#9070ea;--primary-action-hover:#a78bfa;
+  --primary-soft:rgba(167,139,250,.10);--primary-soft-strong:rgba(167,139,250,.18);
+  --primary-contrast:#071327;
+}
+:root.dark[data-jl-accent="cyan"]{
+  --primary:#22d3ee;--primary-hover:#67e8f9;
+  --primary-action:#0fb8d4;--primary-action-hover:#22d3ee;
+  --primary-soft:rgba(34,211,238,.10);--primary-soft-strong:rgba(34,211,238,.18);
+  --primary-contrast:#071327;
+}
+:root.dark[data-jl-accent="orange"]{
+  --primary:#fb923c;--primary-hover:#fdba74;
+  --primary-action:#f58228;--primary-action-hover:#fb923c;
+  --primary-soft:rgba(251,146,60,.10);--primary-soft-strong:rgba(251,146,60,.18);
+  --primary-contrast:#071327;
+}
+:root.dark[data-jl-accent="pink"]{
+  --primary:#f472b6;--primary-hover:#f9a8d4;
+  --primary-action:#e45aa3;--primary-action-hover:#f472b6;
+  --primary-soft:rgba(244,114,182,.10);--primary-soft-strong:rgba(244,114,182,.18);
+  --primary-contrast:#071327;
+}
+:root.dark[data-jl-accent="indigo"]{
+  --primary:#818cf8;--primary-hover:#a5b4fc;
+  --primary-action:#6b76e8;--primary-action-hover:#818cf8;
+  --primary-soft:rgba(129,140,248,.10);--primary-soft-strong:rgba(129,140,248,.18);
+  --primary-contrast:#071327;
 }
