@@ -25,7 +25,7 @@ class ImporterSafetyTests(unittest.TestCase):
             importer.state_boundaries_url("../prod")
 
     def test_normalizes_brazilian_city_and_names(self):
-        self.assertEqual(importer.normalize("São  João  d'Água"), "sao joao d'agua")
+        self.assertEqual(importer.normalize("São  João  d'Água"), "sao joao d agua")
         self.assertEqual(importer.normalize("LAVRAS"), "lavras")
 
     def test_lead_quality_prioritizes_contactability(self):
