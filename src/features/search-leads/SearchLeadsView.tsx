@@ -6,6 +6,7 @@ import {
   Check,
   Clock3,
   ExternalLink,
+  Instagram,
   MapPin,
   MessageCircle,
   Phone,
@@ -863,6 +864,10 @@ export function SearchLeadsView({
     withSite: visibleResults.filter(({ business }) => hasIdentifiedWebsite(business)).length,
     withEmail: visibleResults.filter(({ business }) => hasBusinessEmail(business)).length,
     withPhone: visibleResults.filter(({ business }) => hasValidBusinessPhone(business)).length,
+    instagramConfirmed: visibleResults.filter(({ business }) => hasConfirmedInstagram(business)).length,
+    instagramPossible: visibleResults.filter(({ business }) =>
+      !hasConfirmedInstagram(business) && Boolean(business.instagramCandidates?.length)
+    ).length,
     overture: visibleResults.filter(({ business }) => business.source === "overture").length,
     geoapify: visibleResults.filter(({ business }) => business.source === "geoapify").length,
     google: visibleResults.filter(({ business }) => business.source === "google_places").length,
@@ -1440,6 +1445,8 @@ export function SearchLeadsView({
         <span>Com site <strong>{resultsInsights.withSite}</strong></span>
         <span>Com telefone <strong>{resultsInsights.withPhone}</strong></span>
         <span>Com e-mail <strong>{resultsInsights.withEmail}</strong></span>
+        <span>Instagram confirmado <strong>{resultsInsights.instagramConfirmed}</strong></span>
+        <span>Instagram possível <strong>{resultsInsights.instagramPossible}</strong></span>
         <span>Fontes: Overture <strong>{resultsInsights.overture}</strong> · Geoapify <strong>{resultsInsights.geoapify}</strong> · Google <strong>{resultsInsights.google}</strong></span>
       </div>
 
@@ -1802,6 +1809,7 @@ function BusinessCard({
               rel="noopener noreferrer"
               title="Abrir Instagram confirmado"
             >
+              <Instagram size={12} aria-hidden="true" />
               @{instagramHandle(business)} <ExternalLink size={12} />
             </a>
           ) : (business.instagramCandidates?.length ?? 0) > 0 ? (
@@ -1811,6 +1819,7 @@ function BusinessCard({
               onClick={() => onDetails(business)}
               title="Há perfis possíveis para conferir antes de usar"
             >
+              <Instagram size={12} aria-hidden="true" />
               Possível Instagram · Conferir
             </button>
           ) : business.instagramCheckedAt ? (
