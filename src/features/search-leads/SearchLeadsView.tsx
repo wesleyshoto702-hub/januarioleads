@@ -572,6 +572,7 @@ export function SearchLeadsView({
   const [error, setError] = useState<{ code: string; message: string } | null>(null);
   const [searchNotice, setSearchNotice] = useState(initialSearchSession?.searchNotice ?? "");
   const [providerNotice, setProviderNotice] = useState("");
+  const [instagramCheckingIds, setInstagramCheckingIds] = useState<string[]>([]);
   const [resultFilters, setResultFilters] = useState<ResultFilterState>(
     initialSearchSession?.resultFilters ?? DEFAULT_RESULT_FILTERS,
   );
@@ -1159,6 +1160,7 @@ export function SearchLeadsView({
   // paid web/AI discovery, and never mark a third-party directory link verified.
   useEffect(() => {
     if (screen !== "results" || loading) {
+      setInstagramCheckingIds([]);
       for (const controller of instagramSiteControllersRef.current) controller.abort();
       instagramSiteControllersRef.current.clear();
       return;
@@ -1170,6 +1172,7 @@ export function SearchLeadsView({
       resultsLocation.state,
     ].join("|");
     if (instagramSiteScanRef.current.scope !== scope) {
+      setInstagramCheckingIds([]);
       for (const controller of instagramSiteControllersRef.current) controller.abort();
       instagramSiteControllersRef.current.clear();
       instagramSiteScanRef.current = { scope, checked: new Set<string>() };
@@ -1188,6 +1191,11 @@ export function SearchLeadsView({
     ).slice(0, remaining);
 
     for (const business of targets) checked.add(business.placeId);
+    if (targets.length) {
+      setInstagramCheckingIds((old) => [
+        ...new Set([...old, ...targets.map((item) => item.placeId)]),
+      ]);
+    }
     // Two sequential workers, never four simultaneous site requests.
     const workers = Array.from({ length: Math.min(2, targets.length) }, (_, worker) =>
       (async () => {
@@ -1209,6 +1217,7 @@ export function SearchLeadsView({
             // A website that cannot be checked must not block lead search.
           } finally {
             instagramSiteControllersRef.current.delete(controller);
+            setInstagramCheckingIds((old) => old.filter((id) => id !== business.placeId));
           }
         }
       })()
@@ -1571,6 +1580,7 @@ export function SearchLeadsView({
                 chance={chance}
                 existingLead={existingLead}
                 onDetails={setDetails}
+                instagramChecking={instagramCheckingIds.includes(business.placeId)}
                 onWhatsApp={openWhatsApp}
                 onMessage={onMessage}
                 onAdd={(item) =>
@@ -1705,6 +1715,7 @@ function BusinessCard({
   chance,
   existingLead,
   onDetails,
+  instagramChecking,
   onWhatsApp,
   onMessage,
   onAdd,
@@ -1714,6 +1725,7 @@ function BusinessCard({
   chance: LeadChanceResult;
   existingLead: ExistingLeadIdentity | null;
   onDetails: (business: BusinessSearchResult) => void;
+  instagramChecking: boolean;
   onWhatsApp: (business: BusinessSearchResult) => void;
   onMessage: (target: SearchMessageTarget) => void;
   onAdd: (business: BusinessSearchResult) => Promise<BusinessAddResult>;
@@ -1822,6 +1834,8 @@ function BusinessCard({
               <Instagram size={12} aria-hidden="true" />
               Possível Instagram · Conferir
             </button>
+          ) : instagramChecking ? (
+            <span role="status">Verificando Instagram…</span>
           ) : business.instagramCheckedAt ? (
             <span>Instagram não identificado</span>
           ) : (
