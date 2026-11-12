@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 import { displayBusinessDescription } from "../business-presence/business-description";
 import { normalizeBrazilianStateCode } from "../../lib/brazil-locations";
 import { discoverBusinessPresence } from "../business-presence/discover-business-presence";
+import { lookupOutscraperInstagram } from "../business-presence/lookup-outscraper-instagram";
 import { canonicalManualInstagramUrl, presenceFromBusiness } from "../business-presence/storage";
 import type {
   BusinessPresence,
@@ -128,6 +129,9 @@ export function BusinessDetailsModal({
 }) {
   const [presenceLoading, setPresenceLoading] = useState(false);
   const [presenceError, setPresenceError] = useState("");
+  const [outscraperLoading, setOutscraperLoading] = useState(false);
+  const [outscraperMessage, setOutscraperMessage] = useState("");
+  const [outscraperPending, setOutscraperPending] = useState(false);
   const [manualInstagramOpen, setManualInstagramOpen] = useState(false);
   const [manualInstagram, setManualInstagram] = useState("");
   const [manualInstagramError, setManualInstagramError] = useState("");
@@ -176,6 +180,48 @@ export function BusinessDetailsModal({
       );
     } finally {
       setPresenceLoading(false);
+    }
+  }
+
+  async function verifyWithOutscraper() {
+    // Explicit click only; normal Buscar Leads must never submit paid jobs.
+    if (!business.website || confirmedInstagram || outscraperLoading) return;
+    setOutscraperLoading(true);
+    setOutscraperMessage("");
+    try {
+      const result = await lookupOutscraperInstagram(business);
+      setOutscraperPending(result.status === "pending");
+      setOutscraperMessage(result.message);
+      if (result.status === "complete") {
+        const known = presenceFromBusiness(business);
+        const rejected = new Set(known?.instagramRejectedUrls ?? []);
+        const candidates = [
+          ...(known?.instagramCandidates ?? []),
+          ...result.candidates,
+        ].filter((candidate, index, arr) =>
+          !rejected.has(candidate.url) &&
+          arr.findIndex((item) => item.url === candidate.url) === index,
+        ).slice(0, 3);
+        onPresenceUpdate?.({
+          instagramUrl: known?.instagramUrl ?? null,
+          instagramUsername: known?.instagramUsername ?? null,
+          instagramDisplayName: known?.instagramDisplayName ?? null,
+          instagramConfidence: known?.instagramConfidence ?? null,
+          instagramSource: known?.instagramSource ?? null,
+          instagramCheckedAt: known?.instagramCheckedAt ?? new Date().toISOString(),
+          instagramCandidates: candidates,
+          instagramRejectedUrls: [...rejected],
+          instagramSearchSignature: known?.instagramSearchSignature ?? null,
+          instagramSearchScope: known?.instagramSearchScope ?? "site",
+          instagramNeedsReview: Boolean(candidates.length),
+        });
+      }
+    } catch (error) {
+      setOutscraperMessage(
+        error instanceof Error ? error.message : "Falha ao pesquisar no Outscraper.",
+      );
+    } finally {
+      setOutscraperLoading(false);
     }
   }
 
@@ -594,6 +640,33 @@ export function BusinessDetailsModal({
                 </button>
               ) : null}
 
+              {!confirmedInstagram && (
+                <div className="instagram-outscraper">
+                  <button
+                    type="button"
+                    className="presence-retry"
+                    disabled={outscraperLoading || !business.website}
+                    onClick={() => void verifyWithOutscraper()}
+                    title={business.website
+                      ? "Pesquisar candidatos com o Outscraper, sujeito aos limites habilitados"
+                      : "O serviço exige um site próprio da empresa"}
+                  >
+                    <Instagram size={14} aria-hidden="true" />
+                    {outscraperLoading
+                      ? "Consultando Outscraper…"
+                      : outscraperPending
+                        ? "Consultar resultado do Outscraper"
+                        : "Ampliar com Outscraper"}
+                  </button>
+                  <small>Consulta opcional por domínio, controlada pelo administrador. Perfis encontrados precisam de confirmação.</small>
+                  {!business.website && (
+                    <small>Sem site próprio identificado, o Outscraper não pode consultar este domínio.</small>
+                  )}
+                  {outscraperMessage && (
+                    <small role="status">{outscraperMessage}</small>
+                  )}
+                </div>
+              )}
               <div className="instagram-manual-actions">
                 <a href={safeExternalHref(googleInstagramSearch) ?? undefined} target="_blank" rel="noopener noreferrer">
                   <ExternalLink size={14} /> Pesquisar no Google
