@@ -1,4 +1,5 @@
 import { resolveSearchSegment } from "./niche-catalog.ts";
+import { providerInstagramCandidate, type PublicInstagramCandidate } from "./public-instagram-candidate.ts";
 
 /**
  * Read-only lookup over imported Overture places. NEVER sends service credentials
@@ -28,7 +29,9 @@ export type OvertureBusiness = {
   regularOpeningHours: null;
   website: string | null;
   email: string | null;
-  instagram: string | null;
+  instagram: null;
+  instagramCandidates: PublicInstagramCandidate[];
+  instagramConfidence: null;
   googleMapsUrl: null;
   businessStatus: string | null;
   latitude: number;
@@ -159,7 +162,9 @@ export async function searchOverture(input: {
     const rows = await response.json() as Row[];
     if (!Array.isArray(rows)) return empty;
     const hasMore = rows.length > MAX_PAGE;
-    const results: OvertureBusiness[] = rows.slice(0, MAX_PAGE).map(row => ({
+    const results: OvertureBusiness[] = rows.slice(0, MAX_PAGE).map(row => {
+      const social = providerInstagramCandidate(row.instagram, "Overture");
+      return ({
       placeId: "overture:" + row.id,
       source: "overture" as const,
       sourceUrl: "https://explore.overturemaps.org/",
@@ -172,10 +177,12 @@ export async function searchOverture(input: {
       rating: null, reviewCount: null,
       isOpenNow: null, openingHours: [],
       currentOpeningHours: null, regularOpeningHours: null,
-      website: row.website, email: row.email, instagram: row.instagram, googleMapsUrl: null,
+      website: row.website, email: row.email, instagram: null,
+      instagramConfidence: null, instagramCandidates: social ? [social] : [],
+      googleMapsUrl: null,
       businessStatus: row.operating_status,
       latitude: row.latitude, longitude: row.longitude,
-    }));
+    }); });
     return {
       ok: true,
       results,
