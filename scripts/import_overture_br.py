@@ -23,6 +23,7 @@ import tempfile
 import time
 import unicodedata
 from urllib import request, error
+from urllib.parse import urlparse
 
 IBGE_2024_ROOT = (
     "https://geoftp.ibge.gov.br/organizacao_do_territorio/"
@@ -73,6 +74,57 @@ def normalize(value):
 
 def first(values):
     return next((v for v in (values or []) if isinstance(v, str) and v.strip()), None)
+
+
+# A social profile, WhatsApp contact or link shortener is NOT a verified
+# business website. This preserves truthful "sem site" prospecting filters.
+NON_WEBSITE_HOSTS = frozenset((
+    "wa.me", "whatsapp.com", "api.whatsapp.com", "instagram.com",
+    "facebook.com", "fb.me", "m.me", "linktr.ee", "linktree.com",
+    "bit.ly", "tinyurl.com", "t.co", "youtube.com", "youtu.be",
+    "tiktok.com", "x.com", "twitter.com", "maps.google.com",
+    "goo.gl", "beacons.ai",
+))
+
+
+def is_business_website(value):
+    if not isinstance(value, str):
+        return False
+    try:
+        url = urlparse(value.strip())
+        host = (url.hostname or "").lower().removeprefix("www.")
+        return (url.scheme in ("http", "https")
+                and bool(host) and "." in host
+                and host not in NON_WEBSITE_HOSTS
+                and not any(host.endswith("." + blocked)
+                            for blocked in NON_WEBSITE_HOSTS))
+    except ValueError:
+        return False
+
+
+def first_website(values):
+    return first([value for value in (values or []) if is_business_website(value)])
+
+
+def select_diverse_pool(records, maximum):
+    """Reserve 40% for contactable companies without identified websites.
+
+    Fill unused slots with the best available business contacts. Never promise
+    that a missing website is proof a business actually has no website.
+    """
+    ranked = sorted(records, key=lead_quality, reverse=True)
+    no_site = [r for r in ranked if not r.get("website")
+               and (r.get("phone") or r.get("email") or r.get("instagram"))]
+    target_no_site = min(len(no_site), (maximum * 2 + 4) // 5)
+    chosen = no_site[:target_no_site]
+    selected = {r["id"] for r in chosen}
+    for row in ranked:
+        if len(chosen) >= maximum:
+            break
+        if row["id"] not in selected:
+            chosen.append(row)
+            selected.add(row["id"])
+    return chosen
 
 
 def api(base, key, path, method="GET", payload=None):
@@ -161,7 +213,9 @@ def place_record(feature, municipalities, state):
     taxonomy = props.get("taxonomy") or {}
     confidence = props.get("confidence")
     socials = props.get("socials") or []
-    instagram = first([s for s in socials if isinstance(s, str) and
+    websites = props.get("websites") or []
+    instagram = first([s for s in (socials + websites)
+                       if isinstance(s, str) and
                        re.search(r"https?://(?:www\.)?instagram\.com/", s, re.I)])
     return {
         "id": identifier[:100],
@@ -175,7 +229,7 @@ def place_record(feature, municipalities, state):
         "latitude": lat, "longitude": lon,
         "phone": (first(props.get("phones")) or "")[:80] or None,
         "email": (first(props.get("emails")) or "")[:200] or None,
-        "website": (first(props.get("websites")) or "")[:500] or None,
+        "website": (first_website(websites) or "")[:500] or None,
         "instagram": instagram[:500] if instagram else None,
         "confidence": confidence if isinstance(confidence, (int, float)) else None,
         "operating_status": str(props.get("operating_status") or "")[:35] or None,
@@ -272,7 +326,12 @@ def main():
                         row = place_record(json.loads(line), state_munis, state)
                         if row is None:
                             continue
-                        pool = city_records.setdefault(row["city_key"], [])
+                        # Keep two bounded quality pools per municipality.
+                        # Otherwise the top 30 are almost always ALL "with site".
+                        groups = city_records.setdefault(row["city_key"], {
+                            "with_site": [], "without_site": [],
+                        })
+                        pool = groups["with_site" if row.get("website") else "without_site"]
                         if len(pool) < args.max_records_per_city:
                             pool.append(row)
                         else:
@@ -282,13 +341,16 @@ def main():
                             if lead_quality(row) > lead_quality(pool[worst]):
                                 pool[worst] = row
 
-                # Interleave top-ranked candidates across municipalities.
-                for pool in city_records.values():
-                    pool.sort(key=lead_quality, reverse=True)
+                # Interleave municipality samples for nationwide fair coverage.
+                ranked_cities = {
+                    city: select_diverse_pool(groups["with_site"] + groups["without_site"],
+                                              args.max_records_per_city)
+                    for city, groups in city_records.items()
+                }
                 selected = []
                 for rank in range(args.max_records_per_city):
-                    for city in sorted(city_records):
-                        pool = city_records[city]
+                    for city in sorted(ranked_cities):
+                        pool = ranked_cities[city]
                         if rank < len(pool):
                             selected.append(pool[rank])
 
