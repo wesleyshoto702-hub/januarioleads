@@ -270,7 +270,7 @@ function leadToBusinessSearchResult(lead: Lead): BusinessSearchResult {
 }
 
 const INSTAGRAM_SOURCE_LABEL: Record<InstagramSource, string> = {
-  google_places: "Google Places",
+  google_places: "Busca automática",
   official_website: "Website oficial",
   web_search: "Busca pública",
   manual_confirmation: "Confirmação manual",
@@ -804,7 +804,7 @@ function LeadFlowApp() {
       {
         field: "googleMapsUrl",
         changed: previous.googleMapsUrl !== next.googleMapsUrl,
-        label: previous.googleMapsUrl ? "Google Maps atualizado" : "Google Maps identificado",
+        label: previous.googleMapsUrl ? "Referência de localização atualizada" : "Referência de localização identificada",
       },
       {
         field: "factualDescription",
@@ -1592,17 +1592,13 @@ function LeadFlowApp() {
       business.city
         ? `Lead encontrado através do buscador de empresas em ${business.city}${business.state ? ` - ${business.state}` : ""}.`
         : "Lead encontrado através do buscador de empresas.",
-      business.source === "geoapify"
-        ? "Fonte: Geoapify / © OpenStreetMap contributors."
-        : "Fonte: Google Maps.",
       business.address ? `Endereço: ${business.address}` : "",
       business.website ? `Site: ${business.website}` : "",
       business.instagram ? `Instagram: ${business.instagram}` : "",
-      business.googleMapsUrl ? `Google Maps: ${business.googleMapsUrl}` : "",
     ].filter(Boolean);
 
     const discoveredPresence = presenceFromBusiness(business);
-    const factualDescription = buildFactualBusinessDescription(business);
+    const factualDescription = buildFactualBusinessDescription(business, selectedSegment);
 
     const newLead: Lead = {
       id: crypto.randomUUID(),

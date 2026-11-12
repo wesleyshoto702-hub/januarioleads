@@ -1841,35 +1841,38 @@ body{
   .saas-main .lead-favorite-button { transition: none; }
 }
 
-/* Buscar Leads hybrid-search provider provenance — attribution follows
-   each entire business record, never attributes mixed provider fields. */
-.search-leads-page .business-provider-attribution,
-.business-detail-modal .business-provider-attribution {
+/* Clear, minimal legal credits shown at the foot of each search
+   result / detail view. Do not hide these required attributions. */
+.search-leads-page .business-category-label {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.search-leads-page .business-card .business-source-credit,
+.business-detail-modal .business-source-credit {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
-  margin: 6px 0 5px;
-  min-height: 18px;
-  font-size: 12px;
+  gap: 5px;
+  margin-top: 11px;
+  padding-top: 7px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
   line-height: 1.5;
-  color: var(--muted, #b7bec8);
+  font-weight: 500;
+  color: var(--muted);
+  opacity: .95;
 }
-.search-leads-page .business-provider-source,
-.business-detail-modal .business-provider-source {
-  font-size: 12px;
-  line-height: 1.5;
-  font-weight: 620;
-  color: var(--muted, #b7bec8);
-}
-.search-leads-page .business-provider-attribution a,
-.business-detail-modal .business-provider-attribution a {
+.search-leads-page .business-card .business-source-credit a,
+.business-detail-modal .business-source-credit a {
   color: inherit;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-.search-leads-page .business-provider-attribution a:focus-visible,
-.business-detail-modal .business-provider-attribution a:focus-visible {
+.search-leads-page .business-card .business-source-credit a:focus-visible,
+.business-detail-modal .business-source-credit a:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
 }

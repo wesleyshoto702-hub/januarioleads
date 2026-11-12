@@ -760,7 +760,7 @@ function classifyGoogleError(
   if (message.includes("billing")) {
     return failure(
       "BILLING_REQUIRED",
-      "O faturamento do Google Maps Platform precisa estar ativo para realizar buscas.",
+      "A integração de buscas precisa de faturamento ativo para continuar.",
       503,
     );
   }
@@ -772,7 +772,7 @@ function classifyGoogleError(
   ) {
     return failure(
       "API_NOT_ENABLED",
-      "A Places API (New) não está disponível no projeto Google configurado.",
+      "A integração de buscas não está habilitada no projeto configurado.",
       503,
     );
   }
@@ -784,7 +784,7 @@ function classifyGoogleError(
   ) {
     return failure(
       "GOOGLE_AUTH",
-      "O Google recusou a credencial configurada para a busca.",
+      "A credencial da integração de buscas foi recusada.",
       502,
     );
   }
@@ -792,14 +792,14 @@ function classifyGoogleError(
   if (response.status === 400 || googleStatus === "INVALID_ARGUMENT") {
     return failure(
       "INVALID_REQUEST",
-      "A pesquisa enviada ao Google não pôde ser processada.",
+      "A consulta externa não pôde ser processada.",
       400,
     );
   }
 
   return failure(
     "REQUEST_FAILED",
-    "Não foi possível consultar o Google Places agora. Tente novamente.",
+    "Não foi possível realizar a consulta externa agora. Tente novamente.",
     502,
   );
 }
@@ -840,7 +840,7 @@ async function textSearch(
       ok: false as const,
       response: failure(
         "REQUEST_FAILED",
-        "O Google Places respondeu de forma inesperada.",
+        "O serviço externo respondeu de forma inesperada.",
         502,
       ),
     };
@@ -883,7 +883,7 @@ async function placeDetails(googleApiKey: string, placeId: string) {
       ok: false as const,
       response: failure(
         "REQUEST_FAILED",
-        "O Google Places respondeu de forma inesperada.",
+        "O serviço externo respondeu de forma inesperada.",
         502,
       ),
     };
@@ -902,7 +902,7 @@ async function placeDetails(googleApiKey: string, placeId: string) {
       ok: false as const,
       response: failure(
         "REQUEST_FAILED",
-        "O Google Places não retornou dados válidos para esta empresa.",
+        "A consulta externa não retornou dados válidos para esta empresa.",
         502,
       ),
     };
@@ -1000,7 +1000,7 @@ async function runSegmentSearch(
   // A Geoapify continuation does not restart Google or duplicate first pages.
   if (token.startsWith("geoapify:")) {
     if (!geo.ok) return failure("REQUEST_FAILED",
-      "Não foi possível carregar esta página do Geoapify agora.",503);
+      "Não foi possível carregar esta página de resultados agora.",503);
     return json({
       ok: true, results: geo.results,
       nextPageToken: geo.nextPageToken, provider: "geoapify",
@@ -1022,7 +1022,7 @@ async function runSegmentSearch(
       return json({
         ok: true, results: geo.results,
         nextPageToken: geo.nextPageToken, provider: "geoapify",
-        providerNotice: "Resultados Geoapify disponíveis; complemento Google temporariamente indisponível.",
+        providerNotice: "Algumas informações complementares estão temporariamente indisponíveis; exibimos os resultados encontrados.",
       });
     }
     return searched.response;

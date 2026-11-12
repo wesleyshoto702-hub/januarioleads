@@ -3,12 +3,11 @@ import {
   ExternalLink,
   Globe,
   Instagram,
-  MapPin,
   MessageCircle,
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { buildFactualBusinessDescription } from "../business-presence/business-description";
+import { displayBusinessDescription } from "../business-presence/business-description";
 import { normalizeBrazilianStateCode } from "../../lib/brazil-locations";
 import { discoverBusinessPresence } from "../business-presence/discover-business-presence";
 import { canonicalManualInstagramUrl, presenceFromBusiness } from "../business-presence/storage";
@@ -35,6 +34,7 @@ import type {
 import { STATUS_LABEL } from "../leads/lead-status";
 import { normalizeBrazilianPhone } from "./identity";
 import type { BusinessSearchResult } from "./types";
+import { BusinessSourceCredit } from "./BusinessSourceCredit";
 
 export type BusinessDetailsMessageTarget = {
   id?: string;
@@ -52,14 +52,6 @@ export type BusinessCommercialLead = {
   phone: string;
 };
 
-function formatGoogleType(value: string) {
-  return value
-    .split("_")
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
 function formatBusinessStatus(value: string | null) {
   if (value === "CLOSED_PERMANENTLY") return "Fechada permanentemente";
   if (value === "CLOSED_TEMPORARILY") return "Fechada temporariamente";
@@ -68,7 +60,7 @@ function formatBusinessStatus(value: string | null) {
 }
 
 const INSTAGRAM_SOURCE_LABEL: Record<InstagramSource, string> = {
-  google_places: "Google Places",
+  google_places: "Pesquisa automática",
   official_website: "Website oficial",
   web_search: "Busca pública",
   manual_confirmation: "Confirmação manual",
@@ -143,7 +135,7 @@ export function BusinessDetailsModal({
   const [commercialError, setCommercialError] = useState("");
 
   const factualDescription =
-    business.factualDescription ?? buildFactualBusinessDescription(business);
+    displayBusinessDescription(business, segmentLabel);
   const confirmedInstagram =
     business.instagram &&
     business.instagramConfidence !== "medium" &&
@@ -306,21 +298,11 @@ export function BusinessDetailsModal({
         <div className="modal-header">
           <div>
             <span className="detail-kicker">
-              {business.primaryCategory ?? segmentLabel ?? "Empresa local"}
+              {segmentLabel ?? "Empresa local"}
             </span>
             <div className="business-name-line detail-name-line">
               <h2>{business.name}</h2>
               {chance && <ChanceBadge chance={chance} />}
-            </div>
-            <div className="business-provider-attribution">
-              {business.source === "geoapify" ? (
-                <span className="business-provider-source">
-                  Dados: Geoapify · <a href="https://www.openstreetmap.org/copyright"
-                    target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a>
-                </span>
-              ) : (
-                <span className="business-provider-source" translate="no">Dados: Google Maps</span>
-              )}
             </div>
           </div>
           <button
@@ -408,17 +390,6 @@ export function BusinessDetailsModal({
             )}
           </div>
 
-          {business.categories.length > 0 && (
-            <div className="detail-section">
-              <h3>Categorias relacionadas</h3>
-              <div className="category-tags">
-                {business.categories.slice(0, 8).map((category) => (
-                  <span key={category}>{formatGoogleType(category)}</span>
-                ))}
-              </div>
-            </div>
-          )}
-
           {business.businessStatus &&
             formatBusinessStatus(business.businessStatus) && (
               <div className="detail-section">
@@ -473,16 +444,6 @@ export function BusinessDetailsModal({
                 </a>
               ) : (
                 <span>Site não identificado</span>
-              )}
-              {business.googleMapsUrl && (
-                <a
-                  href={safeExternalHref(business.googleMapsUrl) ?? undefined}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <MapPin size={15} /> Google Maps e avaliações{" "}
-                  <ExternalLink size={13} />
-                </a>
               )}
             </div>
 
@@ -787,6 +748,7 @@ export function BusinessDetailsModal({
               {commercialError}
             </p>
           )}
+          <BusinessSourceCredit source={business.source} />
         </div>
         ) : activityLeadId ? (
           <div className="business-detail-content business-history-content">

@@ -33,6 +33,7 @@ import {
   type ExistingLeadIdentity,
 } from "./identity";
 import { searchBusinesses } from "./search-businesses";
+import { BusinessSourceCredit } from "./BusinessSourceCredit";
 import {
   DEFAULT_SEARCH_LOCATION,
   loadBrazilianMunicipalities,
@@ -900,7 +901,7 @@ export function SearchLeadsView({
           setLeadStatusFilter("all");
           setScreen("results");
           setSearchNotice(
-            `O Google Places atingiu o limite temporário. Mostrando ${cached.results.length} resultados salvos da última busca (${checkedAt}).`,
+            `A consulta atingiu um limite temporário. Mostrando ${cached.results.length} resultados salvos da última busca (${checkedAt}).`,
           );
           setRecentSearches(
             storeRecentSearch({
@@ -1406,6 +1407,7 @@ export function SearchLeadsView({
             <BusinessCard
               key={business.placeId}
               business={business}
+              segmentLabel={resultsSegment}
               chance={chance}
               existingLead={existingLead}
               onDetails={setDetails}
@@ -1537,6 +1539,7 @@ function instagramHandle(business: BusinessSearchResult) {
 
 function BusinessCard({
   business,
+  segmentLabel,
   chance,
   existingLead,
   onDetails,
@@ -1545,6 +1548,7 @@ function BusinessCard({
   onAdd,
 }: {
   business: BusinessSearchResult;
+  segmentLabel: string;
   chance: LeadChanceResult;
   existingLead: ExistingLeadIdentity | null;
   onDetails: (business: BusinessSearchResult) => void;
@@ -1594,17 +1598,7 @@ function BusinessCard({
               )}
               <ChanceBadge chance={chance} />
             </div>
-            <div className="business-provider-attribution">
-              {business.source === "geoapify" ? (
-                <span className="business-provider-source">
-                  Geoapify · <a href="https://www.openstreetmap.org/copyright"
-                    target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a>
-                </span>
-              ) : (
-                <span className="business-provider-source" translate="no">Google Maps</span>
-              )}
-            </div>
-            {business.primaryCategory && <span>{business.primaryCategory}</span>}
+            <span className="business-category-label">{segmentLabel}</span>
             {existingLead && <span>Nos seus leads</span>}
           </div>
           {business.isOpenNow !== null && (
@@ -1644,11 +1638,6 @@ function BusinessCard({
           ) : (
             <span>Site não identificado</span>
           )}
-          {business.googleMapsUrl && (
-            <a href={safeExternalHref(business.googleMapsUrl) ?? undefined} target="_blank" rel="noopener noreferrer">
-              Google Maps <ExternalLink size={12} />
-            </a>
-          )}
           {hasConfirmedInstagram(business) && business.instagram ? (
             <a
               className="business-instagram-handle"
@@ -1674,6 +1663,7 @@ function BusinessCard({
             <span>Instagram não pesquisado</span>
           )}
         </div>
+        <BusinessSourceCredit source={business.source} />
       </div>
 
       <div className="business-actions">
@@ -1731,7 +1721,7 @@ function SearchError({ error }: { error: { code: string; message: string } }) {
           : error.code === "API_NOT_ENABLED"
             ? "Places API indisponível"
             : error.code === "GOOGLE_AUTH"
-              ? "Credencial do Google recusada"
+              ? "Credencial da pesquisa indisponível"
               : error.code === "INVALID_REQUEST"
                 ? "Busca inválida"
                 : "Erro na busca";
