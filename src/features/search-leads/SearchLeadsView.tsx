@@ -144,6 +144,21 @@ const MAX_AUTOMATIC_OUTSCRAPER_DOMAINS_PER_SEARCH = 2;
 const OUTSCRAPER_POLL_ATTEMPTS = 6;
 const OUTSCRAPER_POLL_DELAY_MS = 30_000;
 
+function waitForOutscraperPoll(signal: AbortSignal): Promise<boolean> {
+  if (signal.aborted) return Promise.resolve(false);
+  return new Promise((resolve) => {
+    const finish = (completed: boolean) => {
+      clearTimeout(timer);
+      signal.removeEventListener("abort", onAbort);
+      resolve(completed);
+    };
+    const onAbort = () => finish(false);
+    const timer = setTimeout(() => finish(true), OUTSCRAPER_POLL_DELAY_MS);
+    signal.addEventListener("abort", onAbort, { once: true });
+    if (signal.aborted) finish(false);
+  });
+}
+
 type SearchLeadsSession = {
   searchLocation: SearchLocation;
   resultsLocation: SearchLocation;
@@ -1316,10 +1331,8 @@ export function SearchLeadsView({
           });
           for (let attempt = 0; attempt < OUTSCRAPER_POLL_ATTEMPTS &&
               response.status === "pending" && !controller.signal.aborted; attempt++) {
-            await new Promise<void>((resolve) => {
-              setTimeout(resolve, OUTSCRAPER_POLL_DELAY_MS);
-            });
-            if (controller.signal.aborted ||
+            const elapsed = await waitForOutscraperPoll(controller.signal);
+            if (!elapsed || controller.signal.aborted ||
                 outscraperScanRef.current.scope !== scope) return;
             response = await lookupOutscraperInstagram(business, {
               signal: controller.signal,
