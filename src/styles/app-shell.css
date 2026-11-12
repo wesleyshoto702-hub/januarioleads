@@ -1887,3 +1887,79 @@ body{
   font-size: 12px;
   line-height: 1.55;
 }
+
+
+/* One visible, legible attribution legend for the whole Buscar Leads list.
+   Matching source dots identify mixed results without repeated brand text.
+   These notices are never hidden, overlapped or placed in a tooltip. */
+.search-leads-page .business-results-shell {
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  padding: 10px;
+  background: var(--surface);
+  min-width: 0;
+}
+.search-leads-page .business-results-attribution {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  margin: 0 1px 10px;
+  padding: 2px 5px 10px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-family: Roboto, Arial, sans-serif;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 1.5;
+}
+.search-leads-page .business-results-attribution-entry {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+  min-width: 0;
+}
+.search-leads-page .business-results-attribution a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.search-leads-page .business-results-attribution a:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.search-leads-page .business-results-google-attribution {
+  font-family: Roboto, Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  white-space: nowrap;
+  color: var(--text);
+}
+.search-leads-page .business-origin-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  display: inline-block;
+  border-radius: 50%;
+}
+.search-leads-page .business-origin-dot--google {
+  background: #74a9f9;
+}
+.search-leads-page .business-origin-dot--geoapify {
+  background: #56cc99;
+}
+.search-leads-page .business-name-line > .business-origin-dot {
+  margin-right: 5px;
+}
+@media (max-width: 680px) {
+  .search-leads-page .business-results-shell { padding: 7px; }
+  .search-leads-page .business-results-attribution { padding: 6px 4px 11px; }
+}
+/* Ensure attribution within detail dialogs meets text attribution minimums. */
+.business-detail-modal .business-source-credit {
+  font-size: 12px;
+  opacity: 1;
+  font-weight: 400;
+}
