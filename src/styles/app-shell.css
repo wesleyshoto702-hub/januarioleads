@@ -1840,3 +1840,36 @@ body{
 @media (prefers-reduced-motion: reduce) {
   .saas-main .lead-favorite-button { transition: none; }
 }
+
+/* Buscar Leads hybrid-search provider provenance — attribution follows
+   each entire business record, never attributes mixed provider fields. */
+.search-leads-page .business-provider-attribution,
+.business-detail-modal .business-provider-attribution {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0 5px;
+  min-height: 18px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted, #b7bec8);
+}
+.search-leads-page .business-provider-source,
+.business-detail-modal .business-provider-source {
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 620;
+  color: var(--muted, #b7bec8);
+}
+.search-leads-page .business-provider-attribution a,
+.business-detail-modal .business-provider-attribution a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.search-leads-page .business-provider-attribution a:focus-visible,
+.business-detail-modal .business-provider-attribution a:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
