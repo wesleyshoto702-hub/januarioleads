@@ -1873,3 +1873,14 @@ body{
   outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
+
+.search-leads-page .search-provider-notice {
+  margin: 10px 0 14px;
+  border: 1px solid var(--border, #384e50);
+  background: var(--surface-2, #142224);
+  color: var(--muted, #c3ced0);
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.55;
+}
