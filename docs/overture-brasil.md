@@ -21,6 +21,19 @@
 - As tabelas Overture possuem RLS e não são acessíveis diretamente a `anon` ou `authenticated`. O adaptador `_shared/overture-search.ts` lê no servidor usando chave privada.
 - A função `search-places` mantém autenticação de usuário, limites e CORS existentes.
 
+## Alternativa sem GitHub Actions — Windows
+
+O orçamento GitHub Actions desta conta está bloqueado. Para não cadastrar cartão nem gerar cobrança de execução, existem dois arquivos `.cmd` na raiz do repositório:
+
+1. `TESTAR-OVERTURE.cmd` — instala dependências Python em `.venv-overture`, executa testes offline e valida o recorte IBGE de **Lavras/MG**, sem gravar no Supabase.
+2. `IMPORTAR-OVERTURE-STAGING.cmd` — pede confirmação e chave privada **somente do projeto de homologação**, importa no máximo **30 estabelecimentos de Lavras** e imprime bytes de banco antes/depois. Não executa no projeto de produção.
+
+Pré-requisitos: Windows 10/11, Python 3.11+ (com `py` ou `python` disponível no PATH), internet e uma cópia local desta **branch**. Clique em **Code → Download ZIP** após selecionar a branch `feat/overture-brasil-nacional`. Alternativamente, `git clone -b feat/overture-brasil-nacional https://github.com/wesleyshoto702-hub/januarioleads.git`.
+
+Segredo: na área do projeto staging em Supabase, copie a **chave LEGACY service_role** (JWT, não a `anon` e não a `publishable`), insira apenas no prompt protegido do PowerShell, e **nunca** compartilhe a chave em capturas de tela, chats ou repositórios. O script descarta a variável de ambiente ao terminar. Se não quiser fornecer a chave nem mesmo localmente, rode só `TESTAR-OVERTURE.cmd` (sem gravação).
+
+**Nota:** a execução local depende da conexão com o IBGE e o repositório Overture; ambientes de avaliação sem acesso de rede podem validar o código, mas não conseguem importar estabelecimentos reais. O primeiro teste de dados deve ser exclusivamente na homologação.
+
 ## Como executar uma importação (operador do projeto)
 
 1. Revise e integre a PR após os testes. O workflow manual de importação deve estar na branch padrão para o botão **Run workflow** aparecer.
