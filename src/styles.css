@@ -2070,6 +2070,33 @@ select{
   letter-spacing: -0.05em;
 }
 
+.search-leads-insights{
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 12px;
+  min-width: 0;
+}
+.search-leads-insights span{
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 7px 10px;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+  white-space: normal;
+}
+.search-leads-insights strong{
+  color: var(--text);
+  font-weight: 700;
+}
+
 .results-toolbar{
   margin-bottom: 14px;
   border: 1px solid var(--border);
