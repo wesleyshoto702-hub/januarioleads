@@ -66,22 +66,23 @@ async function mockedLogin(page:Page,options:Options={}){
     }
     return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(data)});
   });
-  await page.goto("/login");
-  await page.getByPlaceholder("seu@email.com").fill("fixture@example.invalid");
-  await page.getByPlaceholder("Sua senha").fill("test-password");
-  await page.getByRole("button",{name:"Entrar",exact:true}).click();
-  try {
-    await expect(page.locator(".saas-shell")).toBeVisible({ timeout: 12_000 });
-  } catch (error) {
-    const state = await page.evaluate(() => ({
-      path: location.pathname,
-      title: document.title,
-      body: document.body.innerText.slice(0, 1300),
-      storedSession: localStorage.getItem("januarioleads:auth-session") !== null,
-      loginFormValid: document.querySelector<HTMLFormElement>(".jl-signup-form")?.checkValidity(),
-      submitDisabled: document.querySelector<HTMLButtonElement>(".jl-signup-primary[type=submit]")?.disabled,
+  // Browser verification is about enrichment, not testing the login form.
+  // Install a fictional session before first render and let the normal
+  // getValidSession() verify it against the mocked /auth/v1/user and RLS gate.
+  await page.addInitScript(({userId}) => {
+    localStorage.setItem("januarioleads:auth-session", JSON.stringify({
+      accessToken: "fixture-token",
+      refreshToken: "fixture-refresh",
+      expiresAt: Date.now() + 3_600_000,
+      user: {id: userId, email: "fixture@example.invalid"},
     }));
-    throw new Error("Mocked staging login diagnostics: " + JSON.stringify({...state,browserErrors}), { cause: error });
+  }, {userId: USER_ID});
+  await page.goto("/app");
+  try {
+    await expect(page.locator(".saas-shell")).toBeVisible({timeout:12_000});
+  } catch (error) {
+    const state=await page.evaluate(()=>({path:location.pathname,body:document.body.innerText.slice(0,1200)}));
+    throw new Error("Authenticated fixture cannot open workspace: "+JSON.stringify({...state,browserErrors}),{cause:error});
   }
   return calls;
 }
