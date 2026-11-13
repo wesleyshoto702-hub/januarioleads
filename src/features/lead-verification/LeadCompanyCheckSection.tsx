@@ -25,7 +25,12 @@ type Success={ok:true;record?:CheckRow|null;siteRecord?:SiteHint|null;
   candidates?:Candidate[];cached?:boolean;skipped?:boolean;message?:string;source?:string};
 type Failure={ok:false;code:string;message:string};
 const STAGING_URL="https://prlrxjothrslhswpkoza.supabase.co";
+const PRODUCTION_URL="https://czkazbianiflhldenhcj.supabase.co";
 const IS_STAGING=SUPABASE_URL===STAGING_URL;
+const IS_PRODUCTION=SUPABASE_URL===PRODUCTION_URL;
+const IS_SUPPORTED=IS_STAGING||IS_PRODUCTION;
+// Direct website crawling remains staging-only until hardened for arbitrary domains.
+const WEBSITE_SCAN_ENABLED=IS_STAGING;
 const DATASTONE_URL="https://www.datastone.com.br/consulta";
 
 type Operation="status"|"lookup"|"name_search"|"site_contacts"|"whatsapp_status";
@@ -98,7 +103,7 @@ export function LeadCompanyCheckSection({
   const manualActionStarted=useRef(false);
 
   useEffect(()=>{
-    if(!IS_STAGING)return;
+    if(!IS_SUPPORTED)return;
     let mounted=true;
     manualActionStarted.current=false;
     setRecord(null);setSiteRecord(null);setCandidates(null);
@@ -174,7 +179,7 @@ export function LeadCompanyCheckSection({
   const cnpjPhone=record?.contact_phone||record?.contact_phone_alt||null;
   const canApply=Boolean(cnpjPhone&&!phoneOnLead&&!record?.identity_review_required&&onApplyPhone&&!appliedPhone);
   const hasCnpjContacts=Boolean(record?.contact_phone||record?.contact_phone_alt||record?.contact_email);
-  const canCheckSite=Boolean(business.website)&&(!phoneOnLead&&!cnpjPhone||!record?.contact_email);
+  const canCheckSite=WEBSITE_SCAN_ENABLED&&Boolean(business.website)&&(!phoneOnLead&&!cnpjPhone||!record?.contact_email);
   const registration=record?.registration_status?.toUpperCase()||"NÃO INFORMADA";
   const whatsappWithEvidence=Boolean(record?.whatsapp_provider&&record.whatsapp_checked_at);
   const whatsappLabel=whatsappWithEvidence&&record?.whatsapp_status==="confirmed_by_provider"
@@ -188,9 +193,9 @@ export function LeadCompanyCheckSection({
       <div><span>IDENTIDADE E CONTATOS</span><h3>Enriquecer empresa</h3>
         <p>Verificações individuais, fontes identificadas e controle sobre os dados.</p></div>
     </div>
-    {!IS_STAGING?(
+    {!IS_SUPPORTED?(
       <div className="lc-check-test-note"><ShieldAlert size={16}/>
-        Este recurso está em homologação. A produção permanece inalterada.
+        Esta configuração de acesso ainda não permite consultar CNPJs. Use um ambiente Supabase autorizado.
       </div>
     ):(
       <>
@@ -286,7 +291,7 @@ export function LeadCompanyCheckSection({
           </div>}
         <div className="lc-check-site">
           <div className="lc-check-site-head"><Globe2 size={17}/><strong>Buscar contatos no site informado no lead</strong></div>
-          <p>Uma única página HTTPS, sem rastreamento em massa. Procuramos links públicos de e-mail e telefone apenas quando faltam contatos.</p>
+          <p>{WEBSITE_SCAN_ENABLED ? "Uma única página HTTPS, sem rastreamento em massa. Procuramos links públicos de e-mail e telefone apenas quando faltam contatos." : "Para sua segurança, a leitura automática de sites está em validação. Confira os contatos no site oficial e aproveite as sugestões da consulta de CNPJ."}</p>
           {officialSiteLink?<a href={officialSiteLink} target="_blank" rel="noopener noreferrer" className="lc-check-source">
             Site cadastrado <ExternalLink size={12}/>
           </a>:<small>Adicione o site oficial aos detalhes do lead para habilitar a consulta.</small>}
@@ -294,7 +299,7 @@ export function LeadCompanyCheckSection({
             disabled={Boolean(busy)||!officialSiteLink||!canCheckSite}
             onClick={()=>void discoverSite()}>
             {busy==="site_contacts"?<Loader2 size={14} className="lc-check-spin"/>:<Globe2 size={14}/>}
-            {canCheckSite?"Procurar contatos ausentes":"Contatos disponíveis — não consultar novamente"}
+            {!WEBSITE_SCAN_ENABLED?"Consulta automática em validação":canCheckSite?"Procurar contatos ausentes":"Contatos disponíveis — não consultar novamente"}
           </button>
           {siteRecord&&<div className="lc-check-site-results">
             {siteRecord.email&&<CopyValue label="E-mail encontrado em link do site (revisar)" value={siteRecord.email}/>}
