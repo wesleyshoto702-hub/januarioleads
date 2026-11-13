@@ -5,7 +5,7 @@ import {
   MapPin, MessageCircle, MousePointer2, Plus, Search, Settings2,
   ShieldCheck, Star, Target, Users, WalletCards, type LucideIcon,
 } from "lucide-react";
-import type { CSSProperties, ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { AppView } from "./AppShell";
 
 export type FilmScene = { action: string; narration: string };
@@ -209,8 +209,8 @@ export const WORKSPACE_FILMS: Record<AppView, FilmScript> = {
         "narration": "Mantenha os modelos mais usados organizados."
       },
       {
-        "action": "Personalize e copie",
-        "narration": "Revise para cada empresa; o envio é manual."
+        "action": "Crie um follow-up",
+        "narration": "Depois da mensagem inicial, abra Follow-up, escreva um retorno e salve o modelo. Personalize e envie manualmente."
       }
     ]
   },
@@ -335,9 +335,6 @@ function Field({label,value,active=false}:{label:string;value:string;active?:boo
 function Button({children,selected=false}:{children:ReactNode;selected?:boolean}) {
   return <span className={"jlf-button"+(selected?" selected":"")}>{children}</span>;
 }
-function Cursor({step}:{step:number}) {
-  return <span className={"jlf-cursor phase-"+step} aria-hidden="true"><MousePointer2 size={21} fill="#fafafa" stroke="#16171c"/></span>;
-}
 
 function SearchView({p}:{p:number}) {
   return <div className="jlf-view jlf-search" data-phase={p}>
@@ -361,7 +358,7 @@ function SearchView({p}:{p:number}) {
         )}
       </div>
     </div>
-    <Cursor step={p}/>
+    
   </div>;
 }
 
@@ -391,7 +388,7 @@ function LeadsView({p}:{p:number}) {
     <div className="jlf-ledger-track">
       {["Cadastrar","Revisar","Status","Favorito"].map((x,i)=><span className={p>=i?"done":""} key={x}>{x}</span>)}
     </div>
-    <Cursor step={p}/>
+    
   </div>;
 }
 function DashboardView({p}:{p:number}) {
@@ -444,7 +441,7 @@ function ProposalsView({p}:{p:number}) {
       <div className="jlf-doc-lines"><small>SERVIÇOS</small>{p>=1?<><div><span>Site institucional</span><b>R$ 900,00</b></div><div><span>Configuração inicial</span><b>R$ 300,00</b></div></>:<p>Adicione os serviços do orçamento</p>}</div>
       <div className={"jlf-doc-total"+(p>=2?" active":"")}><span>TOTAL</span><b>{p>=2?"R$ 1.200,00":"—"}</b></div>
       {p>=2&&<p className="jlf-doc-term">Prazo: 15 dias úteis após aprovação.</p>}{p===3&&<div className="jlf-doc-ready"><FileCheck2 size={17}/>Pronto para imprimir / salvar como PDF</div>}
-    </div><Cursor step={p}/>
+    </div>
   </div>;
 }
 function CampaignsView({p}:{p:number}) {
@@ -456,10 +453,39 @@ function CampaignsView({p}:{p:number}) {
   </div>;
 }
 function MessagesView({p}:{p:number}) {
+  const followUp = p === 3;
   return <div className="jlf-view jlf-messages" data-phase={p}>
-    <Header title="Mensagens" icon={MessageCircle}/><div className="jlf-message-modes"><span className="on">Mensagem inicial</span><span>Follow-up</span></div>
-    <div className="jlf-message-editor"><small>NOME DO MODELO</small><strong>Primeiro contato — apresentação</strong><div className="jlf-message-content"><p>Olá, tudo bem?</p>{p>=1?<><p>Trabalho com criação de sites e vi sua empresa.</p><p>Teriam interesse em conhecer uma ideia?</p></>:<i>Escreva o conteúdo da mensagem...</i>}</div><footer><span className={p>=2?"on":""}><Star size={15} fill={p>=2?"currentColor":"none"}/> Favorita</span><Button selected={p>=2}><Check size={14}/>Salvar modelo</Button></footer></div>
-    {p===3&&<div className="jlf-copy-hint"><Copy size={16}/> Modelo salvo: personalize e copie para enviar manualmente.</div>}
+    <Header title="Mensagens" icon={MessageCircle}/>
+    <div className="jlf-message-modes">
+      <span className={!followUp?"on":""}>Mensagem inicial</span>
+      <span className={followUp?"on":""}>Follow-up</span>
+    </div>
+    <div className="jlf-message-editor">
+      <small>NOME DO MODELO</small>
+      <strong>{followUp?"Segundo contato — retorno":"Primeiro contato — apresentação"}</strong>
+      <div className="jlf-message-content">
+        {followUp ? <>
+          <p>Olá! Tudo bem?</p>
+          <p>Passando para saber se conseguiu ver minha mensagem sobre o site.</p>
+          <p>Posso te mostrar uma ideia?</p>
+        </> : <>
+          <p>Olá, tudo bem?</p>
+          {p>=1 ? <>
+            <p>Trabalho com criação de sites e vi sua empresa.</p>
+            <p>Teriam interesse em conhecer uma ideia?</p>
+          </> : <i>Escreva o conteúdo da mensagem...</i>}
+        </>}
+      </div>
+      <footer>
+        <span className={p>=2&&!followUp?"on":""}>
+          <Star size={15} fill={p>=2&&!followUp?"currentColor":"none"}/> Favorita
+        </span>
+        <Button selected={p>=2}><Check size={14}/>{followUp?"Salvar follow-up":"Salvar modelo"}</Button>
+      </footer>
+    </div>
+    <div className="jlf-copy-hint">
+      <Copy size={16}/> Follow-up: copie, personalize para a empresa e envie manualmente depois da primeira abordagem.
+    </div>
   </div>;
 }
 function SequencesView({p}:{p:number}) {
@@ -474,7 +500,7 @@ function SequencesView({p}:{p:number}) {
 function AgendaView({p}:{p:number}) {
   return <div className="jlf-view jlf-agenda" data-phase={p}>
     <Header title="Agenda comercial" icon={CalendarDays}/><div className="jlf-agenda-cols"><div className="jlf-month"><header><b>Novembro</b><span>2026</span></header><div className="jlf-days">{["S","T","Q","Q","S","S","D"].map((x,i)=><small key={i}>{x}</small>)}{Array.from({length:28},(_,i)=><span className={i===12?"chosen":""} key={i}>{i+1}{p>=1&&i===12&&<i/>}</span>)}</div></div>
-    <div className="jlf-agenda-day"><strong>Dia 13</strong>{p===0?<p>Selecione uma data no calendário.</p>:<div className="jlf-appointment"><small>14:30 · Reunião</small><b>Apresentar proposta</b>{p>=2&&<span>Estúdio Exemplo · lead vinculado</span>}</div>}{p===3&&<p className="jlf-calendar-reminder"><Bell size={13}/> Ação do CRM também aparece no calendário</p>}</div></div><Cursor step={p}/>
+    <div className="jlf-agenda-day"><strong>Dia 13</strong>{p===0?<p>Selecione uma data no calendário.</p>:<div className="jlf-appointment"><small>14:30 · Reunião</small><b>Apresentar proposta</b>{p>=2&&<span>Estúdio Exemplo · lead vinculado</span>}</div>}{p===3&&<p className="jlf-calendar-reminder"><Bell size={13}/> Ação do CRM também aparece no calendário</p>}</div></div>
   </div>;
 }
 
