@@ -13,6 +13,21 @@ const row=(id:string,category:string,phone:string|null=null)=>({
 Deno.test("Overture categories strictly match the selected niche, not vague searches",()=>{
   assert(categoriesForOverture("Barbearia").includes("barber"),"Barbers category required");
   assert(categoriesForOverture("Academia").includes("gym"),"Gym category required");
+  assert(categoriesForOverture("Loja de Materiais de Construção").includes("building_supply_store"),
+    "Material shops must use observed Overture taxonomy");
+  assert(categoriesForOverture("Clínica Veterinária").includes("veterinarian"),
+    "Veterinarian category observed in staging must map correctly");
+  assert(categoriesForOverture("Clínica Odontológica").includes("general_dentistry"),
+    "Dental clinic subtype must be searchable before provider fallback");
+  assert(categoriesForOverture("Mecânica Automotiva").includes("automotive_repair"),
+    "Mechanic category must have an exact Overture match");
+  assert(categoriesForOverture("Hortifruti").includes("produce_store"),
+    "Produce shops must map to the grounded taxonomy");
+  assert(!categoriesForOverture("Academia").includes("sport_or_fitness_facility"),
+    "Broad sports venues could be irrelevant to gyms");
+  assert(!categoriesForOverture("Hamburgueria").includes("fast_food_restaurant"),
+    "Broad fast food causes false positive burgers");
+
   assert(categoriesForOverture("Consultoria de RH").length===0,"Unmapped niche must not guess a broad category");
   assert(!isRelevantOverture(row("X","restaurant"),"Barbearia"),"Restaurant is not a barber");
   assert(enoughRelevantResults(Array.from({length:8},(_,i)=>({name:"X",phone:i<5?"35999999999":null,internationalPhone:null}))),
