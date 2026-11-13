@@ -1,0 +1,56 @@
+name: Validar Colab Fase 8 — Geoapify Free
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "notebooks/Januario_Leads_Fase_8_Geoapify_Free_Enriquecimento.ipynb"
+      - ".github/workflows/validar-colab-fase-8-geoapify-free.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  safe-notebook:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Python syntax, simulated contact matching and no-network preflight
+        run: |
+          python - <<'PY'
+          import ast, json
+          from pathlib import Path
+          path=Path("notebooks/Januario_Leads_Fase_8_Geoapify_Free_Enriquecimento.ipynb")
+          notebook=json.loads(path.read_text(encoding="utf-8"))
+          assert notebook["nbformat"]==4 and len(notebook["cells"])==5
+          ids=[c["id"] for c in notebook["cells"]]
+          assert len(ids)==len(set(ids)) and all(ids)
+          cells=[c for c in notebook["cells"] if c["cell_type"]=="code"]
+          assert len(cells)==3
+          for c in cells:
+              assert c["execution_count"] is None and c["outputs"]==[]
+              code="".join(c["source"])
+              ast.parse(code)
+              compile(code,"<Colab Fase 8>","exec")
+          helper="".join(cells[0]["source"])
+          checks="".join(cells[1]["source"])
+          runner="".join(cells[2]["source"])
+          assert "MAX_REQUESTS_RUN = 25" in helper
+          assert "MAX_REQUESTS_DAY = 250" in helper
+          assert "GEOAPIFY_FREE_25" in runner
+          assert "claim_overture_geoapify_free_credit" in helper
+          assert "storage_mib(key)>=STOP_DB_MIB" in runner
+          assert "overture_geoapify_enrichment" in helper
+          assert "maps.googleapis.com" not in helper+checks+runner
+          ns={"__name__":"_test_"}
+          exec(compile(helper,"helpers","exec"),ns,ns)
+          exec(compile(checks,"tests","exec"),ns,ns)
+          print("PASS: Colab validado; 0 requisições ao Geoapify, Google ou Supabase.")
+          PY
