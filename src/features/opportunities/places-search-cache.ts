@@ -35,7 +35,7 @@ function safeResults(value: unknown) {
   if (!Array.isArray(value)) return [] as BusinessSearchResult[];
   return value
     .map(safeBusinessResult)
-    .filter((item): item is BusinessSearchResult => Boolean(item && item.source!=="google_places"));
+    .filter((item): item is BusinessSearchResult => Boolean(item && (item.source==="overture" || item.source==="geoapify")));
 }
 
 export async function fetchPlacesSearchSamples(): Promise<OpportunitySample[]> {
@@ -153,7 +153,7 @@ export async function persistPlacesSearchSample(input: {
     : null;
   const previousResults = previous ? safeResults(previous.results) : [];
   const combined = (input.append ? [...previousResults, ...input.results] : input.results)
-    .filter(item=>item.source!=="google_places");
+    .filter(item=>item.source==="overture" || item.source==="geoapify");
 
   const unique = new Map<string, BusinessSearchResult>();
   for (const business of combined) {
