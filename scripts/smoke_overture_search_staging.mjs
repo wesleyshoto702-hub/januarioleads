@@ -8,11 +8,24 @@ const apiKey = process.env.STAGING_PUBLISHABLE_KEY?.trim();
 const userToken = process.env.STAGING_USER_ACCESS_TOKEN?.trim();
 const body = JSON.stringify({ segment: "Hotel", city: "Varginha", state: "MG" });
 
+function isClientPublishableKey(key) {
+  if (key.startsWith("sb_publishable_")) return true;
+  if (key.startsWith("sb_secret_")) return false;
+  const parts = key.split(".");
+  if (parts.length !== 3) return false;
+  try {
+    const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
+    return payload.role === "anon";
+  } catch {
+    return false;
+  }
+}
+
 if (!apiKey || !userToken) {
   console.error("SKIPPED: set STAGING_PUBLISHABLE_KEY and STAGING_USER_ACCESS_TOKEN locally.");
   console.error("The access token must be for a signed-in staging user; never paste it in chat or commit it.");
   process.exitCode = 2;
-} else if (apiKey.startsWith("sb_secret_") || apiKey.split(".").length === 3 && apiKey.includes("service_role")) {
+} else if (!isClientPublishableKey(apiKey)) {
   console.error("REFUSED: the client key must be a publishable/anon key, not service_role.");
   process.exitCode = 2;
 } else {
