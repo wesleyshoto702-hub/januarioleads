@@ -235,6 +235,16 @@
   .jl-help-modal-footer{font-size:8px}
   .jl-help-modal-footer > span:last-child{display:none}
 }
+
+/* The user can reduce motion from Workspace settings independently of their OS. */
+.jl-help-no-motion,.jl-help-no-motion .jl-help-dialog,
+.jl-help-no-motion .jl-help-demo *,
+.jl-help-no-motion .jl-help-progress-fill{
+  animation:none!important;transition:none!important;
+}
+.jl-help-no-motion .jl-help-chart-line{stroke-dashoffset:0}
+.jl-help-no-motion .jl-help-chart-point{opacity:1}
+
 @media(prefers-reduced-motion:reduce){
   .jl-help-backdrop,.jl-help-dialog,.jl-help-demo *, .jl-help-open{animation:none!important;transition:none!important}
   .jl-help-demo .jl-help-chart-line{stroke-dashoffset:0}
