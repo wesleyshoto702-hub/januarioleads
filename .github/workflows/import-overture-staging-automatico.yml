@@ -3,7 +3,7 @@ name: Overture Brasil - importacao automatica - STAGING
 on:
   # A agenda so executa se a variavel OVERTURE_AUTO_ENABLED = true.
   schedule:
-    - cron: '17 3,9,15,21 * * *'
+    - cron: '23 */2 * * *'
   workflow_dispatch:
     inputs:
       cities_per_run:
@@ -11,7 +11,7 @@ on:
         required: true
         type: choice
         options: ['2', '3', '4', '5']
-        default: '2'
+        default: '3'
 
 permissions:
   contents: read
@@ -31,7 +31,7 @@ jobs:
       SUPABASE_URL: https://prlrxjothrslhswpkoza.supabase.co
       # Este segredo precisa ser configurado UMA UNICA VEZ no GitHub:
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.OVERTURE_SUPABASE_SERVICE_ROLE_KEY }}
-      MUNICIPIOS_POR_RODADA: ${{ inputs.cities_per_run || '2' }}
+      MUNICIPIOS_POR_RODADA: ${{ inputs.cities_per_run || '3' }}
     steps:
       - name: Validar staging e segredo (sem imprimir chave)
         shell: bash
@@ -57,7 +57,7 @@ jobs:
           python-version: '3.11'
       - name: Instalar dependencias de geometrias e Overture
         run: python -m pip install --disable-pip-version-check overturemaps geopandas shapely pyogrio
-      - name: Importar ate 2 novos municipios (ou valor manual), sem duplicatas
+      - name: Importar ate 3 novos municipios (ou valor manual), sem duplicatas
         shell: bash
         run: |
           set -euo pipefail
