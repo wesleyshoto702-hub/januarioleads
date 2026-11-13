@@ -72,6 +72,7 @@ export function safeBusinessResult(value: unknown): BusinessSearchResult | null 
     city: row.city ?? null,
     state: row.state ?? null,
     phone: row.phone ?? null,
+    email: row.source === "overture" ? row.email ?? null : null,
     internationalPhone: row.internationalPhone ?? null,
     rating: typeof row.rating === "number" ? row.rating : null,
     reviewCount: typeof row.reviewCount === "number" ? row.reviewCount : null,
