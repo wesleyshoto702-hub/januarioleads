@@ -451,3 +451,9 @@
 .jlf-reduced .jlf-search-flow>div,.jlf-reduced .jlf-lead-flow>div,
 .jlf-reduced .jlf-digital-workflow>div,.jlf-reduced .jlf-project-moving,
 .jlf-reduced .jlf-settings-flow>div{animation:none!important;transition:none!important}
+
+/* Compact mobile help trigger without squeezing the workspace title. */
+@media(max-width:470px){
+  .jl-help-mobile-action .jl-help-open{width:36px;min-width:36px;padding:0}
+  .jl-help-mobile-action .jl-help-open span{display:none}
+}
