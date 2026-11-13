@@ -5,7 +5,7 @@ Pre-req:
     pip install overturemaps geopandas shapely pyogrio
     export SUPABASE_URL='https://<project>.supabase.co'
     export SUPABASE_SERVICE_ROLE_KEY='<service role secret>'
-    python scripts/import_overture_br.py --states MG,SP --database-max-mb 400
+    python scripts/expand_overture_to_100_staging.py --states MG --cities Lavras --database-max-mb 340
 
 Phase 9 top-up only: requires EXACTLY ONE state and ONE city per run, and
 accepts ONLY the staging Supabase project. Read existing IDs first, then insert
@@ -14,6 +14,7 @@ per city, stop at 340 MiB and NEVER run from a browser. No automated trigger.
 """
 import argparse
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -167,24 +168,47 @@ def database_bytes(base, key):
     return result
 
 
-def existing_city_ids(base, key, state, city_key):
-    """Only look up existing GERS IDs; never replace those records."""
+def existing_city_places(base, key, state, city_key):
+    """Read the already imported businesses of one municipality (max 100)."""
     query = urlencode({
-        "select": "id", "state": "eq." + state,
-        "city_key": "eq." + city_key,
+        "select": "id,name,name_key,latitude,longitude",
+        "state": "eq." + state, "city_key": "eq." + city_key,
         "limit": str(TARGET_PER_MUNICIPALITY + 1),
     })
     result = api(base, key, "/rest/v1/overture_places?" + query)
     if not isinstance(result, list):
-        raise RuntimeError("Supabase did not return the existing city IDs")
-    ids = {str(row["id"]) for row in result if isinstance(row, dict) and row.get("id")}
+        raise RuntimeError("Supabase did not return existing city businesses")
     if len(result) > TARGET_PER_MUNICIPALITY:
-        raise RuntimeError("City already exceeds 100 places. Stop and review.")
-    return ids
+        raise RuntimeError("Municipality exceeds 100 entries. Investigate before continuing.")
+    return result
 
 
-def only_new_within_cap(ranked, existing_ids, cap=TARGET_PER_MUNICIPALITY):
-    """Append only unrecorded IDs, never allowing more than 100 total."""
+def same_business(a, b, meters=15.0):
+    """Conservative alias check: EXACT normalized name AND location within 15m."""
+    name_a = str(a.get("name_key") or normalize(a.get("name") or ""))
+    name_b = str(b.get("name_key") or normalize(b.get("name") or ""))
+    if not name_a or name_a != name_b:
+        return False
+    try:
+        la1, lo1 = float(a["latitude"]), float(a["longitude"])
+        la2, lo2 = float(b["latitude"]), float(b["longitude"])
+        if not all(math.isfinite(x) for x in (la1, lo1, la2, lo2)):
+            return False
+        x1, x2, delta_lon = math.radians(la1), math.radians(la2), math.radians(lo2-lo1)
+        delta_lat = x2-x1
+        value = math.sin(delta_lat/2)**2 + math.cos(x1)*math.cos(x2)*math.sin(delta_lon/2)**2
+        distance = 2*6371000*math.asin(min(1, math.sqrt(value)))
+        return distance <= meters
+    except (KeyError, ValueError, TypeError):
+        return False
+
+
+def matches_any_existing(row, existing):
+    return any(same_business(row, prior) for prior in existing)
+
+
+def only_new_within_cap(ranked, existing_ids, cap=TARGET_PER_MUNICIPALITY, existing_places=()):
+    """Never select existing IDs or near-identical name+location duplicates."""
     room = max(0, cap - len(existing_ids))
     if room == 0:
         return []
@@ -193,11 +217,29 @@ def only_new_within_cap(ranked, existing_ids, cap=TARGET_PER_MUNICIPALITY):
         identifier = row.get("id")
         if not identifier or identifier in seen:
             continue
+        if matches_any_existing(row, existing_places) or matches_any_existing(row, selected):
+            continue
         seen.add(identifier)
         selected.append(row)
         if len(selected) >= room:
             break
     return selected
+
+
+def offer_candidate(groups, row, max_per_group):
+    """Bound memory while retaining NEW companies only, across entire input scan."""
+    if any(prior.get("id") == row["id"] or same_business(prior, row)
+           for pool in groups.values() for prior in pool):
+        return False
+    pool = groups["with_site" if row.get("website") else "without_site"]
+    if len(pool) < max_per_group:
+        pool.append(row)
+        return True
+    worst = min(range(len(pool)), key=lambda idx: lead_quality(pool[idx]))
+    if lead_quality(row) > lead_quality(pool[worst]):
+        pool[worst] = row
+        return True
+    return False
 
 
 def status(base, key, state, phase, count=0, message=None):
@@ -346,7 +388,8 @@ def main():
         if args.dry_run:
             continue
         storage_before = database_bytes(base, key)
-        existing_ids = existing_city_ids(base, key, state, cities[0])
+        existing_places = existing_city_places(base, key, state, cities[0])
+        existing_ids = {r["id"] for r in existing_places}
         if len(existing_ids) >= TARGET_PER_MUNICIPALITY:
             print(f"ALREADY_COMPLETE: {state}/{cities[0]} has {len(existing_ids)} existing companies.", flush=True)
             return 0
@@ -355,58 +398,53 @@ def main():
             print(f"STOP: database reached configured {args.database_max_mb} MB safety limit.")
             return 2
         total = 0
-        status(base, key, state, "running")
         try:
             with tempfile.TemporaryDirectory(prefix="overture-br-") as temp:
                 out = Path(temp) / f"{state}.geojsonseq"
                 subprocess.run(["overturemaps", "download", f"--bbox={bbox}",
                                 "--type=place", "-f", "geojsonseq", "-o", str(out)],
                                check=True)
-                # Store only a small, quality-ranked per-city selection in memory.
-                city_records = {}
-                city_capped = False
+                # Unlike the first national pass, scan the ENTIRE downloaded
+                # Overture file. Discard the original 60 before ranking newcomers.
+                groups = {"with_site": [], "without_site": []}
+                counts = {"scanned": 0, "known_id": 0, "same_business": 0,
+                          "eligible_new": 0}
                 with out.open("r", encoding="utf-8") as src:
                     for line in src:
                         line = line.lstrip("\x1e").strip()
                         if not line:
                             continue
+                        counts["scanned"] += 1
                         row = place_record(json.loads(line), state_munis, state)
-                        if row is None:
+                        if row is None or row["city_key"] != cities[0]:
                             continue
-                        # Keep two bounded quality pools per municipality.
-                        # Otherwise the top 30 are almost always ALL "with site".
-                        groups = city_records.setdefault(row["city_key"], {
-                            "with_site": [], "without_site": [],
-                        })
-                        pool = groups["with_site" if row.get("website") else "without_site"]
-                        if len(pool) < args.max_records_per_city:
-                            pool.append(row)
-                        else:
-                            city_capped = True
-                            worst = min(range(len(pool)),
-                                        key=lambda idx: lead_quality(pool[idx]))
-                            if lead_quality(row) > lead_quality(pool[worst]):
-                                pool[worst] = row
+                        if row["id"] in existing_ids:
+                            counts["known_id"] += 1
+                            continue
+                        if matches_any_existing(row, existing_places):
+                            counts["same_business"] += 1
+                            continue
+                        counts["eligible_new"] += 1
+                        offer_candidate(groups, row, args.max_records_per_city)
 
-                # Interleave municipality samples for nationwide fair coverage.
-                ranked_cities = {
-                    city: select_diverse_pool(groups["with_site"] + groups["without_site"],
-                                              args.max_records_per_city)
-                    for city, groups in city_records.items()
-                }
-                selected = []
-                for rank in range(args.max_records_per_city):
-                    for city in sorted(ranked_cities):
-                        pool = ranked_cities[city]
-                        if rank < len(pool):
-                            selected.append(pool[rank])
-
-                selected = only_new_within_cap(selected, existing_ids)
+                capacity = TARGET_PER_MUNICIPALITY - len(existing_ids)
+                # Both pools include only newly discovered IDs and exclude
+                # obvious same-name/same-coordinate duplicates.
+                ranked = select_diverse_pool(
+                    groups["with_site"] + groups["without_site"], capacity
+                )
+                selected = only_new_within_cap(ranked, existing_ids,
+                                               existing_places=existing_places)
+                print(f"SCAN: {counts['scanned']} Overture rows; "
+                      f"{counts['known_id']} existing IDs excluded; "
+                      f"{counts['same_business']} same-business aliases excluded; "
+                      f"{counts['eligible_new']} candidate new rows; "
+                      f"{len(selected)} selected unique companies.", flush=True)
                 if not selected:
                     print(f"NO_NEW_PLACES: {state}/{cities[0]} has no additional eligible Overture companies.", flush=True)
                     return 0
                 # A municipality-only pilot never marks the whole state as imported.
-                partial = city_capped or bool(cities)
+                partial = bool(cities)
                 if args.max_records_per_state and len(selected) > args.max_records_per_state:
                     selected = selected[:args.max_records_per_state]
                     partial = True
@@ -414,12 +452,19 @@ def main():
                     if database_bytes(base, key) >= limit_bytes:
                         partial = True
                         break
-                    batch = selected[start:start + BATCH_SIZE]
+                    # Second read protects against a rerun or another writer
+                    # that added new records after this city's initial check.
+                    fresh = existing_city_places(base, key, state, cities[0])
+                    fresh_ids = {r["id"] for r in fresh}
+                    batch = only_new_within_cap(
+                        selected[start:start + BATCH_SIZE], fresh_ids,
+                        existing_places=fresh)
+                    if not batch:
+                        break
                     api(base, key, "/rest/v1/overture_places?on_conflict=id", "POST", batch,
                         prefer="resolution=ignore-duplicates,return=minimal")
                     total += len(batch)
                 storage_after = database_bytes(base, key)
-                status(base, key, state, "partial" if partial else "complete", total)
                 delta = storage_after - storage_before
                 bytes_per_imported_row = delta // total if total else 0
                 print(f"[{state}] {total} imported; "
@@ -429,8 +474,7 @@ def main():
                 if storage_after >= limit_bytes:
                     print("STOP: database safety threshold; remaining states NOT imported.", flush=True)
                     return 2
-        except Exception as exc:
-            status(base, key, state, "error", total, str(exc)[:200])
+        except Exception:
             raise
     print("Ingestion pass ended. Check overture_import_progress for coverage.", flush=True)
     return 0
