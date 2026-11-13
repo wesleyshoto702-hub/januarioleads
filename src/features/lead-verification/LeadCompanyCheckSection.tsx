@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   BadgeCheck, Check, ClipboardCopy, ExternalLink, FileSearch, Globe2,
   Loader2, MapPin, Phone, RefreshCw, Search, ShieldAlert, ShieldCheck,
@@ -94,16 +94,19 @@ export function LeadCompanyCheckSection({
   const [message,setMessage]=useState("");
   const [appliedPhone,setAppliedPhone]=useState(false);
   const [nameCache,setNameCache]=useState(false);
+  // A late history request must not overwrite new data after user action.
+  const manualActionStarted=useRef(false);
 
   useEffect(()=>{
     if(!IS_STAGING)return;
     let mounted=true;
+    manualActionStarted.current=false;
     setRecord(null);setSiteRecord(null);setCandidates(null);
     setCnpj("");setSearchTerm(business.name);
     setError("");setMessage("");setAppliedPhone(false);setInitializing(true);
     void call("status",leadId)
       .then(result=>{
-        if(!mounted)return;
+        if(!mounted||manualActionStarted.current)return;
         setRecord(result.record??null);
         setSiteRecord(result.siteRecord??null);
         if(result.record)setCnpj(displayCnpj(result.record.cnpj));
@@ -116,6 +119,8 @@ export function LeadCompanyCheckSection({
   async function discoverName(){
     const query=searchTerm.trim();
     if(query.length<4){setError("Digite pelo menos quatro caracteres do nome da empresa.");return}
+    manualActionStarted.current=true;
+    setInitializing(false);
     setBusy("name_search");setError("");setMessage("");setCandidates(null);
     try{
       const result=await call("name_search",leadId,{searchTerm:query});
@@ -132,6 +137,8 @@ export function LeadCompanyCheckSection({
       setError("Informe um CNPJ com 14 caracteres.");
       return;
     }
+    manualActionStarted.current=true;
+    setInitializing(false);
     setBusy("lookup");setError("");setMessage("");setAppliedPhone(false);
     try{
       const result=await call("lookup",leadId,{cnpj:value});
@@ -142,6 +149,8 @@ export function LeadCompanyCheckSection({
     finally{setBusy(null)}
   }
   async function discoverSite(){
+    manualActionStarted.current=true;
+    setInitializing(false);
     setBusy("site_contacts");setError("");setMessage("");
     try{
       const result=await call("site_contacts",leadId);
@@ -194,7 +203,7 @@ export function LeadCompanyCheckSection({
             <input id={"lc-search-"+leadId} value={searchTerm} maxLength={90}
               onChange={event=>setSearchTerm(event.target.value)} autoComplete="off"
               disabled={Boolean(busy)} placeholder="Nome da empresa"/>
-            <button type="submit" className="lc-check-primary" disabled={Boolean(busy)||initializing}>
+            <button type="submit" className="lc-check-primary" disabled={Boolean(busy)}>
               {busy==="name_search"?<Loader2 size={15} className="lc-check-spin"/>:<Search size={16}/>}
               Encontrar CNPJ
             </button>
@@ -230,7 +239,7 @@ export function LeadCompanyCheckSection({
             <input id={"lc-cnpj-"+leadId} name="cnpj" value={cnpj} maxLength={20}
               onChange={event=>setCnpj(event.target.value.toUpperCase().slice(0,20))}
               autoComplete="off" placeholder="00.000.000/0001-00" disabled={Boolean(busy)}/>
-            <button type="submit" className="lc-check-primary" disabled={Boolean(busy)||initializing}>
+            <button type="submit" className="lc-check-primary" disabled={Boolean(busy)}>
               {busy==="lookup"?<Loader2 className="lc-check-spin" size={15}/>:<FileSearch size={16}/>}
               Consultar cadastro
             </button>
@@ -282,7 +291,7 @@ export function LeadCompanyCheckSection({
             Site cadastrado <ExternalLink size={12}/>
           </a>:<small>Adicione o site oficial aos detalhes do lead para habilitar a consulta.</small>}
           <button className="lc-check-secondary" type="button"
-            disabled={Boolean(busy)||!officialSiteLink||!canCheckSite||initializing}
+            disabled={Boolean(busy)||!officialSiteLink||!canCheckSite}
             onClick={()=>void discoverSite()}>
             {busy==="site_contacts"?<Loader2 size={14} className="lc-check-spin"/>:<Globe2 size={14}/>}
             {canCheckSite?"Procurar contatos ausentes":"Contatos disponíveis — não consultar novamente"}
