@@ -1,0 +1,63 @@
+name: Validar novo Colab — Fase 7
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "notebooks/Januario_Leads_Fase_7_Recuperacao_Final_18_Municipios.ipynb"
+      - ".github/workflows/validar-colab-fase-7.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validar-notebook:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validar JSON, células, credenciais e sintaxe Python
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json, ast
+          original_path = Path("notebooks/Januario_Leads_Fase_6_Retomada_Protegida_Overture.ipynb")
+          new_path = Path("notebooks/Januario_Leads_Fase_7_Recuperacao_Final_18_Municipios.ipynb")
+          original = json.loads(original_path.read_text(encoding="utf-8"))
+          nb = json.loads(new_path.read_text(encoding="utf-8"))
+          assert nb["nbformat"] == 4 and nb["nbformat_minor"] >= 5
+          assert len(nb["cells"]) == 6
+          ids = [c["id"] for c in nb["cells"]]
+          assert len(ids) == len(set(ids)) and all(ids)
+          code = [c for c in nb["cells"] if c["cell_type"] == "code"]
+          assert len(code) == 4
+          assert code[1]["source"] == original["cells"][2]["source"], "Importer must be unchanged"
+          for cell in code:
+              assert cell["execution_count"] is None
+              assert cell["outputs"] == []
+              code_text = "".join(cell["source"])
+              if code_text.lstrip().startswith("# Célula 1"):
+                  code_text = "\n".join(
+                      "pass  # Colab IPython pip magic" if line.lstrip().startswith("%pip") else line
+                      for line in code_text.splitlines()
+                  )
+              ast.parse(code_text)
+              compile(code_text, "<Colab phase 7>", "exec")
+          cell4 = "".join(code[-1]["source"])
+          for token in [
+              "recuperacoes", "RESPEITAR_AGENDAMENTO_RECUPERACAO", "_municipios_malha",
+              "_existentes", "_registrar_pendencia", "_contagem", "_espaco",
+              "executar_recuperacao_final()", '"SUPABASE_URL"]=_STAGING',
+          ]:
+              assert token in cell4, f"Safety/coverage function absent: {token}"
+          assert "czkazbianiflhldenhcj" not in "".join(
+              "".join(c.get("source", [])) for c in nb["cells"]
+          )
+          print("PASS: valid 6-cell .ipynb with original importer, no saved credentials and compilable Python.")
+          PY
