@@ -461,5 +461,6 @@ export function WorkspaceGuideFilm({view,phase}:{view:AppView;phase:number}){
     case "projects":return <ProjectsView p={phase}/>;
     case "finance":return <FinanceView p={phase}/>;
     case "settings":return <SettingsView p={phase}/>;
+    default:return null;
   }
 }
