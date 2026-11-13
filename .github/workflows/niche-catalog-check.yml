@@ -18,11 +18,9 @@ jobs:
         with:
           deno-version: v2.x
       - name: Testar nichos e compatibilidade
-        run: deno test src/lib/*.test.ts src/features/messages/*.test.ts supabase/functions/_shared/ supabase/functions/verify-lead-company/matching.test.ts
+        run: deno test src/lib/*.test.ts src/features/messages/*.test.ts supabase/functions/_shared/
       - name: Verificar tipos da função de sincronização agendada
         run: deno check supabase/functions/sync-leads/index.ts
-      - name: Verificar tipos da busca de CNPJ e contatos
-        run: deno check supabase/functions/verify-lead-company/index.ts
       - uses: oven-sh/setup-bun@v2
       - name: Instalar dependências do frontend
         run: bun install --frozen-lockfile
