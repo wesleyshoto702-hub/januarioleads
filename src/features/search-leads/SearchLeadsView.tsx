@@ -171,7 +171,8 @@ function loadSearchLeadsSession(): SearchLeadsSession | null {
       typeof saved.resultsSegment !== "string" ||
       !Array.isArray(saved.results) ||
       !saved.results.every(
-        (item) => item && typeof item.placeId === "string" && typeof item.name === "string",
+        (item) => item && typeof item.placeId === "string" &&
+          typeof item.name === "string" && item.source !== "google_places",
       ) ||
       (saved.nextPageToken !== null && typeof saved.nextPageToken !== "string") ||
       (saved.screen !== "segments" && saved.screen !== "results") ||
@@ -560,7 +561,12 @@ export function SearchLeadsView({
     };
 
     try {
-      accountSessionStorage.setItem(SEARCH_LEADS_SESSION_KEY, JSON.stringify(snapshot));
+      // Google result fields must not be retained in the browser session cache.
+      accountSessionStorage.setItem(SEARCH_LEADS_SESSION_KEY, JSON.stringify({
+        ...snapshot,
+        results:snapshot.results.filter(item=>item.source!=="google_places"),
+        nextPageToken:snapshot.nextPageToken?.startsWith("google:")?null:snapshot.nextPageToken,
+      }));
     } catch {
       // Browsers with disabled/full session storage can still use the current view.
     }
@@ -950,7 +956,7 @@ export function SearchLeadsView({
     setResults(uniqueResults);
     setSearchNotice("");
     setProviderNotice(response.providerNotice ?? "");
-    storeRecentBusinessSearch(segment,response.results,{
+    storeRecentBusinessSearch(segment,response.results.filter(item=>item.source!=="google_places"),{
       city: location.city,
       state: location.state,
       append,
@@ -958,8 +964,8 @@ export function SearchLeadsView({
     void persistPlacesSearchSample({
       location,
       segment,
-      results: uniqueResults,
-      nextPageToken: response.nextPageToken,
+      results: uniqueResults.filter(item=>item.source!=="google_places"),
+      nextPageToken: response.nextPageToken?.startsWith("google:")?null:response.nextPageToken,
       append,
     }).catch(() => {
       // Opportunity persistence is auxiliary and must not break lead search.
@@ -1415,8 +1421,9 @@ export function SearchLeadsView({
                 onDetails={setDetails}
                 onWhatsApp={openWhatsApp}
                 onMessage={onMessage}
-                onAdd={(item) =>
-                  onAddLead(withSearchLocation(item, resultsLocation), resultsSegment)
+                onAdd={(item) => item.source==="google_places"
+                  ? Promise.resolve({ok:false as const,message:"Os dados Google são apenas consulta. Confirme os dados por outra fonte antes de cadastrar."})
+                  : onAddLead(withSearchLocation(item, resultsLocation), resultsSegment)
                 }
               />
             ))}
@@ -1474,7 +1481,9 @@ export function SearchLeadsView({
             updateBusinessPresence(details.placeId, presence);
             if (duplicate?.id) onPresenceDiscovered?.(duplicate.id, presence);
           }}
-          onAdd={(item) => onAddLead(withSearchLocation(item, resultsLocation), resultsSegment)}
+          onAdd={(item) => item.source==="google_places"
+            ? Promise.resolve({ok:false as const,message:"Os dados Google são apenas consulta. Confirme os dados por outra fonte antes de cadastrar."})
+            : onAddLead(withSearchLocation(item, resultsLocation), resultsSegment)}
         />
         );
       })()}
