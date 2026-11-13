@@ -81,7 +81,7 @@ function CopyValue({label,value}:{label:string;value:string}){
 export function LeadCompanyCheckSection({
   leadId,business,onApplyPhone,
 }:{
-  leadId:string;business:BusinessSearchResult;onApplyPhone?:(phone:string)=>void;
+  leadId:string;business:BusinessSearchResult;onApplyPhone?:((phone:string)=>void)|undefined;
 }){
   const [cnpj,setCnpj]=useState("");
   const [searchTerm,setSearchTerm]=useState(business.name);
