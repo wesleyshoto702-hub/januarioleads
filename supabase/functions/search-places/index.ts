@@ -1,6 +1,6 @@
 import { isAllowedBrowserOrigin as isTrustedBrowserOrigin } from "../_shared/allowed-browser-origins.ts";
 import type { OpeningHoursSnapshot } from "../_shared/open-now.ts";
-import { searchOverture } from "../_shared/overture-search.ts";
+import { searchOverture, type OvertureBusiness } from "../_shared/overture-search.ts";
 import { providerInstagramCandidate, type PublicInstagramCandidate } from "../_shared/public-instagram-candidate.ts";
 import {
   findBrazilianState,
@@ -1163,7 +1163,7 @@ async function runSegmentSearch(
     });
   }
   // Fallback to Google only for insufficient useful results.
-  const searched = await textSearch(googleApiKey, query, 20,undefined,userId);
+  const searched = await textSearch(googleApiKey!, query, 20,undefined,userId);
   if (!searched.ok) {
     if (openResults.length) {
       return json({
