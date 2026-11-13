@@ -128,7 +128,7 @@ export function storeRecentBusinessSearch(
   }
   const combined = (options.append && previous
     ? [...previous.results,...results]
-    : results).filter(item=>item.source!=="google_places");
+    : results).filter(item=>item.source==="overture" || item.source==="geoapify");
   const unique = new Map(combined.map((item)=>[item.placeId,item]));
   const cache: LocalOpenNowCache = {
     segment,
@@ -160,7 +160,7 @@ export function loadRecentBusinessSearches(city: string,state: string) {
 
       const results=(Array.isArray(raw.results)?raw.results:[])
         .map(safeBusiness)
-        .filter((item):item is BusinessSearchResult=>Boolean(item && item.source!=="google_places"));
+        .filter((item):item is BusinessSearchResult=>Boolean(item && (item.source==="overture" || item.source==="geoapify")));
       values.push({...raw,results});
     }catch{
       // Ignore malformed local cache entries.
