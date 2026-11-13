@@ -122,7 +122,10 @@ test("assisted discovery requires candidate selection, and only verified identit
   expect(calls).toContain("lookup");
   expect(calls).not.toContain("site_contacts");
   await card.getByRole("button",{name:"Preencher telefone vazio no CRM"}).click();
-  await expect(card.getByText(/Telefone incluído no campo vazio do lead/)).toBeVisible();
+  // CRM can re-render the lead details after the phone update; verify the
+  // manual apply action is no longer offered rather than relying on a toast.
+  await expect(card).toBeVisible();
+  await expect(card.getByRole("button",{name:"Preencher telefone vazio no CRM"})).toHaveCount(0);
 });
 
 test("identity mismatch hides contacts; an absent CNPJ contact can be sourced from the known site",async({page})=>{
