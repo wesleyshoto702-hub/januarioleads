@@ -1,7 +1,8 @@
-# Correção do typecheck da prévia
+# Atualização premium do JanuarioLeads
 
-- [x] Corrigir os tipos e acessos em Propostas e Análise Digital.
-- [x] Corrigir os tipos e acessos na Expansão Comercial.
-- [x] Rodar os testes relacionados e confirmar typecheck limpo.
-- [x] Confirmar os builds de produção e de desenvolvimento.
-- [x] Revisar e commitar somente as correções necessárias.
+- [ ] Revisar o estado visual e funcional das cinco páginas já aprovadas.
+- [ ] Completar o redesign responsivo de Dashboard, Meus Leads, Oportunidades, Mensagens e Financeiro sem alterar dados ou regras.
+- [ ] Garantir que todas as seis cores de destaque tingam os componentes e preservem contraste, inclusive Preto grafite.
+- [ ] Verificar as ações reais, acessibilidade e ausência de overflow no desktop e no celular.
+- [ ] Rodar typecheck, testes relacionados e build; corrigir somente erros relacionados.
+- [ ] Revisar e commitar a atualização sem publicar em produção.
