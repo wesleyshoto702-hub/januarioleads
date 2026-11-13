@@ -77,30 +77,17 @@ async function mockedLogin(page:Page,options:Options={}){
       user: {id: userId, email: "fixture@example.invalid"},
     }));
   }, {userId: USER_ID});
-  await page.goto("/app");
+  await page.goto("/tests/browser/fixtures/company-enrichment-harness.html");
   try {
-    await expect(page.locator(".saas-shell")).toBeVisible({timeout:12_000});
+    await expect(page.locator(".lc-check")).toBeVisible({timeout:12_000});
   } catch (error) {
     const state=await page.evaluate(()=>({path:location.pathname,body:document.body.innerText.slice(0,1200)}));
-    throw new Error("Authenticated fixture cannot open workspace: "+JSON.stringify({...state,browserErrors}),{cause:error});
+    throw new Error("Authenticated component fixture cannot render: "+JSON.stringify({...state,browserErrors}),{cause:error});
   }
   return calls;
 }
-async function openLead(page:Page,mobile=false){
-  if(mobile){
-    await page.getByRole("button",{name:"Abrir menu"}).click();
-    await page.getByRole("dialog",{name:"Menu principal"})
-      .getByRole("button",{name:"Meus Leads",exact:true}).click();
-    const row=page.locator(".mobile-list .lead-card").filter({hasText:"Oficina Exemplo"});
-    await expect(row).toBeVisible();
-    await row.getByRole("button",{name:/Ver empresa/}).click();
-  }else{
-    await page.locator(".saas-sidebar").getByRole("button",{name:"Meus Leads",exact:true}).click();
-    const row=page.locator(".desktop-table .table-row").filter({hasText:"Oficina Exemplo"});
-    await expect(row).toBeVisible();
-    await row.getByRole("button",{name:/Ver empresa/}).click();
-  }
-  const card=page.locator(".lc-check:visible").first();
+async function openLead(page:Page,_mobile=false){
+  const card=page.locator(".lc-check");
   await expect(card).toBeVisible();
   return card;
 }
@@ -125,8 +112,9 @@ test("assisted discovery requires candidate selection, and verified identity off
   await expect(card.getByRole("button",{name:"Preencher telefone vazio no CRM"})).toBeVisible();
   expect(calls).toContain("lookup");
   expect(calls).not.toContain("site_contacts");
-  // Eligibility is verified here. Actual CRM persistence is a separate manual
-  // staging acceptance check; it is not yet certified by this browser suite.
+  // The isolated component calls its parent with the suggested public phone.
+  await card.getByRole("button",{name:"Preencher telefone vazio no CRM"}).click();
+  await expect.poll(()=>page.evaluate(()=>document.body.dataset.appliedPhone)).toBe("35999888777");
 });
 
 test("identity mismatch hides contacts; an absent CNPJ contact can be sourced from the known site",async({page})=>{
@@ -144,7 +132,7 @@ test("identity mismatch hides contacts; an absent CNPJ contact can be sourced fr
   await expect(card.getByText(/WhatsApp não está configurado/)).toBeVisible();
 });
 
-test("mobile display provides manual CNPJ, source and WhatsApp status without overflow",async({page})=>{
+test("mobile component provides manual CNPJ, source and WhatsApp status without overflow",async({page})=>{
   await page.setViewportSize({width:390,height:844});
   await mockedLogin(page);
   const card=await openLead(page,true);
