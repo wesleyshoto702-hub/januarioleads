@@ -457,3 +457,94 @@
   .jl-help-mobile-action .jl-help-open{width:36px;min-width:36px;padding:0}
   .jl-help-mobile-action .jl-help-open span{display:none}
 }
+
+
+/* GUIDED MOUSE V3 — one real pointer position for every tutorial action.
+   Its target is read from the mock DOM, so it follows responsive layouts. */
+.jlf-film-host{
+  position:relative;isolation:isolate;width:min(100%,680px);
+  max-width:100%;margin-inline:auto;
+}
+.jlf-film-host>.jlf-view{width:100%;max-width:none}
+.jlf-guided-mouse{
+  position:absolute;z-index:20;display:block;top:0;left:0;width:24px;height:25px;
+  pointer-events:none;user-select:none;
+  transition:left .72s cubic-bezier(.22,.85,.24,1),
+             top .72s cubic-bezier(.22,.85,.24,1);
+  filter:drop-shadow(0 3px 3px #0008);
+}
+.jlf-guided-arrow{position:relative;z-index:3;display:block;transform:rotate(-8deg);color:#fff}
+.jlf-guided-caption{
+  position:absolute;z-index:4;top:22px;left:13px;display:inline-flex;align-items:center;
+  min-height:23px;padding:3px 9px;
+  white-space:nowrap;border:1px solid rgba(255,163,182,.65);
+  border-radius:6px;background:#e9375d;color:#fff;
+  box-shadow:0 5px 13px #090b11aa;
+  font-size:10px;font-weight:750;line-height:1.3;letter-spacing:0;
+}
+.jlf-guided-mouse.is-right .jlf-guided-caption{
+  left:auto;right:11px;transform:translateX(-10px)
+}
+.jlf-guided-ring{
+  position:absolute;z-index:1;left:-17px;top:-16px;width:42px;height:42px;
+  border:2px solid rgba(255,171,194,.9);border-radius:50%;
+  background:rgba(246,75,109,.16);box-shadow:0 0 0 3px #ed4b6c33;
+  transform-origin:50% 50%;animation:jlf-guided-click .66s cubic-bezier(.2,.75,.2,1) both;
+}
+@keyframes jlf-guided-click{
+  0%{opacity:0;transform:scale(.22)}
+  30%{opacity:1;transform:scale(.65)}
+  65%{opacity:.9;transform:scale(1.05)}
+  100%{opacity:0;transform:scale(1.35)}
+}
+/* Click highlights are temporary and scoped to the illustrative components,
+   never to the actual workspace controls. */
+.jlf-film-host .jlf-guided-hit{
+  outline:2px solid rgba(255,120,151,.86);
+  outline-offset:2px;
+  box-shadow:0 0 0 5px rgba(237,57,94,.17),0 0 25px rgba(234,64,102,.22);
+}
+.jlf-film-host .jlf-guided-hit .jlf-button{background:#ea3d61;color:#fff}
+.jlf-film-host .jlf-guided-hit .jlf-checkbox{background:#f05075}
+.jlf-film-host .jlf-guided-hit.jlf-message-content{border-color:#ff8faa}
+/* The guided cursor must remain readable without constraining the content. */
+@media(max-width:680px){
+ .jlf-guided-mouse{transition-duration:.55s}
+ .jlf-guided-caption{font-size:9px;min-height:21px;padding:3px 6px;top:21px}
+ .jlf-guided-arrow{width:21px;height:21px}
+}
+@media(max-width:430px){
+ .jlf-guided-caption{font-size:8px;padding:3px 5px}
+ .jlf-guided-mouse.is-right .jlf-guided-caption{right:8px}
+}
+.jlf-reduced .jlf-guided-mouse,
+.jlf-reduced .jlf-guided-mouse *{
+  transition:none!important;animation:none!important;
+}
+.jlf-reduced .jlf-guided-ring{display:none}
+@media(prefers-reduced-motion:reduce){
+ .jlf-guided-mouse,.jlf-guided-mouse *{transition:none!important;animation:none!important}
+ .jlf-guided-ring{display:none}
+}
+
+/* Messages: the fourth moment is the follow-up tab, NOT another explanation
+   of the initial message. The existing editor changes its actual content. */
+.jlf-messages .jlf-message-modes span{
+  transition:background-color .4s ease,color .4s ease,box-shadow .4s ease;
+}
+.jlf-messages[data-phase="3"] .jlf-message-modes>span:nth-child(2){
+  box-shadow:0 0 0 2px rgba(249,123,157,.45);
+}
+.jlf-messages[data-phase="3"] .jlf-message-editor{
+  border-color:rgba(248,101,139,.6);transition:border-color .4s ease;
+}
+.jlf-messages[data-phase="3"] .jlf-message-editor>strong{
+  color:#ffc5d2;transition:color .4s ease;
+}
+.jlf-messages .jlf-copy-hint{
+  opacity:0;visibility:hidden;min-height:24px;
+  transition:opacity .5s,visibility .5s;animation:none;
+}
+.jlf-messages[data-phase="3"] .jlf-copy-hint{
+  opacity:1;visibility:visible;
+}
