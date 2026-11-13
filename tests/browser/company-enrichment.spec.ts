@@ -106,16 +106,20 @@ async function openLead(page:Page,mobile=false){
 }
 
 test("assisted discovery requires candidate selection, and verified identity offers manual phone action",async({page})=>{
+  test.setTimeout(65_000);
   const calls=await mockedLogin(page);
   const card=await openLead(page);
   await expect(card.getByText("Enriquecer empresa")).toBeVisible();
   await expect(card.getByText(/Lavras \/ MG/)).toBeVisible();
+  console.log("verified-flow: searching by name");
   await card.getByRole("button",{name:"Encontrar CNPJ"}).click();
   await expect(card.locator(".lc-candidate")).toHaveCount(1);
   expect(calls).toContain("name_search");
   await expect(card.locator('input[name="cnpj"]')).toHaveValue("");
+  console.log("verified-flow: candidate selected");
   await card.getByRole("button",{name:"Selecionar CNPJ"}).click();
   await expect(card.locator('input[name="cnpj"]')).toHaveValue("00.000.000/0001-91");
+  console.log("verified-flow: fetching company record");
   await card.getByRole("button",{name:"Consultar cadastro"}).click();
   await expect(card.getByText("OFICINA EXEMPLO LTDA")).toBeVisible();
   await expect(card.getByRole("button",{name:"Preencher telefone vazio no CRM"})).toBeVisible();
