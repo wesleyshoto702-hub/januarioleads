@@ -35,6 +35,7 @@ import {
   type ExistingLeadIdentity,
 } from "./identity";
 import { searchBusinesses } from "./search-businesses";
+import { SUPABASE_URL } from "../../lib/supabase-config";
 import { SearchResultsAttribution } from "./BusinessSourceCredit";
 import { GoogleMapsLink } from "./GoogleMapsLink";
 import {
@@ -571,6 +572,44 @@ export function SearchLeadsView({
   const [error, setError] = useState<{ code: string; message: string } | null>(null);
   const [searchNotice, setSearchNotice] = useState(initialSearchSession?.searchNotice ?? "");
   const [providerNotice, setProviderNotice] = useState("");
+  // Hidden, read-only staging diagnostic: never available against production.
+  const overtureSmokeVisible =
+    SUPABASE_URL === "https://prlrxjothrslhswpkoza.supabase.co" &&
+    import.meta.env["VITE_DEPLOY_TARGET"] === "staging" &&
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).has("overture-smoke");
+  const [overtureSmokeLoading, setOvertureSmokeLoading] = useState(false);
+  const [overtureSmokeMessage, setOvertureSmokeMessage] = useState("");
+  async function checkOvertureStaging() {
+    if (!overtureSmokeVisible || overtureSmokeLoading) return;
+    setOvertureSmokeLoading(true);
+    setOvertureSmokeMessage("Consultando Overture com sua sessão autenticada...");
+    try {
+      // Direct Overture page: no Geoapify/Google Places fallback or paid API use.
+      const response = await searchBusinesses({
+        segment: "Hotel",
+        city: "Varginha",
+        state: "MG",
+        pageToken: "overture:0",
+      });
+      if (!response.ok) {
+        setOvertureSmokeMessage(`Teste não concluído: ${response.message} (${response.code}).`);
+        return;
+      }
+      const matches = response.results.filter(
+        (item) => item.source === "overture" &&
+          item.city?.toLocaleLowerCase("pt-BR") === "varginha" &&
+          item.state === "MG",
+      );
+      setOvertureSmokeMessage(matches.length > 0
+        ? `APROVADO: ${matches.length} hotéis de Varginha retornaram pelo Overture com login válido.`
+        : "FALHOU: a resposta não contém hotéis Overture de Varginha.");
+    } catch {
+      setOvertureSmokeMessage("FALHOU: não foi possível consultar a função de busca.");
+    } finally {
+      setOvertureSmokeLoading(false);
+    }
+  }
   const [instagramCheckingIds, setInstagramCheckingIds] = useState<string[]>([]);
   const [resultFilters, setResultFilters] = useState<ResultFilterState>(
     initialSearchSession?.resultFilters ?? DEFAULT_RESULT_FILTERS,
@@ -1242,6 +1281,17 @@ export function SearchLeadsView({
             </p>
           </div>
         </div>
+
+        {overtureSmokeVisible && (
+          <section aria-label="Diagnóstico interno de homologação" className="search-location-panel">
+            <strong>Teste Overture · Homologação</strong>
+            <p>Verificar hotéis de Varginha usando sua sessão atual, sem consultar serviços pagos.</p>
+            <button type="button" disabled={overtureSmokeLoading} onClick={() => void checkOvertureStaging()}>
+              {overtureSmokeLoading ? "Testando..." : "Testar Overture"}
+            </button>
+            {overtureSmokeMessage && <p role="status">{overtureSmokeMessage}</p>}
+          </section>
+        )}
 
         <div className="search-location-panel">
           <label className="search-location-field">
