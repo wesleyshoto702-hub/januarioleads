@@ -126,9 +126,9 @@ export function storeRecentBusinessSearch(
         ) ?? null;
     }
   }
-  const combined = options.append && previous
+  const combined = (options.append && previous
     ? [...previous.results,...results]
-    : results;
+    : results).filter(item=>item.source!=="google_places");
   const unique = new Map(combined.map((item)=>[item.placeId,item]));
   const cache: LocalOpenNowCache = {
     segment,
@@ -160,7 +160,7 @@ export function loadRecentBusinessSearches(city: string,state: string) {
 
       const results=(Array.isArray(raw.results)?raw.results:[])
         .map(safeBusiness)
-        .filter((item):item is BusinessSearchResult=>Boolean(item));
+        .filter((item):item is BusinessSearchResult=>Boolean(item && item.source!=="google_places"));
       values.push({...raw,results});
     }catch{
       // Ignore malformed local cache entries.
