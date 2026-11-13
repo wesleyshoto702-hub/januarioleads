@@ -8,11 +8,15 @@ on:
       - "src/features/search-leads/BusinessDetailsModal.tsx"
       - "src/routes/app.tsx"
       - "tests/browser/company-enrichment.spec.ts"
+      - "tests/browser/fixtures/company-enrichment-harness.tsx"
+      - "public/company-enrichment-harness.html"
       - ".github/workflows/company-verification-staging-check.yml"
   pull_request:
     paths:
       - "src/features/lead-verification/**"
       - "tests/browser/company-enrichment.spec.ts"
+      - "tests/browser/fixtures/company-enrichment-harness.tsx"
+      - "public/company-enrichment-harness.html"
       - ".github/workflows/company-verification-staging-check.yml"
 
 permissions:
