@@ -8,13 +8,14 @@ Essa automação foi criada **desligada por padrão**, até você habilitar a va
 - Workflow: [import-overture-staging-automatico.yml](../.github/workflows/import-overture-staging-automatico.yml)
 - Importador: [import_overture_staging_auto.py](../scripts/import_overture_staging_auto.py)
 - Destino fixo: `https://prlrxjothrslhswpkoza.supabase.co` (STAGING).
-- Agendamento: **a cada 2 horas, às :23 UTC** (12 tentativas diárias; horários em Brasília variam com a conversão UTC-3); o GitHub pode atrasar horários.
-- Limite: **3 municípios por rodada, até 60 empresas por cidade (até 36 municípios/dia, quando todas as execuções completam)**; a seleção pula todos os municípios já cadastrados.
+- Agendamento **com retomada**: a cada 10 minutos, nos minutos 07, 17, 27, 37, 47 e 57 (UTC), caso o modo automático esteja ativado. Como as sessões duram até 40 minutos e usam o mesmo grupo de concorrência, o GitHub mantém somente uma rodando; novas execuções aguardam, sem duplicar importações. O GitHub pode atrasar ou descartar eventos agendados.
+- **Modo contínuo por sessões**: até **40 minutos importando por sessão**, até 100 novos municípios por sessão (na prática, o tempo costuma limitar primeiro), **60 empresas por município**. Não há limite artificial de 36 municípios/dia: continua até atingir as condições de parada, como o espaço disponível ou localidades sem dados.
+- Teste manual: sugerimos **2 municípios** para validar a credencial; após ativação, o agendamento passa ao modo de longa duração.
 - Armazenamento: cancela novos municípios a partir de **88 MiB**; o importador tem limite próprio de **90 MiB**.
 - Lotes não se sobrepõem com a workflow de piloto no GitHub, por `concurrency`.
 - Falhas de municípios são adiadas por 3 dias (tabela privada `overture_auto_city_attempts`); não ficam bloqueando a fila.
 
-**Ritmo:** 12 execuções previstas por dia × 3 municípios por execução = **até 36 municípios/dia**. É uma capacidade teórica: falhas, atrasos do GitHub, duração do runner, limite de armazenamento e ausência de estabelecimentos podem reduzir o total. Não são 36 municípios garantidos.
+**Ritmo:** o total por dia depende do tempo de download, processamento geográfico e upload de cada município. Não é possível prometer 100, 200 ou 1.000 municípios por dia sem medir uma execução real. O GitHub Actions não é uma máquina ininterrupta: cada sessão termina, a próxima é agendada e a concorrência impede sobreposições.
 
 ## Habilitação única (obrigatória)
 
@@ -22,7 +23,7 @@ Não envie sua chave no chat nem a salve em arquivos do repositório.
 
 1. No painel Supabase, abra **Januário Leads — Staging**. Copie uma **chave secreta** do projeto (preferencialmente `sb_secret_...`; também aceita chave legada JWT `service_role`).
 2. No [GitHub → Settings → Environments](https://github.com/wesleyshoto702-hub/januarioleads/settings/environments), abra (ou crie) o ambiente com o nome exato **`homologacao`**. Adicione um **Environment secret** chamado exatamente **`OVERTURE_SUPABASE_SERVICE_ROLE_KEY`** com a chave da **homologação**. Não use a chave de produção.
-3. Na aba [Actions](https://github.com/wesleyshoto702-hub/januarioleads/actions), abra **Overture Brasil - importacao automatica - STAGING**. Clique **Run workflow** para **testar manualmente uma vez**. Confira se surgem linhas `CONFIRMADO NO SUPABASE`; **não habilite a agenda se houver falha**.
+3. Na aba [Actions](https://github.com/wesleyshoto702-hub/januarioleads/actions), abra **Overture Brasil - importacao automatica - STAGING**. Clique **Run workflow** com **2 municípios** para **testar manualmente uma vez**. Confira se surgem linhas `CONFIRMADO NO SUPABASE`; **não habilite a agenda se houver falha**.
 4. Para ligar a agenda, abra [Settings → Secrets and variables → Actions → Variables](https://github.com/wesleyshoto702-hub/januarioleads/settings/variables/actions). Crie a variável do repositório **`OVERTURE_AUTO_ENABLED` = `true`**.
 5. Depois disso, o agendamento executa sem você abrir o Colab. Para parar, altere a variável para **`false`**.
 
