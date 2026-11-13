@@ -561,22 +561,410 @@ function SettingsView({p}:{p:number}) {
     </div>
   </div>;
 }
-export function WorkspaceGuideFilm({view,phase}:{view:AppView;phase:number}){
+
+type CursorStop = readonly [selector: string, label: string, x?: number, y?: number];
+/** The guide cursor targets actual mock UI elements, not fixed screen pixels. */
+const MOUSE_TRACKS: Record<AppView, readonly [CursorStop, CursorStop, CursorStop, CursorStop]> = {
+  "dashboard": [
+    [
+      ".jlf-dash-stats > div:first-child",
+      "Leads"
+    ],
+    [
+      ".jlf-dash-stats > div:nth-child(2)",
+      "Tarefas"
+    ],
+    [
+      ".jlf-dash-plot",
+      "Gráfico",
+      0.6,
+      0.4
+    ],
+    [
+      ".jlf-dash-queue",
+      "Abrir contato",
+      0.8,
+      0.5
+    ]
+  ],
+  "leads": [
+    [
+      ".jlf-leads-edit .jlf-button",
+      "Salvar lead"
+    ],
+    [
+      ".jlf-leads-card",
+      "Ver ficha"
+    ],
+    [
+      ".jlf-lead-profile > div:nth-child(2)",
+      "Mudar status"
+    ],
+    [
+      ".jlf-leads-card > svg",
+      "Favoritar"
+    ]
+  ],
+  "search": [
+    [
+      ".jlf-search-form .jlf-field:first-child",
+      "Escolher nicho"
+    ],
+    [
+      ".jlf-search-form .jlf-field:nth-child(3)",
+      "Escolher cidade"
+    ],
+    [
+      ".jlf-search-form .jlf-button",
+      "Pesquisar"
+    ],
+    [
+      ".jlf-search-output",
+      "Salvar empresa",
+      0.86,
+      0.65
+    ]
+  ],
+  "prospecting": [
+    [
+      ".jlf-region-stats",
+      "Ver distribuição",
+      0.5,
+      0.3
+    ],
+    [
+      ".jlf-region-filters .jlf-field:first-child",
+      "Filtrar nicho"
+    ],
+    [
+      ".jlf-region-filters .jlf-field:nth-child(2)",
+      "Detalhar cidades"
+    ],
+    [
+      ".jlf-region-stats > div:first-of-type",
+      "Ver cidade"
+    ]
+  ],
+  "opportunities": [
+    [
+      ".jlf-segment-switch > span:first-child",
+      "Ver cidades"
+    ],
+    [
+      ".jlf-segment-switch > span:last-child",
+      "Ver segmentos"
+    ],
+    [
+      ".jlf-opportunity-cols article",
+      "Ver detalhes",
+      0.6,
+      0.4
+    ],
+    [
+      ".jlf-opportunity-cols article .jlf-button",
+      "Salvar lead"
+    ]
+  ],
+  "digital-presence": [
+    [
+      ".jlf-address",
+      "Informar site",
+      0.4
+    ],
+    [
+      ".jlf-address .jlf-button",
+      "Analisar site"
+    ],
+    [
+      ".jlf-digital-workflow",
+      "Ler resultado",
+      0.5,
+      0.5
+    ],
+    [
+      ".jlf-digital-workflow",
+      "Ver melhorias",
+      0.7,
+      0.7
+    ]
+  ],
+  "proposals": [
+    [
+      ".jlf-doc-client",
+      "Escolher cliente"
+    ],
+    [
+      ".jlf-doc-lines",
+      "Adicionar serviços",
+      0.5,
+      0.5
+    ],
+    [
+      ".jlf-doc-total",
+      "Conferir valor",
+      0.75
+    ],
+    [
+      ".jlf-document",
+      "Preparar PDF",
+      0.75,
+      0.83
+    ]
+  ],
+  "campaigns": [
+    [
+      ".jlf-campaign-form .jlf-field:first-child",
+      "Criar campanha"
+    ],
+    [
+      ".jlf-campaign-participants > div:first-of-type",
+      "Selecionar lead",
+      0.13
+    ],
+    [
+      ".jlf-campaign-progress",
+      "Ver progresso",
+      0.7
+    ],
+    [
+      ".jlf-campaign-progress",
+      "Acompanhar meta",
+      0.5,
+      0.8
+    ]
+  ],
+  "messages": [
+    [
+      ".jlf-message-modes > span:first-child",
+      "Mensagem inicial"
+    ],
+    [
+      ".jlf-message-content",
+      "Escrever modelo",
+      0.42,
+      0.4
+    ],
+    [
+      ".jlf-message-editor footer .jlf-button",
+      "Salvar mensagem"
+    ],
+    [
+      ".jlf-message-modes > span:nth-child(2)",
+      "Abrir follow-up"
+    ]
+  ],
+  "sequences": [
+    [
+      ".jlf-sequence-name",
+      "Criar modelo",
+      0.4
+    ],
+    [
+      ".jlf-sequence-line > div:nth-child(2)",
+      "Agendar retorno"
+    ],
+    [
+      ".jlf-sequence-line",
+      "Incluir empresa",
+      0.7,
+      0.75
+    ],
+    [
+      ".jlf-sequence-lead",
+      "Copiar mensagem",
+      0.85
+    ]
+  ],
+  "agenda": [
+    [
+      ".jlf-days > span:nth-of-type(13)",
+      "Escolher dia"
+    ],
+    [
+      ".jlf-agenda-day",
+      "Criar evento",
+      0.57,
+      0.7
+    ],
+    [
+      ".jlf-agenda-day",
+      "Vincular lead",
+      0.55,
+      0.65
+    ],
+    [
+      ".jlf-agenda-day",
+      "Revisar agenda",
+      0.55,
+      0.8
+    ]
+  ],
+  "projects": [
+    [
+      ".jlf-project-moving",
+      "Criar projeto"
+    ],
+    [
+      ".jlf-project-kanban > div:nth-child(2)",
+      "Mover etapa",
+      0.47,
+      0.65
+    ],
+    [
+      ".jlf-project-tasks > div:nth-of-type(2)",
+      "Marcar tarefa",
+      0.15
+    ],
+    [
+      ".jlf-project-kanban > div:nth-child(3)",
+      "Concluir projeto",
+      0.48,
+      0.67
+    ]
+  ],
+  "finance": [
+    [
+      ".jlf-finance-stats > div:first-child",
+      "Valor do projeto"
+    ],
+    [
+      ".jlf-finance-main",
+      "Registrar pagamento",
+      0.78,
+      0.6
+    ],
+    [
+      ".jlf-finance-ring",
+      "Ver saldo"
+    ],
+    [
+      ".jlf-finance-stats > div:nth-child(2)",
+      "Recebimentos"
+    ]
+  ],
+  "settings": [
+    [
+      ".jlf-settings-profile .jlf-field",
+      "Editar perfil"
+    ],
+    [
+      ".jlf-settings-appearance .jlf-swatches",
+      "Escolher cor",
+      0.15
+    ],
+    [
+      ".jlf-settings-motion .jlf-toggle",
+      "Reduzir movimento"
+    ],
+    [
+      ".jlf-settings-cols nav > span:last-child",
+      "Salvar ajustes"
+    ]
+  ]
+};
+
+function GuidedCursor({
+  view, phase, clickId, host,
+}: {
+  view: AppView;
+  phase: number;
+  clickId: number;
+  host: React.RefObject<HTMLDivElement | null>;
+}) {
+  const stop = MOUSE_TRACKS[view][phase] ?? MOUSE_TRACKS[view][0];
+  const [selector, label, ratioX = .5, ratioY = .5] = stop;
+  const [point, setPoint] = useState({ x: 22, y: 25 });
+  const currentTarget = useRef<Element | null>(null);
+
+  useLayoutEffect(() => {
+    const container = host.current;
+    if (!container) return;
+    const measure = () => {
+      const element = container.querySelector(selector);
+      currentTarget.current = element;
+      if (!element) return;
+      const rect = container.getBoundingClientRect();
+      const box = element.getBoundingClientRect();
+      const x = box.left - rect.left + box.width * ratioX;
+      const y = box.top - rect.top + box.height * ratioY;
+      if (rect.width > 35 && rect.height > 35) {
+        setPoint({
+          x: Math.max(15, Math.min(rect.width - 20, x)),
+          y: Math.max(15, Math.min(rect.height - 20, y)),
+        });
+      }
+    };
+    const frame = requestAnimationFrame(measure);
+    window.addEventListener("resize", measure);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("resize", measure);
+    };
+  }, [host, selector, ratioX, ratioY, phase]);
+
+  useEffect(() => {
+    if (!clickId) return;
+    const target = currentTarget.current;
+    target?.classList.add("jlf-guided-hit");
+    const timeout = window.setTimeout(() => target?.classList.remove("jlf-guided-hit"), 720);
+    return () => {
+      window.clearTimeout(timeout);
+      target?.classList.remove("jlf-guided-hit");
+    };
+  }, [clickId]);
+
+  return (
+    <span className="jlf-guided-mouse" style={{ left: point.x, top: point.y }} aria-hidden="true">
+      <MousePointer2 className="jlf-guided-arrow" size={24} fill="#fff" stroke="#141b22" strokeWidth={1.5}/>
+      {clickId > 0 && <span className="jlf-guided-ring" key={clickId}/>}
+      <span className="jlf-guided-caption">{label}</span>
+    </span>
+  );
+}
+
+/** The cursor moves to the next control; only after its click does the
+ * persistent demo UI update, so each stage teaches an actual interaction. */
+export function WorkspaceGuideFilm({view,phase,motionDisabled=false}:{
+  view:AppView;
+  phase:number;
+  motionDisabled?:boolean;
+}){
+  const host = useRef<HTMLDivElement>(null);
+  const [shownPhase,setShownPhase] = useState(0);
+  const [clickId,setClickId] = useState(0);
+
+  useEffect(() => {
+    if (motionDisabled) {
+      setShownPhase(phase);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setShownPhase(phase);
+      setClickId((value) => value + 1);
+    }, 900);
+    return () => window.clearTimeout(timer);
+  }, [view,phase,motionDisabled]);
+
+  let film: ReactNode;
   switch(view){
-    case "dashboard":return <DashboardView p={phase}/>;
-    case "leads":return <LeadsView p={phase}/>;
-    case "search":return <SearchView p={phase}/>;
-    case "prospecting":return <ProspectingView p={phase}/>;
-    case "opportunities":return <OpportunitiesView p={phase}/>;
-    case "digital-presence":return <DigitalView p={phase}/>;
-    case "proposals":return <ProposalsView p={phase}/>;
-    case "campaigns":return <CampaignsView p={phase}/>;
-    case "messages":return <MessagesView p={phase}/>;
-    case "sequences":return <SequencesView p={phase}/>;
-    case "agenda":return <AgendaView p={phase}/>;
-    case "projects":return <ProjectsView p={phase}/>;
-    case "finance":return <FinanceView p={phase}/>;
-    case "settings":return <SettingsView p={phase}/>;
-    default:return null;
+    case "dashboard": film = <DashboardView p={shownPhase}/>; break;
+    case "leads": film = <LeadsView p={shownPhase}/>; break;
+    case "search": film = <SearchView p={shownPhase}/>; break;
+    case "prospecting": film = <ProspectingView p={shownPhase}/>; break;
+    case "opportunities": film = <OpportunitiesView p={shownPhase}/>; break;
+    case "digital-presence": film = <DigitalView p={shownPhase}/>; break;
+    case "proposals": film = <ProposalsView p={shownPhase}/>; break;
+    case "campaigns": film = <CampaignsView p={shownPhase}/>; break;
+    case "messages": film = <MessagesView p={shownPhase}/>; break;
+    case "sequences": film = <SequencesView p={shownPhase}/>; break;
+    case "agenda": film = <AgendaView p={shownPhase}/>; break;
+    case "projects": film = <ProjectsView p={shownPhase}/>; break;
+    case "finance": film = <FinanceView p={shownPhase}/>; break;
+    case "settings": film = <SettingsView p={shownPhase}/>; break;
+    default: film = null;
   }
+  return <div className="jlf-film-host" ref={host}>
+    {film}
+    <GuidedCursor view={view} phase={phase} clickId={clickId} host={host}/>
+  </div>;
 }
