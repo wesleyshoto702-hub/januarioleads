@@ -363,6 +363,9 @@ export function BusinessDetailsModal({
             {business.phone && (
               <DetailItem label="Telefone" value={business.phone} />
             )}
+            {business.email && (
+              <DetailItem label="E-mail (não verificado)" value={business.email} />
+            )}
             {business.rating !== null && (
               <DetailItem
                 label="Avaliação"
