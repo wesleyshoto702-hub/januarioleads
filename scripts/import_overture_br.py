@@ -129,11 +129,17 @@ def select_diverse_pool(records, maximum):
 
 def api(base, key, path, method="GET", payload=None):
     data = json.dumps(payload, ensure_ascii=False).encode() if payload is not None else None
+    # Legacy service_role JWTs use Authorization; the newer sb_secret_ keys
+    # are opaque and must be sent only as apikey, never as Bearer JWT.
+    if not (key.startswith("eyJ") or key.startswith("sb_secret_")):
+        raise RuntimeError("Use somente a chave secreta de STAGING (sb_secret_ ou service_role legada).")
     headers = {
-        "apikey": key, "Authorization": f"Bearer {key}",
+        "apikey": key,
         "Content-Type": "application/json",
         "Prefer": "resolution=merge-duplicates,return=minimal",
     }
+    if key.startswith("eyJ"):
+        headers["Authorization"] = f"Bearer {key}"
     for attempt in range(5):
         try:
             req = request.Request(base + path, method=method, headers=headers, data=data)
