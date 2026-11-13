@@ -11,7 +11,7 @@ import type {
 export type BusinessSearchResult = {
   placeId: string;
   /** Provenance must remain attached to each provider's entire result. */
-  source?: "google_places" | "geoapify";
+  source?: "overture" | "google_places" | "geoapify";
   /** Optional Geoapify/OSM feature source; never a Google Maps URL. */
   sourceUrl?: string | null;
   name: string;
@@ -59,7 +59,7 @@ export type BusinessSearchSuccess = {
   ok: true;
   results: BusinessSearchResult[];
   nextPageToken: string | null;
-  provider?: "geoapify" | "google_places" | "mixed";
+  provider?: "overture" | "geoapify" | "google_places" | "mixed";
   providerNotice?: string;
 };
 
