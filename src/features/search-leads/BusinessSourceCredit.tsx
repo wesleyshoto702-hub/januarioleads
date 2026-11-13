@@ -11,6 +11,15 @@ export function BusinessSourceCredit({
 }: {
   source: BusinessSearchResult["source"];
 }) {
+  if (source === "overture") {
+    return (
+      <small className="business-source-credit" aria-label="Atribuição dos dados">
+        <a href="https://overturemaps.org/" target="_blank" rel="noopener noreferrer">
+          Dados: Overture Maps Foundation
+        </a>
+      </small>
+    );
+  }
   if (source === "geoapify") {
     return (
       <small className="business-source-credit" aria-label="Atribuição dos dados">
@@ -41,11 +50,19 @@ export function SearchResultsAttribution({
 }: {
   sources: Array<BusinessSearchResult["source"]>;
 }) {
-  const google = sources.some(source => source !== "geoapify");
+  const overture = sources.some(source => source === "overture");
+  const google = sources.some(source => source === "google_places" || !source);
   const geoapify = sources.some(source => source === "geoapify");
-  if (!google && !geoapify) return null;
+  if (!google && !geoapify && !overture) return null;
   return (
     <div className="business-results-attribution" role="note" aria-label="Origem dos resultados">
+      {overture && (
+        <span className="business-results-attribution-entry business-results-attribution-entry--open">
+          <a href="https://overturemaps.org/" target="_blank" rel="noopener noreferrer">
+            Dados: Overture Maps Foundation
+          </a>
+        </span>
+      )}
       {google && (
         <span className="business-results-attribution-entry business-results-attribution-entry--places" translate="no">
           <span className="business-results-google-attribution">Google Maps</span>
