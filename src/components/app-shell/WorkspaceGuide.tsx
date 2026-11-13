@@ -1,12 +1,13 @@
 import {
   ArrowRight, BarChart3, CalendarDays, Check, ChevronLeft, ChevronRight,
-  CircleHelp, ClipboardList, FileText, MapPin, MessageCircle,
+  CircleHelp, ClipboardList, FileText, MessageCircle,
   Pause, Play, Search, Settings2, Sparkles, Target,
   UsersRound, WalletCards, X, type LucideIcon,
 } from "lucide-react";
 import {
   useEffect, useId, useRef, useState, type CSSProperties,
 } from "react";
+import { createPortal } from "react-dom";
 import type { AppView } from "./AppShell";
 
 /**
@@ -367,9 +368,9 @@ export function WorkspaceGuide({
         <span>Como funciona</span>
       </button>
 
-      {open && (
+      {open && createPortal(
         <div
-          className="jl-help-backdrop"
+          className={"jl-help-backdrop" + (motionDisabled ? " jl-help-no-motion" : "")}
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) setOpen(false);
           }}
@@ -474,7 +475,8 @@ export function WorkspaceGuide({
               <span>Disponível em todas as seções</span>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );
