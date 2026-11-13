@@ -65,6 +65,7 @@ STATE_CODES = (
 BATCH_SIZE = 150
 STAGING_URL = "https://prlrxjothrslhswpkoza.supabase.co"
 TARGET_PER_MUNICIPALITY = 100
+MAX_NEW_PER_MUNICIPALITY = 40
 STORAGE_STOP_MIB = 340
 # Suppress named geographical features that are not potential companies.
 NON_LEAD_CATEGORIES = frozenset((
@@ -193,6 +194,29 @@ def existing_city_places(base, key, state, city_key):
     if len(result) > TARGET_PER_MUNICIPALITY:
         raise RuntimeError("Municipality exceeds 100 entries. Investigate before continuing.")
     return result
+
+
+def original_phase9_count(base, key, state, city_key, current_count):
+    """Preserve the FIRST before_count for lifetime +40, even on later sessions.
+
+    A missing checkpoint means this city has not been expanded by Phase 9.
+    The read is service_role only. Never reduce the initial baseline when the
+    company count rises; never re-import companies to reach the +40 cap.
+    """
+    query = urlencode({
+        "select": "before_count",
+        "state": "eq." + state, "city_key": "eq." + city_key,
+        "limit": "1",
+    })
+    rows = api(base, key, "/rest/v1/overture_phase9_attempts?" + query)
+    if not isinstance(rows, list):
+        raise RuntimeError("Phase 9 baseline checkpoint could not be read")
+    if not rows:
+        return current_count
+    first = rows[0].get("before_count")
+    if not isinstance(first, int) or first < 0:
+        raise RuntimeError("Invalid Phase 9 baseline in staging")
+    return min(current_count, first)
 
 
 def same_business(a, b, meters=15.0):
@@ -405,8 +429,17 @@ def main():
         return 2
     existing = {city: existing_city_places(base, secret, state, city)
                 for city in city_keys}
-    targets = {key: rows for key, rows in existing.items()
-               if len(rows) < TARGET_PER_MUNICIPALITY}
+    # Add at most FORTY NEW companies per city, even if it originally held
+    # fewer than 60. Preserve the first baseline across Colab resumptions.
+    baseline = {city: original_phase9_count(base, secret, state, city, len(rows))
+                for city, rows in existing.items()}
+    allowance = {
+        city: min(TARGET_PER_MUNICIPALITY - len(rows),
+                  MAX_NEW_PER_MUNICIPALITY - max(0, len(rows) - baseline[city]))
+        for city, rows in existing.items()
+    }
+    targets = {city: rows for city, rows in existing.items()
+               if allowance[city] > 0}
     for key in city_keys:
         if key not in targets:
             print(f"ALREADY_COMPLETE: {state}/{key}", flush=True)
@@ -450,12 +483,16 @@ def main():
                 print("STOP: database safety threshold", flush=True)
                 return 2
             prior = targets[key]
-            capacity = TARGET_PER_MUNICIPALITY - len(prior)
+            capacity = allowance[key]
             groups = groups_by_city[key]
             ranked = select_diverse_pool(groups["with_site"]+groups["without_site"],capacity)
             fresh = existing_city_places(base, secret, state, key)
+            # A concurrent importer cannot exceed the original city baseline
+            # +40; re-check the current row count before inserting.
+            max_total = min(TARGET_PER_MUNICIPALITY,
+                            baseline[key] + MAX_NEW_PER_MUNICIPALITY)
             proposed = only_new_within_cap(ranked,{r["id"] for r in fresh},
-                                           existing_places=fresh)
+                                           cap=max_total, existing_places=fresh)
             if proposed:
                 api(base,secret,"/rest/v1/overture_places?on_conflict=id","POST",proposed,
                     prefer="resolution=ignore-duplicates,return=minimal")
