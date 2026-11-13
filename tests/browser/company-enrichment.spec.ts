@@ -67,7 +67,17 @@ async function mockedLogin(page:Page,options:Options={}){
   await page.getByPlaceholder("seu@email.com").fill("fixture@example.invalid");
   await page.getByPlaceholder("Sua senha").fill("test-password");
   await page.getByRole("button",{name:"Entrar",exact:true}).click();
-  await expect(page.locator(".saas-shell")).toBeVisible();
+  try {
+    await expect(page.locator(".saas-shell")).toBeVisible({ timeout: 12_000 });
+  } catch (error) {
+    const state = await page.evaluate(() => ({
+      path: location.pathname,
+      title: document.title,
+      body: document.body.innerText.slice(0, 1300),
+      storedSession: localStorage.getItem("januarioleads:auth-session") !== null,
+    }));
+    throw new Error("Mocked staging login diagnostics: " + JSON.stringify(state), { cause: error });
+  }
   return calls;
 }
 async function openLead(page:Page,mobile=false){
