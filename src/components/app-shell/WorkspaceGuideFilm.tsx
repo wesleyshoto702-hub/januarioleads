@@ -457,7 +457,7 @@ function CampaignsView({p}:{p:number}) {
 }
 function MessagesView({p}:{p:number}) {
   return <div className="jlf-view jlf-messages" data-phase={p}>
-    <Header title="Mensagens" icon={MessageCircle}/><div className="jlf-message-modes"><span className={p<3?"on":""}>Mensagem inicial</span><span className={p===3?"on":""}>Follow-up</span></div>
+    <Header title="Mensagens" icon={MessageCircle}/><div className="jlf-message-modes"><span className="on">Mensagem inicial</span><span>Follow-up</span></div>
     <div className="jlf-message-editor"><small>NOME DO MODELO</small><strong>Primeiro contato — apresentação</strong><div className="jlf-message-content"><p>Olá, tudo bem?</p>{p>=1?<><p>Trabalho com criação de sites e vi sua empresa.</p><p>Teriam interesse em conhecer uma ideia?</p></>:<i>Escreva o conteúdo da mensagem...</i>}</div><footer><span className={p>=2?"on":""}><Star size={15} fill={p>=2?"currentColor":"none"}/> Favorita</span><Button selected={p>=2}><Check size={14}/>Salvar modelo</Button></footer></div>
     {p===3&&<div className="jlf-copy-hint"><Copy size={16}/> Modelo salvo: personalize e copie para enviar manualmente.</div>}
   </div>;
