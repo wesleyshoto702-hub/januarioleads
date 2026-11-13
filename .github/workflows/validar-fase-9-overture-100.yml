@@ -33,6 +33,9 @@ jobs:
           assert 'STAGING_URL = "https://prlrxjothrslhswpkoza.supabase.co"' in script
           assert "STORAGE_STOP_MIB = 340" in script
           assert "TARGET_PER_MUNICIPALITY = 100" in script
+          assert "MAX_NEW_PER_MUNICIPALITY = 40" in script
+          assert "original_phase9_count" in script
+          assert "cap=max_total, existing_places=fresh" in script
           assert 'resolution=ignore-duplicates,return=minimal' in script
           assert "existing_city_places" in script
           assert "only_new_within_cap" in script
@@ -68,6 +71,18 @@ jobs:
           ranked=ns["select_diverse_pool"](pool["with_site"]+pool["without_site"],40)
           final=select(ranked,ids,existing_places=old)
           assert len(final)==40 and all(r["id"] not in ids for r in final)
+          # In a 30-company town: +40 once, never up to 100 in one pass.
+          initial30={str(i) for i in range(30)}
+          extra=[dict(item) for item in data]
+          assert len(select(extra,initial30,cap=70))==40
+          assert len(select(extra,initial30,cap=100))==70  # illustrates why cap 70 matters
+          # Checkpoint and current count determine the persistent +40 limit.
+          previous_api=ns["api"]
+          ns["api"]=lambda *a,**kw:[{"before_count":30}]
+          assert ns["original_phase9_count"]("staging","secret","MG","lavras",70)==30
+          ns["api"]=lambda *a,**kw:[]
+          assert ns["original_phase9_count"]("staging","secret","MG","lavras",30)==30
+          ns["api"]=previous_api
           assert not select(data,ids,cap=60)
           assert not select(data,{str(i) for i in range(100)},cap=100)
           clone=dict(old[0],id="other-gers",latitude=-21.00002)
@@ -89,6 +104,10 @@ jobs:
           assert ast.literal_eval(embedded)==script
           helper=codes[1]
           assert "STORAGE_STOP_MIB=340" in helper and "TARGET_PER_CITY=100" in helper
+          assert "MAX_NEW_PER_CITY=40" in helper
+          assert "def phase9_baselines" in helper
+          assert "baseline=min(before,old)" in helper
+          assert "baselines=phase9_baselines(secret)" in codes[2]
           assert 'if confirm!="AMPLIAR_100"' in codes[2]
           assert "capture_output=True" in codes[2] and "getpass.getpass" in codes[2]
           assert "MAX_MUNICIPIOS_SESSAO=5572" in helper
@@ -115,6 +134,9 @@ jobs:
           assert [(x["state"],x["city"]) for x in order]==[
              ("MG","Lavras"),("SP","Santos"),("MG","Alfenas")]
           assert len(helper_ns["sorted_targets"](citylist,pending={("MG","lavras")}))==2
+          short=[{"state":"MG","city":"Exemplo","city_key":"exemplo","imported_rows":70}]
+          assert helper_ns["sorted_targets"](short,baselines={("MG","exemplo"):30})==[]
+          assert len(helper_ns["sorted_targets"](short,baselines={("MG","exemplo"):50}))==1
           import datetime as dt
           a={"state":"MG","city":"Lavras","city_key":"lavras","center_lat":-21.24,"center_lon":-45.00}
           b={"state":"MG","city":"Nepomuceno","city_key":"nepomuceno","center_lat":-21.24,"center_lon":-45.03}
@@ -134,5 +156,5 @@ jobs:
           assert helper_ns["stop_on_global_error"]("fonte_taxa")
           assert helper_ns["transient_error"]("rede_timeout")
           assert helper_ns["classify_import_error"]("BATCH_TOO_WIDE: dispersed")=="batch_largura"
-          print("PASS: Phase 9 safe 3-town batching, distance and area guards, 75s pacing, 6h 429 cooldown, 100-city cap, no network/imports.")
+          print("PASS: Phase 9 40-new-per-city lifetime cap, full scan, 3-town batching, bounded storage, no network/imports.")
           PY
