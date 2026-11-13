@@ -191,3 +191,261 @@
 .js-settings-reduce-motion .jlf-stage *{animation:none!important;transition:none!important}
 .jlf-reduced .jlf-chart-line{stroke-dashoffset:0}
 @media(prefers-reduced-motion:reduce){.jlf-overlay,.jlf-overlay *, .jlf-stage, .jlf-stage *{animation:none!important;transition:none!important}.jlf-chart-line{stroke-dashoffset:0}}
+
+
+/* CONTINUITY PASS — The same React scene remains mounted from phase 0 to 3.
+   Change the state of actual UI objects; do not replay an entrance animation. */
+.jlf-stage .jlf-view{animation:jlf-appear .45s ease-out both}
+.jlf-stage .jlf-view *{animation-fill-mode:both}
+.jlf-stage:not(.is-playing) .jlf-view,
+.jlf-stage:not(.is-playing) .jlf-view *{animation-play-state:paused}
+.jlf-stage .jlf-field,
+.jlf-stage .jlf-button,
+.jlf-stage .jlf-company,
+.jlf-stage .jlf-dash-stats>div,
+.jlf-stage .jlf-dash-queue,
+.jlf-stage .jlf-opportunity-cols article,
+.jlf-stage .jlf-lead-profile b,
+.jlf-stage .jlf-settings-cols nav>span{
+  transition:border-color .45s ease,background-color .45s ease,color .45s ease,box-shadow .45s ease,opacity .45s ease,transform .5s ease;
+}
+
+/* Buscar Leads: cursor and fields persist; results replace the waiting state
+   with a crossfade after the query, never by remounting the full scene. */
+.jlf-search-flow{position:relative;min-height:139px;overflow:hidden}
+.jlf-search-flow>.jlf-search-prompt,
+.jlf-search-flow>.jlf-search-processing,
+.jlf-search-flow>.jlf-search-found{
+  position:absolute;inset:9px 12px;opacity:0;visibility:hidden;pointer-events:none;
+  transform:translateY(12px);transition:opacity .45s ease,transform .55s cubic-bezier(.2,.75,.2,1),visibility .45s;
+}
+.jlf-search-flow>.jlf-search-prompt{display:flex;justify-content:center;align-items:center;flex-direction:column;gap:10px;color:#9cabb9;font-size:11px;text-align:center}
+.jlf-search-prompt svg{color:#f1809c}
+.jlf-search[data-phase="0"] .jlf-search-prompt,.jlf-search[data-phase="1"] .jlf-search-prompt,
+.jlf-search[data-phase="2"] .jlf-search-processing,.jlf-search[data-phase="3"] .jlf-search-found{
+  opacity:1;visibility:visible;transform:translateY(0);pointer-events:auto;
+}
+.jlf-search-processing{display:grid;align-content:center;justify-items:center;gap:10px;color:#cad5de;text-align:center}
+.jlf-search-processing strong{font-size:12px}
+.jlf-search-processing small{font-size:10px;color:#8fa1b0}
+.jlf-search-loader{width:33px;height:33px;border:3px solid #ff648538;border-top-color:#fb7c9a;border-radius:50%;animation:jlf-spin 1s linear infinite}
+.jlf-search-found>strong{display:flex;justify-content:space-between;gap:8px;font-size:11px;margin-bottom:10px}
+.jlf-search-found>strong small{font-size:9px;color:#8fa2b1}
+.jlf-search-found>.jlf-company{opacity:1;transform:none;transition:background .4s,border-color .4s,transform .4s}
+.jlf-search-found>.jlf-company.is-selected{background:#a9445c26;border-color:#f77994}
+.jlf-search-found>.jlf-company.is-selected small{color:#83e3b7}
+.jlf-search[data-phase="0"] .jlf-search-form>.jlf-field:first-child{box-shadow:0 0 0 2px #ef6f8b28}
+.jlf-search[data-phase="1"] .jlf-search-form>.jlf-field:nth-child(2),
+.jlf-search[data-phase="1"] .jlf-search-form>.jlf-field:nth-child(3){border-color:#ff7894}
+.jlf-search[data-phase="2"] .jlf-search-form>.jlf-button,
+.jlf-search[data-phase="3"] .jlf-search-form>.jlf-button{box-shadow:0 0 0 3px #f35b7923}
+
+/* Meus Leads: form slides out, the same saved card slides in, status changes
+   and the star becomes yellow only at the fourth moment. */
+.jlf-lead-flow{position:relative;min-height:150px;overflow:hidden}
+.jlf-lead-flow>.jlf-leads-edit,
+.jlf-lead-flow>.jlf-leads-record{
+  position:absolute;inset:0;transition:opacity .5s ease,transform .65s cubic-bezier(.22,.72,.22,1),visibility .5s;
+}
+.jlf-lead-flow>.jlf-leads-edit{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0;opacity:1;transform:none}
+.jlf-lead-flow>.jlf-leads-edit>.jlf-field{flex:1}
+.jlf-lead-flow>.jlf-leads-record{opacity:0;transform:translateX(28px);visibility:hidden}
+.jlf-leads[data-phase="1"] .jlf-leads-edit,
+.jlf-leads[data-phase="2"] .jlf-leads-edit,
+.jlf-leads[data-phase="3"] .jlf-leads-edit{opacity:0;transform:translateX(-30px);visibility:hidden}
+.jlf-leads[data-phase="1"] .jlf-leads-record,
+.jlf-leads[data-phase="2"] .jlf-leads-record,
+.jlf-leads[data-phase="3"] .jlf-leads-record{opacity:1;transform:translateX(0);visibility:visible}
+.jlf-leads-record .jlf-leads-card{margin:4px 0 10px;padding:10px}
+.jlf-leads[data-phase="2"] .jlf-lead-profile>div:nth-child(2){background:#f5ad5820;box-shadow:inset 0 0 0 1px #f5ad5847}
+.jlf-leads[data-phase="3"] .jlf-lead-profile>div:nth-child(3){background:#66cba51a;box-shadow:inset 0 0 0 1px #66cba557}
+.jlf-leads[data-phase="3"] .jlf-leads-card svg.jlf-starred{animation:jlf-pop .45s ease-out both}
+
+/* Dashboard: no chart replay on each indicator selection. Draw only when
+   the chart becomes the focus, then hold the finished curve. */
+.jlf-dashboard .jlf-chart-line{stroke-dashoffset:500;animation:none;transition:stroke-dashoffset 2s ease}
+.jlf-dashboard[data-phase="2"] .jlf-chart-line,
+.jlf-dashboard[data-phase="3"] .jlf-chart-line{stroke-dashoffset:0}
+.jlf-dashboard[data-phase="0"] .jlf-dash-stats>div:first-child{transform:translateY(-3px)}
+.jlf-dashboard[data-phase="1"] .jlf-dash-stats>div:nth-child(2){transform:translateY(-3px)}
+.jlf-dashboard[data-phase="2"] .jlf-dash-stats>div:last-child{transform:translateY(-3px)}
+.jlf-dashboard[data-phase="3"] .jlf-dash-queue{transform:translateY(-3px);box-shadow:0 9px 22px #ef5d7622}
+
+/* Prospecção: a map sweep, then changing regional bars and the selected city.
+   The map stays in place, unlike a page-wide wipe. */
+.jlf-prospecting .jlf-brazil-map{transform-origin:50% 50%;transition:transform 1.1s ease,filter .9s ease}
+.jlf-prospecting[data-phase="1"] .jlf-brazil-map{transform:scale(1.04);filter:drop-shadow(0 0 14px #f45b8466)}
+.jlf-prospecting[data-phase="2"] .jlf-brazil-map{transform:translateX(-5px) scale(1.07)}
+.jlf-prospecting[data-phase="3"] .jlf-brazil-map{transform:scale(1);filter:drop-shadow(0 0 19px #fa7b9c6c)}
+.jlf-prospecting .jlf-region-stats em{transition:width .9s ease,transform .7s ease}
+.jlf-prospecting[data-phase="1"] .jlf-region-stats>div:first-of-type em{transform:scaleX(.87);transform-origin:left}
+.jlf-prospecting[data-phase="2"] .jlf-region-stats>div:first-of-type em{transform:scaleX(.65);transform-origin:left}
+.jlf-prospecting[data-phase="3"] .jlf-region-stats>div.focus{background:#f26b8621;border-radius:6px;box-shadow:0 0 0 6px #f26b8621}
+.jlf-region-footer{animation:jlf-reveal-right .55s ease-out both}
+
+/* Oportunidades: tabs change, details expand, then the Save CTA highlights. */
+.jlf-opportunities .jlf-segment-switch span{transition:background-color .45s,color .45s,transform .45s}
+.jlf-opportunities[data-phase="1"] .jlf-segment-switch span:last-child{transform:translateY(-2px)}
+.jlf-opportunity-cols article{transform:translateX(12px) scale(.97)}
+.jlf-opportunities[data-phase="2"] .jlf-opportunity-cols article,
+.jlf-opportunities[data-phase="3"] .jlf-opportunity-cols article{transform:translateX(0) scale(1)}
+.jlf-opportunities[data-phase="3"] .jlf-opportunity-cols article .jlf-button{transform:translateY(-2px);box-shadow:0 0 0 3px #f16d8b38}
+
+/* Análise Digital: address remains at the top while the same report area
+   advances from instructions to scanning to scores and recommendations. */
+.jlf-digital-workflow{position:relative;min-height:196px;overflow:hidden}
+.jlf-digital-workflow>.jlf-digital-empty,
+.jlf-digital-workflow>.jlf-digital-scan,
+.jlf-digital-workflow>.jlf-digital-diagnosis{
+  position:absolute;inset:0;opacity:0;visibility:hidden;transform:translateY(10px);
+  transition:opacity .5s ease,transform .6s ease,visibility .5s ease;
+}
+.jlf-digital-workflow>.jlf-digital-empty,
+.jlf-digital-workflow>.jlf-digital-scan{height:100%;margin:0}
+.jlf-digital-workflow>.jlf-digital-diagnosis{display:grid;align-content:center;gap:12px}
+.jlf-digital[data-phase="0"] .jlf-digital-empty,
+.jlf-digital[data-phase="1"] .jlf-digital-scan,
+.jlf-digital[data-phase="2"] .jlf-digital-diagnosis,
+.jlf-digital[data-phase="3"] .jlf-digital-diagnosis{opacity:1;visibility:visible;transform:none}
+.jlf-digital-scan i{animation-play-state:paused}
+.jlf-digital[data-phase="1"] .jlf-digital-scan i{animation-play-state:running}
+.jlf-digital[data-phase="3"] .jlf-digital-scores>div:first-child{transform:translateY(-5px);filter:drop-shadow(0 0 9px #f58d9b44)}
+.jlf-digital-scores>div{transition:transform .65s ease,filter .65s ease}
+.jlf-digital-diagnosis .jlf-digital-advice{min-height:35px;opacity:0;transform:translateY(9px);transition:opacity .55s,transform .6s}
+.jlf-digital[data-phase="3"] .jlf-digital-diagnosis .jlf-digital-advice{opacity:1;transform:none}
+
+/* Propostas: keep the paper still while fields, prices and the printable
+   status are added; the PDF stamp has a different entrance from the items. */
+.jlf-proposals .jlf-document{animation:jlf-paper .45s ease-out both}
+.jlf-proposals .jlf-doc-lines>div{animation:jlf-reveal-right .45s ease-out both}
+.jlf-proposals .jlf-doc-lines>div:nth-child(2){animation-delay:.18s}
+.jlf-proposals .jlf-doc-total{transition:background-color .6s ease,transform .6s ease}
+.jlf-proposals[data-phase="2"] .jlf-doc-total,
+.jlf-proposals[data-phase="3"] .jlf-doc-total{transform:scale(1.025)}
+.jlf-proposals .jlf-doc-ready{animation:jlf-stamp .55s cubic-bezier(.22,1.2,.26,1) both}
+
+/* Campanhas: check participants, then fill the actual numeric goal bar. */
+.jlf-campaigns .jlf-campaign-participants>div span{transition:background-color .45s,border-color .45s,transform .35s}
+.jlf-campaigns[data-phase="1"] .jlf-campaign-participants .checked{transform:scale(1.08)}
+.jlf-campaigns .jlf-campaign-progress em{transition:width 1.25s cubic-bezier(.25,.8,.25,1)}
+.jlf-campaigns[data-phase="2"] .jlf-campaign-progress,
+.jlf-campaigns[data-phase="3"] .jlf-campaign-progress{border-color:#f37c9645}
+.jlf-campaign-note{display:block;animation:jlf-reveal-right .5s ease-out both}
+
+/* Mensagens: lines type into the same editor, then favorite, then manual copy.
+   The input remains mounted throughout the tutorial. */
+.jlf-messages .jlf-message-content p{animation:jlf-typing .7s both}
+.jlf-messages .jlf-message-content p:nth-child(2){animation-delay:.18s}
+.jlf-messages .jlf-message-content p:nth-child(3){animation-delay:.36s}
+.jlf-messages .jlf-message-editor footer>span{transition:color .45s}
+.jlf-messages[data-phase="2"] .jlf-message-editor footer>span.on{animation:jlf-pop .45s ease both}
+.jlf-messages .jlf-copy-hint{animation:jlf-reveal-right .6s both}
+
+/* Sequências: timeline markers fill in order, then enrollment enters,
+   then the copy action appears without redrawing previous markers. */
+.jlf-sequences .jlf-step-number{transition:background-color .6s,border-color .6s,color .6s,box-shadow .6s}
+.jlf-sequences .jlf-sequence-line>div{transition:color .5s}
+.jlf-sequences .jlf-sequence-lead{animation:jlf-reveal-right .55s ease-out both}
+.jlf-sequences[data-phase="3"] .jlf-sequence-lead>svg:last-child{color:#7de4ac;animation:jlf-pop .5s ease both}
+
+/* Agenda: the selected calendar day stays highlighted; the new meeting
+   appears inside the date, then a lead and CRM task link are attached. */
+.jlf-agenda .jlf-days>.chosen{transition:box-shadow .5s,background-color .5s}
+.jlf-agenda[data-phase="1"] .jlf-days>.chosen{box-shadow:0 0 0 3px #f06b8940}
+.jlf-agenda .jlf-appointment{animation:jlf-reveal-right .48s ease both}
+.jlf-agenda .jlf-appointment span{animation:jlf-reveal-right .48s ease both}
+.jlf-agenda .jlf-calendar-reminder{animation:jlf-reveal-right .48s ease both}
+
+/* Projetos: one DOM card physically MOVES between Kanban columns.
+   Its position is smoothly interpolated when data-phase changes. */
+.jlf-moving-kanban{position:relative;isolation:isolate}
+.jlf-moving-kanban>.jlf-project-moving{
+  position:absolute;z-index:2;top:38px;left:10px;width:calc(33.333% - 24px);min-height:66px;
+  display:flex;flex-direction:column;justify-content:center;gap:7px;
+  padding:9px;border:1px solid #ed6b88a6;border-radius:7px;
+  background:#2b3945;box-shadow:0 9px 19px #0004;
+  transition:left 1.1s cubic-bezier(.25,.8,.2,1),background-color .55s,border-color .55s;
+}
+.jlf-moving-kanban>.jlf-project-moving b{font-size:10px}
+.jlf-moving-kanban>.jlf-project-moving small{font-size:9px;color:#b9c7d2}
+.jlf-moving-kanban>.jlf-project-moving .jlf-project-delivered{
+  position:absolute;top:6px;right:6px;opacity:0;transform:scale(.5);
+  color:#63d49e;transition:opacity .45s,transform .45s;
+}
+.jlf-projects[data-phase="1"] .jlf-project-moving,
+.jlf-projects[data-phase="2"] .jlf-project-moving{left:calc(33.333% + 12px);background:#344357}
+.jlf-projects[data-phase="3"] .jlf-project-moving{left:calc(66.667% + 15px);background:#244b3f;border-color:#62d69f}
+.jlf-projects[data-phase="3"] .jlf-project-delivered{opacity:1;transform:scale(1)}
+.jlf-projects .jlf-project-tasks>div span{transition:background-color .35s,box-shadow .35s}
+.jlf-projects[data-phase="2"] .jlf-project-tasks>div:nth-child(2) span,
+.jlf-projects[data-phase="2"] .jlf-project-tasks>div:nth-child(3) span{box-shadow:0 0 0 3px #ed60853b}
+.jlf-projects .jlf-project-hint{display:block;opacity:0;transition:opacity .55s}
+.jlf-projects[data-phase="3"] .jlf-project-hint{opacity:1}
+
+/* Financeiro: let the ring and amount update on the SAME dashboard. */
+@property --fill{
+  syntax:"<percentage>";
+  inherits:false;
+  initial-value:0%;
+}
+.jlf-finance .jlf-finance-ring{transition:--fill 1.25s cubic-bezier(.25,.8,.2,1)}
+.jlf-finance .jlf-finance-stats>div{transition:border-color .55s,transform .55s}
+.jlf-finance[data-phase="1"] .jlf-finance-stats>div:nth-child(2),
+.jlf-finance[data-phase="2"] .jlf-finance-stats>div:nth-child(3){transform:translateY(-3px)}
+.jlf-finance .jlf-payment{animation:jlf-reveal-right .55s ease both}
+.jlf-finance[data-phase="3"] .jlf-finance-main small{animation:jlf-reveal-right .55s ease both}
+
+/* Configurações: keep all panes mounted and move focus across tabs.
+   Only the relevant panel becomes visible; there is no dialog restart. */
+.jlf-settings-flow{position:relative;display:block;min-height:230px;overflow:hidden}
+.jlf-settings-flow>.jlf-settings-profile,
+.jlf-settings-flow>.jlf-settings-appearance,
+.jlf-settings-flow>.jlf-settings-motion,
+.jlf-settings-flow>.jlf-settings-saved{
+  position:absolute;inset:15px;display:grid;gap:12px;align-content:start;
+  opacity:0;visibility:hidden;transform:translateX(18px);
+  transition:opacity .45s ease,transform .65s cubic-bezier(.22,.8,.22,1),visibility .45s;
+}
+.jlf-settings-flow>div>strong{font-size:13px}
+.jlf-settings-flow>div>small{font-size:10px;color:#aab5c1}
+.jlf-settings-flow>.jlf-settings-saved{align-content:center;justify-items:center}
+.jlf-settings[data-phase="0"] .jlf-settings-profile,
+.jlf-settings[data-phase="1"] .jlf-settings-appearance,
+.jlf-settings[data-phase="2"] .jlf-settings-motion,
+.jlf-settings[data-phase="3"] .jlf-settings-saved{opacity:1;visibility:visible;transform:translateX(0)}
+.jlf-settings-flow>.jlf-settings-motion>.jlf-button{justify-self:start}
+.jlf-settings[data-phase="1"] .jlf-swatches i:first-child{box-shadow:0 0 0 3px #fff4;transform:scale(1.09)}
+.jlf-settings .jlf-swatches i{transition:transform .45s,box-shadow .45s}
+.jlf-settings[data-phase="2"] .jlf-toggle{box-shadow:0 0 0 4px #f36b8630}
+.jlf-settings[data-phase="3"] .jlf-settings-saved svg{color:#7ae3b5;animation:jlf-pop .6s ease-out both}
+
+/* One animation per actual action, not one animation applied to every scene. */
+@keyframes jlf-spin{to{transform:rotate(360deg)}}
+@keyframes jlf-reveal-right{from{opacity:0;transform:translateX(-15px)}to{opacity:1;transform:translateX(0)}}
+@keyframes jlf-stamp{from{opacity:0;transform:rotate(-10deg) scale(1.2)}to{opacity:1;transform:rotate(0) scale(1)}}
+@media(max-width:680px){
+  .jlf-lead-flow{min-height:145px}
+  .jlf-search-flow{min-height:131px}
+  .jlf-digital-workflow{min-height:185px}
+  .jlf-moving-kanban>.jlf-project-moving{top:31px;min-height:64px;padding:5px;width:calc(33.333% - 21px)}
+  .jlf-settings-flow{min-height:215px}
+  .jlf-settings-flow>div{inset:9px}
+}
+@media(max-width:430px){
+  .jlf-lead-flow{min-height:138px}
+  .jlf-search-flow{min-height:116px}
+  .jlf-digital-workflow{min-height:165px}
+  .jlf-moving-kanban>.jlf-project-moving{min-height:60px;top:29px}
+  .jlf-moving-kanban>.jlf-project-moving b{font-size:8px}
+  .jlf-moving-kanban>.jlf-project-moving small{font-size:7px}
+  .jlf-settings-flow{min-height:210px}
+}
+@media(prefers-reduced-motion:reduce){
+  .jlf-search-flow>div,.jlf-lead-flow>div,.jlf-digital-workflow>div,
+  .jlf-moving-kanban>.jlf-project-moving,.jlf-settings-flow>div{
+    animation:none!important;transition:none!important;
+  }
+}
+.jlf-reduced .jlf-search-flow>div,.jlf-reduced .jlf-lead-flow>div,
+.jlf-reduced .jlf-digital-workflow>div,.jlf-reduced .jlf-project-moving,
+.jlf-reduced .jlf-settings-flow>div{animation:none!important;transition:none!important}
