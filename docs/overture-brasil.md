@@ -39,8 +39,9 @@ node scripts/smoke_overture_search_staging.mjs
 
 O script exige que a busca anônima seja bloqueada (`401`) e verifica
 que a busca autenticada de `Hotel` em `Varginha/MG` retorna ao
-menos um resultado Overture. Ele não modifica registros nem imprime
-chaves ou telefones. Não marcar o teste como aprovado sem executá-lo.
+menos um resultado Overture. Usa a página direta `overture:0`, sem acionar
+fallback Geoapify ou Google Places nem consumir seus créditos externos.
+Ele não modifica registros nem imprime chaves ou telefones. Não marcar o teste como aprovado sem executá-lo.
 A função e a interface permanecem sob revisão na PR #140, sem merge em produção.
 
 ---
