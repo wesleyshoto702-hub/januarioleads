@@ -1,0 +1,49 @@
+name: Validar busca Overture Geoapify Google (homologacao)
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/search-places/**'
+      - 'supabase/functions/_shared/**'
+      - 'src/features/search-leads/**'
+      - '.github/workflows/validar-busca-hibrida-staging.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  unit-and-types:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Check backend TypeScript and all shared unit tests without paid API keys
+        run: |
+          deno check supabase/functions/search-places/index.ts
+          deno test supabase/functions/_shared/overture-search.test.ts supabase/functions/_shared/geoapify-search.test.ts
+      - name: Verify waterfall, budget claim, licensed sources and field masks
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          c=Path('supabase/functions/search-places/index.ts').read_text()
+          o=Path('supabase/functions/_shared/overture-search.ts').read_text()
+          g=Path('supabase/functions/_shared/geoapify-search.ts').read_text()
+          assert 'searchOverture({' in c
+          assert 'claim_saas_google_api_budget' in c and 'claim_saas_geoapify_api_budget' in c
+          assert 'claim_search_provider_call' not in c
+          assert 'reserveCredit:' in c and 'reserveCredit("geocode")' in g
+          assert 'reserveCredit("places")' in g
+          assert 'placeId:"overture:"+p.id' in o
+          assert 'googleToken' in c and 'overture:' in c and 'geoapify:' in c
+          # Enterprise+Atmosphere may cost extra. Never request editorialSummary.
+          details=c.split('const DETAILS_FIELD_MASK = [',1)[1].split('].join',1)[0]
+          assert '"editorialSummary"' not in details
+          # No Google calls without budget reservation.
+          assert 'if (!await claimExternalSearchCall("google_places",userId||"","text_search_enterprise"))' in c
+          assert 'if (!await claimExternalSearchCall("google_places",userId||"","place_details_enterprise"))' in c
+          print('PASS: Overture-first and per-request budgets checked; no external API calls')
+          PY
