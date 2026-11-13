@@ -338,20 +338,60 @@ function Button({children,selected=false}:{children:ReactNode;selected?:boolean}
 function Cursor({step}:{step:number}) {
   return <span className={"jlf-cursor phase-"+step} aria-hidden="true"><MousePointer2 size={21} fill="#fafafa" stroke="#16171c"/></span>;
 }
+
 function SearchView({p}:{p:number}) {
   return <div className="jlf-view jlf-search" data-phase={p}>
     <Header title="Buscar Leads" icon={Search}/>
-    <div className="jlf-search-form"><Field label="SEGMENTO" value="Barbearia" active={p===0}/><Field label="ESTADO" value={p>=1?"Minas Gerais":"Selecione"} active={p===1}/><Field label="MUNICÍPIO" value={p>=1?"Lavras":"Selecione"} active={p===1}/><Button selected={p>=2}><Search size={14}/> Buscar empresas</Button></div>
-    <div className="jlf-search-output">{p<2?<div className="jlf-blank"><MapPin size={24}/>A pesquisa começará após selecionar cidade e nicho</div>:p===2?<div className="jlf-skeleton"><i/><i/><i/><small>Consultando fontes disponíveis...</small></div>:<><strong>Empresas encontradas <small>Exemplo fictício</small></strong>{["Barbearia Exemplo A","Corte Exemplo B"].map((n,i)=><div className="jlf-company" key={n}><span>{n.charAt(0)}</span><b>{n}</b><small>{i===0?"Salvar lead":"Detalhes"}</small></div>)}</>}</div>
+    <div className="jlf-search-form">
+      <Field label="SEGMENTO" value="Barbearia" active={p===0}/>
+      <Field label="ESTADO" value={p>=1?"Minas Gerais":"Selecione"} active={p===1}/>
+      <Field label="MUNICÍPIO" value={p>=1?"Lavras":"Selecione"} active={p===1}/>
+      <Button selected={p>=2}><Search size={14}/> Buscar empresas</Button>
+    </div>
+    <div className="jlf-search-output jlf-search-flow">
+      <div className="jlf-search-prompt"><MapPin size={25}/>Selecione segmento, estado e município</div>
+      <div className="jlf-search-processing"><span className="jlf-search-loader"/><strong>Consultando empresas disponíveis</strong><small>Buscando na cidade selecionada…</small></div>
+      <div className="jlf-search-found">
+        <strong>Resultados da pesquisa <small>Exemplos fictícios</small></strong>
+        {["Barbearia Exemplo A","Corte Exemplo B"].map((n,i)=>
+          <div className={"jlf-company"+(i===0&&p===3?" is-selected":"")} key={n}>
+            <span>{n.charAt(0)}</span><b>{n}</b>
+            <small>{i===0&&p===3?"✓ Salvo na carteira":i===0?"Adicionar":"Detalhes"}</small>
+          </div>
+        )}
+      </div>
+    </div>
     <Cursor step={p}/>
   </div>;
 }
+
 function LeadsView({p}:{p:number}) {
   return <div className="jlf-view jlf-leads" data-phase={p}>
-    <Header title="Meus Leads" icon={Users}/><div className="jlf-leads-toolbar"><b>Minha carteira</b><Button selected={p===0}><Plus size={13}/>Novo lead</Button></div>
-    {p===0?<div className="jlf-leads-edit"><Field label="EMPRESA" value="Estúdio Exemplo" active/><Field label="CIDADE" value="Lavras — MG"/><Button selected><Check size={13}/>Salvar</Button></div>:<div className="jlf-leads-card"><span className="jlf-monogram">E</span><div><b>Estúdio Exemplo</b><small>Lavras · MG</small></div><Star size={20} className={p>=3?"jlf-starred":""} fill={p>=3?"currentColor":"none"}/></div>}
-    {p>=1&&<div className="jlf-lead-profile"><div><small>Contato</small><b>Telefone disponível</b></div><div><small>Status</small><b className={p>=2?"jlf-status":""}>{p>=2?"Aguardando":"Enviar mensagem"}</b></div><div><small>Próxima ação</small><b>{p>=3?"Retornar contato":"Sem data definida"}</b></div></div>}
-    <div className="jlf-ledger-track">{["Cadastrar","Revisar","Status","Favorito"].map((x,i)=><span className={p>=i?"done":""} key={x}>{x}</span>)}</div><Cursor step={p}/>
+    <Header title="Meus Leads" icon={Users}/>
+    <div className="jlf-leads-toolbar"><b>Minha carteira</b><Button selected={p===0}><Plus size={13}/>Novo lead</Button></div>
+    <div className="jlf-lead-flow">
+      <div className="jlf-leads-edit">
+        <Field label="EMPRESA" value="Estúdio Exemplo" active={p===0}/>
+        <Field label="CIDADE" value="Lavras — MG"/>
+        <Button selected><Check size={13}/>Salvar</Button>
+      </div>
+      <div className="jlf-leads-record">
+        <div className="jlf-leads-card">
+          <span className="jlf-monogram">E</span>
+          <div><b>Estúdio Exemplo</b><small>Lavras · MG</small></div>
+          <Star size={20} className={p>=3?"jlf-starred":""} fill={p>=3?"currentColor":"none"}/>
+        </div>
+        <div className="jlf-lead-profile">
+          <div><small>Contato</small><b>Telefone disponível</b></div>
+          <div><small>Status</small><b className={p>=2?"jlf-status":""}>{p>=2?"Aguardando":"Enviar mensagem"}</b></div>
+          <div><small>Próxima ação</small><b>{p>=3?"Retornar contato":"Sem data definida"}</b></div>
+        </div>
+      </div>
+    </div>
+    <div className="jlf-ledger-track">
+      {["Cadastrar","Revisar","Status","Favorito"].map((x,i)=><span className={p>=i?"done":""} key={x}>{x}</span>)}
+    </div>
+    <Cursor step={p}/>
   </div>;
 }
 function DashboardView({p}:{p:number}) {
@@ -378,11 +418,24 @@ function OpportunitiesView({p}:{p:number}) {
     <article className={p>=2?"on":""}><small>EXEMPLO FICTÍCIO</small><b>Negócio Exemplo</b><p><Globe size={15}/> Site informado</p><p><MessageCircle size={15}/> Contato disponível</p>{p>=3?<Button selected><Plus size={14}/>Salvar lead</Button>:<Button>Ver detalhes</Button>}</article></div>
   </div>;
 }
+
 function DigitalView({p}:{p:number}) {
-  const scores=[["Desempenho",72],["Acessibilidade",89],["Boas práticas",94],["SEO",86]];
+  const scores=[["Desempenho",72],["Acessibilidade",89],["Boas práticas",94],["SEO",86]] as const;
   return <div className="jlf-view jlf-digital" data-phase={p}>
-    <Header title="Análise Digital" icon={Globe}/><div className="jlf-address"><Globe size={14}/>empresa-exemplo.com.br<Button selected={p>=1}>{p===1?"Analisando...":"Analisar site"}</Button></div>
-    {p===0?<div className="jlf-digital-empty"><Search size={37}/><b>Informe um site público</b><span>Exemplo de avaliação técnica</span></div>:p===1?<div className="jlf-digital-scan"><i/><Activity size={34}/><strong>Consultando indicadores...</strong><small>Simulação visual</small></div>:<><div className="jlf-digital-scores">{scores.map(([n,v])=><div key={n}><span style={{"--value":String(v)} as CSSProperties}><b>{v}</b></span><small>{n}</small></div>)}</div>{p>=3&&<div className="jlf-digital-advice"><ClipboardCheck size={15}/>Revise melhorias apontadas antes da proposta.</div>}</>}
+    <Header title="Análise Digital" icon={Globe}/>
+    <div className="jlf-address"><Globe size={14}/>empresa-exemplo.com.br
+      <Button selected={p>=1}>{p===1?"Analisando...":"Analisar site"}</Button>
+    </div>
+    <div className="jlf-digital-workflow">
+      <div className="jlf-digital-empty"><Search size={37}/><b>Informe um site público</b><span>Exemplo de avaliação técnica</span></div>
+      <div className="jlf-digital-scan"><i/><Activity size={34}/><strong>Consultando indicadores...</strong><small>Simulação visual</small></div>
+      <div className="jlf-digital-diagnosis">
+        <div className="jlf-digital-scores">
+          {scores.map(([n,v])=><div key={n}><span style={{"--value":String(v)} as CSSProperties}><b>{v}</b></span><small>{n}</small></div>)}
+        </div>
+        <div className="jlf-digital-advice"><ClipboardCheck size={15}/>Revise melhorias apontadas antes da proposta.</div>
+      </div>
+    </div>
   </div>;
 }
 function ProposalsView({p}:{p:number}) {
