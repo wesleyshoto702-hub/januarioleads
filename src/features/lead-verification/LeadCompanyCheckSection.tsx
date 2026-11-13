@@ -54,7 +54,8 @@ function maskedCnpj(raw:string){
 }
 function formatDate(value:string|null){
   if(!value)return "Não informada";
-  try{return new Date(value).toLocaleDateString("pt-BR")}catch{return value}
+  if(/^\d{4}-\d{2}-\d{2}$/.test(value))return value.slice(8,10)+"/"+value.slice(5,7)+"/"+value.slice(0,4);
+  return value;
 }
 async function copy(text:string,onSuccess:()=>void){
   try{await navigator.clipboard.writeText(text);onSuccess();}
@@ -180,7 +181,7 @@ export function LeadCompanyCheckSection({
           <small className="lc-check-muted">Consultado em {new Date(record.checked_at).toLocaleString("pt-BR")}. A situação pode não estar atualizada em tempo real.</small>
         </div>}
         <div className="lc-check-subhead"><span>02</span><strong>Enriquecimento de contatos</strong></div>
-        <p className="lc-check-note">Exibimos somente contatos comerciais presentes na consulta do CNPJ. Não são telefones ou e-mails pessoais de sócios.</p>
+        <p className="lc-check-note">Exibimos contatos publicados no cadastro do CNPJ. Eles podem estar desatualizados ou pertencer a uma pessoa física; revise a origem e use com respeito à privacidade.</p>
         {!record?<p className="lc-check-muted">Informe um CNPJ para descobrir possíveis telefones e e-mail públicos.</p>:
         <div className="lc-check-contacts">
           {record.contact_phone&&<CopyValue label="Telefone cadastral" value={record.contact_phone}/>}
