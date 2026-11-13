@@ -1,5 +1,9 @@
 import { findBrazilianState } from "./brazil-locations.ts";
 import { geoapifyCategoryForSegment } from "./geoapify-niche-categories.ts";
+import {
+  canonicalPublicInstagram, firstProviderInstagram, providerInstagramCandidate,
+  type PublicInstagramCandidate,
+} from "./public-instagram-candidate.ts";
 
 /** Geoapify-only transport model, without any Google-derived fields. */
 export type GeoapifyBusiness = {
@@ -24,6 +28,8 @@ export type GeoapifyBusiness = {
   regularOpeningHours: null;
   website: string | null;
   instagram: null;
+  instagramConfidence: null;
+  instagramCandidates: PublicInstagramCandidate[];
   googleMapsUrl: null;
   businessStatus: null;
   latitude: number | null;
@@ -94,8 +100,6 @@ async function cityPlaceId(key: string, city: string, state: string,
     type: "city", filter: "countrycode:br", lang: "pt",
     limit: "5", format: "json", apiKey: key,
   }).toString();
-  // Claim a shared FREE-tier credit before any external geocoding request.
-  // When the project pool is exhausted this provider fails closed.
   if (reserveCredit && !(await reserveCredit("geocode"))) return null;
   const response = await jsonWithinTimeout(url, GEOCODE_TIMEOUT_MS);
   if (!response.ok) return null;
@@ -133,6 +137,14 @@ function fromFeature(feature: GeoapifyPlace, city: string, state: string): Geoap
     str(raw["contact:phone"], 80) ?? str(raw.phone, 80);
   const website = str(p.website, 600) ?? str(contact.website, 600) ??
     str(raw.website, 600);
+  const instagram = firstProviderInstagram(
+    contact.instagram, p.instagram, p["contact:instagram"],
+    raw["contact:instagram"], raw["social:instagram"],
+    raw.instagram, p.socials, website,
+  );
+  const socialCandidate = providerInstagramCandidate(instagram, "Geoapify");
+  // A social profile isn't a corporate website, nor proof of ownership.
+  const corporateWebsite = canonicalPublicInstagram(website) ? null : website;
   const coordinates = feature.geometry?.coordinates;
   const coordinate = Array.isArray(coordinates) && coordinates.length >= 2 ? coordinates : null;
   const osmType = str(p.osm_type, 12);
@@ -156,7 +168,9 @@ function fromFeature(feature: GeoapifyPlace, city: string, state: string): Geoap
     rating: null, reviewCount: null,
     isOpenNow: null, openingHours: [],
     currentOpeningHours: null, regularOpeningHours: null,
-    website, instagram: null, googleMapsUrl: null,
+    website: corporateWebsite, instagram: null, instagramConfidence: null,
+    instagramCandidates: socialCandidate ? [socialCandidate] : [],
+    googleMapsUrl: null,
     businessStatus: null,
     latitude: coordinate ? num(coordinate[1]) : num(p.lat),
     longitude: coordinate ? num(coordinate[0]) : num(p.lon),
@@ -190,7 +204,7 @@ export async function searchGeoapifyFirst(input: {
       apiKey: key,
     }).toString();
     if (input.reserveCredit && !(await input.reserveCredit("places")))
-      return { ok:false, reason:"UPSTREAM" };
+      return {ok:false,reason:"UPSTREAM"};
     const response = await jsonWithinTimeout(url, PLACES_TIMEOUT_MS);
     if (!response.ok) return { ok: false, reason: "UPSTREAM" };
     const rawFeatures = record(response.value).features;
