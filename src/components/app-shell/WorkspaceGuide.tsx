@@ -275,7 +275,7 @@ export function WorkspaceGuide({
   const titleId = useId();
   const summaryId = useId();
   const guide = GUIDES[activeView];
-  const current = guide.scenes[stepIndex];
+  const current = guide.scenes[stepIndex] ?? guide.scenes[0];
   const motionDisabled = reduceMotion || prefersReducedMotion;
 
   useEffect(() => {
@@ -320,6 +320,7 @@ export function WorkspaceGuide({
       if (!nodes?.length) return;
       const first = nodes[0];
       const last = nodes[nodes.length - 1];
+      if (!first || !last) return;
       if (event.shiftKey && document.activeElement === first) {
         event.preventDefault();
         last.focus();
@@ -361,6 +362,7 @@ export function WorkspaceGuide({
         ref={openingButton}
         onClick={openGuide}
         aria-haspopup="dialog"
+        aria-label={"Como funciona: " + guide.title}
         aria-expanded={open}
         title={"Como funciona: " + guide.title}
       >
