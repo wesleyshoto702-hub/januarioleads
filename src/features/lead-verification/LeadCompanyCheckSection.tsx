@@ -124,6 +124,7 @@ export function LeadCompanyCheckSection({
     setCheckingWhatsApp(true);setError("");setInfo("");
     try{
       const response=await request("whatsapp_status",leadId);
+      setRecord(response.record);
       setInfo(response.message||"Verificação de WhatsApp ainda não configurada.");
     }catch(cause){setError(cause instanceof Error?cause.message:"Não foi possível verificar disponibilidade.")}
     finally{setCheckingWhatsApp(false)}
@@ -132,6 +133,12 @@ export function LeadCompanyCheckSection({
   const currentPhone=business.phone||business.internationalPhone||"";
   const canApply=Boolean(record&&!record.identity_review_required&&!currentPhone&&suggestedPhone&&onApplyPhone&&!appliedPhone);
   const registration=record?.registration_status?.toUpperCase()||"NÃO INFORMADA";
+  const whatsappWithEvidence = Boolean(record?.whatsapp_provider && record.whatsapp_checked_at);
+  const whatsappStatusLabel = whatsappWithEvidence && record?.whatsapp_status==="confirmed_by_provider"
+    ? "Confirmado por provedor"
+    : whatsappWithEvidence && record?.whatsapp_status==="not_confirmed_by_provider"
+      ? "Não confirmado pelo provedor"
+      : "Não verificado";
 
   return <section className="detail-section lc-check" aria-label="Verificação e enriquecimento de empresa">
     <div className="lc-check-title">
@@ -199,12 +206,15 @@ export function LeadCompanyCheckSection({
         </div>}
         <div className="lc-check-subhead"><span>03</span><strong>Verificação real do WhatsApp</strong></div>
         <div className="lc-check-whatsapp">
-          <div><strong>WhatsApp ativo: não verificado</strong>
+          <div><strong>WhatsApp: {whatsappStatusLabel}</strong>
             <p>Um número com formato brasileiro válido não confirma a existência de conta no WhatsApp.</p>
+            {whatsappWithEvidence && record?.whatsapp_checked_at && (
+              <small>Fonte: {record.whatsapp_provider} · {new Date(record.whatsapp_checked_at).toLocaleString("pt-BR")}</small>
+            )}
           </div>
           <button type="button" className="lc-check-secondary" disabled={checkingWhatsApp} onClick={()=>void checkWhatsApp()}>
             {checkingWhatsApp?<Loader2 className="lc-check-spin" size={15}/>:<RefreshCw size={15}/>}
-            Consultar disponibilidade
+            Consultar estado da integração
           </button>
           <small>Integração com provedor autorizado reservada para uma etapa futura. Não envia mensagens nem consulta números em massa.</small>
         </div>
