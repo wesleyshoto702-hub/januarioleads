@@ -36,6 +36,7 @@ import { normalizeBrazilianPhone } from "./identity";
 import type { BusinessSearchResult } from "./types";
 import { BusinessSourceCredit } from "./BusinessSourceCredit";
 import { GoogleMapsLink } from "./GoogleMapsLink";
+import { LeadCompanyCheckSection } from "../lead-verification/LeadCompanyCheckSection";
 
 export type BusinessDetailsMessageTarget = {
   id?: string;
@@ -91,6 +92,7 @@ export function BusinessDetailsModal({
   onWhatsApp,
   onMessage,
   onPresenceUpdate,
+  onContactPhoneApply,
   financeLead,
   financePayments = [],
   onFinanceUpdate,
@@ -112,6 +114,7 @@ export function BusinessDetailsModal({
   onWhatsApp: (business: BusinessSearchResult) => void;
   onMessage: (target: BusinessDetailsMessageTarget) => void;
   onPresenceUpdate?: (presence: BusinessPresence) => void;
+  onContactPhoneApply?: (phone: string) => void;
   financeLead?: PersistedLead | null;
   financePayments?: LeadPayment[];
   onFinanceUpdate?: (
@@ -416,6 +419,15 @@ export function BusinessDetailsModal({
             <h3>Sobre a empresa</h3>
             <p>{factualDescription}</p>
           </div>
+
+          {activityLeadId && (
+            <LeadCompanyCheckSection
+              key={activityLeadId}
+              leadId={activityLeadId}
+              business={business}
+              onApplyPhone={onContactPhoneApply}
+            />
+          )}
 
           {financeLead && onFinanceUpdate && onPaymentSaved && (
             <LeadFinancialSection
