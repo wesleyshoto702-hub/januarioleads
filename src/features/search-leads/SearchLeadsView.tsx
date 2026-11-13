@@ -564,7 +564,7 @@ export function SearchLeadsView({
       // Google result fields must not be retained in the browser session cache.
       accountSessionStorage.setItem(SEARCH_LEADS_SESSION_KEY, JSON.stringify({
         ...snapshot,
-        results:snapshot.results.filter(item=>item.source!=="google_places"),
+        results:snapshot.results.filter(item=>(item.source==="overture" || item.source==="geoapify")),
         nextPageToken:snapshot.nextPageToken?.startsWith("google:")?null:snapshot.nextPageToken,
       }));
     } catch {
@@ -956,7 +956,7 @@ export function SearchLeadsView({
     setResults(uniqueResults);
     setSearchNotice("");
     setProviderNotice(response.providerNotice ?? "");
-    storeRecentBusinessSearch(segment,response.results.filter(item=>item.source!=="google_places"),{
+    storeRecentBusinessSearch(segment,response.results.filter(item=>(item.source==="overture" || item.source==="geoapify")),{
       city: location.city,
       state: location.state,
       append,
@@ -964,7 +964,7 @@ export function SearchLeadsView({
     void persistPlacesSearchSample({
       location,
       segment,
-      results: uniqueResults.filter(item=>item.source!=="google_places"),
+      results: uniqueResults.filter(item=>(item.source==="overture" || item.source==="geoapify")),
       nextPageToken: response.nextPageToken?.startsWith("google:")?null:response.nextPageToken,
       append,
     }).catch(() => {
