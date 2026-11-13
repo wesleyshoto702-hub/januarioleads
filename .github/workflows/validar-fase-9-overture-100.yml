@@ -40,6 +40,9 @@ jobs:
           ns={"__name__":"_offline"}
           exec(compile(script,"offline_importer.py","exec"),ns,ns)
           select=ns["only_new_within_cap"]
+          assert not ns["is_lead_candidate"]({"name":"Rio Paraim","category":"river"})
+          assert not ns["is_lead_candidate"]({"name":"Lago Arara","category":"lake"})
+          assert ns["is_lead_candidate"]({"name":"Padaria Maria","category":"bakery"})
           old=[{"id":str(i),"name":"Old "+str(i),"name_key":"old "+str(i),
                 "latitude":-21.0,"longitude":-45.0} for i in range(60)]
           ids={r["id"] for r in old}
