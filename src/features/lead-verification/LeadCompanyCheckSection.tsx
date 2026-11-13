@@ -227,7 +227,7 @@ export function LeadCompanyCheckSection({
         <form className="lc-check-form" onSubmit={event=>{event.preventDefault();void lookup()}}>
           <label htmlFor={"lc-cnpj-"+leadId}>CNPJ selecionado ou informado manualmente</label>
           <div className="lc-check-form-row">
-            <input id={"lc-cnpj-"+leadId} value={cnpj} maxLength={20}
+            <input id={"lc-cnpj-"+leadId} name="cnpj" value={cnpj} maxLength={20}
               onChange={event=>setCnpj(event.target.value.toUpperCase().slice(0,20))}
               autoComplete="off" placeholder="00.000.000/0001-00" disabled={Boolean(busy)}/>
             <button type="submit" className="lc-check-primary" disabled={Boolean(busy)||initializing}>
