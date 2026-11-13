@@ -7,7 +7,7 @@ import { WORKSPACE_FILMS, WorkspaceGuideFilm } from "./WorkspaceGuideFilm";
 const PHASE_MS = 4800;
 const PHASE_COUNT = 4;
 
-/** One continuous, unique process animation for each workspace view. */
+/** The scene stays mounted across the four moments; only the modeled UI changes. */
 export function WorkspaceGuide({ activeView, reduceMotion }: {
   activeView: AppView;
   reduceMotion: boolean;
@@ -114,7 +114,7 @@ export function WorkspaceGuide({ activeView, reduceMotion }: {
               <div className="jlf-player-bar"><div className="jlf-window-dots"><i/><i/><i/></div><span>januarioleads / workspace / {activeView}</span><small>SIMULAÇÃO ILUSTRATIVA</small></div>
               <div className={"jlf-stage" + (playing && !reduced ? " is-playing" : "")}
                 data-view={activeView} data-phase={phase}>
-                <WorkspaceGuideFilm key={activeView + "-" + phase} view={activeView} phase={phase} />
+                <WorkspaceGuideFilm key={activeView} view={activeView} phase={phase} />
                 <div className="jlf-stage-corner">EXEMPLO · NÃO ALTERA DADOS</div>
               </div>
               <div className="jlf-player-bottom">
