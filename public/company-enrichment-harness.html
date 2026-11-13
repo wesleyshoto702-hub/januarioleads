@@ -3,5 +3,12 @@
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Teste isolado de verificação de empresa — Januário Leads</title></head>
 <body style="margin:0;background:#101720;color:white"><div id="root"></div>
+<script type="module">
+  import RefreshRuntime from "/@react-refresh";
+  RefreshRuntime.injectIntoGlobalHook(window);
+  window.$RefreshReg$ = () => {};
+  window.$RefreshSig$ = () => (type) => type;
+  window.__vite_plugin_react_preamble_installed__ = true;
+</script>
 <script type="module" src="/tests/browser/fixtures/company-enrichment-harness.tsx"></script>
 </body></html>
