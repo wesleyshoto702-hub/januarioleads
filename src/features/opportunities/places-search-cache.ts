@@ -35,7 +35,7 @@ function safeResults(value: unknown) {
   if (!Array.isArray(value)) return [] as BusinessSearchResult[];
   return value
     .map(safeBusinessResult)
-    .filter((item): item is BusinessSearchResult => Boolean(item));
+    .filter((item): item is BusinessSearchResult => Boolean(item && item.source!=="google_places"));
 }
 
 export async function fetchPlacesSearchSamples(): Promise<OpportunitySample[]> {
@@ -152,7 +152,8 @@ export async function persistPlacesSearchSample(input: {
     ? await fetchExistingSample(session.user.id, locationKey, input.segment)
     : null;
   const previousResults = previous ? safeResults(previous.results) : [];
-  const combined = input.append ? [...previousResults, ...input.results] : input.results;
+  const combined = (input.append ? [...previousResults, ...input.results] : input.results)
+    .filter(item=>item.source!=="google_places");
 
   const unique = new Map<string, BusinessSearchResult>();
   for (const business of combined) {
@@ -175,7 +176,7 @@ export async function persistPlacesSearchSample(input: {
         state: input.location.state,
         segment: input.segment,
         checked_at: now,
-        next_page_token: input.nextPageToken,
+        next_page_token: input.nextPageToken?.startsWith("google:")?null:input.nextPageToken,
         page_count: input.append ? Math.max(1, previous?.page_count ?? 1) + 1 : 1,
         results: Array.from(unique.values()).slice(0, 60),
         updated_at: now,
