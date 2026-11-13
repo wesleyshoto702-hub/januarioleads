@@ -34,7 +34,7 @@ jobs:
           assert "STORAGE_STOP_MIB = 340" in script
           assert "TARGET_PER_MUNICIPALITY = 100" in script
           assert 'resolution=ignore-duplicates,return=minimal' in script
-          assert "existing_city_ids" in script
+          assert "existing_city_places" in script
           assert "only_new_within_cap" in script
           import math, re, unicodedata
           ns={"__name__":"_offline"}
