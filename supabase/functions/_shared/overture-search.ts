@@ -1,4 +1,5 @@
 import { resolveSearchSegment } from "./niche-catalog.ts";
+import {providerInstagramCandidate,type PublicInstagramCandidate} from "./public-instagram-candidate.ts";
 
 /**
  * Commercially focused, conservative category mapping for the Overture
@@ -66,7 +67,9 @@ export type OvertureBusiness = {
   phone: string | null; internationalPhone: null;
   rating: null; reviewCount: null; isOpenNow: null;
   openingHours: string[]; currentOpeningHours: null; regularOpeningHours: null;
-  website: string | null; instagram: string | null;
+  website: string | null; email: string | null; instagram: null;
+  instagramCandidates: PublicInstagramCandidate[];
+  instagramConfidence: null;
   googleMapsUrl: null; businessStatus: string | null;
   latitude: number | null; longitude: number | null;
 };
@@ -98,12 +101,15 @@ function leadScore(place: OverturePlace) {
 function toBusiness(p: OverturePlace): OvertureBusiness {
   return {
     placeId:"overture:"+p.id, source:"overture",
-    sourceUrl:null, name:p.name, primaryCategory:p.category,
+    sourceUrl:"https://explore.overturemaps.org/", name:p.name, primaryCategory:p.category,
     categories:p.category?[p.category]:[],description:null,
     address:p.address,neighborhood:null,city:p.city,state:p.state,
     phone:p.phone,internationalPhone:null,rating:null,reviewCount:null,
     isOpenNow:null,openingHours:[],currentOpeningHours:null,regularOpeningHours:null,
-    website:p.website,instagram:p.instagram,googleMapsUrl:null,
+    website:p.website,email:p.email,instagram:null,
+    instagramCandidates:providerInstagramCandidate(p.instagram,"Overture")
+      ? [providerInstagramCandidate(p.instagram,"Overture")!] : [],
+    instagramConfidence:null,googleMapsUrl:null,
     businessStatus:p.operating_status,
     latitude:p.latitude,longitude:p.longitude,
   };
