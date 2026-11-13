@@ -77,7 +77,7 @@ async function mockedLogin(page:Page,options:Options={}){
       user: {id: userId, email: "fixture@example.invalid"},
     }));
   }, {userId: USER_ID});
-  await page.goto("/tests/browser/fixtures/company-enrichment-harness.html");
+  await page.goto("/company-enrichment-harness.html");
   try {
     await expect(page.locator(".lc-check")).toBeVisible({timeout:12_000});
   } catch (error) {
