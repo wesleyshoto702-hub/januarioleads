@@ -25,6 +25,9 @@ const GOOD={
 type Options={mismatch?:boolean;noContacts?:boolean};
 async function mockedLogin(page:Page,options:Options={}){
   const calls:string[]=[];
+  const browserErrors:string[]=[];
+  page.on("pageerror",error=>browserErrors.push(error.message.slice(0,500)));
+  page.on("console",message=>{if(message.type()==="error")browserErrors.push(message.text().slice(0,300));});
   await page.route("**/*",route=>{
     const url=new URL(route.request().url());
     return url.hostname==="127.0.0.1"?route.continue():route.abort();
@@ -75,8 +78,10 @@ async function mockedLogin(page:Page,options:Options={}){
       title: document.title,
       body: document.body.innerText.slice(0, 1300),
       storedSession: localStorage.getItem("januarioleads:auth-session") !== null,
+      loginFormValid: document.querySelector<HTMLFormElement>(".jl-signup-form")?.checkValidity(),
+      submitDisabled: document.querySelector<HTMLButtonElement>(".jl-signup-primary[type=submit]")?.disabled,
     }));
-    throw new Error("Mocked staging login diagnostics: " + JSON.stringify(state), { cause: error });
+    throw new Error("Mocked staging login diagnostics: " + JSON.stringify({...state,browserErrors}), { cause: error });
   }
   return calls;
 }
