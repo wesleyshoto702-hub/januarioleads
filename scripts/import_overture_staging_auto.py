@@ -151,10 +151,10 @@ def main():
                         help="Tempo máximo por sessão, sem depender do GitHub Actions.")
     parser.add_argument("--per-city", type=int, default=60)
     args = parser.parse_args()
-    if not 1 <= args.cities_per_run <= 100 or not 1 <= args.per_city <= 100:
-        parser.error("Use 1..100 municipios por sessão e 1..100 empresas por municipio.")
-    if not 5 <= args.max_runtime_minutes <= 45:
-        parser.error("--max-runtime-minutes deve estar entre 5 e 45 minutos.")
+    if not 1 <= args.cities_per_run <= 300 or not 1 <= args.per_city <= 100:
+        parser.error("Use 1..300 municipios por sessão e 1..100 empresas por municipio.")
+    if not 5 <= args.max_runtime_minutes <= 600:
+        parser.error("--max-runtime-minutes deve estar entre 5 e 600 minutos.")
 
     # Evita que uma variável de ambiente ou secret de produção seja usada.
     if os.environ.get("SUPABASE_URL", "").rstrip("/") != STAGING:
