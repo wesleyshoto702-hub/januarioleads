@@ -279,7 +279,7 @@
 .jlf-prospecting[data-phase="1"] .jlf-brazil-map{transform:scale(1.04);filter:drop-shadow(0 0 14px #f45b8466)}
 .jlf-prospecting[data-phase="2"] .jlf-brazil-map{transform:translateX(-5px) scale(1.07)}
 .jlf-prospecting[data-phase="3"] .jlf-brazil-map{transform:scale(1);filter:drop-shadow(0 0 19px #fa7b9c6c)}
-.jlf-prospecting .jlf-region-stats em{transition:width .9s ease,transform .7s ease}
+.jlf-prospecting .jlf-region-stats em{animation:none;transition:width .9s ease,transform .7s ease;transform-origin:left}
 .jlf-prospecting[data-phase="1"] .jlf-region-stats>div:first-of-type em{transform:scaleX(.87);transform-origin:left}
 .jlf-prospecting[data-phase="2"] .jlf-region-stats>div:first-of-type em{transform:scaleX(.65);transform-origin:left}
 .jlf-prospecting[data-phase="3"] .jlf-region-stats>div.focus{background:#f26b8621;border-radius:6px;box-shadow:0 0 0 6px #f26b8621}
