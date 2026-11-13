@@ -36,20 +36,36 @@ jobs:
           assert 'resolution=ignore-duplicates,return=minimal' in script
           assert "existing_city_ids" in script
           assert "only_new_within_cap" in script
-          script_tree=ast.parse(script)
-          fn=next(n for n in script_tree.body if isinstance(n,ast.FunctionDef) and n.name=="only_new_within_cap")
-          test_tree=ast.Module(body=[fn],type_ignores=[])
-          ns={"TARGET_PER_MUNICIPALITY":100}
-          exec(compile(test_tree,"pure_topup","exec"),ns,ns)
+          import math, re, unicodedata
+          ns={"__name__":"_offline"}
+          exec(compile(script,"offline_importer.py","exec"),ns,ns)
           select=ns["only_new_within_cap"]
-          ids={str(i) for i in range(60)}
-          rows=[{"id":str(i)} for i in range(150)]
-          result=select(rows,ids)
-          assert len(result)==40
-          assert all(r["id"] not in ids for r in result)
-          assert len(select(rows,{str(i) for i in range(100)}))==0
-          assert len(select(rows,{"1","2","3"}))==100-3
-          assert select(rows,ids,cap=60)==[]
+          old=[{"id":str(i),"name":"Old "+str(i),"name_key":"old "+str(i),
+                "latitude":-21.0,"longitude":-45.0} for i in range(60)]
+          ids={r["id"] for r in old}
+          pool={"with_site":[],"without_site":[]}
+          # Crucial regression: previous top 60 were already saved. Scan beyond
+          # 100 raw candidates, keeping only actual new businesses.
+          data=[{"id":str(i),"name":"New "+str(i),"name_key":"new "+str(i),
+                 "latitude":-21.0+0.001*i,"longitude":-45.0,
+                 "phone":"5511999999999","website":None,"email":None,
+                 "instagram":None,"confidence":0.9,"category":"restaurant"}
+                for i in range(60,260)]
+          for row in old+data:
+              if row["id"] in ids or ns["matches_any_existing"](row,old):continue
+              ns["offer_candidate"](pool,row,100)
+          ranked=ns["select_diverse_pool"](pool["with_site"]+pool["without_site"],40)
+          final=select(ranked,ids,existing_places=old)
+          assert len(final)==40 and all(r["id"] not in ids for r in final)
+          assert not select(data,ids,cap=60)
+          assert not select(data,{str(i) for i in range(100)},cap=100)
+          clone=dict(old[0],id="other-gers",latitude=-21.00002)
+          assert ns["same_business"](old[0],clone)
+          assert ns["matches_any_existing"](clone,old)
+          far=dict(clone,latitude=-21.01)
+          assert not ns["same_business"](old[0],far)
+          # New businesses behind the original 60 are discoverable
+          assert final[0]["id"] not in ids
           nb=json.loads(Path("notebooks/Januario_Leads_Fase_9_Ampliacao_100_Empresas_Por_Municipio.ipynb").read_text(encoding="utf-8"))
           assert nb["nbformat"]==4 and len(nb["cells"])==5
           assert [c["cell_type"] for c in nb["cells"]]==["markdown","code","code","code","code"]
@@ -64,6 +80,22 @@ jobs:
           assert "STORAGE_STOP_MIB=340" in helper and "TARGET_PER_CITY=100" in helper
           assert 'if confirm!="AMPLIAR_100"' in codes[2]
           assert "capture_output=True" in codes[2] and "getpass.getpass" in codes[2]
-          assert "MAX_MUNICIPIOS_SESSAO=25" in helper
-          print("PASS: Phase 9 Colab/script syntax, 40 new at 60, cap 100, staging guard, no network or imports.")
+          assert "MAX_MUNICIPIOS_SESSAO=5572" in helper
+          assert "overture_phase9_attempts" in helper
+          assert "record_attempt" in helper
+          class FakeFile:
+              def is_file(self): return True
+          helper_ns={"IMPORTER_PATH":FakeFile(),"IMPORTER_SOURCE":script}
+          exec(compile(helper,"offline_colab_helper.py","exec"),helper_ns,helper_ns)
+          citylist=[
+              {"state":"MG","city":"Lavras","city_key":"lavras","imported_rows":60},
+              {"state":"MG","city":"Alfenas","city_key":"alfenas","imported_rows":59},
+              {"state":"SP","city":"Santos","city_key":"santos","imported_rows":60},
+              {"state":"SP","city":"Campinas","city_key":"campinas","imported_rows":100},
+          ]
+          order=helper_ns["sorted_targets"](citylist)
+          assert [(x["state"],x["city"]) for x in order]==[
+             ("MG","Lavras"),("SP","Santos"),("MG","Alfenas")]
+          assert len(helper_ns["sorted_targets"](citylist,pending={("MG","lavras")}))==2
+          print("PASS: Phase 9 scans beyond original 60, avoids duplicates, round-robins UFs, 100 cap, checkpoint, no network/imports.")
           PY
