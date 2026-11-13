@@ -2382,6 +2382,20 @@ function LeadFlowApp() {
               onWhatsApp={(business) => openBusinessWhatsApp(business, lead.id)}
               onMessage={() => openMessageComposer(lead)}
               onPresenceUpdate={(presence) => applyPresenceToLead(lead.id, presence)}
+              onContactPhoneApply={(suggestion) => {
+                // Explicitly requested by the user; never overwrite an existing number.
+                if (lead.phone.trim() || !/^\d{10,11}$/.test(suggestion)) return;
+                updateLeadLocally(lead.id, (current) => ({
+                  ...current,
+                  phone: "55" + suggestion,
+                }));
+                recordActivity(lead.id, {
+                  type: "lead_edited",
+                  title: "Telefone público incluído",
+                  description: "Contato sugerido pela consulta individual de CNPJ (BrasilAPI).",
+                  metadata: { source: "brasilapi_cnpj", field: "phone" },
+                });
+              }}
               financeLead={financeLoaded ? lead : null}
               financePayments={paymentsByLead.get(lead.id) ?? []}
               followUpLead={lead}
