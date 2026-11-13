@@ -58,3 +58,44 @@
  .lc-check-spin{animation:none}
  .lc-check-primary,.lc-check-secondary,.lc-check-copy{transition:none}
 }
+
+
+/* Assisted name search and official-site-only optional enrichment. */
+.lc-check-context{
+  display:inline-flex;align-items:center;gap:6px;
+  margin:2px 0 12px;padding:7px 10px;border-radius:8px;
+  color:var(--text-secondary,#d8e0e9);background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.08);font-size:11px;
+}
+.lc-check-context svg{color:#f1849a}
+.lc-candidate-list{display:grid;gap:8px;margin:13px 0 18px}
+.lc-candidate-summary{display:flex;justify-content:space-between;flex-wrap:wrap;gap:9px;align-items:center;
+  font-size:11px;color:var(--text-primary,#f6f8fa)}
+.lc-candidate-summary small{font-size:10px;color:#94bdac}
+.lc-candidate{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:11px 12px;border:1px solid rgba(236,109,135,.22);border-radius:10px;
+  background:rgba(21,31,39,.6)}
+.lc-candidate-main{display:grid;gap:5px;min-width:0}
+.lc-candidate-main strong{font-size:12px;line-height:1.35;color:var(--text-primary,#f6f8fa)}
+.lc-candidate-main small,.lc-candidate-main span{font-size:10px;color:var(--text-secondary,#aeb8c5)}
+.lc-candidate-main>a{display:inline-flex;align-items:center;gap:5px;font-size:10px;color:#ee91a4;text-decoration:none}
+.lc-candidate-main>a:hover{text-decoration:underline}
+.lc-candidate-main .lc-match-likely{color:#83cda9;font-weight:700}
+.lc-candidate-main .lc-match-review{color:#f0b27e;font-weight:700}
+.lc-candidate>.lc-check-secondary{flex:0 0 auto}
+.lc-check-site{display:grid;justify-items:start;gap:9px;margin-top:15px;
+  padding:13px;border:1px solid rgba(255,255,255,.13);border-radius:11px;
+  background:rgba(17,27,34,.54)}
+.lc-check-site-head{display:flex;align-items:center;gap:9px;font-size:12px;color:var(--text-primary,#f7f9fb)}
+.lc-check-site-head svg{color:#ee7590}
+.lc-check-site>p{font-size:11px;line-height:1.6;color:var(--text-secondary,#aab6c4);margin:0}
+.lc-check-site>small,.lc-check-site-results>small{font-size:10px;line-height:1.5;
+  overflow-wrap:anywhere;color:var(--text-muted,#98a8b7)}
+.lc-check-site-results{display:grid;gap:7px;width:100%;min-width:0}
+.lc-check-site-results .lc-check-contact{width:100%}
+.lc-check-warning{align-items:flex-start}
+@media(max-width:640px){
+  .lc-candidate{align-items:stretch;flex-direction:column}
+  .lc-candidate>.lc-check-secondary{width:100%}
+  .lc-check-context{max-width:100%;overflow-wrap:anywhere}
+}
