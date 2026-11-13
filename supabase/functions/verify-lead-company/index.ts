@@ -81,8 +81,8 @@ Deno.serve(async(req:Request)=>{
     if(Number(req.headers.get("content-length")||0)>1024)return fail(req,"LARGE","Solicitação muito grande.",413);
     const body=await req.text();
     if(body.length>1024)return fail(req,"LARGE","Solicitação muito grande.",413);
-    const input=JSON.parse(body) as {mode?:string;leadId?:string;cnpj?:string};
-    if(!input||!UUID.test(input.leadId||"")||!["status","lookup","whatsapp_status"].includes(input.mode||""))
+    const input=JSON.parse(body) as {mode?:string;leadId?:string;cnpj?:string}|null;
+    if(!input||typeof input!=="object"||Array.isArray(input)||!UUID.test(input.leadId||"")||!["status","lookup","whatsapp_status"].includes(input.mode||""))
       return fail(req,"INPUT","Informe um lead e operação válida.");
     const user=await owner(req,input.leadId||"");
     if(!user)return fail(req,"NO_ACCESS","Lead não encontrado nesta conta ou sessão expirada.",403);
@@ -105,6 +105,7 @@ Deno.serve(async(req:Request)=>{
     try{result=await fetch("https://brasilapi.com.br/api/cnpj/v1/"+cnpj,
       {headers:{Accept:"application/json"},redirect:"error",signal:AbortSignal.timeout(10000)})}
     catch{return fail(req,"CNPJ_UNAVAILABLE","A fonte pública está indisponível.",503)}
+    if(result.status===400)return fail(req,"CNPJ_INVALID","CNPJ rejeitado pela fonte pública. Confira os dígitos.",400);
     if(result.status===404)return fail(req,"CNPJ_NOT_FOUND","CNPJ não encontrado.",404);
     if(result.status===429)return fail(req,"CNPJ_RATE_LIMIT","Limite temporário da BrasilAPI.",429);
     if(!result.ok)return fail(req,"CNPJ_UNAVAILABLE","A fonte pública está indisponível.",503);
