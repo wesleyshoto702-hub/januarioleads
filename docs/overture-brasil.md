@@ -1,3 +1,50 @@
+## Homologação — contagem municipal e busca autenticada (12/11/2026)
+
+A auditoria direta em **Januário Leads — Staging** (`prlrxjothrslhswpkoza`)
+encontrou **60 empresas Overture em MG**: **30 em Lavras** e **30 em
+Varginha**. O controle antigo por UF gravava somente a quantidade da
+última execução (30). A migração `20261113023000_overture_city_tracking.sql`
+corrige isso: o gatilho recalcula `overture_import_progress.imported_rows`
+com base nas linhas realmente persistidas, mesmo quando o notebook Colab
+envia somente a quantidade do lote. O estado continua `partial`.
+
+A view `public.overture_import_city_progress` apresenta a contagem real
+de cada cidade e os campos de contato preenchidos. Ela tem
+`security_invoker=true`, acesso restrito a `service_role` e não
+deve ser tratada como comprovação de cobertura completa da cidade.
+
+```sql
+select city,state,imported_rows,with_phone,with_email,with_website,with_instagram
+from public.overture_import_city_progress
+where state = 'MG' order by city;
+
+select state,status,imported_rows
+from public.overture_import_progress where state = 'MG';
+```
+
+**Busca de Varginha:** a Edge Function `search-places` da homologação
+já está ativa e contém o adaptador Overture. O filtro de hotéis corresponde
+a 4 empresas do piloto na tabela. Um teste *end-to-end* com sessão de
+usuário real ainda depende de um token de acesso temporário de uma
+sessão autenticada; não existe esse token disponível no conector Supabase
+e não se deve criar ou extrair credenciais do usuário. Para executar um
+teste seguro e somente de leitura no computador com Node.js 18+:
+
+```sh
+# Configure localmente (fora do Git e do histórico de comandos) as variáveis:
+# STAGING_PUBLISHABLE_KEY — chave publicável/anon do projeto staging
+# STAGING_USER_ACCESS_TOKEN — JWT temporário de usuário já logado no staging
+node scripts/smoke_overture_search_staging.mjs
+```
+
+O script exige que a busca anônima seja bloqueada (`401`) e verifica
+que a busca autenticada de `Hotel` em `Varginha/MG` retorna ao
+menos um resultado Overture. Ele não modifica registros nem imprime
+chaves ou telefones. Não marcar o teste como aprovado sem executá-lo.
+A função e a interface permanecem sob revisão na PR #140, sem merge em produção.
+
+---
+
 ## Piloto de expansão real — homologação somente (12/11/2026)
 
 **Solicitação:** ampliar o Overture gradualmente, mantendo o banco no plano
