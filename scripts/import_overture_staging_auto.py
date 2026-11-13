@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, timezone
 import os
 import subprocess
 import sys
+import time
 from urllib.parse import urlencode
 
 from import_overture_br import (
@@ -145,11 +146,15 @@ def contagem_cidade(chave, uf, cidade):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--cities-per-run", type=int, default=2)
+    parser.add_argument("--cities-per-run", type=int, default=100)
+    parser.add_argument("--max-runtime-minutes", type=int, default=40,
+                        help="Tempo máximo por sessão, sem depender do GitHub Actions.")
     parser.add_argument("--per-city", type=int, default=60)
     args = parser.parse_args()
-    if not 1 <= args.cities_per_run <= 5 or not 1 <= args.per_city <= 100:
-        parser.error("Use 1..5 municipios por rodada e 1..100 empresas por municipio.")
+    if not 1 <= args.cities_per_run <= 100 or not 1 <= args.per_city <= 100:
+        parser.error("Use 1..100 municipios por sessão e 1..100 empresas por municipio.")
+    if not 5 <= args.max_runtime_minutes <= 45:
+        parser.error("--max-runtime-minutes deve estar entre 5 e 45 minutos.")
 
     # Evita que uma variável de ambiente ou secret de produção seja usada.
     if os.environ.get("SUPABASE_URL", "").rstrip("/") != STAGING:
@@ -158,8 +163,11 @@ def main():
     if not segredo.startswith(("sb_secret_", "eyJ")):
         raise SystemExit("BLOQUEADO: segredo de homologacao nao configurado/valido.")
 
+    deadline = time.monotonic() + args.max_runtime_minutes * 60
     antes = database_bytes(STAGING, segredo)
     print(f"STAGING: {antes/MIB:.2f} MiB. Limite preventivo: {STOP_MIB} MiB.", flush=True)
+    print(f"Modo contínuo: até {args.max_runtime_minutes} minutos, "
+          f"máximo de {args.cities_per_run} municípios por sessão.", flush=True)
     if antes >= STOP_MIB * MIB:
         print("PARADA SEGURA: armazenamento acima do limite preventivo.")
         return 0
@@ -172,6 +180,10 @@ def main():
     importadas = 0
     falhas = 0
     while importadas < args.cities_per_run and falhas < 3:
+        remaining = deadline - time.monotonic()
+        if remaining < 240:
+            print("PAUSA PARA RETOMADA: sessão próxima do limite de tempo.", flush=True)
+            break
         if database_bytes(STAGING, segredo) >= STOP_MIB * MIB:
             print("PARADA SEGURA: banco atingiu limite preventivo.")
             break
@@ -195,7 +207,10 @@ def main():
             "--database-max-mb", "90",
         ]
         try:
-            proc = subprocess.run(cmd, timeout=1200, check=False)
+            # Máximo 12 minutos por município; sempre deixa margem para
+            # salvar o resultado e encerrar a sessão antes do timeout do GitHub.
+            import_timeout = min(720, max(60, int(deadline - time.monotonic() - 120)))
+            proc = subprocess.run(cmd, timeout=import_timeout, check=False)
             if proc.returncode != 0:
                 # Retentativa em 3 dias para não ficar preso na mesma cidade.
                 guardar_falha(segredo, uf, cidade, "exit_code=" + str(proc.returncode))
@@ -204,10 +219,14 @@ def main():
                 print(f"ADIADO: {cidade}/{uf}; retorno {proc.returncode}.")
                 continue
         except subprocess.TimeoutExpired:
-            guardar_falha(segredo, uf, cidade, "timeout_1200s")
+            if deadline - time.monotonic() < 180:
+                print(f"PAUSA PARA RETOMADA: limite de tempo em {cidade}/{uf}. "
+                      "O banco preserva os registros já gravados.", flush=True)
+                break
+            guardar_falha(segredo, uf, cidade, "timeout_ate_720s")
             em_espera.add(item)
             falhas += 1
-            print(f"ADIADO: {cidade}/{uf}; tempo excedido.")
+            print(f"ADIADO: {cidade}/{uf}; tempo excedido.", flush=True)
             continue
 
         depois = contagem_cidade(segredo, uf, cidade)
@@ -221,9 +240,10 @@ def main():
         importadas += 1
         print(f"CONFIRMADO NO SUPABASE: {cidade}/{uf} | {depois} empresas", flush=True)
 
-    print(f"CONCLUIDO: {importadas} novos municipios; {falhas} falhas adiadas; "
-          f"{len(existentes)} municipios no banco; "
-          f"{database_bytes(STAGING, segredo)/MIB:.2f} MiB.")
+    print(f"SESSAO CONCLUIDA: {importadas} novos municípios; {falhas} falhas adiadas; "
+          f"{len(existentes)} municípios no banco; "
+          f"{database_bytes(STAGING, segredo)/MIB:.2f} MiB. "
+          "Quando habilitado, o agendamento fará a próxima sessão.", flush=True)
     return 0 if falhas == 0 else 1
 
 
