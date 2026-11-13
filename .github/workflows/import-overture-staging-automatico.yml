@@ -1,0 +1,74 @@
+name: Overture Brasil - importacao automatica - STAGING
+
+on:
+  # A agenda so executa se a variavel OVERTURE_AUTO_ENABLED = true.
+  schedule:
+    - cron: '17 3,9,15,21 * * *'
+  workflow_dispatch:
+    inputs:
+      cities_per_run:
+        description: "Novos municipios nesta execucao (1 a 5)"
+        required: true
+        type: choice
+        options: ['2', '3', '4', '5']
+        default: '2'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: overture-staging-pilot
+  cancel-in-progress: false
+
+jobs:
+  importar-municipios:
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.OVERTURE_AUTO_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    environment: homologacao
+    timeout-minutes: 55
+    env:
+      # Destino IMUTAVEL: nunca usar URL recebida da configuracao do usuario.
+      SUPABASE_URL: https://prlrxjothrslhswpkoza.supabase.co
+      # Este segredo precisa ser configurado UMA UNICA VEZ no GitHub:
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.OVERTURE_SUPABASE_SERVICE_ROLE_KEY }}
+      MUNICIPIOS_POR_RODADA: ${{ inputs.cities_per_run || '2' }}
+    steps:
+      - name: Validar staging e segredo (sem imprimir chave)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${SUPABASE_URL}" != "https://prlrxjothrslhswpkoza.supabase.co" ]; then
+            echo "BLOQUEADO: URL de destino nao e STAGING" >&2
+            exit 1
+          fi
+          if [ -z "${SUPABASE_SERVICE_ROLE_KEY}" ]; then
+            echo "BLOQUEADO: configurar segredo OVERTURE_SUPABASE_SERVICE_ROLE_KEY no ambiente homologacao" >&2
+            exit 1
+          fi
+          case "${SUPABASE_SERVICE_ROLE_KEY}" in
+            sb_secret_*|eyJ*) ;;
+            *) echo "BLOQUEADO: chave invalida, publica ou de formato desconhecido" >&2; exit 1 ;;
+          esac
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Instalar dependencias de geometrias e Overture
+        run: python -m pip install --disable-pip-version-check overturemaps geopandas shapely pyogrio
+      - name: Importar ate 2 novos municipios (ou valor manual), sem duplicatas
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/import_overture_staging_auto.py \
+            --cities-per-run "${MUNICIPIOS_POR_RODADA}" \
+            --per-city 60
+      - name: Registrar guardrails
+        if: always()
+        shell: bash
+        run: |
+          echo "Destino: Supabase STAGING apenas; producao intocada." >> "${GITHUB_STEP_SUMMARY}"
+          echo "Ate ${MUNICIPIOS_POR_RODADA} municipios, ate 60 empresas cada; corta aos 88 MiB (90 MiB no importador)." >> "${GITHUB_STEP_SUMMARY}"
+          echo "Falhas ficam registradas em overture_auto_city_attempts, nao repetidas imediatamente." >> "${GITHUB_STEP_SUMMARY}"
+          echo "Ativacao da agenda: OVERTURE_AUTO_ENABLED=true nas variaveis do repositorio." >> "${GITHUB_STEP_SUMMARY}"
