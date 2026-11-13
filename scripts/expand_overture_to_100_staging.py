@@ -7,10 +7,11 @@ Pre-req:
     export SUPABASE_SERVICE_ROLE_KEY='<service role secret>'
     python scripts/expand_overture_to_100_staging.py --states MG --cities Lavras --database-max-mb 340
 
-Phase 9 top-up only: requires EXACTLY ONE state and ONE city per run, and
-accepts ONLY the staging Supabase project. Read existing IDs first, then insert
-ONLY new GERS IDs, without replacing original Overture records. Cap 100 total
-per city, stop at 340 MiB and NEVER run from a browser. No automated trigger.
+Phase 9 top-up (staging only): accepts one state and 1-3 NEARBY cities per download.
+All results are scanned; original GERS IDs/names remain unchanged. Only new rows
+are inserted up to 100 companies per municipality, stopping at 340 MiB. A
+geographic bounding-box safety guard prevents oversized batched queries.
+No automatic imports and no browser-side secrets.
 """
 import argparse
 import json
@@ -344,154 +345,134 @@ def lead_quality(row):
             + 2 * bool(row.get("category")))
 
 
+def batch_bbox_allowed(bounds, city_count, max_span=1.8, max_area=0.9):
+    """Prevent multi-town downloads that accidentally cover most of a state."""
+    if city_count <= 1:
+        return True
+    west, south, east, north = [float(v) for v in bounds]
+    width, height = east-west, north-south
+    return (width > 0 and height > 0 and width <= max_span
+            and height <= max_span and width*height <= max_area)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--states", default=",".join(STATE_CODES),
-                        help="Comma-separated UF codes; default all 27")
-    parser.add_argument("--cities", default="",
-                        help="Optional comma-separated cities, requires exactly one UF; useful for a small pilot")
-    parser.add_argument("--boundaries", default=None,
-                        help="Optional existing ZIP; defaults to one IBGE ZIP per UF")
+    parser.add_argument("--states", default="", help="Exactly one Brazilian UF")
+    parser.add_argument("--cities", default="", help="One to three nearby municipalities in the same state")
+    parser.add_argument("--boundaries", default=None, help="Optional pre-existing official IBGE ZIP")
     parser.add_argument("--database-max-mb", type=int, default=STORAGE_STOP_MIB)
-    parser.add_argument("--max-records-per-state", type=int, default=0,
-                        help="0=no state cap; nonzero limits state rows and marks coverage partial")
-    parser.add_argument("--max-records-per-city", type=int, default=TARGET_PER_MUNICIPALITY,
-                        help="Final maximum per municipality: always 100")
+    parser.add_argument("--max-records-per-city", type=int, default=TARGET_PER_MUNICIPALITY)
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
     if not 30 <= args.database_max_mb <= STORAGE_STOP_MIB:
-        parser.error("--database-max-mb must be <= 340 MiB for the top-up pipeline")
-    if args.max_records_per_state < 0:
-        parser.error("--max-records-per-state cannot be negative")
+        parser.error("Database safety limit must be <= 340 MiB")
     if args.max_records_per_city != TARGET_PER_MUNICIPALITY:
-        parser.error("--max-records-per-city must be exactly 100 for this phase")
-    states = [s.strip().upper() for s in args.states.split(",")]
-    if not states or len(set(states)) != len(states) or any(s not in STATE_CODES for s in states):
-        parser.error("--states must contain unique Brazilian UF codes")
-    cities = [normalize(s.strip()) for s in args.cities.split(",") if s.strip()]
-    if len(states) != 1 or len(cities) != 1:
-        parser.error("Phase 9 processes exactly one municipality from one state per run")
-
+        parser.error("Final cap must be exactly 100 per municipality")
+    states = [s.strip().upper() for s in args.states.split(",") if s.strip()]
+    city_keys = [normalize(s.strip()) for s in args.cities.split(",") if s.strip()]
+    if len(states) != 1 or states[0] not in STATE_CODES:
+        parser.error("One valid state is required")
+    if len(city_keys) < 1 or len(city_keys) > 3 or len(set(city_keys)) != len(city_keys):
+        parser.error("Provide 1-3 distinct nearby municipalities")
+    state = states[0]
     base = os.getenv("SUPABASE_URL", "").rstrip("/")
-    key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
-    if not args.dry_run and (base != STAGING_URL or not key):
-        parser.error("Phase 9 accepts ONLY the Januário Leads staging URL and a secret")
+    secret = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    if not args.dry_run and (base != STAGING_URL or
+                            not (secret.startswith("eyJ") or secret.startswith("sb_secret_"))):
+        parser.error("Only the Januário Leads STAGING project with a server-side secret is accepted")
+
+    boundaries = ensure_state_boundaries(state, args.boundaries)
+    municipalities = municipalities_index(boundaries)
+    state_munis = municipalities.loc[
+        (municipalities.SIGLA_UF == state) &
+        (municipalities.NM_MUN.map(lambda name: normalize(str(name)) in city_keys))
+    ].copy()
+    found = {normalize(str(name)) for name in state_munis.NM_MUN}
+    if set(city_keys) != found:
+        raise RuntimeError("Municipality not found in IBGE boundaries")
+    west, south, east, north = [float(v) for v in state_munis.total_bounds]
+    if not batch_bbox_allowed((west, south, east, north), len(city_keys)):
+        raise RuntimeError("BATCH_TOO_WIDE: municipality polygons are too dispersed for one download")
+    bbox = ",".join(f"{v:.6f}" for v in (west-.005, south-.005, east+.005, north+.005))
+    print(f"[{state}] Overture bbox {bbox}; cities={len(city_keys)}", flush=True)
+    if args.dry_run:
+        return 0
 
     limit_bytes = args.database_max_mb * 1024 * 1024
-    for state in states:
-        # Individual state archive keeps network and runner-memory use modest.
-        boundaries = ensure_state_boundaries(state, args.boundaries)
-        municipalities = municipalities_index(boundaries)
-        state_munis = municipalities.loc[municipalities.SIGLA_UF == state].copy()
-        if cities:
-            state_munis = state_munis.loc[
-                state_munis.NM_MUN.map(lambda name: normalize(str(name)) in cities)
-            ].copy()
-            found_cities = {normalize(str(name)) for name in state_munis.NM_MUN}
-            if set(cities) != found_cities:
-                raise RuntimeError(f"Municipality not found in {state}: {sorted(set(cities) - found_cities)}")
-        if state_munis.empty:
-            raise RuntimeError(f"IBGE archive does not cover {state}")
-        west, south, east, north = state_munis.total_bounds
-        # Slightly wider rectangle avoids border rounding gaps.
-        bbox = ",".join(f"{v:.6f}" for v in (west - .005, south - .005, east + .005, north + .005))
-        print(f"[{state}] Overture bbox {bbox}", flush=True)
-        if args.dry_run:
-            continue
-        storage_before = database_bytes(base, key)
-        existing_places = existing_city_places(base, key, state, cities[0])
-        existing_ids = {r["id"] for r in existing_places}
-        if len(existing_ids) >= TARGET_PER_MUNICIPALITY:
-            print(f"ALREADY_COMPLETE: {state}/{cities[0]} has {len(existing_ids)} existing companies.", flush=True)
-            return 0
-        print(f"TOP_UP: {state}/{cities[0]} existing={len(existing_ids)}, capacity={TARGET_PER_MUNICIPALITY-len(existing_ids)}.", flush=True)
-        if storage_before >= limit_bytes:
-            print(f"STOP: database reached configured {args.database_max_mb} MB safety limit.")
-            return 2
-        total = 0
-        try:
-            with tempfile.TemporaryDirectory(prefix="overture-br-") as temp:
-                out = Path(temp) / f"{state}.geojsonseq"
-                subprocess.run(["overturemaps", "download", f"--bbox={bbox}",
-                                "--type=place", "-f", "geojsonseq", "-o", str(out)],
-                               check=True)
-                # Unlike the first national pass, scan the ENTIRE downloaded
-                # Overture file. Discard the original 60 before ranking newcomers.
-                groups = {"with_site": [], "without_site": []}
-                counts = {"scanned": 0, "known_id": 0, "same_business": 0,
-                          "nonbusiness": 0, "eligible_new": 0}
-                with out.open("r", encoding="utf-8") as src:
-                    for line in src:
-                        line = line.lstrip("\x1e").strip()
-                        if not line:
-                            continue
-                        counts["scanned"] += 1
-                        row = place_record(json.loads(line), state_munis, state)
-                        if row is None or row["city_key"] != cities[0]:
-                            continue
-                        if not is_lead_candidate(row):
-                            counts["nonbusiness"] += 1
-                            continue
-                        if row["id"] in existing_ids:
-                            counts["known_id"] += 1
-                            continue
-                        if matches_any_existing(row, existing_places):
-                            counts["same_business"] += 1
-                            continue
-                        counts["eligible_new"] += 1
-                        offer_candidate(groups, row, args.max_records_per_city)
+    storage_before = database_bytes(base, secret)
+    if storage_before >= limit_bytes:
+        print("STOP: database safety threshold", flush=True)
+        return 2
+    existing = {city: existing_city_places(base, secret, state, city)
+                for city in city_keys}
+    targets = {key: rows for key, rows in existing.items()
+               if len(rows) < TARGET_PER_MUNICIPALITY}
+    for key in city_keys:
+        if key not in targets:
+            print(f"ALREADY_COMPLETE: {state}/{key}", flush=True)
+    if not targets:
+        return 0
 
-                capacity = TARGET_PER_MUNICIPALITY - len(existing_ids)
-                # Both pools include only newly discovered IDs and exclude
-                # obvious same-name/same-coordinate duplicates.
-                ranked = select_diverse_pool(
-                    groups["with_site"] + groups["without_site"], capacity
-                )
-                selected = only_new_within_cap(ranked, existing_ids,
-                                               existing_places=existing_places)
-                print(f"SCAN: {counts['scanned']} Overture rows; "
-                      f"{counts['known_id']} existing IDs excluded; "
-                      f"{counts['nonbusiness']} non-commercial places ignored; "
-                      f"{counts['same_business']} same-business aliases excluded; "
-                      f"{counts['eligible_new']} candidate new rows; "
-                      f"{len(selected)} selected unique companies.", flush=True)
-                if not selected:
-                    print(f"NO_NEW_PLACES: {state}/{cities[0]} has no additional eligible Overture companies.", flush=True)
-                    return 0
-                # A municipality-only pilot never marks the whole state as imported.
-                partial = bool(cities)
-                if args.max_records_per_state and len(selected) > args.max_records_per_state:
-                    selected = selected[:args.max_records_per_state]
-                    partial = True
-                for start in range(0, len(selected), BATCH_SIZE):
-                    if database_bytes(base, key) >= limit_bytes:
-                        partial = True
-                        break
-                    # Second read protects against a rerun or another writer
-                    # that added new records after this city's initial check.
-                    fresh = existing_city_places(base, key, state, cities[0])
-                    fresh_ids = {r["id"] for r in fresh}
-                    batch = only_new_within_cap(
-                        selected[start:start + BATCH_SIZE], fresh_ids,
-                        existing_places=fresh)
-                    if not batch:
-                        break
-                    api(base, key, "/rest/v1/overture_places?on_conflict=id", "POST", batch,
-                        prefer="resolution=ignore-duplicates,return=minimal")
-                    total += len(batch)
-                storage_after = database_bytes(base, key)
-                delta = storage_after - storage_before
-                bytes_per_imported_row = delta // total if total else 0
-                print(f"[{state}] {total} imported; "
-                      f"database before={storage_before}, after={storage_after}, "
-                      f"delta={delta}, average={bytes_per_imported_row} B/row; "
-                      f"{'PARTIAL' if partial else 'COMPLETE'}", flush=True)
-                if storage_after >= limit_bytes:
-                    print("STOP: database safety threshold; remaining states NOT imported.", flush=True)
-                    return 2
-        except Exception:
-            raise
-    print("Ingestion pass ended. Check overture_import_progress for coverage.", flush=True)
+    with tempfile.TemporaryDirectory(prefix="overture-phase9-") as temp:
+        output = Path(temp) / f"{state}.geojsonseq"
+        subprocess.run(["overturemaps", "download", f"--bbox={bbox}",
+                        "--type=place", "-f", "geojsonseq", "-o", str(output)],
+                       check=True)
+        # Scan all downloaded places ONCE, route by the official IBGE polygon.
+        # Every bounded pool holds ONLY businesses not already in Supabase.
+        groups_by_city = {key: {"with_site": [], "without_site": []} for key in targets}
+        known_ids = {key: {r["id"] for r in rows} for key,rows in targets.items()}
+        stats = {key: {"scanned": 0, "eligible": 0, "existing": 0}
+                 for key in targets}
+        with output.open("r", encoding="utf-8") as handle:
+            for line in handle:
+                line = line.lstrip("\x1e").strip()
+                if not line:
+                    continue
+                row = place_record(json.loads(line), state_munis, state)
+                if row is None:
+                    continue
+                key = row["city_key"]
+                if key not in targets or not is_lead_candidate(row):
+                    continue
+                stats[key]["scanned"] += 1
+                if row["id"] in known_ids[key] or matches_any_existing(row, targets[key]):
+                    stats[key]["existing"] += 1
+                    continue
+                stats[key]["eligible"] += 1
+                offer_candidate(groups_by_city[key], row, TARGET_PER_MUNICIPALITY)
+
+        total_inserted = 0
+        for key in city_keys:
+            if key not in targets:
+                continue
+            if database_bytes(base, secret) >= limit_bytes:
+                print("STOP: database safety threshold", flush=True)
+                return 2
+            prior = targets[key]
+            capacity = TARGET_PER_MUNICIPALITY - len(prior)
+            groups = groups_by_city[key]
+            ranked = select_diverse_pool(groups["with_site"]+groups["without_site"],capacity)
+            fresh = existing_city_places(base, secret, state, key)
+            proposed = only_new_within_cap(ranked,{r["id"] for r in fresh},
+                                           existing_places=fresh)
+            if proposed:
+                api(base,secret,"/rest/v1/overture_places?on_conflict=id","POST",proposed,
+                    prefer="resolution=ignore-duplicates,return=minimal")
+            verified = existing_city_places(base, secret, state, key)
+            gained = max(0,len(verified)-len(prior))
+            total_inserted += gained
+            print("PHASE9_CITY_RESULT="+json.dumps({
+                "state":state,"city_key":key,"before":len(prior),
+                "after":len(verified),"gained":gained,
+                "new_candidates":stats[key]["eligible"],
+                "status":"gained" if gained else "no_more"
+            },ensure_ascii=False),flush=True)
+            if len(verified)>TARGET_PER_MUNICIPALITY:
+                raise RuntimeError("A municipality exceeded the safety cap of 100")
+        print(f"BATCH_SUMMARY: state={state}; downloaded_for={len(targets)}; "
+              f"new_companies={total_inserted}; "
+              f"database_mib={database_bytes(base,secret)/1048576:.2f}",flush=True)
     return 0
 
 
