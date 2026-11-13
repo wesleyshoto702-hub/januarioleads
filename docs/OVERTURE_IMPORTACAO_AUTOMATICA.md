@@ -8,11 +8,13 @@ Essa automação foi criada **desligada por padrão**, até você habilitar a va
 - Workflow: [import-overture-staging-automatico.yml](../.github/workflows/import-overture-staging-automatico.yml)
 - Importador: [import_overture_staging_auto.py](../scripts/import_overture_staging_auto.py)
 - Destino fixo: `https://prlrxjothrslhswpkoza.supabase.co` (STAGING).
-- Agendamento: **00:17, 06:17, 12:17 e 18:17, horário de Brasília** (UTC-3); o GitHub pode atrasar horários.
-- Limite: **2 municípios por rodada, até 60 empresas por cidade**; a seleção pula todos os municípios já cadastrados.
+- Agendamento: **a cada 2 horas, às :23 UTC** (12 tentativas diárias; horários em Brasília variam com a conversão UTC-3); o GitHub pode atrasar horários.
+- Limite: **3 municípios por rodada, até 60 empresas por cidade (até 36 municípios/dia, quando todas as execuções completam)**; a seleção pula todos os municípios já cadastrados.
 - Armazenamento: cancela novos municípios a partir de **88 MiB**; o importador tem limite próprio de **90 MiB**.
 - Lotes não se sobrepõem com a workflow de piloto no GitHub, por `concurrency`.
 - Falhas de municípios são adiadas por 3 dias (tabela privada `overture_auto_city_attempts`); não ficam bloqueando a fila.
+
+**Ritmo:** 12 execuções previstas por dia × 3 municípios por execução = **até 36 municípios/dia**. É uma capacidade teórica: falhas, atrasos do GitHub, duração do runner, limite de armazenamento e ausência de estabelecimentos podem reduzir o total. Não são 36 municípios garantidos.
 
 ## Habilitação única (obrigatória)
 
