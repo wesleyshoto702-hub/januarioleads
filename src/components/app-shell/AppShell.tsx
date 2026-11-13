@@ -20,6 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { WorkspaceGuide } from "./WorkspaceGuide";
 
 export type AppView =
   | "dashboard"
@@ -259,7 +260,9 @@ export function AppShell({
             <span>JanuarioLeads</span>
           </div>
         </div>
-
+        <div className="jl-help-mobile-action">
+          <WorkspaceGuide activeView={activeView} reduceMotion={reduceMotion} />
+        </div>
       </header>
 
       {mobileOpen && (
@@ -321,6 +324,7 @@ export function AppShell({
             </form>
           )}
           <div className="jl-topbar-actions">
+            <WorkspaceGuide activeView={activeView} reduceMotion={reduceMotion} />
             {onOpenReminders && reminderCount > 0 && (
               <button
                 type="button"
