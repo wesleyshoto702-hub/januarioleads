@@ -477,11 +477,26 @@ function AgendaView({p}:{p:number}) {
     <div className="jlf-agenda-day"><strong>Dia 13</strong>{p===0?<p>Selecione uma data no calendário.</p>:<div className="jlf-appointment"><small>14:30 · Reunião</small><b>Apresentar proposta</b>{p>=2&&<span>Estúdio Exemplo · lead vinculado</span>}</div>}{p===3&&<p className="jlf-calendar-reminder"><Bell size={13}/> Ação do CRM também aparece no calendário</p>}</div></div><Cursor step={p}/>
   </div>;
 }
+
 function ProjectsView({p}:{p:number}) {
   return <div className="jlf-view jlf-projects" data-phase={p}>
-    <Header title="Gestão de projetos" icon={FolderKanban}/><div className="jlf-project-kanban">{["Planejado","Em andamento","Entregue"].map((x,i)=><div key={x}><strong>{x}</strong>{((p===0&&i===0)||(p>=1&&p<3&&i===1)||(p===3&&i===2))&&<div className="jlf-project-card"><b>Site institucional</b><small>Estúdio Exemplo</small>{p>=3&&<CheckCircle2 size={17}/>}</div>}</div>)}</div>
-    <div className="jlf-project-tasks"><b><ClipboardCheck size={16}/>Checklist de entrega</b>{["Definir estrutura","Aprovar layout","Revisar entrega"].map((x,i)=><div key={x}><span className={p>=2&&i<(p===2?2:3)?"on":""}>{p>=2&&i<(p===2?2:3)&&<Check size={12}/>}</span>{x}</div>)}</div>
-    {p===3&&<small className="jlf-project-hint">Entrega concluída. O Financeiro não é alterado.</small>}
+    <Header title="Gestão de projetos" icon={FolderKanban}/>
+    <div className="jlf-project-kanban jlf-moving-kanban">
+      {["Planejado","Em andamento","Entregue"].map((x)=>
+        <div key={x}><strong>{x}</strong></div>
+      )}
+      <div className="jlf-project-moving">
+        <b>Site institucional</b><small>Estúdio Exemplo</small>
+        <CheckCircle2 size={17} className="jlf-project-delivered"/>
+      </div>
+    </div>
+    <div className="jlf-project-tasks">
+      <b><ClipboardCheck size={16}/>Checklist de entrega</b>
+      {["Definir estrutura","Aprovar layout","Revisar entrega"].map((x,i)=>
+        <div key={x}><span className={p>=2&&i<(p===2?2:3)?"on":""}>{p>=2&&i<(p===2?2:3)&&<Check size={12}/>}</span>{x}</div>
+      )}
+    </div>
+    <small className="jlf-project-hint">Entrega concluída. O Financeiro não é alterado.</small>
   </div>;
 }
 function FinanceView({p}:{p:number}) {
@@ -490,12 +505,34 @@ function FinanceView({p}:{p:number}) {
     <div className="jlf-finance-main"><div className="jlf-finance-ring" style={{"--fill":p>=1?"25%":"0%"} as CSSProperties}><strong>{p>=1?"25%":"0%"}</strong><span>recebido</span></div><div><strong>Histórico de recebimentos</strong>{p===0?<p>Registre um pagamento realizado.</p>:<p className="jlf-payment"><CheckCircle2 size={15}/> Entrada registrada <b>R$ 300</b></p>}{p===3&&<small>Resumo atualizado pelos registros informados.</small>}</div></div>
   </div>;
 }
+
 function SettingsView({p}:{p:number}) {
   return <div className="jlf-view jlf-settings" data-phase={p}>
-    <Header title="Configurações" icon={Settings2}/><div className="jlf-settings-cols"><nav>{["Conta","Aparência","Preferências","Salvar"].map((x,i)=><span className={p===i?"on":""} key={x}>{x}</span>)}</nav><div className="jlf-settings-panel">
-      {p===0?<><strong>Minha conta</strong><Field label="NOME DE EXIBIÇÃO" value="Minha empresa" active/></>:p===1?<><strong>Aparência</strong><small>Cor de destaque</small><div className="jlf-swatches"><i/><i/><i/><i/></div><span>Modo compacto <b className="jlf-toggle on"/></span></>:p===2?<><strong>Conforto visual</strong><span>Reduzir animações <b className="jlf-toggle on"/></span><small>Respeite sua preferência de movimento.</small></>:<div className="jlf-settings-saved"><CheckCircle2 size={34}/><strong>Alterações salvas</strong><span>Preferências aplicadas ao workspace</span></div>}
-      {p<3&&<Button selected={p===2}><Check size={14}/>Salvar alterações</Button>}
-    </div></div>
+    <Header title="Configurações" icon={Settings2}/>
+    <div className="jlf-settings-cols">
+      <nav>{["Conta","Aparência","Preferências","Salvar"].map((x,i)=>
+        <span className={p===i?"on":""} key={x}>{x}</span>
+      )}</nav>
+      <div className="jlf-settings-panel jlf-settings-flow">
+        <div className="jlf-settings-profile">
+          <strong>Minha conta</strong><Field label="NOME DE EXIBIÇÃO" value="Minha empresa" active={p===0}/>
+        </div>
+        <div className="jlf-settings-appearance">
+          <strong>Aparência</strong><small>Cor de destaque</small>
+          <div className="jlf-swatches"><i/><i/><i/><i/></div>
+          <span>Modo compacto <b className="jlf-toggle on"/></span>
+        </div>
+        <div className="jlf-settings-motion">
+          <strong>Conforto visual</strong>
+          <span>Reduzir animações <b className="jlf-toggle on"/></span>
+          <small>Escolha menos movimento no workspace.</small>
+          <Button selected><Check size={14}/>Salvar alterações</Button>
+        </div>
+        <div className="jlf-settings-saved">
+          <CheckCircle2 size={34}/><strong>Alterações salvas</strong><span>Preferências aplicadas ao workspace</span>
+        </div>
+      </div>
+    </div>
   </div>;
 }
 export function WorkspaceGuideFilm({view,phase}:{view:AppView;phase:number}){
