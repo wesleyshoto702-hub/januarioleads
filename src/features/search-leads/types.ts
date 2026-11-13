@@ -23,6 +23,8 @@ export type BusinessSearchResult = {
   city: string | null;
   state: string | null;
   phone: string | null;
+  /** Unverified when obtained from Overture; not from Google. */
+  email?: string | null;
   internationalPhone: string | null;
   rating: number | null;
   reviewCount: number | null;
