@@ -197,8 +197,10 @@
    Change the state of actual UI objects; do not replay an entrance animation. */
 .jlf-stage .jlf-view{animation:jlf-appear .45s ease-out both}
 .jlf-stage .jlf-view *{animation-fill-mode:both}
-.jlf-stage:not(.is-playing) .jlf-view,
-.jlf-stage:not(.is-playing) .jlf-view *{animation-play-state:paused}
+/* Pausing playback must NOT freeze newly displayed content at opacity 0.
+   Only infinite/looping effects pause; finite action transitions stay visible. */
+.jlf-stage:not(.is-playing) .jlf-search-loader,
+.jlf-stage:not(.is-playing) .jlf-digital-scan i{animation-play-state:paused}
 .jlf-stage .jlf-field,
 .jlf-stage .jlf-button,
 .jlf-stage .jlf-company,
