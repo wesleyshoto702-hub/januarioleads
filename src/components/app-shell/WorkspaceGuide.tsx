@@ -79,7 +79,12 @@ export function WorkspaceGuide({ activeView, reduceMotion }: {
   }, [open]);
 
   function start() { setPhase(0); setPlaying(!reduced); setOpen(true); }
-  function seek(step: number) { setPhase(Math.max(0, Math.min(3, step))); setPlaying(false); }
+  function seek(step: number, pausePlayback = false) {
+    setPhase(Math.max(0, Math.min(PHASE_COUNT - 1, step)));
+    // Jumping directly on the timeline pauses playback. Previous/Next
+    // preserve playback so the film continues after the user advances it.
+    if (pausePlayback) setPlaying(false);
+  }
   function replay() { setPhase(0); setPlaying(!reduced); }
   function toggle() {
     if (reduced) return;
@@ -112,7 +117,7 @@ export function WorkspaceGuide({ activeView, reduceMotion }: {
             <div className="jlf-intro"><div><h2 id={headingId}>{script.title}</h2><p>{script.subtitle}</p></div><span>SEM VÍDEO EXTERNO</span></div>
             <div className="jlf-player">
               <div className="jlf-player-bar"><div className="jlf-window-dots"><i/><i/><i/></div><span>januarioleads / workspace / {activeView}</span><small>SIMULAÇÃO ILUSTRATIVA</small></div>
-              <div className={"jlf-stage" + (playing && !reduced ? " is-playing" : "")}
+              <div className={"jlf-stage" + (playing && !reduced && tabVisible ? " is-playing" : "")}
                 data-view={activeView} data-phase={phase}>
                 <WorkspaceGuideFilm key={activeView} view={activeView} phase={phase} />
                 <div className="jlf-stage-corner">EXEMPLO · NÃO ALTERA DADOS</div>
@@ -124,7 +129,7 @@ export function WorkspaceGuide({ activeView, reduceMotion }: {
                       className={"jlf-timeline-step" + (index < phase ? " completed" : "") + (index === phase ? " active" : "")}
                       aria-label={"Ir para o momento " + (index + 1) + ": " + item.action}
                       aria-current={index === phase ? "step" : undefined}
-                      onClick={() => seek(index)}>
+                      onClick={() => seek(index, true)}>
                       {index === phase && playing && tabVisible && !reduced &&
                         <i key={phase + "-bar"} className="jlf-timeline-fill"/>}
                     </button>
