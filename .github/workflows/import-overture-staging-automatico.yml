@@ -3,15 +3,15 @@ name: Overture Brasil - importacao automatica - STAGING
 on:
   # A agenda so executa se a variavel OVERTURE_AUTO_ENABLED = true.
   schedule:
-    - cron: '23 */2 * * *'
+    - cron: '7,17,27,37,47,57 * * * *'
   workflow_dispatch:
     inputs:
       cities_per_run:
-        description: "Novos municipios nesta execucao (1 a 5)"
+        description: "Maximo de municipios nesta sessao (tempo maximo: 40 min)"
         required: true
         type: choice
-        options: ['2', '3', '4', '5']
-        default: '3'
+        options: ['2', '10', '30', '100']
+        default: '2'
 
 permissions:
   contents: read
@@ -31,7 +31,7 @@ jobs:
       SUPABASE_URL: https://prlrxjothrslhswpkoza.supabase.co
       # Este segredo precisa ser configurado UMA UNICA VEZ no GitHub:
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.OVERTURE_SUPABASE_SERVICE_ROLE_KEY }}
-      MUNICIPIOS_POR_RODADA: ${{ inputs.cities_per_run || '3' }}
+      MUNICIPIOS_POR_RODADA: ${{ github.event_name == 'schedule' && '100' || inputs.cities_per_run || '2' }}
     steps:
       - name: Validar staging e segredo (sem imprimir chave)
         shell: bash
@@ -57,18 +57,20 @@ jobs:
           python-version: '3.11'
       - name: Instalar dependencias de geometrias e Overture
         run: python -m pip install --disable-pip-version-check overturemaps geopandas shapely pyogrio
-      - name: Importar ate 3 novos municipios (ou valor manual), sem duplicatas
+      - name: Importar continuamente por ate 40 min, sem duplicatas
         shell: bash
         run: |
           set -euo pipefail
           python scripts/import_overture_staging_auto.py \
             --cities-per-run "${MUNICIPIOS_POR_RODADA}" \
+            --max-runtime-minutes 40 \
             --per-city 60
       - name: Registrar guardrails
         if: always()
         shell: bash
         run: |
           echo "Destino: Supabase STAGING apenas; producao intocada." >> "${GITHUB_STEP_SUMMARY}"
-          echo "Ate ${MUNICIPIOS_POR_RODADA} municipios, ate 60 empresas cada; corta aos 88 MiB (90 MiB no importador)." >> "${GITHUB_STEP_SUMMARY}"
+          echo "Ate 40 minutos de importacao por sessao; ate ${MUNICIPIOS_POR_RODADA} municipios, ate 60 empresas por cidade." >> "${GITHUB_STEP_SUMMARY}"
+          echo "Protecao de armazenamento aos 88 MiB (90 MiB no importador)." >> "${GITHUB_STEP_SUMMARY}"
           echo "Falhas ficam registradas em overture_auto_city_attempts, nao repetidas imediatamente." >> "${GITHUB_STEP_SUMMARY}"
           echo "Ativacao da agenda: OVERTURE_AUTO_ENABLED=true nas variaveis do repositorio." >> "${GITHUB_STEP_SUMMARY}"
