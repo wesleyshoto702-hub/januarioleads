@@ -42,6 +42,14 @@ que a busca autenticada de `Hotel` em `Varginha/MG` retorna ao
 menos um resultado Overture. Usa a página direta `overture:0`, sem acionar
 fallback Geoapify ou Google Places nem consumir seus créditos externos.
 Ele não modifica registros nem imprime chaves ou telefones. Não marcar o teste como aprovado sem executá-lo.
+Além do script de Node, a interface `SearchLeadsView` inclui um botão de
+diagnóstico **somente** quando a compilação tem `VITE_DEPLOY_TARGET=staging`,
+usa o Supabase Staging e recebe a URL com `?overture-smoke=1`.
+O botão usa a sessão já autenticada pelo próprio aplicativo e a página
+`overture:0`, exibindo somente a quantidade e o resultado do teste;
+não lê nem expõe tokens. Sem essa compilação de staging ativa, o botão
+não aparece e **não se pode afirmar** que o teste end-to-end passou.
+
 A função e a interface permanecem sob revisão na PR #140, sem merge em produção.
 
 ---
