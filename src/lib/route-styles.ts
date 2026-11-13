@@ -11,7 +11,6 @@ import premiumWorkspaceCss from "../styles/premium-workspace.css?url";
 import premiumReferenceFivePagesCss from "../styles/premium-reference-five-pages.css?url";
 import premiumMotionFivePagesCss from "../styles/premium-motion-five-pages.css?url";
 import workspaceGuideCss from "../styles/workspace-guide.css?url";
-import companyCheckCss from "../features/lead-verification/lead-company-check.css?url";
 import settingsCss from "../features/settings/settings.css?url";
 import digitalPresenceCss from "../features/digital-presence/digital-presence.css?url";
 import proposalsCss from "../features/proposals/proposals.css?url";
@@ -27,7 +26,7 @@ import signupCrimsonCss from "../styles/signup-crimson.css?url";
 
 const stylesheet = (href: string) => ({ rel: "stylesheet" as const, href });
 
-export const APP_STYLES = [stylesheet(appShellCss), stylesheet(saasVisualRefreshCss), stylesheet(prospectingInformationCss), stylesheet(settingsCss), stylesheet(premiumWorkspaceCss), stylesheet(premiumReferenceFivePagesCss), stylesheet(premiumMotionFivePagesCss), stylesheet(digitalPresenceCss), stylesheet(proposalsCss), stylesheet(commercialExpansionCss), stylesheet(leadPortfolioCss), stylesheet(workspaceGuideCss), stylesheet(companyCheckCss)];
+export const APP_STYLES = [stylesheet(appShellCss), stylesheet(saasVisualRefreshCss), stylesheet(prospectingInformationCss), stylesheet(settingsCss), stylesheet(premiumWorkspaceCss), stylesheet(premiumReferenceFivePagesCss), stylesheet(premiumMotionFivePagesCss), stylesheet(digitalPresenceCss), stylesheet(proposalsCss), stylesheet(commercialExpansionCss), stylesheet(leadPortfolioCss), stylesheet(workspaceGuideCss)];
 
 export const MARKETING_STYLES = [
   stylesheet(marketingHomeCss),
