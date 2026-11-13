@@ -114,12 +114,12 @@ export function WorkspaceGuide({ activeView, reduceMotion }: {
           </div>
           <div className="jlf-modal-content">
             <div className="jlf-overline"><span className="jlf-live-dot"/> DEMONSTRAÇÃO GUIADA · 4 MOMENTOS</div>
-            <div className="jlf-intro"><div><h2 id={headingId}>{script.title}</h2><p>{script.subtitle}</p></div><span>SEM VÍDEO EXTERNO</span></div>
+            <div className="jlf-intro"><div><h2 id={headingId}>{script.title}</h2><p>{script.subtitle}</p></div></div>
             <div className="jlf-player">
               <div className="jlf-player-bar"><div className="jlf-window-dots"><i/><i/><i/></div><span>januarioleads / workspace / {activeView}</span><small>SIMULAÇÃO ILUSTRATIVA</small></div>
               <div className={"jlf-stage" + (playing && !reduced && tabVisible ? " is-playing" : "")}
                 data-view={activeView} data-phase={phase}>
-                <WorkspaceGuideFilm key={activeView} view={activeView} phase={phase} />
+                <WorkspaceGuideFilm key={activeView} view={activeView} phase={phase} motionDisabled={reduced} />
                 <div className="jlf-stage-corner">EXEMPLO · NÃO ALTERA DADOS</div>
               </div>
               <div className="jlf-player-bottom">
