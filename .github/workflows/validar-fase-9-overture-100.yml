@@ -1,0 +1,69 @@
+name: Validar Fase 9 — Overture ate 100 por municipio
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/expand_overture_to_100_staging.py"
+      - "notebooks/Januario_Leads_Fase_9_Ampliacao_100_Empresas_Por_Municipio.ipynb"
+      - ".github/workflows/validar-fase-9-overture-100.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate syntax, safeguards, pure top-up tests, notebook snapshot
+        run: |
+          python - <<'PY'
+          import ast, json
+          from pathlib import Path
+          script=Path("scripts/expand_overture_to_100_staging.py").read_text(encoding="utf-8")
+          compile(script,"importer.py","exec")
+          assert 'STAGING_URL = "https://prlrxjothrslhswpkoza.supabase.co"' in script
+          assert "STORAGE_STOP_MIB = 340" in script
+          assert "TARGET_PER_MUNICIPALITY = 100" in script
+          assert 'resolution=ignore-duplicates,return=minimal' in script
+          assert "existing_city_ids" in script
+          assert "only_new_within_cap" in script
+          script_tree=ast.parse(script)
+          fn=next(n for n in script_tree.body if isinstance(n,ast.FunctionDef) and n.name=="only_new_within_cap")
+          test_tree=ast.Module(body=[fn],type_ignores=[])
+          ns={"TARGET_PER_MUNICIPALITY":100}
+          exec(compile(test_tree,"pure_topup","exec"),ns,ns)
+          select=ns["only_new_within_cap"]
+          ids={str(i) for i in range(60)}
+          rows=[{"id":str(i)} for i in range(150)]
+          result=select(rows,ids)
+          assert len(result)==40
+          assert all(r["id"] not in ids for r in result)
+          assert len(select(rows,{str(i) for i in range(100)}))==0
+          assert len(select(rows,{"1","2","3"}))==100-3
+          assert select(rows,ids,cap=60)==[]
+          nb=json.loads(Path("notebooks/Januario_Leads_Fase_9_Ampliacao_100_Empresas_Por_Municipio.ipynb").read_text(encoding="utf-8"))
+          assert nb["nbformat"]==4 and len(nb["cells"])==5
+          assert [c["cell_type"] for c in nb["cells"]]==["markdown","code","code","code","code"]
+          assert all(c["execution_count"] is None and c["outputs"]==[] for c in nb["cells"] if c["cell_type"]=="code")
+          codes=["".join(c["source"]) for c in nb["cells"][2:]]
+          for source in codes:compile(source,"colab_cell","exec")
+          embedded=next(n.value for n in ast.parse(codes[0]).body
+                        if isinstance(n,ast.Assign)
+                        and any(isinstance(t,ast.Name) and t.id=="IMPORTER_SOURCE" for t in n.targets))
+          assert ast.literal_eval(embedded)==script
+          helper=codes[1]
+          assert "STORAGE_STOP_MIB=340" in helper and "TARGET_PER_CITY=100" in helper
+          assert 'if confirm!="AMPLIAR_100"' in codes[2]
+          assert "capture_output=True" in codes[2] and "getpass.getpass" in codes[2]
+          assert "MAX_MUNICIPIOS_SESSAO=25" in helper
+          print("PASS: Phase 9 Colab/script syntax, 40 new at 60, cap 100, staging guard, no network or imports.")
+          PY
