@@ -36,10 +36,18 @@ jobs:
           assert 'resolution=ignore-duplicates,return=minimal' in script
           assert "existing_city_places" in script
           assert "only_new_within_cap" in script
+          assert "batch_bbox_allowed" in script
+          assert "PHASE9_CITY_RESULT=" in script
+          assert "--cities" in script
           import math, re, unicodedata
           ns={"__name__":"_offline"}
           exec(compile(script,"offline_importer.py","exec"),ns,ns)
           select=ns["only_new_within_cap"]
+          assert ns["batch_bbox_allowed"]((-45,-22,-44.5,-21.5),3)
+          assert not ns["batch_bbox_allowed"]((-45,-22,-42,-21),3)
+          assert not ns["batch_bbox_allowed"]((-45,-22,-43.3,-20.9),2)
+          assert ns["batch_bbox_allowed"]((-45,-22,-42,-21),1)
+          assert ns["TARGET_PER_MUNICIPALITY"]==100 and ns["STORAGE_STOP_MIB"]==340
           assert not ns["is_lead_candidate"]({"name":"Rio Paraim","category":"river"})
           assert not ns["is_lead_candidate"]({"name":"Lago Arara","category":"lake"})
           assert ns["is_lead_candidate"]({"name":"Padaria Maria","category":"bakery"})
@@ -84,6 +92,13 @@ jobs:
           assert 'if confirm!="AMPLIAR_100"' in codes[2]
           assert "capture_output=True" in codes[2] and "getpass.getpass" in codes[2]
           assert "MAX_MUNICIPIOS_SESSAO=5572" in helper
+          assert "MAX_DOWNLOADS_SESSAO=240" in helper
+          assert "MAX_CITIES_PER_DOWNLOAD=3" in helper
+          assert "MIN_INTERVAL_BETWEEN_DOWNLOADS=75" in helper
+          assert "GLOBAL_RATE_COOLDOWN_HOURS=6" in helper
+          assert "overture_phase9_city_centers" in helper
+          assert "next_download_start" in codes[2]
+          assert "nearby_batches(targets)" in codes[2]
           assert "overture_phase9_attempts" in helper
           assert "record_attempt" in helper
           class FakeFile:
@@ -100,5 +115,24 @@ jobs:
           assert [(x["state"],x["city"]) for x in order]==[
              ("MG","Lavras"),("SP","Santos"),("MG","Alfenas")]
           assert len(helper_ns["sorted_targets"](citylist,pending={("MG","lavras")}))==2
-          print("PASS: Phase 9 scans beyond original 60, avoids duplicates, round-robins UFs, 100 cap, checkpoint, no network/imports.")
+          import datetime as dt
+          a={"state":"MG","city":"Lavras","city_key":"lavras","center_lat":-21.24,"center_lon":-45.00}
+          b={"state":"MG","city":"Nepomuceno","city_key":"nepomuceno","center_lat":-21.24,"center_lon":-45.03}
+          c={"state":"SP","city":"Santos","city_key":"santos","center_lat":-23.96,"center_lon":-46.33}
+          d={"state":"MG","city":"Juiz de Fora","city_key":"juiz de fora","center_lat":-21.74,"center_lon":-43.34}
+          clustered=helper_ns["nearby_batches"]([a,c,b,d])
+          assert [[v["city_key"] for v in group] for group in clustered]==[
+              ["lavras","nepomuceno"],["santos"],["juiz de fora"]]
+          assert all(len(group)<=3 and len({v["state"] for v in group})==1 for group in clustered)
+          now=dt.datetime(2026,11,13,20,tzinfo=dt.timezone.utc)
+          prior=dt.datetime(2026,11,13,19,tzinfo=dt.timezone.utc)
+          assert helper_ns["rate_cooldown_remaining"](now,prior)==18000
+          assert helper_ns["rate_cooldown_remaining"](now,None)==0
+          assert helper_ns["spacing_remaining"](now,now)==75
+          assert helper_ns["spacing_remaining"](now,prior)==0
+          assert helper_ns["classify_import_error"]("HTTP Error 429: Too Many Requests")=="fonte_taxa"
+          assert helper_ns["stop_on_global_error"]("fonte_taxa")
+          assert helper_ns["transient_error"]("rede_timeout")
+          assert helper_ns["classify_import_error"]("BATCH_TOO_WIDE: dispersed")=="batch_largura"
+          print("PASS: Phase 9 safe 3-town batching, distance and area guards, 75s pacing, 6h 429 cooldown, 100-city cap, no network/imports.")
           PY
