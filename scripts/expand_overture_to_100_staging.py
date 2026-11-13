@@ -65,6 +65,17 @@ BATCH_SIZE = 150
 STAGING_URL = "https://prlrxjothrslhswpkoza.supabase.co"
 TARGET_PER_MUNICIPALITY = 100
 STORAGE_STOP_MIB = 340
+# Suppress named geographical features that are not potential companies.
+NON_LEAD_CATEGORIES = frozenset((
+    "river", "lake", "stream", "waterfall", "mountain", "cave",
+    "island", "pond", "reservoir", "forest", "wetland", "beach",
+    "city", "town", "village", "municipality", "county", "state",
+    "country", "natural_feature", "neighborhood", "locality",
+))
+
+def is_lead_candidate(row):
+    return bool(row.get("name") and
+                (row.get("category") or "").lower() not in NON_LEAD_CATEGORIES)
 
 
 def normalize(value):
@@ -408,7 +419,7 @@ def main():
                 # Overture file. Discard the original 60 before ranking newcomers.
                 groups = {"with_site": [], "without_site": []}
                 counts = {"scanned": 0, "known_id": 0, "same_business": 0,
-                          "eligible_new": 0}
+                          "nonbusiness": 0, "eligible_new": 0}
                 with out.open("r", encoding="utf-8") as src:
                     for line in src:
                         line = line.lstrip("\x1e").strip()
@@ -417,6 +428,9 @@ def main():
                         counts["scanned"] += 1
                         row = place_record(json.loads(line), state_munis, state)
                         if row is None or row["city_key"] != cities[0]:
+                            continue
+                        if not is_lead_candidate(row):
+                            counts["nonbusiness"] += 1
                             continue
                         if row["id"] in existing_ids:
                             counts["known_id"] += 1
@@ -437,6 +451,7 @@ def main():
                                                existing_places=existing_places)
                 print(f"SCAN: {counts['scanned']} Overture rows; "
                       f"{counts['known_id']} existing IDs excluded; "
+                      f"{counts['nonbusiness']} non-commercial places ignored; "
                       f"{counts['same_business']} same-business aliases excluded; "
                       f"{counts['eligible_new']} candidate new rows; "
                       f"{len(selected)} selected unique companies.", flush=True)
