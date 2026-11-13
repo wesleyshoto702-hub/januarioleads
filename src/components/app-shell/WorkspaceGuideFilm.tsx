@@ -5,7 +5,7 @@ import {
   MapPin, MessageCircle, MousePointer2, Plus, Search, Settings2,
   ShieldCheck, Star, Target, Users, WalletCards, type LucideIcon,
 } from "lucide-react";
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
 import type { AppView } from "./AppShell";
 
 export type FilmScene = { action: string; narration: string };
@@ -869,11 +869,12 @@ function GuidedCursor({
   view: AppView;
   phase: number;
   clickId: number;
-  host: React.RefObject<HTMLDivElement | null>;
+  host: RefObject<HTMLDivElement | null>;
 }) {
   const stop = MOUSE_TRACKS[view][phase] ?? MOUSE_TRACKS[view][0];
   const [selector, label, ratioX = .5, ratioY = .5] = stop;
   const [point, setPoint] = useState({ x: 22, y: 25 });
+  const [onRight, setOnRight] = useState(false);
   const currentTarget = useRef<Element | null>(null);
 
   useLayoutEffect(() => {
@@ -892,6 +893,7 @@ function GuidedCursor({
           x: Math.max(15, Math.min(rect.width - 20, x)),
           y: Math.max(15, Math.min(rect.height - 20, y)),
         });
+        setOnRight(x > rect.width * .66);
       }
     };
     const frame = requestAnimationFrame(measure);
@@ -914,7 +916,7 @@ function GuidedCursor({
   }, [clickId]);
 
   return (
-    <span className="jlf-guided-mouse" style={{ left: point.x, top: point.y }} aria-hidden="true">
+    <span className={"jlf-guided-mouse" + (onRight ? " is-right" : "")} style={{ left: point.x, top: point.y }} aria-hidden="true">
       <MousePointer2 className="jlf-guided-arrow" size={24} fill="#fff" stroke="#141b22" strokeWidth={1.5}/>
       {clickId > 0 && <span className="jlf-guided-ring" key={clickId}/>}
       <span className="jlf-guided-caption">{label}</span>
