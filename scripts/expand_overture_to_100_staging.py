@@ -186,6 +186,8 @@ def existing_city_ids(base, key, state, city_key):
 def only_new_within_cap(ranked, existing_ids, cap=TARGET_PER_MUNICIPALITY):
     """Append only unrecorded IDs, never allowing more than 100 total."""
     room = max(0, cap - len(existing_ids))
+    if room == 0:
+        return []
     selected, seen = [], set(existing_ids)
     for row in ranked:
         identifier = row.get("id")
