@@ -223,6 +223,10 @@ async function checkPublicDns(hostname:string):Promise<boolean>{
   }catch{return false}
 }
 async function officialContacts(req:Request,auth:Auth,leadId:string,existing:SavedCheck|null){
+  // Production hard stop: user-supplied website URLs must not be fetched by the
+  // Edge runtime until a network-isolated, DNS-rebinding-resistant fetcher exists.
+  if(BASE==="https://czkazbianiflhldenhcj.supabase.co")
+    return failure(req,"SITE_SCAN_RESTRICTED","A consulta automática de sites está em validação. Abra o site cadastrado para consultar os contatos.",403);
   const url=publicWebsiteUrl(auth.lead.website);
   if(!url)return failure(req,"WEBSITE_REQUIRED","Salve o site oficial HTTPS no lead antes de consultar.",400);
   const hasPhone=Boolean(auth.lead.phone||existing?.contact_phone||existing?.contact_phone_alt);
