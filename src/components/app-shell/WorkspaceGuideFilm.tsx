@@ -864,10 +864,11 @@ const MOUSE_TRACKS: Record<AppView, readonly [CursorStop, CursorStop, CursorStop
 };
 
 function GuidedCursor({
-  view, phase, clickId, host,
+  view, phase, shownPhase, clickId, host,
 }: {
   view: AppView;
   phase: number;
+  shownPhase: number;
   clickId: number;
   host: RefObject<HTMLDivElement | null>;
 }) {
@@ -896,13 +897,14 @@ function GuidedCursor({
         setOnRight(x > rect.width * .66);
       }
     };
+    measure();
     const frame = requestAnimationFrame(measure);
     window.addEventListener("resize", measure);
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener("resize", measure);
     };
-  }, [host, selector, ratioX, ratioY, phase]);
+  }, [host, selector, ratioX, ratioY, phase, shownPhase]);
 
   useEffect(() => {
     if (!clickId) return;
@@ -967,6 +969,6 @@ export function WorkspaceGuideFilm({view,phase,motionDisabled=false}:{
   }
   return <div className="jlf-film-host" ref={host}>
     {film}
-    <GuidedCursor view={view} phase={phase} clickId={clickId} host={host}/>
+    <GuidedCursor view={view} phase={phase} shownPhase={shownPhase} clickId={clickId} host={host}/>
   </div>;
 }
