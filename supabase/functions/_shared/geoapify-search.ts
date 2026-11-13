@@ -80,7 +80,9 @@ async function jsonWithinTimeout(url: URL, timeout: number): Promise<{ ok: boole
     return { ok: false, status: 502, value: null };
   }
 }
-async function cityPlaceId(key: string, city: string, state: string): Promise<string | null> {
+type ReserveGeoCredit=(operation:"geocode"|"places")=>Promise<boolean>;
+async function cityPlaceId(key: string, city: string, state: string,
+  reserveCredit?: ReserveGeoCredit): Promise<string | null> {
   const identity = normalize(city) + ":" + state.toUpperCase();
   const cached = locationCache.get(identity);
   if (cached && cached.expires > Date.now()) return cached.id;
@@ -92,6 +94,9 @@ async function cityPlaceId(key: string, city: string, state: string): Promise<st
     type: "city", filter: "countrycode:br", lang: "pt",
     limit: "5", format: "json", apiKey: key,
   }).toString();
+  // Claim a shared FREE-tier credit before any external geocoding request.
+  // When the project pool is exhausted this provider fails closed.
+  if (reserveCredit && !(await reserveCredit("geocode"))) return null;
   const response = await jsonWithinTimeout(url, GEOCODE_TIMEOUT_MS);
   if (!response.ok) return null;
   const results = record(response.value).results;
@@ -165,6 +170,7 @@ export async function searchGeoapifyFirst(input: {
   apiKey: string | null | undefined;
   segment: string; city: string; state: string;
   offset?: number;
+  reserveCredit?: ReserveGeoCredit;
 }): Promise<GeoapifySearchOutcome> {
   const key = input.apiKey?.trim();
   if (!key) return { ok: false, reason: "NOT_CONFIGURED" };
@@ -174,7 +180,7 @@ export async function searchGeoapifyFirst(input: {
   if (!Number.isInteger(offset) || offset < 0 || offset > MAX_OFFSET || offset % PAGE_SIZE !== 0)
     return { ok: false, reason: "UPSTREAM" };
   try {
-    const placeId = await cityPlaceId(key, input.city, input.state);
+    const placeId = await cityPlaceId(key, input.city, input.state, input.reserveCredit);
     if (!placeId) return { ok: false, reason: "GEOLOCATION" };
     const url = new URL("https://api.geoapify.com/v2/places");
     url.search = new URLSearchParams({
@@ -183,6 +189,8 @@ export async function searchGeoapifyFirst(input: {
       lang: "pt", limit: String(PAGE_SIZE), offset: String(offset),
       apiKey: key,
     }).toString();
+    if (input.reserveCredit && !(await input.reserveCredit("places")))
+      return { ok:false, reason:"UPSTREAM" };
     const response = await jsonWithinTimeout(url, PLACES_TIMEOUT_MS);
     if (!response.ok) return { ok: false, reason: "UPSTREAM" };
     const rawFeatures = record(response.value).features;
