@@ -6,7 +6,8 @@
 const url = "https://prlrxjothrslhswpkoza.supabase.co/functions/v1/search-places";
 const apiKey = process.env.STAGING_PUBLISHABLE_KEY?.trim();
 const userToken = process.env.STAGING_USER_ACCESS_TOKEN?.trim();
-const body = JSON.stringify({ segment: "Hotel", city: "Varginha", state: "MG" });
+// Direct Overture page; avoids Geoapify/Google fallback and external provider credits.
+const body = JSON.stringify({ segment: "Hotel", city: "Varginha", state: "MG", pageToken: "overture:0" });
 
 function isClientPublishableKey(key) {
   if (key.startsWith("sb_publishable_")) return true;
