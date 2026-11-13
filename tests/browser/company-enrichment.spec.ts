@@ -100,7 +100,7 @@ async function openLead(page:Page,mobile=false){
     await expect(row).toBeVisible();
     await row.getByRole("button",{name:/Ver empresa/}).click();
   }
-  const card=page.locator(".lc-check");
+  const card=page.locator(".lc-check:visible").first();
   await expect(card).toBeVisible();
   return card;
 }
