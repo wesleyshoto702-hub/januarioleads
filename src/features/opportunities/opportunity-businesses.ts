@@ -59,6 +59,10 @@ export function safeBusinessResult(value: unknown): BusinessSearchResult | null 
 
   return {
     placeId: row.placeId!,
+    source: row.source === "overture" || row.source === "geoapify"
+      ? row.source : "google_places",
+    sourceUrl: row.source === "geoapify" || row.source === "overture"
+      ? row.sourceUrl ?? null : null,
     name: row.name!,
     primaryCategory: row.primaryCategory ?? null,
     categories: Array.isArray(row.categories) ? row.categories : [],
