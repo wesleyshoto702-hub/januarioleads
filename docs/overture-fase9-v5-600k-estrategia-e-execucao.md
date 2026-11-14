@@ -23,7 +23,7 @@ Essas contagens são **lacunas da base importada**; não são contagens de estab
 
 ## Estratégia
 
-Usar a **população oficial do Censo 2022 do IBGE**, consultada no início do notebook (somente dados públicos). O planejamento considera:
+Usar a **referência populacional de 2022, compilada a partir de estimativas demográficas e versionada no próprio GitHub do Januário Leads**, sem chamar a API do IBGE a cada execução. Ela orienta somente o porte e a cota de cada município (não deve ser confundida com os números finais do Censo 2022). Fonte: [compilação populacional](https://github.com/lsbastos/popBR_mun/blob/master/poptcu2010-2022_2024.csv). O planejamento considera:
 
 | Município | População de referência | Meta por cidade |
 |---|---|---:|
@@ -53,7 +53,7 @@ Os limites de armazenamento **podem impedir a meta de 600 mil úteis**, particul
 ## Como executar
 
 1. Abra o [notebook Fase 9 V5](https://colab.research.google.com/github/wesleyshoto702-hub/januarioleads/blob/main/notebooks/Januario_Leads_Fase_9_V5_600_Mil_Empresas.ipynb).
-2. Execute as três primeiras células em ordem (dependências, importadores públicos, população IBGE e validações locais). Sem credenciais e sem importações.
+2. Execute as três primeiras células em ordem (dependências, importadores públicos, referência populacional 2022 armazenada no GitHub e validações locais). **A célula 2 não consulta mais a API do IBGE e evita o timeout relatado.** Sem credenciais e sem importações.
 3. Na última célula, confirme **`AMPLIAR_600K`** e informe **somente** a chave secreta de **HOMOLOGAÇÃO**, no campo oculto. **Nunca cole essa chave no chat.**
 4. O notebook lista grupos de cidades priorizados, aplica cotas, consulta o Overture e grava apenas as empresas inéditas aproveitáveis. Caso encontre 429, interrompe e registra o período de segurança.
 5. Ao final, confira o relatório: `total_companies`, `useful_companies`, `overture_mib`, `database_mib`, `added`, `errors`. Depois desconecte o runtime do Colab.
@@ -61,3 +61,7 @@ Os limites de armazenamento **podem impedir a meta de 600 mil úteis**, particul
 **Arquivos importantes:** `scripts/expand_overture_600k_staging.py`, `tests/test_overture_v5_offline.py`, migrations `2026111409*`, `.github/workflows/validar-fase-9-v5-600k.yml`.
 
 A V4 antiga continua preservada como histórico; para ampliação orientada a nichos **use a V5**, não rode V4 e V5 simultaneamente. A produção `czkazbianiflhldenhcj` permanece inalterada.
+
+## Correção para TimeoutError/URLError na célula 2 (14/11/2026)
+
+O Colab estava tentando conectar diretamente a `servicodados.ibge.gov.br/api/v1/localidades/municipios` com timeout de 55 segundos. Uma falha de conexão encerrava a configuração **antes de solicitar qualquer chave**. A célula agora lê `data/populacao-municipal-2022-referencia.json` diretamente do GitHub do projeto (a mesma origem dos scripts). Se a conexão com o GitHub falhar, faz uma nova tentativa curta e interrompe com mensagem clara, **sem executar importações** nem pedir credenciais. Reabra o notebook pela URL principal, execute novamente desde o início e não use a aba antiga que está com o código em cache.
