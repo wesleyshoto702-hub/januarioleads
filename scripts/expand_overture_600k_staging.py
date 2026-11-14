@@ -81,10 +81,15 @@ def quality(row):
 def useful(row):
     cat = str(row.get("category") or "").lower().strip()
     name = str(row.get("name") or "").strip()
+    digits=re.sub(r"\D","",str(row.get("phone") or ""))
+    contact=(10<=len(digits)<=13 or
+             bool(re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+",
+                               str(row.get("email") or ""))) or
+             v4.is_business_website(row.get("website")) or
+             bool(row.get("instagram")))
     return (len(name)>=3 and bool(cat) and
             cat not in BLOCKED and
-            not any(part in cat for part in BLOCK_CONTAINS) and
-            quality(row)>=4)
+            not any(part in cat for part in BLOCK_CONTAINS) and contact)
 
 def pick_balanced(candidates, existing, limit):
     if limit<=0: return []
@@ -174,6 +179,7 @@ def record_checkpoint(base_url,key,state,city_key,city,plan,before,after,result,
         "target_count":plan["target"],"first_count":initial,
         "after_count":after,"added_count":max(0,after-initial),
         "result":result,"error_code":error_code,
+        "attempted_at":time.strftime("%Y-%m-%dT%H:%M:%SZ",time.gmtime()),
         # Successful/incomplete cities may be revisited next manually run;
         # a no-more candidate needs a new Overture dataset to retry.
         "retry_after":None,
@@ -251,8 +257,18 @@ def main(argv=None):
             candidates=pool[city_key]
             candidates.append(record)
             if len(candidates)>3000:
-                candidates.sort(key=quality,reverse=True)
-                del candidates[2000:]
+                # Preserve diverse niche families in memory. Keeping only
+                # the top 2,000 by contact score would bias large cities.
+                families={}
+                for item in candidates:
+                    families.setdefault(group(item),[]).append(item)
+                del candidates[:]
+                for family,items in families.items():
+                    items.sort(key=quality,reverse=True)
+                    candidates.extend(items[:260])
+                if len(candidates)>2900:
+                    candidates.sort(key=quality,reverse=True)
+                    del candidates[2900:]
         total_new=0
         for k in keys:
             if room[k]<=0:continue
