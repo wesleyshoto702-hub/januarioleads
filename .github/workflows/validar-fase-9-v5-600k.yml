@@ -5,8 +5,10 @@ on:
     paths:
       - "scripts/expand_overture_600k_staging.py"
       - "notebooks/Januario_Leads_Fase_9_V5_600_Mil_Empresas.ipynb"
+      - "notebooks/Januario_Leads_Fase_9_V5_Ate_22h_14nov2026.ipynb"
       - "data/populacao-municipal-2022-referencia.json"
       - "tests/test_overture_v5_offline.py"
+      - "tests/test_overture_v5_ate_22h_offline.py"
       - ".github/workflows/validar-fase-9-v5-600k.yml"
   workflow_dispatch:
 permissions:
@@ -26,6 +28,7 @@ jobs:
         run: |
           python -m py_compile scripts/expand_overture_600k_staging.py scripts/expand_overture_to_100_staging.py
           python -m unittest discover -s tests -p test_overture_v5_offline.py -v
+          python -m unittest discover -s tests -p test_overture_v5_ate_22h_offline.py -v
       - name: Verify V5 is staging-only and keeps separate resumable checkpoints
         run: |
           python - <<'PY'
