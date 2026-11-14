@@ -49,6 +49,23 @@ class V5SafeAndBalanced(unittest.TestCase):
         social["instagram"]="https://instagram.com/company"
         self.assertTrue(v5.useful(social))
 
+    def test_government_substring_false_positive_regression(self):
+        """The SQL LIKE underscore wildcard excluded genuine NGOs."""
+        ngo=row("ngo","non_governmental_association")
+        self.assertTrue(v5.useful(ngo))
+        self.assertFalse(v5.useful(row("municipal","government_office")))
+        self.assertFalse(v5.useful(row("office","non_government_office")))
+        self.assertFalse(v5.useful(row("worship","place_of_worship")))
+        migration=(ROOT/"supabase/migrations/"
+                   "20261114171000_overture_phase9_v5_fix_useful_category_match_staging.sql")
+        sql=migration.read_text(encoding="utf-8")
+        self.assertIn("strpos(lower(btrim(category)), 'government_') = 0",sql)
+        self.assertIn("strpos(lower(btrim(category)), 'place_of_worship') = 0",sql)
+        self.assertNotIn("category not like '%government_%'",sql)
+        self.assertNotIn("category not like '%place_of_worship%'",sql)
+        self.assertIn("revoke all on function public.overture_phase9_v5_status()",sql)
+        self.assertIn("grant execute on function public.overture_phase9_v5_status() to service_role",sql)
+
     def test_duplicate_ids_and_nearby_alias(self):
         originals=[row("1","restaurant",latitude=-21.,name="Company 1")]
         options=[row("1","barber"),row("2","barber",latitude=-21.00001,name="Company 1"),
