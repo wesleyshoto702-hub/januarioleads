@@ -5,6 +5,7 @@ on:
     paths:
       - "scripts/expand_overture_600k_staging.py"
       - "notebooks/Januario_Leads_Fase_9_V5_600_Mil_Empresas.ipynb"
+      - "data/populacao-municipal-2022-referencia.json"
       - "tests/test_overture_v5_offline.py"
       - ".github/workflows/validar-fase-9-v5-600k.yml"
   workflow_dispatch:
