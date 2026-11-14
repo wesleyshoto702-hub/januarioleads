@@ -116,6 +116,48 @@ class V5SafeAndBalanced(unittest.TestCase):
         self.assertGreaterEqual(len(namespace["POPULATIONS"]),5500)
         self.assertGreater(namespace["POPULATIONS"][("SP","sao paulo")],700000)
 
+    def test_v5_sanitized_error_classification_in_colab(self):
+        nb=json.loads((ROOT/"notebooks/Januario_Leads_Fase_9_V5_600_Mil_Empresas.ipynb").read_text())
+        helper="".join(nb["cells"][2]["source"])
+        runner="".join(nb["cells"][3]["source"])
+        diagnostic=helper[helper.index("V5_KNOWN_ERRORS="):helper.index("def recent_rate_limit(secret):")]
+        namespace={"re":re}
+        exec(compile(diagnostic,"diagnostic.py","exec"),namespace,namespace)
+        classify=namespace["classify_v5_error"]
+        self.assertEqual(classify(
+            "Traceback AttributeError: module v4 has no attribute classify_import_error",1),
+            "erro_codigo")
+        self.assertEqual(classify(
+            "V5_ERROR_STAGE=source_download\\nV5_ERROR_CLASS=fonte_download\\nHTTP Error 429 Too Many Requests",1),
+            "fonte_taxa")
+        self.assertEqual(classify(
+            "V5_ERROR_STAGE=municipal_boundaries\\nV5_ERROR_CLASS=malha_ibge\\nHTTP Error 429",1),
+            "malha_ibge")
+        self.assertEqual(classify("BATCH_TOO_WIDE polygons",1),"batch_largura")
+        self.assertEqual(classify("V5_ERROR_STAGE=source_download\\nV5_ERROR_CLASS=fonte_download",1),
+                         "fonte_download")
+        self.assertTrue(namespace["stop_for_v5_error"]("fonte_taxa"))
+        self.assertTrue(namespace["stop_for_v5_error"]("fonte_download"))
+        self.assertFalse(namespace["stop_for_v5_error"]("rede_timeout"))
+        self.assertNotIn("v4.classify_import_error",runner)
+        self.assertIn("groups=collections.deque(close_groups(targets))",runner)
+        self.assertIn("groups.appendleft([city])",runner)
+        self.assertIn('code=="batch_largura" and len(group)>1',runner)
+        self.assertIn('V5_ERROR_STAGE=([a-z_]{1,40})',runner)
+
+    def test_importer_reports_safe_failure_stage_not_original_exception(self):
+        previous=v5.IMPORT_STAGE
+        try:
+            v5.import_stage("source_download")
+            self.assertEqual(v5.safe_error_kind(AttributeError("secret_abc")),"erro_codigo")
+            self.assertEqual(v5.safe_error_kind(
+                __import__("subprocess").CalledProcessError(1,["overturemaps"])),
+                "fonte_download")
+            v5.import_stage("municipal_boundaries")
+            self.assertEqual(v5.safe_error_kind(TimeoutError("timed out")),"malha_ibge")
+        finally:
+            v5.import_stage(previous)
+
     def test_colab_is_manual_and_staging_only(self):
         filename=ROOT/"notebooks/Januario_Leads_Fase_9_V5_600_Mil_Empresas.ipynb"
         nb=json.loads(filename.read_text(encoding="utf-8"))
