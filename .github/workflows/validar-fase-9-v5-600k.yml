@@ -1,0 +1,42 @@
+name: Validar Fase 9 V5 Overture 600 mil (offline)
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/expand_overture_600k_staging.py"
+      - "notebooks/Januario_Leads_Fase_9_V5_600_Mil_Empresas.ipynb"
+      - "tests/test_overture_v5_offline.py"
+      - ".github/workflows/validar-fase-9-v5-600k.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Syntax-check both importers, Colab notebook, quotas and niche tests
+        run: |
+          python -m py_compile scripts/expand_overture_600k_staging.py scripts/expand_overture_to_100_staging.py
+          python -m unittest discover -s tests -p test_overture_v5_offline.py -v
+      - name: Verify V5 is staging-only and keeps separate resumable checkpoints
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          text=Path('scripts/expand_overture_600k_staging.py').read_text()
+          sql=Path('supabase/migrations/20261114090000_overture_phase9_v5_balanced_600k_staging.sql').read_text()
+          assert 'prlrxjothrslhswpkoza' in text
+          assert 'czkazbianiflhldenhcj' not in text
+          assert '"resolution=ignore-duplicates,return=minimal"' in text
+          assert 'overture_phase9_v5_attempts' in text
+          assert 'security_invoker = true' in sql
+          assert 'revoke all on public.overture_phase9_v5_gaps from public,anon,authenticated' in sql
+          assert 'grant select on public.overture_phase9_v5_gaps to service_role' in sql
+          print('PASS: private staging-only import, no production, conservative storage guard')
+          PY
