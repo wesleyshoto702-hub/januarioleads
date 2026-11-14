@@ -4,7 +4,8 @@
 IBGE population determines per-city caps in the companion notebook.
 This importer adds at most 40 NEW useful companies per download, conserves
 old rows, deduplicates IDs and close same-name businesses and stops at
-600,000 national places, 340 MiB Overture or 440 MiB entire database.
+600,000 useful contactable companies, 340 MiB Overture or 440 MiB entire database.
+Historical non-company POIs remain in place, excluded from the useful goal.
 No Google Places, Geoapify, paid API, production or background execution.
 """
 import argparse
@@ -23,7 +24,7 @@ from urllib.parse import urlencode
 import expand_overture_to_100_staging as v4
 
 STAGING_URL = "https://prlrxjothrslhswpkoza.supabase.co"
-GOAL_COMPANIES = 600000
+GOAL_COMPANIES = 600000  # 600k useful companies, not total legacy POIs
 OVERTURE_MAX_MIB = 340
 DATABASE_MAX_MIB = 440
 MIB = 1048576
@@ -128,17 +129,17 @@ def current_stats(base_url,key):
     result=v4.api(base_url,key,"/rest/v1/rpc/overture_phase9_v5_status",method="POST",payload={})
     if (not isinstance(result,dict) or
         any(not isinstance(result.get(n),int) or result[n]<0
-            for n in ("total_companies","overture_bytes","database_bytes"))):
+            for n in ("total_companies","useful_companies","overture_bytes","database_bytes"))):
         raise RuntimeError("Missing private V5 storage guard in staging")
     return result
 
 def safe_capacity(stats,requested):
     """Strict DB+table budgets, 1KiB/row cautious preflight estimate."""
-    if (stats["total_companies"]>=GOAL_COMPANIES or
+    if (stats["useful_companies"]>=GOAL_COMPANIES or
         stats["overture_bytes"]>=OVERTURE_MAX_MIB*MIB or
         stats["database_bytes"]>=DATABASE_MAX_MIB*MIB):
         return 0
-    return max(0,min(requested,GOAL_COMPANIES-stats["total_companies"],
+    return max(0,min(requested,GOAL_COMPANIES-stats["useful_companies"],
         (OVERTURE_MAX_MIB*MIB-stats["overture_bytes"])//MAX_ROW_ESTIMATE,
         (DATABASE_MAX_MIB*MIB-stats["database_bytes"])//MAX_ROW_ESTIMATE))
 
@@ -317,6 +318,7 @@ def main(argv=None):
         after=current_stats(base_url,secret)
         print("BATCH_SUMMARY "+json.dumps({"added":total_new,
               "national_total":after["total_companies"],
+              "useful_companies":after["useful_companies"],
               "overture_mib":round(after["overture_bytes"]/MIB,2),
               "database_mib":round(after["database_bytes"]/MIB,2)}))
     return 0
