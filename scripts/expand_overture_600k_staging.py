@@ -96,6 +96,7 @@ def pick_balanced(candidates, existing, limit):
     ids={x["id"] for x in existing}
     by_name={}
     count=Counter(group(x) for x in existing)
+    category_count=Counter(str(x.get("category") or "").lower() for x in existing)
     for old in existing:
         by_name.setdefault(old.get("name_key") or v4.normalize(old["name"]),[]).append(old)
     new=[]
@@ -112,12 +113,15 @@ def pick_balanced(candidates, existing, limit):
     while new and len(out)<limit:
         def score(x):
             family=group(x)
-            coverage=25/(1+count[family]**0.5)
-            return quality(x)+coverage+(4 if family!="other" else -6)
+            coverage=20/(1+count[family]**0.5)
+            category=str(x.get("category") or "").lower()
+            specific_niche=17/(1+category_count[category]**0.5)
+            return quality(x)+coverage+specific_niche+(4 if family!="other" else -6)
         idx=max(range(len(new)),key=lambda i:(score(new[i]),str(new[i]["id"])))
         row=new.pop(idx)
         out.append(row)
         count[group(row)]+=1
+        category_count[str(row.get("category") or "").lower()]+=1
     return out
 
 def current_stats(base_url,key):
@@ -280,7 +284,18 @@ def main(argv=None):
             check=current_stats(base_url,secret)
             selected=selected[:safe_capacity(check,len(selected))]
             if not selected:
-                print("CITY_RESULT "+json.dumps({"city":k,"added":0,"before":before,"after":len(fresh)}))
+                # Mark source-exhausted cities so Colab avoids repeated
+                # downloads for the same missing candidates.
+                stop_by_budget=safe_capacity(check,1)==0
+                if not stop_by_budget:
+                    record_checkpoint(base_url,secret,states[0],k,
+                        next(c for c in cities if v4.normalize(c)==k),
+                        plans[k],before,len(fresh),"no_more")
+                print("CITY_RESULT "+json.dumps({"city":k,"added":0,"before":before,
+                      "after":len(fresh),"status":"budget" if stop_by_budget else "no_more"}))
+                if stop_by_budget:
+                    print("SAFE STOP: no quota for another business")
+                    return 2
                 continue
             # Small bounded inserts with a check before each batch; do not overwrite
             # any previously saved company or silently replace its fields.
