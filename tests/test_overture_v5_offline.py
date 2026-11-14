@@ -24,11 +24,12 @@ class V5SafeAndBalanced(unittest.TestCase):
                           v5.DATABASE_MAX_MIB),(600000,340,440))
         self.assertEqual(v5.MAX_NEW_PER_BATCH,40)
         self.assertEqual(v5.MAX_CITIES_PER_BATCH,3)
-        base={"total_companies":291515,"overture_bytes":151*v5.MIB,
-              "database_bytes":165*v5.MIB}
+        base={"total_companies":291515,"useful_companies":234417,
+              "overture_bytes":151*v5.MIB,"database_bytes":165*v5.MIB}
         self.assertEqual(v5.safe_capacity(base,40),40)
-        self.assertEqual(v5.safe_capacity(dict(base,total_companies=599997),40),3)
-        self.assertEqual(v5.safe_capacity(dict(base,total_companies=600000),40),0)
+        self.assertEqual(v5.safe_capacity(dict(base,useful_companies=599997),40),3)
+        self.assertEqual(v5.safe_capacity(dict(base,useful_companies=600000),40),0)
+        self.assertEqual(v5.safe_capacity(dict(base,total_companies=700000,useful_companies=599999),40),1)
         self.assertEqual(v5.safe_capacity(dict(base,overture_bytes=340*v5.MIB),40),0)
         self.assertEqual(v5.safe_capacity(dict(base,database_bytes=440*v5.MIB),40),0)
         self.assertEqual(v5.safe_capacity(dict(base,overture_bytes=340*v5.MIB-1024),40),1)
