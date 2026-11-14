@@ -31,6 +31,33 @@ MIB = 1048576
 MAX_NEW_PER_BATCH = 40
 MAX_CITIES_PER_BATCH = 3
 MAX_ROW_ESTIMATE = 1024
+IMPORT_STAGE = "initializing"
+
+def import_stage(name):
+    """Fixed, non-sensitive stage labels shown only for protected diagnostics."""
+    global IMPORT_STAGE
+    IMPORT_STAGE = name
+
+def safe_error_kind(exc):
+    """Return only a limited category, never message/URL/token/user data."""
+    message = str(exc).lower()
+    if "supabase api 429" in message: return "supabase_taxa"
+    if "supabase api 401" in message or "supabase api 403" in message:
+        return "supabase_auth"
+    if "http error 429" in message and IMPORT_STAGE == "source_download":
+        return "fonte_taxa"
+    if "batch_too_wide" in message: return "batch_largura"
+    if isinstance(exc, FileNotFoundError): return "dependencia_ausente"
+    if isinstance(exc, AttributeError): return "erro_codigo"
+    if isinstance(exc, (TypeError, KeyError, ValueError)): return "erro_dados"
+    if IMPORT_STAGE == "municipal_boundaries": return "malha_ibge"
+    if isinstance(exc, subprocess.CalledProcessError):
+        return "fonte_download" if IMPORT_STAGE == "source_download" else "erro_configuracao"
+    if isinstance(exc, (TimeoutError, subprocess.TimeoutExpired)): return "rede_timeout"
+    if "supabase api" in message: return "supabase_indisponivel"
+    if IMPORT_STAGE == "source_download": return "fonte_download"
+    return "erro_configuracao"
+
 CITY_CAPS = {"small":100, "medium":240, "large":700, "metro":2400, "unknown":100}
 GROUPS = {
     "barber":"beauty","beauty_salon":"beauty","hair_salon":"beauty",
@@ -207,7 +234,9 @@ def main(argv=None):
         parser.error("Choose 1-3 distinct nearby cities in ONE Brazilian state")
     try:plans=validate_plans(json.loads(args.plans_json),keys)
     except (ValueError,TypeError,KeyError) as exc:parser.error(str(exc))
+    import_stage("municipal_boundaries")
     boundaries=v4.ensure_state_boundaries(states[0])
+    import_stage("municipal_geometry")
     municipalities=v4.municipalities_index(boundaries)
     state_munis=municipalities.loc[
         (municipalities.SIGLA_UF==states[0])&
@@ -229,10 +258,12 @@ def main(argv=None):
     if (base_url!=STAGING_URL or
         not (secret.startswith("eyJ") or secret.startswith("sb_secret_"))):
         parser.error("Only STAGING SUPABASE_URL and private STAGING service-role key are accepted")
+    import_stage("storage_guard")
     status=current_stats(base_url,secret)
     if safe_capacity(status,1)==0:
         print("SAFE STOP: national or database/table storage quota")
         return 2
+    import_stage("existing_city")
     existing={k:existing_city(base_url,secret,states[0],k,plans[k]["target"])
               for k in keys}
     room={k:min(MAX_NEW_PER_BATCH,plans[k]["target"]-len(existing[k])) for k in keys}
@@ -242,10 +273,12 @@ def main(argv=None):
 
     with tempfile.TemporaryDirectory(prefix="januleads-overture-v5-") as tmp:
         path=Path(tmp)/"cities.geojsonseq"
+        import_stage("source_download")
         subprocess.run(["overturemaps","download",f"--bbox={bbox}",
                         "--type=place","-f","geojsonseq","-o",str(path)],
                        check=True)
         # Scan the full source, not just 100 first places. Keep bounded pools.
+        import_stage("source_parse")
         known={k:{row["id"] for row in rows} for k,rows in existing.items()}
         pool={k:[] for k in keys}
         for line in path.open(encoding="utf-8"):
@@ -279,6 +312,7 @@ def main(argv=None):
             if room[k]<=0:continue
             before=len(existing[k])
             # Fresh concurrent counts, ID and name/location checks every round.
+            import_stage("dedup_and_quota")
             fresh=existing_city(base_url,secret,states[0],k,plans[k]["target"])
             capacity=min(room[k],plans[k]["target"]-len(fresh))
             selected=pick_balanced(pool[k],fresh,capacity)
@@ -289,6 +323,7 @@ def main(argv=None):
                 # downloads for the same missing candidates.
                 stop_by_budget=safe_capacity(check,1)==0
                 if not stop_by_budget:
+                    import_stage("checkpoint")
                     record_checkpoint(base_url,secret,states[0],k,
                         next(c for c in cities if v4.normalize(c)==k),
                         plans[k],before,len(fresh),"no_more")
@@ -300,6 +335,7 @@ def main(argv=None):
                 continue
             # Small bounded inserts with a check before each batch; do not overwrite
             # any previously saved company or silently replace its fields.
+            import_stage("staging_insert")
             v4.api(base_url,secret,"/rest/v1/overture_places?on_conflict=id",
                    method="POST",payload=selected,
                    prefer="resolution=ignore-duplicates,return=minimal")
@@ -307,6 +343,7 @@ def main(argv=None):
             added=max(0,len(verified)-before)
             total_new+=added
             result="complete" if len(verified)>=plans[k]["target"] else "gained" if added else "no_more"
+            import_stage("checkpoint")
             record_checkpoint(base_url,secret,states[0],k,
                               next(c for c in cities if v4.normalize(c)==k),
                               plans[k],before,len(verified),result)
@@ -324,4 +361,10 @@ def main(argv=None):
     return 0
 
 if __name__=="__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except Exception as exc:
+        # Sanitized only. No traceback, URL, secret, HTTP response or token.
+        print("V5_ERROR_STAGE="+IMPORT_STAGE, file=sys.stderr)
+        print("V5_ERROR_CLASS="+safe_error_kind(exc), file=sys.stderr)
+        sys.exit(1)
