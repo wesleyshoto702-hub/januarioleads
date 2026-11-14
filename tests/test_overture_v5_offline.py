@@ -1,9 +1,13 @@
 """Offline regression tests — no network, credentials or Overture downloads."""
 import ast
+import io
 import json
 import pathlib
+import re
 import sys
 import unittest
+import urllib.error
+import urllib.request
 from unittest.mock import patch
 
 ROOT=pathlib.Path(__file__).resolve().parents[1]
@@ -86,6 +90,32 @@ class V5SafeAndBalanced(unittest.TestCase):
         self.assertNotIn("original_phase9_count",open(
             ROOT/"scripts/expand_overture_600k_staging.py",encoding="utf8").read())
 
+    def test_population_reference_does_not_call_ibge_and_fails_closed(self):
+        snap=ROOT/"data/populacao-municipal-2022-referencia.json"
+        doc=json.loads(snap.read_text(encoding="utf-8"))
+        self.assertEqual(doc["metadata"]["reference_year"],2022)
+        self.assertGreaterEqual(len(doc["populations"]),5500)
+        self.assertGreater(doc["populations"]["SP|sao paulo"],700000)
+        self.assertGreater(doc["populations"]["MG|lavras"],30000)
+        nb=json.loads((ROOT/"notebooks/Januario_Leads_Fase_9_V5_600_Mil_Empresas.ipynb").read_text())
+        helper="".join(nb["cells"][2]["source"])
+        part=helper[helper.index("POP_SNAPSHOT_URL="):helper.index("def plan_for_city(row):")]
+        # Simulate the reported timeout twice: no traceback, no keys and no import.
+        namespace={"urllib":urllib,"json":json,"re":re}
+        with patch("urllib.request.urlopen",side_effect=urllib.error.URLError("timed out")) as mocked:
+            exec(compile(part,"snapshot_fallback_test.py","exec"),namespace,namespace)
+        self.assertEqual(mocked.call_count,2)
+        self.assertEqual(namespace["POPULATIONS"],{})
+        # When GitHub responds, the complete local snapshot works, no IBGE call.
+        class FakeResponse(io.BytesIO):
+            pass
+        namespace={"urllib":urllib,"json":json,"re":re}
+        with patch("urllib.request.urlopen",side_effect=lambda *a,**kw: FakeResponse(snap.read_bytes())) as mocked:
+            exec(compile(part,"snapshot_ok_test.py","exec"),namespace,namespace)
+        self.assertEqual(mocked.call_count,1)
+        self.assertGreaterEqual(len(namespace["POPULATIONS"]),5500)
+        self.assertGreater(namespace["POPULATIONS"][("SP","sao paulo")],700000)
+
     def test_colab_is_manual_and_staging_only(self):
         filename=ROOT/"notebooks/Januario_Leads_Fase_9_V5_600_Mil_Empresas.ipynb"
         nb=json.loads(filename.read_text(encoding="utf-8"))
@@ -96,8 +126,10 @@ class V5SafeAndBalanced(unittest.TestCase):
         runner="".join(nb["cells"][3]["source"])
         compile(helper,"helper.py","exec")
         compile(runner,"runner.py","exec")
-        self.assertIn("IBGE_UF=",helper)
-        self.assertIn("4714/periodos/2022/variaveis/93",helper)
+        self.assertIn("POP_SNAPSHOT_URL=",helper)
+        self.assertIn("populacao-municipal-2022-referencia.json",helper)
+        self.assertIn("Referência municipal incompleta",helper)
+        self.assertNotIn("servicodados.ibge.gov.br",helper)
         self.assertIn("AMPLIAR_600K",runner)
         self.assertIn("getpass.getpass",runner)
         self.assertIn("recent_rate_limit(secret)",runner)
