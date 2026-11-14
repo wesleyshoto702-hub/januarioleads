@@ -65,3 +65,18 @@ A V4 antiga continua preservada como histórico; para ampliação orientada a ni
 ## Correção para TimeoutError/URLError na célula 2 (14/11/2026)
 
 O Colab estava tentando conectar diretamente a `servicodados.ibge.gov.br/api/v1/localidades/municipios` com timeout de 55 segundos. Uma falha de conexão encerrava a configuração **antes de solicitar qualquer chave**. A célula agora lê `data/populacao-municipal-2022-referencia.json` diretamente do GitHub do projeto (a mesma origem dos scripts). Se a conexão com o GitHub falhar, faz uma nova tentativa curta e interrompe com mensagem clara, **sem executar importações** nem pedir credenciais. Reabra o notebook pela URL principal, execute novamente desde o início e não use a aba antiga que está com o código em cache.
+
+
+## Primeiro ciclo V5 — importação concluída e critério de qualidade corrigido
+
+- Sessão manual no Colab: 120 lotes, dos quais 109 efetivos, nenhum erro registrado
+- Registros brutos: **291.515 → 298.406** (**+6.891**, não houve exclusão)
+- Contagem corrigida de registros preliminarmente úteis: **241.257** ao final
+- Todos os **6.891 novos registros** da primeira sessão atendem ao critério corrigido
+- Overture incluindo índices: **153,37 MiB**; banco completo: **167,54 MiB**
+
+**Causa da diferença inicial de 3:** o SQL de contagem tinha `category not like '%government_%'`, e o operador `LIKE` interpreta `_` como coringa para um caractere. Por isso a categoria legítima `non_governmental_association` era indevidamente excluída. A regra do importador Python só excluía categorias com a substring literal `government_`. A migração [V5 quality parity](../supabase/migrations/20261114171000_overture_phase9_v5_fix_useful_category_match_staging.sql) alterou o SQL para `strpos(lower(btrim(category)), 'government_') = 0`, preservando o comportamento literal.
+
+Recontagem no staging após correção: **241.017 → 241.257** (**+240** na contagem, sem inserção de novos registros). Desses, **3** são da primeira sessão V5 e **237** são registros históricos antes subcontados. A execução inicial passou a somar exatamente **6.891 registros novos e úteis**.
+
+**Atenção:** a contagem útil segue um critério técnico preliminar (categoria, nome e pelo menos um contato). Não é garantia de validação humana, contatos ativos nem exclusividade dos leads. Reexecutar o notebook atualizado não exige importar de novo registros já salvos; a contagem é recalculada pelo banco em cada lote. A V5 não foi executada novamente nesta correção. A produção permanece inalterada.
