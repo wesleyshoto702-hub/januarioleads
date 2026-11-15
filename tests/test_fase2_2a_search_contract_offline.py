@@ -48,7 +48,9 @@ class Fase22SearchContract(unittest.TestCase):
         region=self.ui.split("  async function runSearch(",1)[1].split(
             "  function startSearch()",1
         )[0]
+        self.assertIn("searchRequestGateRef.current.nextPage(pageToken!)",region)
         self.assertIn("searchRequestGateRef.current.next()",region)
+        self.assertIn("searchRequestGateRef.current.finish(requestId)",region)
         self.assertEqual(region.count("searchRequestGateRef.current.isCurrent(requestId)"),2)
         self.assertIn("pageToken!==nextPageToken",region)
         self.assertIn("if (append) setLoadingMore(false)",region)
@@ -69,7 +71,6 @@ class Fase22SearchContract(unittest.TestCase):
         self.assertIn("open.length>MAX_CACHED_SEARCH_RESULTS",self.policy)
         self.assertIn('result.source==="overture"',self.policy)
         self.assertIn('result.source==="geoapify"',self.policy)
-        self.assertIn('result.source==="google_places"',self.policy) if False else None
         self.assertIn("safeOpenContinuationToken(snapshot.nextPageToken)",self.ui)
         self.assertIn("onlyOpenSourceSearchResults(saved.results)",self.ui)
         self.assertIn('from "./search-empty-state"',self.ui)
