@@ -1,0 +1,32 @@
+name: Validar feixes animados dos banners
+on:
+  pull_request:
+    paths:
+      - "src/components/app-shell/HeaderLightTrails.tsx"
+      - "src/components/app-shell/header-light-trails.test.ts"
+      - "src/components/app-shell/PageHeader.tsx"
+      - "src/styles/workspace-header-light-trails.css"
+      - "src/lib/route-styles.ts"
+      - "src/routes/app.tsx"
+      - "src/features/**"
+      - ".github/workflows/validar-header-light-trails.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  banner-beams:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Validate banner layout, color and accessibility offline
+        run: deno test --allow-read src/components/app-shell/header-light-trails.test.ts
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run build
