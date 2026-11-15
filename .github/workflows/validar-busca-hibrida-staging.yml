@@ -41,14 +41,14 @@ jobs:
           assert 'claim_search_provider_call' not in c
           # Fail-closed external provider opt-in, including Open Now and sync.
           a=Path('supabase/functions/_shared/external-provider-approval.ts').read_text()
-          o=Path('supabase/functions/open-now-niches/index.ts').read_text()
+          open_now=Path('supabase/functions/open-now-niches/index.ts').read_text()
           sync=Path('supabase/functions/sync-leads/index.ts').read_text()
           deep=Path('supabase/functions/deep-enrich-business/index.ts').read_text()
           assert 'googleSpendApproved !== "true"' in a
           assert 'approvedExternalPlacesDailyCap' in c
           assert 'GOOGLE_PLACES_SPEND_APPROVED' in c
-          assert 'claimOpenNowGoogleBudget(userId)' in o
-          assert 'rpc/claim_saas_google_api_budget' in o
+          assert 'claimOpenNowGoogleBudget(userId)' in open_now
+          assert 'rpc/claim_saas_google_api_budget' in open_now
           assert 'GOOGLE_PLACES_SYNC_ENABLED' in sync
           assert 'claimSyncDetailsBudget(userId)' in sync
           assert 'OPENAI_ENRICHMENT_SPEND_APPROVED' in deep
