@@ -1,5 +1,8 @@
 # JanuarioLeads
 
+> **Plano mestre único (15/11/2026):** [Auditoria geral, ordem de execução, critérios de conclusão e próxima ação](docs/PLANO-MESTRE-JANUARIO-LEADS.md). Use este plano como fonte de prioridades. Roadmaps antigos neste repositório são históricos.
+
+
 Plataforma de prospecção comercial: busca de empresas por nicho e cidade, CRM, mensagens, oportunidades e acompanhamento financeiro dos leads.
 
 ## Evolução para SaaS
