@@ -19,6 +19,7 @@ import { STATUS_LABEL } from "../leads/lead-status";
 import type { LeadStatus } from "../leads/remote-leads";
 import type { BusinessPresence } from "../business-presence/types";
 import { ChanceBadge } from "../lead-chance/ChanceBadge";
+import { DigitalOpportunityBadge } from "../qualification/DigitalOpportunityBadge";
 import {
   BusinessDetailsModal,
   type BusinessAddResult,
@@ -1621,6 +1622,7 @@ function BusinessCard({
                 </span>
               )}
               <ChanceBadge chance={chance} />
+              <DigitalOpportunityBadge business={business} />
             </div>
             <span className="business-category-label">{segmentLabel}</span>
             {existingLead && <span>Nos seus leads</span>}
