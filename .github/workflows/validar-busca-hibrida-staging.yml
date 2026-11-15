@@ -24,8 +24,11 @@ jobs:
       - name: Check backend TypeScript and all shared unit tests without paid API keys
         run: |
           deno check supabase/functions/search-places/index.ts
+          deno check supabase/functions/open-now-niches/index.ts
+          deno check supabase/functions/sync-leads/index.ts
+          deno check supabase/functions/deep-enrich-business/index.ts
           deno test supabase/functions/_shared/overture-search.test.ts supabase/functions/_shared/geoapify-search.test.ts
-          deno test src/features/search-leads/business-contact.test.ts supabase/functions/_shared/niche-catalog.test.ts
+          deno test src/features/search-leads/business-contact.test.ts supabase/functions/_shared/niche-catalog.test.ts supabase/functions/_shared/external-provider-approval.test.ts
       - name: Verify waterfall, budget claim, licensed sources and field masks
         run: |
           python3 - <<'PY'
@@ -36,6 +39,19 @@ jobs:
           assert 'searchOverture({' in c
           assert 'claim_saas_google_api_budget' in c and 'claim_saas_geoapify_api_budget' in c
           assert 'claim_search_provider_call' not in c
+          # Fail-closed external provider opt-in, including Open Now and sync.
+          a=Path('supabase/functions/_shared/external-provider-approval.ts').read_text()
+          o=Path('supabase/functions/open-now-niches/index.ts').read_text()
+          sync=Path('supabase/functions/sync-leads/index.ts').read_text()
+          deep=Path('supabase/functions/deep-enrich-business/index.ts').read_text()
+          assert 'googleSpendApproved !== "true"' in a
+          assert 'approvedExternalPlacesDailyCap' in c
+          assert 'GOOGLE_PLACES_SPEND_APPROVED' in c
+          assert 'claimOpenNowGoogleBudget(userId)' in o
+          assert 'rpc/claim_saas_google_api_budget' in o
+          assert 'GOOGLE_PLACES_SYNC_ENABLED' in sync
+          assert 'claimSyncDetailsBudget(userId)' in sync
+          assert 'OPENAI_ENRICHMENT_SPEND_APPROVED' in deep
           assert 'reserveCredit:' in c and 'reserveCredit("geocode")' in g
           assert 'reserveCredit("places")' in g
           assert 'placeId:"overture:"+p.id' in o
