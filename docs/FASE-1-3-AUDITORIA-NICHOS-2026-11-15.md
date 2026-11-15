@@ -92,6 +92,10 @@ Códigos mais vagos e candidatos de significado ambíguo devem permanecer para r
 - [ ] Medir relevância editorial e falsos positivos com amostra independente, sem expor dados pessoais — **bloqueado para publicação pela Fase 0**.
 - [ ] Publicar nova função exclusivamente no STAGING após resolver chave comprometida, verificar backups/rollback, CI e critérios de liberação. **Não publicar em produção** como consequência deste PR.
 
+## Observação adicional sobre o CI
+
+Os testes específicos da Fase 1.3, o piloto de busca e a auditoria Fase 1.2 passaram sem rede/segredos. O workflow geral `Validar catálogo de nichos` já falhava na PR #162 (anterior a esta) em `audit_migration_reconciliation.py` por inventário esperado de **24** migrations contra **42** existentes, além de teste do navegador com backend simulado. Este descompasso deve ser tratado na Fase 0.3 / estabilização de CI **antes de deploy**, sem deletar migrations ou mudar o banco para satisfazer um teste. Não declarar que toda a suíte de CI está verde.
+
 ## 6. Próxima ação única no Plano Mestre
 
 **Fase 1.4 — classificar cobertura por UF/cidade/nicho** com o mapeamento preparado, sem prometer disponibilidade uniforme. Usar SQL somente leitura e dados agregados para marcar `sem resultados`, `cobertura limitada` e `cobertura com mais resultados`; o indicador deve identificar que se trata de registros candidatos da base, não empresas verificadas. O teste real da integração fica pendente até a resolução de Fase 0.
