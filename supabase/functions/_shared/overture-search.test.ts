@@ -55,8 +55,9 @@ Deno.test("Overture categories strictly match the selected niche, not vague sear
   assert(!enoughRelevantResults([{name:"X",phone:"35999999999",internationalPhone:null}]),
     "One contact needs fallback");
 });
-Deno.test("36 existing niches gain exact observed Brazilian Overture categories",()=>{
+Deno.test("37 existing niches gain exact observed Brazilian Overture categories",()=>{
   const additions: Record<string,string[]> = {
+    "Loja de Veículos Seminovos": ["used_auto_dealer"],
   "Banho e Tosa": [
     "pet_groomer"
   ],
@@ -182,6 +183,8 @@ Deno.test("36 existing niches gain exact observed Brazilian Overture categories"
     }
   }
   assert(categoriesForOverture("Loja de Veículos Seminovos").includes("used_auto_dealer"),
+    "Existing used-auto-dealer category must be added");
+  assert(categoriesForOverture("Loja de Veículos Seminovos").includes("used_car_dealer"),
     "Existing used-car-dealer category must remain present");
   // Reject broad classification matches and keep the narrow catalog promise.
   assert(!categoriesForOverture("Restaurante").includes("food_and_drink"),
