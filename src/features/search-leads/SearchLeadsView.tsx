@@ -39,7 +39,8 @@ import { searchBusinesses } from "./search-businesses";
 import { mergeSearchPageResults } from "./search-page-merge";
 import { createSearchRequestGate } from "./search-request-gate";
 import { searchEmptyState } from "./search-empty-state";
-import { eligibleQuotaCache } from "../opportunities/open-search-cache-policy";
+import { eligibleQuotaCache, onlyOpenSourceSearchResults } from "../opportunities/open-search-cache-policy";
+import { safeOpenContinuationToken } from "../../../supabase/functions/_shared/search-continuation";
 import { hasUsableBusinessEmail } from "./business-contact";
 import {
   DEFAULT_RESULT_FILTERS,
@@ -149,7 +150,8 @@ function loadSearchLeadsSession(): SearchLeadsSession | null {
       !Array.isArray(saved.results) ||
       !saved.results.every(
         (item) => item && typeof item.placeId === "string" &&
-          typeof item.name === "string" && item.source !== "google_places",
+          typeof item.name === "string" &&
+          (item.source === "overture" || item.source === "geoapify"),
       ) ||
       (saved.nextPageToken !== null && typeof saved.nextPageToken !== "string") ||
       (saved.screen !== "segments" && saved.screen !== "results") ||
@@ -169,7 +171,11 @@ function loadSearchLeadsSession(): SearchLeadsSession | null {
       return null;
     }
 
-    return saved as SearchLeadsSession;
+    return {
+      ...saved,
+      results:onlyOpenSourceSearchResults(saved.results),
+      nextPageToken:safeOpenContinuationToken(saved.nextPageToken),
+    } as SearchLeadsSession;
   } catch {
     return null;
   }
@@ -428,8 +434,8 @@ export function SearchLeadsView({
       // Google result fields must not be retained in the browser session cache.
       accountSessionStorage.setItem(SEARCH_LEADS_SESSION_KEY, JSON.stringify({
         ...snapshot,
-        results:snapshot.results.filter(item=>(item.source==="overture" || item.source==="geoapify")),
-        nextPageToken:snapshot.nextPageToken?.startsWith("google:")?null:snapshot.nextPageToken,
+        results:onlyOpenSourceSearchResults(snapshot.results),
+        nextPageToken:safeOpenContinuationToken(snapshot.nextPageToken),
       }));
     } catch {
       // Browsers with disabled/full session storage can still use the current view.
@@ -819,8 +825,8 @@ export function SearchLeadsView({
     void persistPlacesSearchSample({
       location,
       segment,
-      results: uniqueResults.filter(item=>(item.source==="overture" || item.source==="geoapify")),
-      nextPageToken: response.nextPageToken?.startsWith("google:")?null:response.nextPageToken,
+      results: onlyOpenSourceSearchResults(uniqueResults),
+      nextPageToken: safeOpenContinuationToken(response.nextPageToken),
       append,
     }).catch(() => {
       // Opportunity persistence is auxiliary and must not break lead search.
