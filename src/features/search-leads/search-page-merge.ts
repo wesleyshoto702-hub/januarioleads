@@ -5,8 +5,7 @@ import type { BusinessSearchResult } from "./types.ts";
 
 function confirmedInstagram(b:BusinessSearchResult) {
   return Boolean(b.instagram?.trim() &&
-    b.instagramConfidence!=="medium" &&
-    b.instagramConfidence!=="low" &&
+    b.instagramConfidence==="high" &&
     !b.instagramNeedsReview);
 }
 export function mergeSearchPageResults(
