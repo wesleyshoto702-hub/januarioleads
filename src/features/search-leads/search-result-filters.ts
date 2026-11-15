@@ -72,8 +72,7 @@ export function hasIdentifiedWebsite(business: BusinessSearchResult) {
 export function hasConfirmedInstagram(business: BusinessSearchResult) {
   return Boolean(
     business.instagram?.trim() &&
-      business.instagramConfidence !== "medium" &&
-      business.instagramConfidence !== "low" &&
+      business.instagramConfidence === "high" &&
       !business.instagramNeedsReview,
   );
 }
