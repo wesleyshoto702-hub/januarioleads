@@ -1,4 +1,5 @@
 import { normalizeBrazilianStateCode } from "../_shared/brazil-locations.ts";
+import { approvedExternalPlacesDailyCap } from "../_shared/external-provider-approval.ts";
 import {
   GooglePlacesQuotaError,
   isQuotaResponse,
@@ -382,7 +383,24 @@ function parsePlace(place: GooglePlace): CurrentPlace {
   return current;
 }
 
-async function fetchPlaceDetails(apiKey: string, placeId: string) {
+// Budget each API attempt (including retries), never just each lead.
+async function claimSyncDetailsBudget(userId: string): Promise<boolean> {
+  if (!userId) return false;
+  try {
+    const response = await adminRest("rpc/claim_saas_google_api_budget", {
+      method: "POST",
+      body: JSON.stringify({
+        p_user_id: userId,
+        p_operation: "place_details_enterprise",
+      }),
+    });
+    return response.ok && (await response.json()) === true;
+  } catch {
+    return false;
+  }
+}
+
+async function fetchPlaceDetails(apiKey: string, placeId: string, userId: string) {
   // Never retry 429 immediately: this is a quota signal for the whole batch.
   // Only retry transport errors or upstream 5xx a small number of times.
   const delays = [0, 900, 2400];
@@ -390,6 +408,9 @@ async function fetchPlaceDetails(apiKey: string, placeId: string) {
   for (let attempt = 0; attempt < delays.length; attempt += 1) {
     if (delays[attempt] > 0) await sleep(delays[attempt]);
 
+    // Missing/disabled budget is a global stop, not a per-lead failure.
+    // Each retry may be billable, so reserve before EACH network attempt.
+    if (!await claimSyncDetailsBudget(userId)) throw new GooglePlacesQuotaError();
     let response: Response;
     try {
       response = await fetch(
@@ -725,7 +746,7 @@ async function syncOne(apiKey: string, lead: LeadRow) {
   if (!lead.place_id) return { status: "skipped" as const, updates: 0 };
 
   try {
-    const current = await fetchPlaceDetails(apiKey, lead.place_id);
+    const current = await fetchPlaceDetails(apiKey, lead.place_id, lead.user_id);
     const { patch, updates } = updateRecord(lead, current);
     await updateLead(lead.id, patch);
     await insertUpdates(updates);
@@ -806,6 +827,20 @@ Deno.serve(async (request) => {
     return json({ ok: false, message: "Unauthorized" }, 401);
   }
 
+  // The scheduled job has been disabled operationally. Additionally, deny
+  // even a manually triggered request unless sync AND Google spend have both
+  // been deliberately authorized. Never use the mere presence of an API key
+  // as permission to incur charges.
+  if (
+    Deno.env.get("GOOGLE_PLACES_SYNC_ENABLED") !== "true" ||
+    approvedExternalPlacesDailyCap(
+      "google_places",
+      Deno.env.get("GOOGLE_PLACES_SEARCH_DAILY_CAP"),
+      Deno.env.get("GOOGLE_PLACES_SPEND_APPROVED"),
+    ) <= 0
+  ) {
+    return json({ok:false,message:"Sincronização Google desativada por segurança de orçamento."},503);
+  }
   const googleApiKey = Deno.env.get("GOOGLE_PLACES_API_KEY");
   if (!googleApiKey) {
     return json(
