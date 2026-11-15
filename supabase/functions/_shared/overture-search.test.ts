@@ -223,3 +223,45 @@ Deno.test("Unavailable Overture database fails closed instead of silently spendi
     async()=>new Response(null,{status:503}));
   assert(!fail.ok,"No silent paid provider fallback when base is down");
 });
+
+
+Deno.test("stage 3 exact Brazilian categories enable additional previously-unmapped niches",()=>{
+  const observed: Record<string, readonly string[]> = {
+    "Acupuntura":["acupuncture"],
+    "Adega":["liquor_store"],
+    "Cartório / Serviços Notariais":["notary_public"],
+    "Consultoria Empresarial":["business_consulting"],
+    "Curso Profissionalizante":["vocational_and_technical_school"],
+    "Dedetizadora":["pest_control_service"],
+    "Encanador":["plumbing"],
+    "Fonoaudiólogo":["speech_therapy"],
+    "Guincho":["towing_service"],
+    "Hotel para Pets":["pet_boarding"],
+    "Jardinagem / Paisagismo":["landscaping","gardener"],
+    "Maquiagem Profissional":["makeup_artist"],
+    "Podólogo":["podiatry"],
+    "Psiquiatra":["psychiatry"],
+    "Terapeuta Ocupacional":["occupational_therapy"],
+    "Chaveiro":["key_and_locksmith"],
+  };
+  for(const [niche,categories] of Object.entries(observed)){
+    const mapped=categoriesForOverture(niche);
+    for(const category of categories) {
+      assert(mapped.includes(category),niche+" missing exact category "+category);
+      const sample={...row("exact",category),name:niche+" Teste"};
+      assert(isRelevantOverture(sample,niche),niche+" rejected its exact category");
+    }
+  }
+  for(const [niche,broad] of [
+    ["Consultoria Empresarial","professional_service"],
+    ["Curso Profissionalizante","school"],
+    ["Jardinagem / Paisagismo","nursery_and_gardening_store"],
+    ["Hotel para Pets","animal_or_pet_service"],
+    ["Guincho","automotive_service"],
+    ["Maquiagem Profissional","beauty_salon"],
+    ["Dedetizadora","home_cleaning"],
+  ]) {
+    assert(!categoriesForOverture(niche).includes(broad),
+      niche+" must not silently match broad and unrelated businesses");
+  }
+});
