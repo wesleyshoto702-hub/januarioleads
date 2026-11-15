@@ -247,7 +247,7 @@ Deno.test("stage 3 exact Brazilian categories enable additional previously-unmap
   };
   const mapped=ALL_SEARCH_SEGMENTS.filter(segment=>categoriesForOverture(segment).length>0);
   assert(ALL_SEARCH_SEGMENTS.length===216,"Keep the canonical 216 selectable niches");
-  assert(mapped.length===140,"Stage 3 should map 140 niches, preserving all earlier mappings");
+  assert(mapped.length===162,"Stage 4 should map 162 niches, preserving all earlier mappings");
     for(const [niche,categories] of Object.entries(observed)){
     const mapped=categoriesForOverture(niche);
     for(const category of categories) {
@@ -267,5 +267,52 @@ Deno.test("stage 3 exact Brazilian categories enable additional previously-unmap
   ]) {
     assert(!categoriesForOverture(niche).includes(broad),
       niche+" must not silently match broad and unrelated businesses");
+  }
+});
+
+Deno.test("stage 4 exact new niches remain separate from broad Overture categories",()=>{
+  const confirmed: Record<string,string[]> = {
+    "Bronzeamento":["tanning_salon"],
+    "Depilação a Laser":["laser_hair_removal"],
+    "Cardiologista":["cardiology"],
+    "Ginecologista":["obstetrics_and_gynecology"],
+    "Massoterapeuta":["massage_therapy"],
+    "Ortopedista":["orthopedics"],
+    "Pediatra":["pediatric_clinic"],
+    "Montador de Móveis":["furniture_assembly"],
+    "Loja de Iluminação":["lighting_store"],
+    "Auto Elétrica":["auto_electrical_repair"],
+    "Vistoria Veicular":["emissions_inspection"],
+    "Reforço Escolar":["tutoring_service"],
+    "Assessoria de Casamentos":["wedding_planning"],
+    "DJ / Som para Eventos":["dj_service"],
+    "Passeios Turísticos":["sightseeing_tour_agency","boat_tour","bus_tour"],
+    "Coach":["life_coach"],
+    "Consultoria Financeira":["financial_advising"],
+    "Empresa de Limpeza Comercial":["janitorial_service"],
+    "Produtora Audiovisual":["video_film_production"],
+    "Adestramento":["dog_trainer"],
+    "Pet Sitter":["pet_sitting"],
+    "Loja de Rações":["livestock_feed_and_supply_store"],
+  };
+  for(const [niche,types] of Object.entries(confirmed)){
+    for(const type of types){
+      assert(categoriesForOverture(niche).includes(type),niche+" must map "+type);
+      assert(isRelevantOverture({...row("specific",type),name:niche+" Teste"},niche),
+        niche+" must accept observed category "+type);
+    }
+  }
+  for(const [niche,broad] of [
+    ["Reforço Escolar","school"],
+    ["Montador de Móveis","furniture_store"],
+    ["Loja de Iluminação","home_goods_store"],
+    ["Produtora Audiovisual","broadcasting_media_production"],
+    ["Empresa de Limpeza Comercial","home_cleaning"],
+    ["Adestramento","animal_or_pet_service"],
+    ["Passeios Turísticos","travel_service"],
+    ["Depilação a Laser","medical_spa"],
+  ]){
+    assert(!categoriesForOverture(niche).includes(broad),
+      "Reject unrelated category "+broad+" for "+niche);
   }
 });
