@@ -7,5 +7,5 @@ export function hasUsableBusinessEmail(raw: string | null | undefined): boolean 
   if (typeof raw !== "string") return false;
   const value = raw.trim();
   return value.length > 0 && value.length <= 254 &&
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+    /^[a-z0-9._%+-]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/i.test(value);
 }
