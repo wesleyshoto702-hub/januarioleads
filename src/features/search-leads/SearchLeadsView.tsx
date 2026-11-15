@@ -39,6 +39,7 @@ import { searchBusinesses } from "./search-businesses";
 import { mergeSearchPageResults } from "./search-page-merge";
 import { createSearchRequestGate } from "./search-request-gate";
 import { searchEmptyState } from "./search-empty-state";
+import { RESULT_FILTER_OPTIONS, SMART_FILTERS, type SmartFilterId, type SmartFilterPreset } from "./search-filter-presentation";
 import { eligibleQuotaCache, onlyOpenSourceSearchResults } from "../opportunities/open-search-cache-policy";
 import { safeOpenContinuationToken } from "../../../supabase/functions/_shared/search-continuation";
 import { hasUsableBusinessEmail } from "./business-contact";
@@ -90,22 +91,6 @@ export type SearchMessageTarget = {
   id?: string;
   company: string;
   phone: string;
-};
-
-type SmartFilterId =
-  | "no-site-phone"
-  | "no-site-whatsapp"
-  | "high-chance-no-site"
-  | "not-contacted"
-  | "waiting"
-  | "instagram-no-site";
-
-type SmartFilterPreset = {
-  id: SmartFilterId;
-  label: string;
-  title: string;
-  resultFilters: ResultFilterState;
-  leadStatusFilter: LeadStatusFilter;
 };
 
 const SEARCH_LEADS_SESSION_KEY = "leadflow:search-leads-session:v1";
@@ -180,78 +165,6 @@ function loadSearchLeadsSession(): SearchLeadsSession | null {
     return null;
   }
 }
-
-const RESULT_FILTER_OPTIONS: Array<[ResultFilter, string]> = [
-  ["all", "Todos"],
-  ["phone", "Com telefone"],
-  ["email", "Com e-mail"],
-  ["whatsapp", "Com WhatsApp"],
-  ["with-site", "Com site"],
-  ["without-site", "Sem site"],
-  ["with-instagram", "Com Instagram"],
-  ["without-instagram", "Sem Instagram"],
-];
-
-const SMART_FILTERS: SmartFilterPreset[] = [
-  {
-    id: "no-site-phone",
-    label: "Sem site + telefone",
-    title: "Empresas sem site identificado e com telefone válido.",
-    resultFilters: {
-      ...DEFAULT_RESULT_FILTERS,
-      contact: "phone",
-      website: "without-site",
-    },
-    leadStatusFilter: "all",
-  },
-  {
-    id: "no-site-whatsapp",
-    label: "Sem site + WhatsApp",
-    title: "Empresas sem site identificado e com número utilizável no WhatsApp.",
-    resultFilters: {
-      ...DEFAULT_RESULT_FILTERS,
-      contact: "whatsapp",
-      website: "without-site",
-    },
-    leadStatusFilter: "all",
-  },
-  {
-    id: "high-chance-no-site",
-    label: "Alta Chance + sem site",
-    title: "Empresas com Chance alta ou muito alta e sem site identificado.",
-    resultFilters: {
-      ...DEFAULT_RESULT_FILTERS,
-      website: "without-site",
-      chance: "high",
-    },
-    leadStatusFilter: "all",
-  },
-  {
-    id: "not-contacted",
-    label: "Não contatados",
-    title: "Empresas já salvas com status Enviar mensagem.",
-    resultFilters: DEFAULT_RESULT_FILTERS,
-    leadStatusFilter: "send_message",
-  },
-  {
-    id: "waiting",
-    label: "Aguardando",
-    title: "Empresas já salvas com status Aguardando.",
-    resultFilters: DEFAULT_RESULT_FILTERS,
-    leadStatusFilter: "waiting",
-  },
-  {
-    id: "instagram-no-site",
-    label: "Instagram + sem site",
-    title: "Empresas com Instagram confirmado e sem site identificado.",
-    resultFilters: {
-      ...DEFAULT_RESULT_FILTERS,
-      website: "without-site",
-      instagram: "with-instagram",
-    },
-    leadStatusFilter: "all",
-  },
-];
 
 const RECENT_SEARCHES_KEY = "leadflow:recent-searches";
 
