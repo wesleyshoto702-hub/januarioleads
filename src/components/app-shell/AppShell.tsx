@@ -22,6 +22,7 @@ import {
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { WorkspaceGuide } from "./WorkspaceGuide";
 import { WorkspaceAmbientParticles } from "./WorkspaceAmbientParticles";
+import { WorkspaceMotionContext } from "./WorkspaceMotionContext";
 import type { AccentColor } from "../../features/settings/user-settings";
 
 export type AppView =
@@ -227,7 +228,7 @@ export function AppShell({
   );
 
   return (
-    <div className={"saas-shell"+(compactMode?" js-settings-compact":"")+(reduceMotion?" js-settings-reduce-motion":"")}>
+    <div className={"saas-shell"+(compactMode?" js-settings-compact":"")+(reduceMotion?" js-settings-remove-animations":"")}>
       <aside className="saas-sidebar">
         <button
           type="button"
@@ -352,7 +353,7 @@ export function AppShell({
             </button>
           </div>
         </div>
-        <div className="saas-main-inner">{children}</div>
+        <div className="saas-main-inner"><WorkspaceMotionContext.Provider value={reduceMotion}>{children}</WorkspaceMotionContext.Provider></div>
       </div>
     </div>
   );
