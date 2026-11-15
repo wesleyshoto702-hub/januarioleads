@@ -80,6 +80,7 @@ import {
 import { loadOpportunityData } from "../features/opportunities/opportunity-data";
 import type { OpportunityRecord } from "../features/opportunities/types";
 import { AppShell, type AppView } from "../components/app-shell/AppShell";
+import { HeaderLightTrails } from "../components/app-shell/HeaderLightTrails";
 import { DashboardView } from "../components/dashboard/DashboardView";
 import { GoalsPanel } from "../features/commercial-expansion/GoalsPanel";
 import { CommercialCloudGate } from "../features/commercial-expansion/CommercialCloudGate";
@@ -1796,6 +1797,7 @@ function LeadFlowApp() {
       ) : view === "leads" ? (
         <section className="page-wrap leads-page">
           <div className="page-heading">
+            <HeaderLightTrails variant="leads" />
             <div>
               <p className="eyebrow">CARTEIRA COMERCIAL</p>
               <h1>Meus Leads</h1>
