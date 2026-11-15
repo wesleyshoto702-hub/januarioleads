@@ -353,7 +353,14 @@ const SEARCH_TERMS: Record<string, string> = {
   "Estética / Depilação": "estética e depilação",
   "Berçário / Creche": "berçário e creche",
   "Segurança Eletrônica / Alarmes": "instalação de alarmes e segurança eletrônica",
-  "Empresa de Construção de Piscinas": "construção de piscinas"
+  "Empresa de Construção de Piscinas": "construção de piscinas",
+  "Bar / Pub": "bar",
+  "Mercado / Supermercado": "supermercado",
+  "Restaurante Japonês": "restaurante japonês",
+  "Loja de Utilidades Domésticas": "loja de utilidades domésticas",
+  "Revenda de Motos": "revenda de motos",
+  "Loja de Artigos para Festas": "loja de artigos para festas",
+  "Loja de Artigos Esportivos": "loja de artigos esportivos"
 };
 
 export function normalizeSearchText(value: string) {
