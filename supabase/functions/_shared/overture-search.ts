@@ -87,6 +87,7 @@ export const OVERTURE_CATEGORIES: Record<string, readonly string[]> = {
 export const OVERTURE_CATEGORY_EXPANSIONS: Record<string, readonly string[]> = {
   "Banho e Tosa": ["pet_groomer"],
   "Loja de Suplementos": ["vitamin_and_supplement_store"],
+  "Loja de Veículos Seminovos": ["used_auto_dealer"],
   "Vidraçaria": ["glass_and_mirror_sales_service"],
   "Energia Solar": ["solar_installation"],
   "Escola de Dança": ["dance_studio"],
