@@ -258,8 +258,8 @@ export function SettingsView({
           <ConfigRow title="Modo compacto" description="Diminui espaçamentos para mostrar mais informações na tela.">
             <Toggle checked={draft.compactMode} label="Ativar modo compacto" onChange={v=>change({compactMode:v})}/>
           </ConfigRow>
-          <ConfigRow title="Reduzir animações" description="Reduz movimentos e transições no Workspace.">
-            <Toggle checked={draft.reduceMotion} label="Reduzir animações" onChange={v=>change({reduceMotion:v})}/>
+          <ConfigRow title="Remover animações" description="Desativa partículas, feixes luminosos animados, contagens e transições do Workspace. As linhas decorativas permanecem paradas.">
+            <Toggle checked={draft.reduceMotion} label="Remover animações" onChange={v=>change({reduceMotion:v})}/>
           </ConfigRow>
         </>}
         {section==="privacy"&&<>

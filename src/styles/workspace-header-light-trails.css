@@ -63,9 +63,14 @@
   }
 }
 /* Workspace user preference takes precedence over OS default. */
-.saas-shell.js-settings-reduce-motion .jl-header-beams .jl-header-beam-pulse {
+.saas-shell.js-settings-remove-animations .jl-header-beams .jl-header-beam-pulse {
   animation: none !important;
   stroke-dasharray: none;
   opacity: .25;
   filter: none;
+}
+
+/* Removing motion hides all moving light beams, retaining only static paths. */
+.saas-shell.js-settings-remove-animations .jl-header-beams .jl-header-beam-pulse {
+  display: none !important;
 }
