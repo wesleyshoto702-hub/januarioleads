@@ -1,0 +1,24 @@
+name: Fase 1.2 — auditoria Overture segura (offline)
+on:
+  pull_request:
+    paths:
+      - "scripts/fase1-2-auditoria-overture-somente-leitura.sql"
+      - "tests/test_fase1_2_auditoria_offline.py"
+      - "supabase/functions/_shared/overture-search.ts"
+      - ".github/workflows/fase1-2-auditoria-offline.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit-safe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate no DML, no PII output, category mapping consistency
+        run: python -m unittest discover -s tests -p test_fase1_2_auditoria_offline.py -v
