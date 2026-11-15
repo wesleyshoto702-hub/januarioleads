@@ -138,6 +138,20 @@ Deno.test("empty, filtered-empty, unknown hours, loading and API errors have dis
   eq(searchEmptyState({...normal,hasError:true}),null,"Errors retain explicit alert");
 });
 
+Deno.test("double-clicked page token starts only one request before UI re-render",()=>{
+  const gate=createSearchRequestGate();
+  const first=gate.next();
+  assert(gate.isCurrent(first),"Initial request owns the screen");
+  const next=gate.nextPage("overture:20");
+  assert(typeof next==="number","First load-more request should start");
+  eq(gate.nextPage("overture:20"),null,"Second immediate tap must not send HTTP");
+  gate.finish(next!);
+  const retry=gate.nextPage("overture:20");
+  assert(typeof retry==="number","The same page can be retried after completion");
+  gate.next(); // a new search cancels the previous page
+  assert(!gate.isCurrent(retry!),"Pending old page is stale after a new search");
+});
+
 Deno.test("newer request invalidates late successes AND late quota cache reads",async()=>{
   const gate=createSearchRequestGate();
   let resolveOld!:(value:BusinessSearchResponse)=>void;
