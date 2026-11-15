@@ -193,6 +193,9 @@ export type OvertureOutcome =
 
 const PAGE_SIZE=20;
 const MAX_OFFSET=80;
+// Bounded staging reads: examine at most 300 candidates, never a full city scan.
+const DB_PAGE_SIZE=100;
+const MAX_DB_PAGES=3;
 function normalized(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g,"")
     .toLowerCase().replace(/[^a-z0-9]+/g," ").trim().replace(/\s+/g," ");
@@ -276,16 +279,23 @@ export async function searchOverture(
     state:"eq."+input.state.toUpperCase(),
     city_key:"eq."+normalized(input.city),
     category:"in.("+categories.join(",")+")",
-    limit:"100",
+    limit:String(DB_PAGE_SIZE),
+    order:"id.asc",
   });
-  let response:Response|null;
-  try{response=await adminRest("overture_places?"+query.toString());}
-  catch{return {ok:false,reason:"UNAVAILABLE"};}
-  if(!response?.ok)return {ok:false,reason:"UNAVAILABLE"};
-  try{
-    const payload:unknown=await response.json();
-    if(!Array.isArray(payload))return {ok:false,reason:"UNAVAILABLE"};
-    const filtered=payload.filter(validPlace).filter(p=>isRelevantOverture(p,input.segment))
+  // Explicit ordering keeps offset pages deterministic. Fail closed if any
+  // page cannot be read: do not return a misleading partial candidate set.
+  const candidates:unknown[]=[];
+  try {
+    for(let page=0;page<MAX_DB_PAGES;page++) {
+      query.set("offset",String(page*DB_PAGE_SIZE));
+      const response=await adminRest("overture_places?"+query.toString());
+      if(!response?.ok)return {ok:false,reason:"UNAVAILABLE"};
+      const payload:unknown=await response.json();
+      if(!Array.isArray(payload))return {ok:false,reason:"UNAVAILABLE"};
+      candidates.push(...payload);
+      if(payload.length<DB_PAGE_SIZE)break;
+    }
+    const filtered=candidates.filter(validPlace).filter(p=>isRelevantOverture(p,input.segment))
       .filter(p=>p.operating_status!=="permanently_closed")
       .sort((a,b)=>leadScore(b)-leadScore(a)||a.name.localeCompare(b.name,"pt-BR"));
     const unique:OverturePlace[]=[];
