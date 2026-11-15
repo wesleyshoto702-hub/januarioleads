@@ -33,6 +33,11 @@ export const CURRENT_NICHE_COVERAGE = [
     "family": "retail"
   },
   {
+    "segment": "Bar / Pub",
+    "nicheKey": "bar_pub",
+    "family": "food"
+  },
+  {
     "segment": "Buffet",
     "nicheKey": "buffet",
     "family": "events"
@@ -78,6 +83,11 @@ export const CURRENT_NICHE_COVERAGE = [
     "family": "food"
   },
   {
+    "segment": "Mercado / Supermercado",
+    "nicheKey": "grocery_supermarket",
+    "family": "retail"
+  },
+  {
     "segment": "Padaria",
     "nicheKey": "bakery",
     "family": "food"
@@ -100,6 +110,11 @@ export const CURRENT_NICHE_COVERAGE = [
   {
     "segment": "Restaurante Fine Dining",
     "nicheKey": "fine_dining",
+    "family": "food"
+  },
+  {
+    "segment": "Restaurante Japonês",
+    "nicheKey": "japanese_restaurant",
     "family": "food"
   },
   {
@@ -368,6 +383,11 @@ export const CURRENT_NICHE_COVERAGE = [
     "family": "home_services"
   },
   {
+    "segment": "Provedor de Internet",
+    "nicheKey": "internet_service_provider",
+    "family": "home_services"
+  },
+  {
     "segment": "Refrigeração / Ar Condicionado",
     "nicheKey": "hvac",
     "family": "home_services"
@@ -493,6 +513,11 @@ export const CURRENT_NICHE_COVERAGE = [
     "family": "automotive"
   },
   {
+    "segment": "Autopeças",
+    "nicheKey": "auto_parts",
+    "family": "automotive"
+  },
+  {
     "segment": "Estacionamento",
     "nicheKey": "parking",
     "family": "automotive"
@@ -540,6 +565,16 @@ export const CURRENT_NICHE_COVERAGE = [
   {
     "segment": "Oficina de Motos",
     "nicheKey": "oficina_de_motos",
+    "family": "automotive"
+  },
+  {
+    "segment": "Posto de Combustível",
+    "nicheKey": "gas_station",
+    "family": "automotive"
+  },
+  {
+    "segment": "Revenda de Motos",
+    "nicheKey": "motorcycle_dealer",
     "family": "automotive"
   },
   {
@@ -778,6 +813,11 @@ export const CURRENT_NICHE_COVERAGE = [
     "family": "creative"
   },
   {
+    "segment": "Funerária",
+    "nicheKey": "funeral_service",
+    "family": "professional_services"
+  },
+  {
     "segment": "Marketing Digital",
     "nicheKey": "digital_marketing",
     "family": "professional_services"
@@ -863,13 +903,63 @@ export const CURRENT_NICHE_COVERAGE = [
     "family": "retail"
   },
   {
+    "segment": "Livraria",
+    "nicheKey": "bookstore",
+    "family": "retail"
+  },
+  {
+    "segment": "Loja de Artigos Esportivos",
+    "nicheKey": "sporting_goods",
+    "family": "retail"
+  },
+  {
+    "segment": "Loja de Artigos para Festas",
+    "nicheKey": "party_supplies",
+    "family": "retail"
+  },
+  {
     "segment": "Loja de Bicicletas",
     "nicheKey": "loja_de_bicicletas",
     "family": "retail"
   },
   {
+    "segment": "Loja de Brinquedos",
+    "nicheKey": "toy_store",
+    "family": "retail"
+  },
+  {
     "segment": "Loja de Calçados",
     "nicheKey": "shoe_store",
+    "family": "retail"
+  },
+  {
+    "segment": "Loja de Celulares",
+    "nicheKey": "mobile_phone_store",
+    "family": "retail"
+  },
+  {
+    "segment": "Loja de Cosméticos",
+    "nicheKey": "beauty_supply_store",
+    "family": "retail"
+  },
+  {
+    "segment": "Loja de Conveniência",
+    "nicheKey": "convenience_store",
+    "family": "retail"
+  },
+  {
+    "segment": "Loja de Departamentos",
+    "nicheKey": "department_store",
+    "family": "retail"
+  },
+  {
+    "segment": "Loja de Eletrônicos",
+    "nicheKey": "electronics_store",
+    "family": "retail"
+  },
+  {
+    "segment": "Loja de Eletrodomésticos",
+    "nicheKey": "appliance_store",
     "family": "retail"
   },
   {
@@ -880,6 +970,11 @@ export const CURRENT_NICHE_COVERAGE = [
   {
     "segment": "Loja de Instrumentos Musicais",
     "nicheKey": "loja_de_instrumentos_musicais",
+    "family": "retail"
+  },
+  {
+    "segment": "Loja de Lingerie",
+    "nicheKey": "lingerie_store",
     "family": "retail"
   },
   {
@@ -915,6 +1010,11 @@ export const CURRENT_NICHE_COVERAGE = [
   {
     "segment": "Loja de Suplementos",
     "nicheKey": "loja_de_suplementos",
+    "family": "retail"
+  },
+  {
+    "segment": "Loja de Utilidades Domésticas",
+    "nicheKey": "home_goods_store",
     "family": "retail"
   },
   {
