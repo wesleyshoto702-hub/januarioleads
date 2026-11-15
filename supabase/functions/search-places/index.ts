@@ -1,4 +1,5 @@
 import { isAllowedBrowserOrigin as isTrustedBrowserOrigin } from "../_shared/allowed-browser-origins.ts";
+import { approvedExternalPlacesDailyCap } from "../_shared/external-provider-approval.ts";
 import type { OpeningHoursSnapshot } from "../_shared/open-now.ts";
 import { searchOverture, type OvertureBusiness } from "../_shared/overture-search.ts";
 import { providerInstagramCandidate, type PublicInstagramCandidate } from "../_shared/public-instagram-candidate.ts";
@@ -237,12 +238,11 @@ function externalSearchDailyCap(provider: ExternalSearchProvider): number {
   const raw = Deno.env.get(google
     ? "GOOGLE_PLACES_SEARCH_DAILY_CAP"
     : "GEOAPIFY_SEARCH_DAILY_CAP");
-  const fallback = google ? 15 : 120;
-  if (raw === undefined || raw.trim() === "") return fallback;
-  if (!/^\d+$/.test(raw.trim())) return 0;
-  const parsed = Number(raw);
-  if (!Number.isSafeInteger(parsed)) return 0;
-  return Math.min(parsed, google ? 20 : 300);
+  // Fail closed by default. A key alone or an old DB budget is NOT
+  // consent to spend. Google requires explicit GOOGLE_PLACES_SPEND_APPROVED.
+  return approvedExternalPlacesDailyCap(
+    provider, raw, Deno.env.get("GOOGLE_PLACES_SPEND_APPROVED")
+  );
 }
 
 async function claimExternalSearchCall(
