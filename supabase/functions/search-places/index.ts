@@ -1,5 +1,6 @@
 import { isAllowedBrowserOrigin as isTrustedBrowserOrigin } from "../_shared/allowed-browser-origins.ts";
 import { approvedExternalPlacesDailyCap } from "../_shared/external-provider-approval.ts";
+import { selectInternalSupabaseCredential } from "../_shared/internal-supabase-credential.ts";
 import type { OpeningHoursSnapshot } from "../_shared/open-now.ts";
 import { searchOverture, type OvertureBusiness } from "../_shared/overture-search.ts";
 import { providerInstagramCandidate, type PublicInstagramCandidate } from "../_shared/public-instagram-candidate.ts";
@@ -325,39 +326,18 @@ function hasValidClientKey(request: Request) {
   return Boolean(providedKey && allowedKeys.includes(providedKey));
 }
 
-function firstNamedSecret(raw: string | undefined) {
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-    const preferred = parsed.default;
-    if (typeof preferred === "string" && preferred.trim()) {
-      return preferred.trim();
-    }
-    for (const value of Object.values(parsed)) {
-      if (typeof value === "string" && value.trim()) return value.trim();
-    }
-  } catch {
-    return null;
-  }
-  return null;
-}
-
 function adminConfig() {
-  const url = Deno.env.get("SUPABASE_URL")?.replace(/\/$/, "");
+  const url = Deno.env.get("SUPABASE_URL")?.replace(/\\/$/, "");
   if (!url) return null;
 
-  const legacy = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
-  if (legacy) {
-    return {
-      url,
-      key: legacy,
-      authorization: `Bearer ${legacy}`,
-    };
-  }
-
-  const modern = firstNamedSecret(Deno.env.get("SUPABASE_SECRET_KEYS"));
-  if (!modern) return null;
-  return { url, key: modern, authorization: null };
+  // Modern keys first. Legacy service_role remains a temporary compatibility
+  // fallback until the compromised legacy key has been disabled in STAGING.
+  const credential = selectInternalSupabaseCredential(
+    Deno.env.get("SUPABASE_SECRET_KEYS"),
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
+  );
+  if (!credential) return null;
+  return { url, key: credential.key, authorization: credential.authorization };
 }
 
 async function adminRest(path: string, init: RequestInit = {}) {
