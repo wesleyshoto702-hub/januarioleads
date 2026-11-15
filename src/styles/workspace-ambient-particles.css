@@ -1,0 +1,32 @@
+/* Authenticated /app only. The sidebar and Workspace navigation are outside
+   .saas-main: canvas is clipped to the content column, never fixed fullscreen. */
+.saas-shell .saas-main {
+  position: relative;
+  isolation: isolate;
+}
+.saas-main > .jl-workspace-ambient-particles {
+  display: block;
+  position: sticky;
+  top: 0;
+  width: 100%;
+  height: 100dvh;
+  margin-bottom: -100dvh;
+  z-index: 0;
+  pointer-events: none;
+  user-select: none;
+  opacity: .58;
+}
+.saas-main > .saas-main-inner {
+  position: relative;
+  z-index: 1;
+}
+/* Keep existing topbar positioning/stacking; never put the canvas above it. */
+.saas-main > .jl-topbar {
+  z-index: 2;
+}
+@media (max-width: 640px) {
+  .saas-main > .jl-workspace-ambient-particles { opacity: .38; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .saas-main > .jl-workspace-ambient-particles { opacity: .32; }
+}
