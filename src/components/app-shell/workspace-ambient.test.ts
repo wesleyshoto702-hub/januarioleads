@@ -39,12 +39,23 @@ Deno.test("all eleven user colors and motion preference flow through the authent
 
 Deno.test("ambient particles cannot cover buttons or invade sidebar", () => {
   assert(styles.includes("pointer-events: none"), "No pointer interaction is allowed");
-  assert(styles.includes("position: sticky") && styles.includes("margin-bottom: -100dvh"),
-    "Effect should be contained in app's scrolling main column");
+  assert(styles.includes("position: fixed") && styles.includes("left: var(--saas-sidebar-width)") &&
+    styles.includes("width: calc(100vw - var(--saas-sidebar-width))"),
+    "Keep the backdrop visible when scrolling and confined to the main column");
+  assert(styles.includes("@media (max-width: 900px)") && styles.includes("left: 0"),
+    "Adapt to collapsed sidebar without covering interactive navigation");
   assert(styles.includes(".saas-main > .saas-main-inner") &&
     styles.includes("z-index: 1"), "Workspace content must stack above the canvas");
   assert(styles.includes(".saas-main > .jl-topbar") &&
     styles.includes("z-index: 2"), "Controls must stack above the canvas");
   assert(component.includes("clearRect") && !component.includes("fillRect"),
     "Never paint opaque backgrounds over existing workspace visual elements");
+});
+
+Deno.test("particles remain noticeable without covering business cards or controls", () => {
+  assert(styles.includes("opacity: .84"), "Ambient desktop background must not disappear in the dark theme");
+  assert(component.includes("Math.min(width < 640 ? 22 : 54"), "Particle density must fill empty main-area gaps");
+  assert(component.includes("pointer-events") === false || styles.includes("pointer-events: none"),
+    "The canvas must never intercept interactions");
+  assert(!component.includes("fillRect"), "Backdrop must stay transparent over workspace surfaces");
 });
