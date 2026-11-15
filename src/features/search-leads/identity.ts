@@ -1,8 +1,7 @@
 import type { LeadStatus } from "../leads/remote-leads";
 import type { InstagramSource } from "../business-presence/types";
 import type { BusinessSearchResult } from "./types";
-import { normalizeSearchText } from "./segments";
-import { sameLocation } from "../../lib/location";
+import { normalizeLocationText, sameLocation } from "../../lib/location";
 
 export type ExistingLeadIdentity = {
   id?: string | undefined;
@@ -32,7 +31,7 @@ export function normalizeBrazilianPhone(value: string | null | undefined) {
 }
 
 function normalizeIdentity(value: string | null | undefined) {
-  return normalizeSearchText(value ?? "");
+  return normalizeLocationText(value);
 }
 
 export function findBusinessDuplicate(
@@ -40,8 +39,6 @@ export function findBusinessDuplicate(
   leads: ExistingLeadIdentity[],
   excludeId?: string,
 ) {
-  const businessPhone =
-    normalizeBrazilianPhone(business.phone) || normalizeBrazilianPhone(business.internationalPhone);
   const businessName = normalizeIdentity(business.name);
   const businessAddress = normalizeIdentity(business.address);
 
@@ -53,9 +50,9 @@ export function findBusinessDuplicate(
         return true;
       }
 
-      const leadPhone = normalizeBrazilianPhone(lead.phone);
-      // Separate branches may share a public phone. When both companies have
-      // verified different municipalities/UFs, the phone alone isn't enough.
+      // A phone can belong to a parent company or shared service desk;
+      // the same number is NOT proof that two branches are one CRM lead.
+      // Preserve separate cities even if name and street happen to match.
       const knownDifferentCities = Boolean(
         business.city?.trim() &&
         business.state?.trim() &&
@@ -63,11 +60,11 @@ export function findBusinessDuplicate(
         lead.state?.trim() &&
         !sameLocation(business, lead),
       );
-      if (businessPhone && leadPhone && businessPhone === leadPhone && !knownDifferentCities) {
-        return true;
-      }
+      if(knownDifferentCities)return false;
 
-      return (
+      // Only the same upstream placeId OR a matching name and known address
+      // can mark an existing CRM lead. Missing addresses stay unresolved.
+      return Boolean(
         businessName &&
         businessAddress &&
         normalizeIdentity(lead.company) === businessName &&

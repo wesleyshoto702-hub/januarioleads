@@ -1,0 +1,38 @@
+name: Fase 2.1a — Buscar Leads ponta-a-ponta simulado, sem rede
+on:
+  pull_request:
+    paths:
+      - "src/features/search-leads/SearchLeadsView.tsx"
+      - "src/features/search-leads/search-businesses.ts"
+      - "src/features/search-leads/search-businesses-http.ts"
+      - "src/features/search-leads/search-result-filters.ts"
+      - "src/features/search-leads/search-page-merge.ts"
+      - "src/features/search-leads/identity.ts"
+      - "tests/fase2_1a_buscar_leads_offline.test.ts"
+      - "tests/test_fase2_1a_search_contract_offline.py"
+      - ".github/workflows/fase2-1a-buscar-leads-offline.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  search-flow-offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Testar HTTP simulado, 43 resultados, filtros, CRM, provedores e falhas
+        run: deno test tests/fase2_1a_buscar_leads_offline.test.ts
+      - name: Validar TypeScript das funções reais testadas, sem sessão ou rede
+        run: deno check tests/fase2_1a_buscar_leads_offline.test.ts
+      - name: Não regredir regras de deduplicação e origem Overture
+        run: deno test tests/overture-staging-search-pilot.test.ts tests/fase1_5_conservative_dedup_offline.test.ts
+      - name: Verificar ligação entre UI e módulos realmente testados
+        run: python -m unittest discover -s tests -p test_fase2_1a_search_contract_offline.py -v
