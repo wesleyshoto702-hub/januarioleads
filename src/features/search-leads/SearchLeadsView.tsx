@@ -37,6 +37,19 @@ import {
 } from "./identity";
 import { searchBusinesses } from "./search-businesses";
 import { hasUsableBusinessEmail } from "./business-contact";
+import {
+  DEFAULT_RESULT_FILTERS,
+  hasConfirmedInstagram,
+  isManualResultFilterActive,
+  manualResultFilters,
+  matchesResultFilters,
+  sameResultFilters,
+  type ResultFilter,
+  type LeadStatusFilter,
+  type ResultFilterState,
+  type ResultWithContext,
+} from "./search-result-filters";
+
 import { SearchResultsAttribution } from "./BusinessSourceCredit";
 import { GoogleMapsLink } from "./GoogleMapsLink";
 import {
@@ -63,7 +76,7 @@ import {
   fetchRecentPlacesSearchSamples,
   persistPlacesSearchSample,
 } from "../opportunities/places-search-cache";
-import { isValidWhatsAppPhone, openWhatsAppLink } from "../../lib/whatsapp";
+import { openWhatsAppLink } from "../../lib/whatsapp";
 
 export type SearchMode = "all" | "open";
 
@@ -71,38 +84,6 @@ export type SearchMessageTarget = {
   id?: string;
   company: string;
   phone: string;
-};
-
-type ResultFilter =
-  | "all"
-  | "phone"
-  | "email"
-  | "whatsapp"
-  | "with-site"
-  | "without-site"
-  | "with-instagram"
-  | "without-instagram";
-
-type ResultSort =
-  | "chance-desc"
-  | "chance-asc"
-  | "rating"
-  | "reviews"
-  | "az"
-  | "za";
-
-type LeadStatusFilter = "all" | "new" | LeadStatus;
-
-type ContactFilter = "all" | "phone" | "email" | "whatsapp";
-type WebsiteFilter = "all" | "with-site" | "without-site";
-type InstagramFilter = "all" | "with-instagram" | "without-instagram";
-type ChanceFilter = "all" | "high";
-
-type ResultFilterState = {
-  contact: ContactFilter;
-  website: WebsiteFilter;
-  instagram: InstagramFilter;
-  chance: ChanceFilter;
 };
 
 type SmartFilterId =
@@ -126,13 +107,6 @@ type SmartFilterPreset = {
   title: string;
   resultFilters: ResultFilterState;
   leadStatusFilter: LeadStatusFilter;
-};
-
-const DEFAULT_RESULT_FILTERS: ResultFilterState = {
-  contact: "all",
-  website: "all",
-  instagram: "all",
-  chance: "all",
 };
 
 const SEARCH_LEADS_SESSION_KEY = "leadflow:search-leads-session:v1";
@@ -274,127 +248,6 @@ const SMART_FILTERS: SmartFilterPreset[] = [
     leadStatusFilter: "all",
   },
 ];
-
-function normalizedBusinessPhone(business: BusinessSearchResult) {
-  return normalizeBrazilianPhone(
-    business.phone?.trim() || business.internationalPhone?.trim(),
-  );
-}
-
-function hasValidBusinessPhone(business: BusinessSearchResult) {
-  return isValidWhatsAppPhone(normalizedBusinessPhone(business));
-}
-
-function hasUsableWhatsApp(business: BusinessSearchResult) {
-  return isValidWhatsAppPhone(normalizedBusinessPhone(business));
-}
-
-function hasIdentifiedWebsite(business: BusinessSearchResult) {
-  return Boolean(business.website?.trim());
-}
-
-function hasConfirmedInstagram(business: BusinessSearchResult) {
-  return Boolean(
-    business.instagram?.trim() &&
-      business.instagramConfidence !== "medium" &&
-      business.instagramConfidence !== "low" &&
-      !business.instagramNeedsReview,
-  );
-}
-
-function hasHighChance(chance: LeadChanceResult) {
-  return chance.band === "high" || chance.band === "very-high";
-}
-
-function sameResultFilters(
-  left: ResultFilterState,
-  right: ResultFilterState,
-) {
-  return (
-    left.contact === right.contact &&
-    left.website === right.website &&
-    left.instagram === right.instagram &&
-    left.chance === right.chance
-  );
-}
-
-function manualResultFilters(value: ResultFilter): ResultFilterState {
-  if (value === "phone") {
-    return { ...DEFAULT_RESULT_FILTERS, contact: "phone" };
-  }
-  if (value === "whatsapp") {
-    return { ...DEFAULT_RESULT_FILTERS, contact: "whatsapp" };
-  }
-  if (value === "email") {
-    return { ...DEFAULT_RESULT_FILTERS, contact: "email" };
-  }
-  if (value === "with-site") {
-    return { ...DEFAULT_RESULT_FILTERS, website: "with-site" };
-  }
-  if (value === "without-site") {
-    return { ...DEFAULT_RESULT_FILTERS, website: "without-site" };
-  }
-  if (value === "with-instagram") {
-    return { ...DEFAULT_RESULT_FILTERS, instagram: "with-instagram" };
-  }
-  if (value === "without-instagram") {
-    return { ...DEFAULT_RESULT_FILTERS, instagram: "without-instagram" };
-  }
-  return DEFAULT_RESULT_FILTERS;
-}
-
-function isManualResultFilterActive(
-  value: ResultFilter,
-  filters: ResultFilterState,
-) {
-  if (value === "all") return sameResultFilters(filters, DEFAULT_RESULT_FILTERS);
-  if (value === "phone") return filters.contact === "phone";
-  if (value === "whatsapp") return filters.contact === "whatsapp";
-  if (value === "email") return filters.contact === "email";
-  if (value === "with-site") return filters.website === "with-site";
-  if (value === "without-site") return filters.website === "without-site";
-  if (value === "with-instagram") return filters.instagram === "with-instagram";
-  return filters.instagram === "without-instagram";
-}
-
-function matchesResultFilters(
-  item: ResultWithContext,
-  filters: ResultFilterState,
-  leadStatusFilter: LeadStatusFilter,
-) {
-  const { business, existingLead } = item;
-
-  if (leadStatusFilter === "new" && existingLead) return false;
-  if (
-    leadStatusFilter !== "all" &&
-    leadStatusFilter !== "new" &&
-    existingLead?.status !== leadStatusFilter
-  ) {
-    return false;
-  }
-
-  if (filters.contact === "phone" && !hasValidBusinessPhone(business)) {
-    return false;
-  }
-  if (filters.contact === "email" && !hasUsableBusinessEmail(business.email)) {
-    return false;
-  }
-  if (filters.contact === "whatsapp" && !hasUsableWhatsApp(business)) {
-    return false;
-  }
-
-  const hasWebsite = hasIdentifiedWebsite(business);
-  if (filters.website === "with-site" && !hasWebsite) return false;
-  if (filters.website === "without-site" && hasWebsite) return false;
-
-  const hasInstagram = hasConfirmedInstagram(business);
-  if (filters.instagram === "with-instagram" && !hasInstagram) return false;
-  if (filters.instagram === "without-instagram" && hasInstagram) return false;
-
-  if (filters.chance === "high" && !hasHighChance(item.chance)) return false;
-
-  return true;
-}
 
 const RECENT_SEARCHES_KEY = "leadflow:recent-searches";
 
