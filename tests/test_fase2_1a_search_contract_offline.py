@@ -53,7 +53,6 @@ class SearchFlowContract(unittest.TestCase):
         self.assertIn("if(knownDifferentCities)return false",self.identity)
         self.assertNotIn("businessPhone === leadPhone",self.identity)
         self.assertIn("businessAddress",self.identity)
-        self.assertIn('this is NOT',self.merge) if False else None
 
 if __name__=="__main__":
     unittest.main()
