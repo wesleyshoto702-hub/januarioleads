@@ -1,0 +1,25 @@
+name: Validar Colab V6.1 sem espera fixa (offline)
+on:
+  pull_request:
+    paths:
+      - "notebooks/Januario_Leads_Fase_9_V6_1_Lotes_Continuos.ipynb"
+      - "tests/test_colab_v6_continuous_offline.py"
+      - ".github/workflows/validar-colab-v6-continuous.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  continuous-batches:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Verify continuous batches and protected resume without Overture calls
+        run: python -m unittest discover -s tests -p test_colab_v6_continuous_offline.py -v
+      - name: Verify existing V6 resume behavior
+        run: python -m unittest discover -s tests -p test_colab_v6_resume_offline.py -v
