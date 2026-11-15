@@ -1,4 +1,5 @@
 import { isAllowedBrowserOrigin as isTrustedBrowserOrigin } from "../_shared/allowed-browser-origins.ts";
+import { approvedExternalPlacesDailyCap } from "../_shared/external-provider-approval.ts";
 import {
   evaluateOpenNow,
   isOpenNowCacheFresh,
@@ -671,6 +672,21 @@ async function adminRest(path: string, init: RequestInit = {}) {
   });
 }
 
+/** Every open-now Google Enterprise request needs the same atomic project budget
+ * as the regular Buscar Leads. Fail closed on missing RPC or denied approval.
+ */
+async function claimOpenNowGoogleBudget(userId: string): Promise<boolean> {
+  try {
+    const response = await adminRest("rpc/claim_saas_google_api_budget", {
+      method: "POST",
+      body: JSON.stringify({ p_user_id: userId, p_operation: "text_search_enterprise" }),
+    });
+    return response.ok && (await response.json()) === true;
+  } catch {
+    return false;
+  }
+}
+
 async function claimRefreshBudget(userId: string, key: string) {
   const response = await adminRest("rpc/claim_open_now_refresh", {
     method: "POST",
@@ -811,6 +827,26 @@ async function runRefresh(
     );
   }
 
+  // This endpoint used to call Google without consulting the shared SKU
+  // budget. Reject before any provider request or cache write, including
+  // refreshes with continuation tokens.
+  const googleApiKey = Deno.env.get("GOOGLE_PLACES_API_KEY")?.trim();
+  const paidSearchEnabled = approvedExternalPlacesDailyCap(
+    "google_places",
+    Deno.env.get("GOOGLE_PLACES_SEARCH_DAILY_CAP"),
+    Deno.env.get("GOOGLE_PLACES_SPEND_APPROVED"),
+  ) > 0;
+  if (!googleApiKey || !paidSearchEnabled) {
+    return failure("GOOGLE_NOT_CONFIGURED",
+      "A consulta Google está desativada até haver autorização explícita de orçamento.",
+      503);
+  }
+  if (!await claimOpenNowGoogleBudget(userId)) {
+    return failure("RATE_LIMIT",
+      "Orçamento seguro de consultas Google atingido ou indisponível.",
+      429);
+  }
+
   const allowedByRateLimit = await claimRefreshBudget(userId, location.key);
   if (!allowedByRateLimit) {
     return failure(
@@ -839,23 +875,8 @@ async function runRefresh(
     ...(current ? {} : { results: [] }),
   });
 
-  const googleApiKey = Deno.env.get("GOOGLE_PLACES_API_KEY")?.trim();
-  if (!googleApiKey) {
-    await upsertCache({
-      user_id: userId,
-      location_key: location.key,
-      city: location.city,
-      state: location.state,
-      segment,
-      family,
-      status: "error",
-      locked_until: null,
-      error_code: "GOOGLE_NOT_CONFIGURED",
-      error_message: "Google Places não está configurado.",
-      updated_at: new Date().toISOString(),
-    });
-    return failure("GOOGLE_NOT_CONFIGURED", "Google Places não está configurado.", 503);
-  }
+  // Access and operation budget were checked before cache updates.
+  // The same local googleApiKey is used below; never bypass these gates.
 
   try {
     const searched = await googleSearch(
