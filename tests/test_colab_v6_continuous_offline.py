@@ -23,32 +23,32 @@ class TestContinuousBatches(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.setup = source(CURRENT, 2)
-        cls.run = source(CURRENT, 3)
+        cls.execution_source = source(CURRENT, 3)
         cls.old_setup = source(PREVIOUS, 2)
-        cls.old_run = source(PREVIOUS, 3)
+        cls.previous_execution_source = source(PREVIOUS, 3)
 
     def test_syntax_and_continuation(self):
         ast.parse(self.setup)
-        ast.parse(self.run)
-        self.assertIn("optimized_groups(targets)", self.run)
-        self.assertIn('paged_stage(secret,"overture_phase9_v5_attempts"', self.run)
-        self.assertIn('paged_stage(secret,"overture_phase9_v5_gaps"', self.run)
-        self.assertIn("dt.timedelta(minutes=12)", self.run)
-        self.assertIn("recent_rate_limit(secret)", self.run)
-        self.assertIn("safe_capacity(stats,1)", self.run)
-        self.assertIn('getpass.getpass(', self.run)
-        self.assertIn('confirm!="RETOMAR_V6"', self.run)
+        ast.parse(self.execution_source)
+        self.assertIn("optimized_groups(targets)", self.execution_source)
+        self.assertIn('paged_stage(secret,"overture_phase9_v5_attempts"', self.execution_source)
+        self.assertIn('paged_stage(secret,"overture_phase9_v5_gaps"', self.execution_source)
+        self.assertIn("dt.timedelta(minutes=12)", self.execution_source)
+        self.assertIn("recent_rate_limit(secret)", self.execution_source)
+        self.assertIn("safe_capacity(stats,1)", self.execution_source)
+        self.assertIn('getpass.getpass(', self.execution_source)
+        self.assertIn('confirm!="RETOMAR_V6"', self.execution_source)
 
     def test_no_sleep_after_success_but_batch_remains_serial(self):
         self.assertIn("MIN_INTERVAL=90", self.old_setup)
         self.assertIn("MIN_INTERVAL=0", self.setup)
-        self.assertNotIn("next_download_at", self.run)
-        self.assertNotIn("time.sleep(delay)", self.run)
-        self.assertNotIn("random.uniform(0,15)", self.run)
-        self.assertNotIn("90s entre downloads", self.run)
-        self.assertIn("subprocess.run(command,env=env,text=True,capture_output=True", self.run)
-        self.assertNotIn("Popen(", self.run)
-        self.assertNotIn("ThreadPoolExecutor", self.run)
+        self.assertNotIn("next_download_at", self.execution_source)
+        self.assertNotIn("time.sleep(delay)", self.execution_source)
+        self.assertNotIn("random.uniform(0,15)", self.execution_source)
+        self.assertNotIn("90s entre downloads", self.execution_source)
+        self.assertIn("subprocess.run(command,env=env,text=True,capture_output=True", self.execution_source)
+        self.assertNotIn("Popen(", self.execution_source)
+        self.assertNotIn("ThreadPoolExecutor", self.execution_source)
 
     def test_error_and_storage_guards_remain_intact(self):
         for item in (
@@ -69,8 +69,8 @@ class TestContinuousBatches(unittest.TestCase):
             "v5.safe_capacity(stats,1)",
             "time.monotonic()>deadline-240",
         ):
-            self.assertIn(item, self.run, item)
-        self.assertNotIn("SUPABASE_PRODUCTION", self.run)
+            self.assertIn(item, self.execution_source, item)
+        self.assertNotIn("SUPABASE_PRODUCTION", self.execution_source)
 
     def test_pinned_importer_sources(self):
         self.assertNotIn("januarioleads/main/scripts/", self.setup)
