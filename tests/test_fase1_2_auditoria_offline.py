@@ -28,14 +28,14 @@ class Fase12AuditSafety(unittest.TestCase):
         self.assertEqual(sql.count("FROM public.overture_places"),8)
 
     def test_exact_category_snapshot_matches_adapter(self):
-        source=self.source.split("export type OverturePlace",1)[0]
+        source=self.source.split("export const OVERTURE_CATEGORY_PHASE13",1)[0]
         expected={value for value in re.findall(r'"([a-z][a-z0-9_]+)"',source)
-                  if re.fullmatch(r"[a-z]+(?:_[a-z]+)*",value)}
+                  if re.fullmatch(r"[a-z][a-z0-9]*(?:_[a-z0-9]+)*",value)}
         snippet=self.sql.split("WITH mapped_categories(cat) AS (VALUES",1)[1].split(
             "\nSELECT count(*) AS all_places",1)[0]
         found=set(re.findall(r"\('([a-z][a-z0-9_]+)'\)",snippet))
         self.assertEqual(found,expected)
-        self.assertEqual(len(found),186)
+        self.assertEqual(len(found),187)
 
     def test_report_does_not_claim_verification_or_release(self):
         self.assertIn("não verifica titularidade",self.report)

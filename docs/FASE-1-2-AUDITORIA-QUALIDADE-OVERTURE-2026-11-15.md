@@ -59,13 +59,15 @@
 
 ## 4. Cobertura real para os nichos do Buscar Leads
 
-- Catálogo atual: **216 nichos**; **125 mapeados** explicitamente às categorias Overture.
-- O código do mapeamento cita **186 códigos de categoria Overture**; na base, **150 códigos mapeados aparecem**.
-- **194.343 registros (60,51%)** pertencem a alguma categoria explícita mapeada; **126.836 (39,49%)** estão fora deste conjunto. Dentre estes, existem **6.390 sem categoria**, mas também negócios de categorias ainda não mapeadas e pontos de interesse não comerciais.
-- Das categorias não mapeadas, há **781 códigos distintos** presentes no banco. Um código não mapeado não é necessariamente um novo nicho válido.
-- **189.409 registros** de categoria mapeada têm pelo menos um dado de contato/canal preenchido (telefone, e-mail, website ou Instagram), **não verificado**.
+**Correção de conferência (Fase 1.3):** a contabilização original desconsiderou `b2b_advertising_and_marketing_service` (286 registros, dos quais 274 com algum contato), pois o extrator aceitava letras, mas não números, nos nomes de categorias. A contagem abaixo corresponde à **versão anterior à inclusão dos novos mapeamentos da Fase 1.3**; foi corrigida no SQL de reprodução e no teste offline.
 
-**Atenção:** 194.343 não significa que existam 194 mil leads elegíveis à venda: alguns podem ser duplicados, estar fechados, ter contato incorreto, estar em nichos e cidades com baixa densidade, ou não ter direito de uso adequado. Também pode haver mais de um nicho que compartilhe a mesma categoria.
+- Catálogo atual: **216 nichos**; **125 mapeados** explicitamente às categorias Overture.
+- O código do mapeamento cita **187 códigos de categoria Overture**; na base, **151 códigos mapeados aparecem**.
+- **194.629 registros (60,60%)** pertencem a alguma categoria explícita mapeada; **126.550 (39,40%)** estão fora deste conjunto. Dentre estes, existem **6.390 sem categoria**, mas também negócios de categorias ainda não mapeadas e pontos de interesse não comerciais.
+- Das categorias não mapeadas, há **780 códigos distintos** presentes no banco. Um código não mapeado não é necessariamente um novo nicho válido.
+- **189.683 registros** de categoria mapeada têm pelo menos um dado de contato/canal preenchido (telefone, e-mail, website ou Instagram), **não verificado**.
+
+**Atenção:** 194.629 não significa que existam 194 mil leads elegíveis à venda: alguns podem ser duplicados, estar fechados, ter contato incorreto, estar em nichos e cidades com baixa densidade, ou não ter direito de uso adequado. Também pode haver mais de um nicho que compartilhe a mesma categoria.
 
 ## 5. Distribuição geográfica e viés do coletor
 

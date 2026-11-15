@@ -70,6 +70,7 @@ SELECT
 
 -- Q4: Mapping from the versioned code for the Buscar Leads; static category
 -- snapshot generated from overture-search.ts, replace after code changes.
+-- Historical 1.2 mapping snapshot BEFORE Fase 1.3 additions.
 WITH mapped_categories(cat) AS (VALUES ('butcher_shop'),
 ('coffee_shop'),
 ('cafe'),
@@ -255,6 +256,7 @@ WITH mapped_categories(cat) AS (VALUES ('butcher_shop'),
 ('buffet_restaurant'),
 ('car_stereo_store'),
 ('computer_coaching'),
+('b2b_advertising_and_marketing_service'),
 ('lumber_store'))
 SELECT count(*) AS all_places,
  count(*) FILTER(WHERE category IN(SELECT cat FROM mapped_categories)) AS in_mapped_category,
