@@ -275,24 +275,43 @@ export function isRelevantOverture(place: OverturePlace,segment: string) {
   );
   return true;
 }
-/** Same-name records should only be merged when they represent the same
- * physical location. No address does NOT mean every branch in a city is one
- * business. Follow the existing Overture importer's 15-meter heuristic.
+/** Conservative offline-reviewed duplicate check (Fase 1.5a).
+ *
+ * A shared name and coordinates <=15m are not evidence enough to merge when
+ * the explicit address, primary category or contact number conflicts.
+ * Separate businesses in a mall/building may share the same point geometry.
+ * Prefer preserving a possible duplicate over silently hiding another lead.
+ *
+ * Both records come from the Overture table (same ID namespace). In the
+ * absence of valid coordinates, allow dedup only with equal known address.
+ * Never deduplicate different branches merely by shared names/phones.
  */
 export function isSameLocatedOvertureBusiness(a: OverturePlace,b: OverturePlace):boolean {
+  if(a.id===b.id)return true;
   if(normalized(a.name)!==normalized(b.name))return false;
-  const coords=(p:OverturePlace)=>p.latitude!==null&&p.longitude!==null&&
-    Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)&&
-    Math.abs(p.latitude)<=90&&Math.abs(p.longitude)<=180;
-  if(coords(a)&&coords(b)){
-    const x1=a.latitude!, y1=a.longitude!, x2=b.latitude!, y2=b.longitude!;
+  if(a.category && b.category && a.category!==b.category)return false;
+
+  const addrA=normalized(a.address||""),addrB=normalized(b.address||"");
+  if(addrA && addrB && addrA!==addrB)return false;
+
+  const phoneA=(a.phone||"").replace(/\D/g,"");
+  const phoneB=(b.phone||"").replace(/\D/g,"");
+  if(phoneA && phoneB && phoneA!==phoneB)return false;
+
+  const validCoords=(p:OverturePlace)=>
+    p.latitude!==null && p.longitude!==null &&
+    Number.isFinite(p.latitude) && Number.isFinite(p.longitude) &&
+    Math.abs(p.latitude)<=90 && Math.abs(p.longitude)<=180;
+  if(validCoords(a)&&validCoords(b)){
+    const x1=a.latitude!,y1=a.longitude!,x2=b.latitude!,y2=b.longitude!;
     const r=Math.PI/180;
-    const da=(x2-x1)*r, db=(y2-y1)*r;
-    const h=Math.sin(da/2)**2+Math.cos(x1*r)*Math.cos(x2*r)*Math.sin(db/2)**2;
+    const da=(x2-x1)*r,db=(y2-y1)*r;
+    const h=Math.sin(da/2)**2+Math.cos(x1*r)*Math.cos(x2*r)*
+      Math.sin(db/2)**2;
     return 2*6371000*Math.asin(Math.min(1,Math.sqrt(h)))<=15;
   }
-  const addressA=normalized(a.address||""), addressB=normalized(b.address||"");
-  return Boolean(addressA&&addressB&&addressA===addressB);
+
+  return Boolean(addrA && addrB && addrA===addrB);
 }
 export function enoughRelevantResults(results: readonly {
   name: string; phone: string|null; internationalPhone: string|null;
