@@ -1,32 +1,45 @@
-/* Authenticated /app only. The sidebar and Workspace navigation are outside
-   .saas-main: canvas is clipped to the content column, never fixed fullscreen. */
+/* Only /app mounts this stylesheet. The sidebar is intentionally excluded.
+   A FIXED canvas stays behind all content when navigating/scrolling pages;
+   the old sticky/negative-margin canvas could be almost invisible. */
 .saas-shell .saas-main {
   position: relative;
   isolation: isolate;
 }
-.saas-main > .jl-workspace-ambient-particles {
+.saas-shell .saas-main > .jl-workspace-ambient-particles {
+  position: fixed;
   display: block;
-  position: sticky;
   top: 0;
-  width: 100%;
+  bottom: 0;
+  left: var(--saas-sidebar-width);
+  right: 0;
+  width: calc(100vw - var(--saas-sidebar-width));
   height: 100dvh;
-  margin-bottom: -100dvh;
   z-index: 0;
+  opacity: .84;
   pointer-events: none;
   user-select: none;
-  opacity: .58;
 }
-.saas-main > .saas-main-inner {
+.saas-shell .saas-main > .saas-main-inner {
   position: relative;
   z-index: 1;
+  background: transparent;
 }
-/* Keep existing topbar positioning/stacking; never put the canvas above it. */
-.saas-main > .jl-topbar {
-  z-index: 2;
+/* The interactive header stays above particles and their canvas. */
+.saas-shell .saas-main > .jl-topbar {
+  z-index: 20;
+}
+@media (max-width: 900px) {
+  .saas-shell .saas-main > .jl-workspace-ambient-particles {
+    left: 0;
+    width: 100vw;
+    top: 56px;
+    height: calc(100dvh - 56px);
+    opacity: .72;
+  }
 }
 @media (max-width: 640px) {
-  .saas-main > .jl-workspace-ambient-particles { opacity: .38; }
+  .saas-shell .saas-main > .jl-workspace-ambient-particles { opacity: .64; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .saas-main > .jl-workspace-ambient-particles { opacity: .32; }
+  .saas-shell .saas-main > .jl-workspace-ambient-particles { opacity: .67; }
 }
