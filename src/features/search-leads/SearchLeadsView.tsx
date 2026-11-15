@@ -40,6 +40,7 @@ import { mergeSearchPageResults } from "./search-page-merge";
 import { createSearchRequestGate } from "./search-request-gate";
 import { searchEmptyState } from "./search-empty-state";
 import { RESULT_FILTER_OPTIONS, SMART_FILTERS, type SmartFilterId, type SmartFilterPreset } from "./search-filter-presentation";
+import { countLoadedMatches, summarizeLoadedSearchResults } from "./search-loaded-counts";
 import { eligibleQuotaCache, onlyOpenSourceSearchResults } from "../opportunities/open-search-cache-policy";
 import { safeOpenContinuationToken } from "../../../supabase/functions/_shared/search-continuation";
 import { hasUsableBusinessEmail } from "./business-contact";
@@ -590,14 +591,12 @@ export function SearchLeadsView({
       Object.fromEntries(
         SMART_FILTERS.map((preset) => [
           preset.id,
-          resultWithExisting.filter((item) =>
-            (mode !== "open" || item.business.isOpenNow === true) &&
-            matchesResultFilters(
-              item,
-              preset.resultFilters,
-              preset.leadStatusFilter,
-            ),
-          ).length,
+          countLoadedMatches(
+            resultWithExisting,
+            preset.resultFilters,
+            preset.leadStatusFilter,
+            mode,
+          ),
         ]),
       ) as Record<SmartFilterId, number>,
     [resultWithExisting, mode],
@@ -623,10 +622,8 @@ export function SearchLeadsView({
     hasError:Boolean(error),
   });
 
-  const alreadyAddedCount = resultWithExisting.filter((item) => item.alreadyAdded).length;
-  const newCount = resultWithExisting.length - alreadyAddedCount;
-  const openCount = resultWithExisting.filter((item) => item.business.isOpenNow === true).length;
-  const unknownHoursCount = resultWithExisting.filter((item) => item.business.isOpenNow === null).length;
+  const { loadedCount, displayedCount, newCount, savedCount, openCount, unknownHoursCount } =
+    summarizeLoadedSearchResults(resultWithExisting, visibleResults.length);
 
   function clearResultFilters() {
     setResultFilters(DEFAULT_RESULT_FILTERS);
@@ -1044,9 +1041,9 @@ export function SearchLeadsView({
           </p>
           <h1>{resultsSegment}</h1>
           <p className="subtitle">
-            {results.length} {results.length === 1 ? "empresa encontrada" : "empresas encontradas"}.
-            {" "}{newCount} ainda não {newCount === 1 ? "cadastrada" : "cadastradas"} e {alreadyAddedCount} já
-            {" "}{alreadyAddedCount === 1 ? "está" : "estão"} nos seus leads.
+            {loadedCount} {loadedCount === 1 ? "resultado carregado" : "resultados carregados"} nesta pesquisa.
+            {" "}{newCount} ainda não {newCount === 1 ? "cadastrado" : "cadastrados"} e {savedCount} já
+            {" "}{savedCount === 1 ? "está" : "estão"} nos seus leads.
           </p>
         </div>
       </div>
@@ -1054,6 +1051,11 @@ export function SearchLeadsView({
       {/* The geographical information panel lives on the niche-selection screen. */}
       {/* Choose the open-now filter only after the niche search has returned. */}
       <SearchModeSwitcher mode={mode} onModeChange={onModeChange} />
+      <p className="search-results-scope" role="status" aria-live="polite">
+        Exibindo <strong>{displayedCount}</strong> de {loadedCount} {loadedCount === 1 ? "resultado carregado" : "resultados carregados"}.
+        {" "}Contagens referentes somente aos resultados carregados nesta pesquisa, não ao total de empresas da cidade.
+        {nextPageToken && " Há mais páginas disponíveis."}
+      </p>
       {mode === "open" && (
         <p className="search-mode-count" role="status">
           <Clock3 size={15} aria-hidden="true" />
@@ -1080,7 +1082,7 @@ export function SearchLeadsView({
       <div className="results-toolbar">
         <div className="quick-filters">
           <div className="quick-filters-heading">
-            <span>Atalhos de prospecção</span>
+            <span>Atalhos de prospecção · {loadedCount} {loadedCount === 1 ? "resultado carregado" : "resultados carregados"}</span>
             {hasActiveFilters && (
               <button
                 type="button"
@@ -1091,6 +1093,9 @@ export function SearchLeadsView({
               </button>
             )}
           </div>
+          <p className="search-filter-count-note">
+            Os números dos atalhos consideram somente os resultados carregados e o modo de visualização atual.
+          </p>
           <div className="quick-filter-list" aria-label="Atalhos de prospecção">
             {SMART_FILTERS.map((preset) => {
               const active = activeSmartFilter === preset.id;
@@ -1102,12 +1107,12 @@ export function SearchLeadsView({
                     active ? "quick-filter-chip active" : "quick-filter-chip"
                   }
                   aria-pressed={active}
-                  title={preset.title}
+                  title={`${preset.title} Contagem limitada aos resultados carregados.`}
                   onClick={() => applySmartFilter(preset)}
                 >
                   {active && <Check size={12} aria-hidden="true" />}
                   <span>{preset.label}</span>
-                  <small>{quickFilterCounts[preset.id]}</small>
+                  <small aria-label={`${quickFilterCounts[preset.id]} correspondências entre os resultados carregados`}>{quickFilterCounts[preset.id]}</small>
                 </button>
               );
             })}
@@ -1115,7 +1120,7 @@ export function SearchLeadsView({
         </div>
 
         <div className="result-filters">
-          {RESULT_FILTER_OPTIONS.map(([value, label]) => (
+          {RESULT_FILTER_OPTIONS.map(([value, label, description]) => (
             <button
               key={value}
               type="button"
@@ -1125,6 +1130,8 @@ export function SearchLeadsView({
                   : "filter-chip"
               }
               aria-pressed={isManualResultFilterActive(value, resultFilters)}
+              title={description}
+              aria-label={`${label}. ${description}`}
               onClick={() => setResultFilters(manualResultFilters(value))}
             >
               {label}
