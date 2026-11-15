@@ -113,6 +113,9 @@
 .js-settings-color-choice.is-orange{--swatch:#fb923c}
 .js-settings-color-choice.is-pink{--swatch:#f472b6}
 .js-settings-color-choice.is-indigo{--swatch:#818cf8}
+.js-settings-color-choice.is-turquoise{--swatch:#14b8a6}
+.js-settings-color-choice.is-ruby{--swatch:#a83f65}
+.js-settings-color-choice.is-bronze{--swatch:#b88a55}
 .js-settings-color-choice:hover:not(:disabled){transform:translateY(-2px);border-color:var(--swatch)}
 .js-settings-color-choice.is-selected{color:var(--text);border-color:var(--swatch);background:color-mix(in srgb,var(--swatch) 10%,var(--surface-2))}
 .js-settings-color-choice:focus-visible{outline:3px solid var(--swatch);outline-offset:3px}
