@@ -223,3 +223,35 @@ Deno.test("Unavailable Overture database fails closed instead of silently spendi
     async()=>new Response(null,{status:503}));
   assert(!fail.ok,"No silent paid provider fallback when base is down");
 });
+
+
+Deno.test("Overture inspects later bounded pages before ranking contactable companies",async()=>{
+  const records=Array.from({length:250},(_,i)=>row(String(i).padStart(3,"0"),"barber",
+    i>=200?"35999999999":null));
+  const calls:string[]=[];
+  const admin=async(uri:string)=>{
+    calls.push(uri);
+    const params=new URL("https://example.invalid/"+uri).searchParams;
+    const start=Number(params.get("offset")||0);
+    return Response.json(records.slice(start,start+Number(params.get("limit")||100)));
+  };
+  const result=await searchOverture({segment:"Barbearia",city:"Lavras",state:"MG"},admin);
+  assert(result.ok,"Expected bounded scan to succeed");
+  if(!result.ok)return;
+  assert(calls.length===3,"Read three bounded database pages, not the whole city");
+  assert(calls.every(x=>x.includes("order=id.asc")&&x.includes("limit=100")),
+    "Every page must have stable ordering and bounded size");
+  assert(result.results.length===20 && result.results.every(x=>x.phone!==null),
+    "Later candidates with phone should rank above earlier uncontactable results");
+  assert(result.allCount===250,"Count reflects candidates examined in bounded window");
+});
+Deno.test("Overture rejects a failed later page rather than treating partial results as complete",async()=>{
+  let n=0;
+  const result=await searchOverture({segment:"Barbearia",city:"Lavras",state:"MG"},async()=>{
+    n++;
+    return n===2?new Response(null,{status:503}):Response.json(
+      Array.from({length:100},(_,i)=>row(String(i),"barber"))
+    );
+  });
+  assert(!result.ok && n===2,"Do not silently return an incomplete ranking");
+});
