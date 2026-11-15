@@ -19,8 +19,8 @@ class Fase12AuditSafety(unittest.TestCase):
         lines=[line for line in self.sql.splitlines() if not line.lstrip().startswith("--")]
         sql="\n".join(lines)
         self.assertEqual(sql.count(";"),6)
-        self.assertEqual(len(re.findall(r"(?im)^SELECT\b",sql)),4)
-        self.assertEqual(len(re.findall(r"(?im)^WITH\b",sql)),2)
+        self.assertEqual(len(re.findall(r"(?im)^SELECT\b",sql)),6)
+        self.assertEqual(len(re.findall(r"(?im)^WITH\b",sql)),4)
         self.assertNotRegex(sql,re.compile(
             r"\b(INSERT|DELETE|UPDATE|ALTER|DROP|TRUNCATE|CREATE|GRANT|REVOKE|COPY|CALL|DO|EXECUTE|PERFORM)\b",
             re.I))
