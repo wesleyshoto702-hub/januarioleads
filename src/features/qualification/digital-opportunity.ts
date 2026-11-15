@@ -36,8 +36,7 @@ export function qualifyDigitalOpportunity(business: DigitalOpportunityInput): Di
   const emailIdentified = hasUsableBusinessEmail(business.email);
   const confirmedInstagram = Boolean(
     business.instagram?.trim() &&
-    business.instagramConfidence !== "low" &&
-    business.instagramConfidence !== "medium" &&
+    business.instagramConfidence === "high" &&
     !business.instagramNeedsReview
   );
   const potentialInstagram = !confirmedInstagram && Boolean(business.instagramCandidates?.length);
