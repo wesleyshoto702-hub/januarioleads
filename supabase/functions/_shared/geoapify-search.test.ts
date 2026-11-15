@@ -5,10 +5,10 @@ import { needsGoogleSupplement, searchGeoapifyFirst } from "./geoapify-search.ts
 function assert(value: unknown, message: string): asserts value {
   if (!value) throw new Error(message);
 }
-Deno.test("all 196 niches are intentionally mapped, or explicitly delegated to Google",()=>{
+Deno.test("all 216 niches are intentionally mapped, or explicitly delegated to Google",()=>{
   assert(validateGeoapifyCoverage(), "Geoapify strategy does not cover full canonical catalog");
   const labels=SEGMENT_GROUPS.flatMap(g=>g.items);
-  assert(labels.length===196, "Review niches before deploying");
+  assert(labels.length===216, "Review niches before deploying");
   assert(Object.keys(GEOAPIFY_CATEGORIES).length===labels.length,"Unexpected mapping");
   for(const label of labels){
     const value=GEOAPIFY_CATEGORIES[label];
