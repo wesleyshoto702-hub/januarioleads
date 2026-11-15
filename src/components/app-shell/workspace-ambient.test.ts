@@ -1,10 +1,12 @@
 /// <reference lib="deno.ns" />
-import { ACCENT_COLORS } from "../../features/settings/user-settings.ts";
 
 function assert(value: unknown, message: string): asserts value {
   if (!value) throw new Error(message);
 }
 const read = (path: string) => Deno.readTextFileSync(new URL(path, import.meta.url));
+const settings = read("../../features/settings/user-settings.ts");
+const accentList = settings.match(/export const ACCENT_COLORS = \\[([\\s\\S]*?)\\] as const;/)?.[1] ?? "";
+const supportedAccents = [...accentList.matchAll(/"([a-z]+)"/g)].map(x => x[1]);
 const component = read("./WorkspaceAmbientParticles.tsx");
 const shell = read("./AppShell.tsx");
 const appRoute = read("../../routes/app.tsx");
@@ -24,7 +26,7 @@ Deno.test("background is mounted only in authenticated SaaS main, never in sideb
 });
 
 Deno.test("all eleven user colors and motion preference flow through the authenticated shell", () => {
-  assert(ACCENT_COLORS.length === 11, "All eleven accents must remain supported");
+  assert(supportedAccents.length === 11, "All eleven accents must remain supported");
   assert(appRoute.includes("accentColor={userSettings.accentColor}"),
     "Use the persisted accent color");
   assert(shell.includes("accentColor={accentColor} reduceMotion={reduceMotion}"),
