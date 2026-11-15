@@ -1,0 +1,35 @@
+name: Validar prospecção responsiva (4 etapas, sem APIs)
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/features/search-leads/**"
+      - "src/features/qualification/**"
+      - "src/features/leads/**"
+      - "src/styles.css"
+      - "tests/browser/responsive.spec.ts"
+      - ".github/workflows/validar-prospeccao-responsiva-4-etapas.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  responsive-mocks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile
+      - name: Typecheck new prospecting UI and CRM
+        run: bun run typecheck
+      - name: Install chromium for isolated local-only tests
+        run: bunx playwright install --with-deps chromium
+      - name: Verify search filters, evidence, responsive modal and favorites (mock backend)
+        run: bunx playwright test tests/browser/responsive.spec.ts --grep "search results and factual qualification|mobile favorite marker"
+        env:
+          CI: "true"
+      - name: Build frontend
+        run: bun run build
