@@ -190,6 +190,10 @@ export async function searchGeoapifyFirst(input: {
   if (!key) return { ok: false, reason: "NOT_CONFIGURED" };
   const mapped = geoapifyCategoryForSegment(input.segment);
   if (!mapped) return { ok: false, reason: "UNSUPPORTED" };
+  // All network calls (geocoding and Places) need atomic budget reservation.
+  // An API key is not permission to spend provider credits. Even other
+  // callers of this helper must explicitly inject the reserve callback.
+  if (!input.reserveCredit) return { ok: false, reason: "NOT_CONFIGURED" };
   const offset = input.offset ?? 0;
   if (!Number.isInteger(offset) || offset < 0 || offset > MAX_OFFSET || offset % PAGE_SIZE !== 0)
     return { ok: false, reason: "UPSTREAM" };
