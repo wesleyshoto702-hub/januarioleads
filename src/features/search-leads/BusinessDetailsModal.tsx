@@ -25,6 +25,8 @@ import {
 } from "../next-actions/LeadNextActionSection";
 import type { LeadPayment } from "../lead-finance/finance";
 import { ChanceBadge } from "../lead-chance/ChanceBadge";
+import { DigitalOpportunityBadge } from "../qualification/DigitalOpportunityBadge";
+import { qualifyDigitalOpportunity } from "../qualification/digital-opportunity";
 import type { LeadChanceResult } from "../lead-chance/lead-chance";
 import type {
   LeadStatus,
@@ -304,6 +306,7 @@ export function BusinessDetailsModal({
             <div className="business-name-line detail-name-line">
               <h2>{business.name}</h2>
               {chance && <ChanceBadge chance={chance} />}
+              <DigitalOpportunityBadge business={business} />
             </div>
           </div>
           <button
@@ -341,6 +344,15 @@ export function BusinessDetailsModal({
 
         {activeTab === "info" ? (
         <div className="business-detail-content">
+          <section className="digital-opportunity-explanation" aria-label="Análise de canais comerciais">
+            <strong>Qualificação comercial · dados disponíveis</strong>
+            <p>{qualifyDigitalOpportunity(business).summary}</p>
+            <ul>
+              {qualifyDigitalOpportunity(business).signals.map((signal) => (
+                <li key={signal}>{signal}</li>
+              ))}
+            </ul>
+          </section>
           <div className="detail-grid">
             {segmentLabel && (
               <DetailItem label="Segmento" value={segmentLabel} />
