@@ -1,7 +1,8 @@
 /** Pure functions shared by Buscar Leads UI and offline regression tests.
  * Filtering only examines already-fetched data. It never calls providers.
- * "Com WhatsApp" means format-compatible phone, NOT confirmed WhatsApp.
- * "Sem site" means website unknown to this source, NOT verified absence.
+ * A phone filter means a number IS LISTED, NOT verified active.
+ * WhatsApp means only compatible PHONE FORMAT, NOT an active account.
+ * Site/Instagram "not identified" is NOT verified absence.
  */
 import type { LeadStatus } from "../leads/remote-leads.ts";
 import type { LeadChanceResult } from "../lead-chance/lead-chance.ts";
@@ -64,6 +65,12 @@ export function normalizedBusinessPhone(business: BusinessSearchResult) {
   );
 }
 
+/** A phone reported by a provider is NOT evidence of a live number. */
+export function hasIdentifiedBusinessPhone(business: BusinessSearchResult) {
+  return Boolean(business.phone?.trim() || business.internationalPhone?.trim());
+}
+
+/** Format-only check retained for callers that explicitly require valid BR digits. */
 export function hasValidBusinessPhone(business: BusinessSearchResult) {
   return isValidWhatsAppPhone(normalizedBusinessPhone(business));
 }
@@ -155,7 +162,7 @@ export function matchesResultFilters(
     return false;
   }
 
-  if (filters.contact === "phone" && !hasValidBusinessPhone(business)) {
+  if (filters.contact === "phone" && !hasIdentifiedBusinessPhone(business)) {
     return false;
   }
   if (filters.contact === "email" && !hasUsableBusinessEmail(business.email)) {
