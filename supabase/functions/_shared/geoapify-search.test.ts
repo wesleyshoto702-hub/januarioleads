@@ -44,10 +44,24 @@ Deno.test("Geoapify without a server key safely falls back without network",asyn
   });
   assert(!response.ok&&response.reason==="NOT_CONFIGURED","Missing server key must be handled");
   const unsupported=await searchGeoapifyFirst({
-    apiKey:"example_key",segment:"Consultoria de RH",city:"Lavras",state:"MG",
+    apiKey:"example_key",reserveCredit:async()=>false,segment:"Consultoria de RH",city:"Lavras",state:"MG",
   });
   assert(!unsupported.ok&&unsupported.reason==="UNSUPPORTED","Unsupported niche falls back");
 });
+Deno.test("Geoapify refuses network access without an atomic reservation",async()=>{
+  let calls=0;
+  const original=globalThis.fetch;
+  globalThis.fetch=(async()=>{calls++;throw Error("Network bypass");}) as typeof fetch;
+  try {
+    const result=await searchGeoapifyFirst({
+      apiKey:"example_key",segment:"Chaveiro",city:"Lavras",state:"MG",
+    });
+    assert(!result.ok&&result.reason==="NOT_CONFIGURED",
+      "Missing budget callback must stop the helper");
+    assert(calls===0, "Provider must not be contacted without reserved credits");
+  }finally{globalThis.fetch=original;}
+});
+
 Deno.test("municipality is geocoded before category search and records are source-isolated",async()=>{
   const original=globalThis.fetch;
   const called:string[]=[];
@@ -81,9 +95,13 @@ Deno.test("municipality is geocoded before category search and records are sourc
     }]}),{headers:{"Content-Type":"application/json"}});
   }) as typeof fetch;
   try{
+    const credits:string[]=[];
     const result=await searchGeoapifyFirst({
       apiKey:"example_key",segment:"Chaveiro",city:"Lavras",state:"MG",
+      reserveCredit:async(operation)=>{ credits.push(operation); return true; },
     });
+    assert(credits.join(",")==="geocode,places",
+      "Each Geoapify network operation must reserve its own credit");
     assert(result.ok,"Valid city-scoped Geoapify result must be parsed");
     if(!result.ok) return;
     assert(called.length===2,"Exactly geocode then Places calls");
