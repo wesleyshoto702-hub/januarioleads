@@ -25,6 +25,14 @@ Deno.test("does not interpret provider Instagram candidates as confirmed", () =>
     instagram:"https://instagram.com/empresa",instagramConfidence:null,
   }).kind==="channel-review",
     "Instagram without explicit high-confidence verification is not confirmed");
+  const unverified = qualifyDigitalOpportunity({
+    website:"https://empresa.com.br",phone:"35999999999",
+    instagram:"https://instagram.com/empresa",instagramConfidence:null,
+  });
+  assert(unverified.signals.includes("Possível Instagram para conferência"),
+    "Unverified direct Instagram should appear as a candidate, not disappear");
+  assert(!unverified.signals.includes("Instagram identificado"),
+    "Unverified direct Instagram must never be presented as identified");
   assert(qualifyDigitalOpportunity({
     website:"https://empresa.com.br", phone:"35999999999",
     instagram:"https://instagram.com/empresa", instagramConfidence:"high",
