@@ -1749,6 +1749,7 @@ function LeadFlowApp() {
       onLogout={logoutWorkspace}
       compactMode={userSettings.compactMode}
       reduceMotion={userSettings.reduceMotion}
+      accentColor={userSettings.accentColor}
       accountLabel={userSettings.displayName}
       reminderCount={workspaceReminderCount}
       onGlobalSearch={(query) => {

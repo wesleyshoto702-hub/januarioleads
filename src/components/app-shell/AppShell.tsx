@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { WorkspaceGuide } from "./WorkspaceGuide";
+import { WorkspaceAmbientParticles } from "./WorkspaceAmbientParticles";
+import type { AccentColor } from "../../features/settings/user-settings";
 
 export type AppView =
   | "dashboard"
@@ -84,6 +86,7 @@ export function AppShell({
   onLogout,
   compactMode = false,
   reduceMotion = false,
+  accentColor = "red",
   accountLabel,
   reminderCount = 0,
   onGlobalSearch,
@@ -95,6 +98,7 @@ export function AppShell({
   onLogout: () => void | Promise<void>;
   compactMode?: boolean;
   reduceMotion?: boolean;
+  accentColor?: AccentColor;
   accountLabel?: string;
   reminderCount?: number;
   onGlobalSearch?: (query: string) => void;
@@ -303,6 +307,7 @@ export function AppShell({
       )}
 
       <div className="saas-main">
+        <WorkspaceAmbientParticles accentColor={accentColor} reduceMotion={reduceMotion} />
         <div className="jl-topbar">
           {onGlobalSearch && (
             <form

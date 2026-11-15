@@ -1,0 +1,33 @@
+name: Validar fundo animado do Workspace (sem APIs)
+on:
+  pull_request:
+    paths:
+      - "src/components/app-shell/AppShell.tsx"
+      - "src/components/app-shell/WorkspaceAmbientParticles.tsx"
+      - "src/components/app-shell/workspace-ambient.test.ts"
+      - "src/routes/app.tsx"
+      - "src/lib/route-styles.ts"
+      - "src/styles/workspace-ambient-particles.css"
+      - ".github/workflows/validar-ambient-workspace.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ambient-background:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Verify scoped background behavior offline
+        run: deno test --allow-read src/components/app-shell/workspace-ambient.test.ts
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Typecheck frontend
+        run: bun run typecheck
+      - name: Build frontend without external provider calls
+        run: bun run build

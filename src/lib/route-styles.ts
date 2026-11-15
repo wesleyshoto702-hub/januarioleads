@@ -4,6 +4,7 @@
  * Keep each family's cascade order aligned with the former root links.
  */
 import appShellCss from "../styles/app-shell.css?url";
+import workspaceAmbientCss from "../styles/workspace-ambient-particles.css?url";
 import leadPortfolioCss from "../features/leads/lead-portfolio-overview.css?url";
 import saasVisualRefreshCss from "../styles/saas-visual-refresh.css?url";
 import prospectingInformationCss from "../styles/prospecting-information.css?url";
@@ -26,7 +27,7 @@ import signupCrimsonCss from "../styles/signup-crimson.css?url";
 
 const stylesheet = (href: string) => ({ rel: "stylesheet" as const, href });
 
-export const APP_STYLES = [stylesheet(appShellCss), stylesheet(saasVisualRefreshCss), stylesheet(prospectingInformationCss), stylesheet(settingsCss), stylesheet(premiumWorkspaceCss), stylesheet(premiumReferenceFivePagesCss), stylesheet(premiumMotionFivePagesCss), stylesheet(digitalPresenceCss), stylesheet(proposalsCss), stylesheet(commercialExpansionCss), stylesheet(leadPortfolioCss), stylesheet(workspaceGuideCss)];
+export const APP_STYLES = [stylesheet(appShellCss), stylesheet(saasVisualRefreshCss), stylesheet(prospectingInformationCss), stylesheet(settingsCss), stylesheet(premiumWorkspaceCss), stylesheet(premiumReferenceFivePagesCss), stylesheet(premiumMotionFivePagesCss), stylesheet(digitalPresenceCss), stylesheet(proposalsCss), stylesheet(commercialExpansionCss), stylesheet(leadPortfolioCss), stylesheet(workspaceGuideCss), stylesheet(workspaceAmbientCss)];
 
 export const MARKETING_STYLES = [
   stylesheet(marketingHomeCss),
