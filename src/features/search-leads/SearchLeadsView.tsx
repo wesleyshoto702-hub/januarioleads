@@ -46,6 +46,7 @@ import {
   matchesResultFilters,
   sameResultFilters,
   type ResultFilter,
+  type ResultSort,
   type LeadStatusFilter,
   type ResultFilterState,
   type ResultWithContext,
