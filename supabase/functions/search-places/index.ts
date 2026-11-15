@@ -327,7 +327,7 @@ function hasValidClientKey(request: Request) {
 }
 
 function adminConfig() {
-  const url = Deno.env.get("SUPABASE_URL")?.replace(/\\/$/, "");
+  const url = Deno.env.get("SUPABASE_URL")?.replace(/\/$/, "");
   if (!url) return null;
 
   // Modern keys first. Legacy service_role remains a temporary compatibility
