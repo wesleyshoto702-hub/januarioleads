@@ -1149,7 +1149,12 @@ async function runEnrichment(
     });
     let enrichedForGaps = mergeExistingBusiness(rawBusiness,snapshotForGaps);
     let missing = researchGaps(enrichedForGaps,strategy);
-    const apiKey = Deno.env.get("OPENAI_API_KEY")?.trim() ?? "";
+    // Deep enrichment can call billable AI extraction/web research. Do not
+    // infer spend permission from a stored key or from ordinary CRM access.
+    // Deterministic official-site parsing still runs without this opt-in.
+    const apiKey = Deno.env.get("OPENAI_ENRICHMENT_SPEND_APPROVED") === "true"
+      ? Deno.env.get("OPENAI_API_KEY")?.trim() ?? ""
+      : "";
 
     // Only ask the model to extract unstructured official text if deterministic
     // HTML/JSON-LD parsing did not already fill the relevant commercial gaps.
