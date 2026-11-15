@@ -3,9 +3,10 @@ import { RESULT_FILTER_OPTIONS, SMART_FILTERS } from
   "../src/features/search-leads/search-filter-presentation.ts";
 import {
   DEFAULT_RESULT_FILTERS, hasConfirmedInstagram,
-  hasIdentifiedBusinessPhone, hasUsableWhatsApp, hasUsableBusinessEmail,
+  hasIdentifiedBusinessPhone, hasUsableWhatsApp,
   matchesResultFilters, manualResultFilters, type ResultWithContext,
 } from "../src/features/search-leads/search-result-filters.ts";
+import { hasUsableBusinessEmail } from "../src/features/search-leads/business-contact.ts";
 import { countLoadedMatches, summarizeLoadedSearchResults } from
   "../src/features/search-leads/search-loaded-counts.ts";
 import { calculateLeadChance } from "../src/features/lead-chance/lead-chance.ts";
