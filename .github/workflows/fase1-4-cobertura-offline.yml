@@ -1,0 +1,26 @@
+name: Fase 1.4 — cobertura por cidade/UF/nicho (offline)
+on:
+  pull_request:
+    paths:
+      - "scripts/fase1-4-auditoria-cobertura-municipios-readonly.sql"
+      - "scripts/fase1-4-recortes-uf-18-casos-readonly.sql"
+      - "docs/FASE-1-4-*.csv"
+      - "tests/fixtures/fase1_4_coverage_summary.json"
+      - "tests/test_fase1_4_coverage_offline.py"
+      - ".github/workflows/fase1-4-cobertura-offline.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  coverage-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate all 216 niches, 27 UFs, 18 scenarios and readonly SQL
+        run: python -m unittest discover -s tests -p test_fase1_4_coverage_offline.py -v
