@@ -2,6 +2,8 @@ import { getValidSession } from "../../lib/auth";
 import { searchLocationKey, type SearchLocation } from "../search-leads/search-location";
 import type { BusinessSearchResult } from "../search-leads/types";
 import { safeBusinessResult } from "./opportunity-businesses";
+import { onlyOpenSourceSearchResults, openCachePage } from "./open-search-cache-policy";
+import { safeOpenContinuationToken } from "../../../supabase/functions/_shared/search-continuation";
 import type { OpportunitySample } from "./types";
 
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "../../lib/supabase-config";
@@ -33,9 +35,9 @@ export async function opportunityAuthedRequest(path: string, init: RequestInit =
 
 function safeResults(value: unknown) {
   if (!Array.isArray(value)) return [] as BusinessSearchResult[];
-  return value
-    .map(safeBusinessResult)
-    .filter((item): item is BusinessSearchResult => Boolean(item && (item.source==="overture" || item.source==="geoapify")));
+  const checked=value.map(safeBusinessResult)
+    .filter((item): item is BusinessSearchResult => Boolean(item));
+  return onlyOpenSourceSearchResults(checked);
 }
 
 export async function fetchPlacesSearchSamples(): Promise<OpportunitySample[]> {
@@ -90,7 +92,7 @@ export async function fetchRecentPlacesSearchSamples(
       segment: row.segment,
       checkedAt: row.checked_at,
       results: safeResults(row.results),
-      nextPageToken: row.next_page_token,
+      nextPageToken: safeOpenContinuationToken(row.next_page_token),
       pageCount: row.page_count,
     }))
     .filter(
@@ -132,7 +134,7 @@ export async function fetchCachedPlacesSearchSample(
     segment: row.segment,
     checkedAt: row.checked_at,
     results,
-    nextPageToken: row.next_page_token,
+    nextPageToken: safeOpenContinuationToken(row.next_page_token),
     pageCount: row.page_count,
   };
 }
@@ -152,14 +154,8 @@ export async function persistPlacesSearchSample(input: {
     ? await fetchExistingSample(session.user.id, locationKey, input.segment)
     : null;
   const previousResults = previous ? safeResults(previous.results) : [];
-  const combined = (input.append ? [...previousResults, ...input.results] : input.results)
-    .filter(item=>item.source==="overture" || item.source==="geoapify");
-
-  const unique = new Map<string, BusinessSearchResult>();
-  for (const business of combined) {
-    if (!business.placeId) continue;
-    unique.set(business.placeId, business);
-  }
+  const combined = input.append ? [...previousResults, ...input.results] : input.results;
+  const cached = openCachePage(combined,input.nextPageToken);
 
   const now = new Date().toISOString();
   const response = await opportunityAuthedRequest(
@@ -176,9 +172,9 @@ export async function persistPlacesSearchSample(input: {
         state: input.location.state,
         segment: input.segment,
         checked_at: now,
-        next_page_token: input.nextPageToken?.startsWith("google:")?null:input.nextPageToken,
+        next_page_token: cached.nextPageToken,
         page_count: input.append ? Math.max(1, previous?.page_count ?? 1) + 1 : 1,
-        results: Array.from(unique.values()).slice(0, 60),
+        results: cached.results,
         updated_at: now,
       }),
     },
