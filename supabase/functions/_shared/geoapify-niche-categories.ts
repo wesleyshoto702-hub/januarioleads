@@ -12,6 +12,7 @@ export const GEOAPIFY_CATEGORIES: Record<string, readonly string[] | null> = {
   "Açaiteria": null,
   "Açougue": ["commercial.food_and_drink.butcher"],
   "Adega": null,
+  "Bar / Pub": null, // No verified specific Geoapify category; keep Overture-first and budget-guarded fallback.
   "Buffet": null,
   "Buffet Infantil": null,
   "Cafeteria": ["catering.cafe"],
@@ -21,11 +22,13 @@ export const GEOAPIFY_CATEGORIES: Record<string, readonly string[] | null> = {
   "Hamburgueria": ["catering.fast_food.burger"],
   "Hortifruti": null,
   "Marmitaria": null,
+  "Mercado / Supermercado": null, // No verified specific Geoapify category; keep Overture-first and budget-guarded fallback.
   "Padaria": ["commercial.food_and_drink.bakery"],
   "Peixaria": null,
   "Pizzaria": ["catering.fast_food.pizza"],
   "Restaurante": ["catering.restaurant"],
   "Restaurante Fine Dining": null,
+  "Restaurante Japonês": null, // No verified specific Geoapify category; keep Overture-first and budget-guarded fallback.
   "Sorveteria": ["catering.ice_cream"],
   "Barbearia": ["service.beauty.hairdresser"],
   "Bronzeamento": ["service.beauty.tanning_salon"],
@@ -79,6 +82,7 @@ export const GEOAPIFY_CATEGORIES: Record<string, readonly string[] | null> = {
   "Personal Organizer": null,
   "Pintor": null,
   "Piscineiro": null,
+  "Provedor de Internet": null, // No verified specific Geoapify category; keep Overture-first and budget-guarded fallback.
   "Refrigeração / Ar Condicionado": null,
   "Segurança Eletrônica / Alarmes": null,
   "Serralheria": ["service.blacksmith"],
@@ -104,6 +108,7 @@ export const GEOAPIFY_CATEGORIES: Record<string, readonly string[] | null> = {
   "Tapeçaria": null,
   "Acessórios Automotivos": null,
   "Auto Elétrica": null,
+  "Autopeças": null, // No verified specific Geoapify category; keep Overture-first and budget-guarded fallback.
   "Estacionamento": ["parking"],
   "Estética Automotiva": ["service.vehicle.car_wash"],
   "Funilaria": null,
@@ -114,6 +119,8 @@ export const GEOAPIFY_CATEGORIES: Record<string, readonly string[] | null> = {
   "Loja de Veículos Seminovos": null,
   "Mecânica Automotiva": ["service.vehicle.repair.car"],
   "Oficina de Motos": ["service.vehicle.repair.motorcycle"],
+  "Posto de Combustível": null, // No verified specific Geoapify category; keep Overture-first and budget-guarded fallback.
+  "Revenda de Motos": null, // No verified specific Geoapify category; keep Overture-first and budget-guarded fallback.
   "Vistoria Veicular": null,
   "Academia": ["sport.fitness.fitness_centre","sport.fitness.gym"],
   "Academia de Artes Marciais": ["sport.dojo"],
@@ -161,6 +168,7 @@ export const GEOAPIFY_CATEGORIES: Record<string, readonly string[] | null> = {
   "Despachante": null,
   "Escritório de Advocacia": ["office.lawyer"],
   "Fotógrafo": ["service.photographer"],
+  "Funerária": null, // No verified specific Geoapify category; keep Overture-first and budget-guarded fallback.
   "Marketing Digital": null,
   "Agência de Publicidade": null,
   "Consultoria de RH": null,
@@ -178,10 +186,21 @@ export const GEOAPIFY_CATEGORIES: Record<string, readonly string[] | null> = {
   "Gráfica Rápida": null,
   "Imobiliária": ["service.estate_agent"],
   "Joalheria": ["commercial.jewelry"],
+  "Livraria": null, // No verified specific Geoapify category; keep Overture-first and budget-guarded fallback.
+  "Loja de Artigos Esportivos": null, // No verified specific Geoapify category; keep Overture-first and budget-guarded fallback.
+  "Loja de Artigos para Festas": null, // No verified specific Geoapify category; keep Overture-first and budget-guarded fallback.
   "Loja de Bicicletas": ["commercial.outdoor_and_sport.bicycle"],
+  "Loja de Brinquedos": null, // No verified specific Geoapify category; keep Overture-first and budget-guarded fallback.
   "Loja de Calçados": ["commercial.clothing.shoes"],
+  "Loja de Celulares": null, // No verified specific Geoapify category; keep Overture-first and budget-guarded fallback.
+  "Loja de Cosméticos": null, // No verified specific Geoapify category; keep Overture-first and budget-guarded fallback.
+  "Loja de Conveniência": null, // No verified specific Geoapify category; keep Overture-first and budget-guarded fallback.
+  "Loja de Departamentos": null, // No verified specific Geoapify category; keep Overture-first and budget-guarded fallback.
+  "Loja de Eletrônicos": null, // No verified specific Geoapify category; keep Overture-first and budget-guarded fallback.
+  "Loja de Eletrodomésticos": null, // No verified specific Geoapify category; keep Overture-first and budget-guarded fallback.
   "Loja de Informática": ["commercial.elektronics"],
   "Loja de Instrumentos Musicais": ["commercial.hobby.music"],
+  "Loja de Lingerie": null, // No verified specific Geoapify category; keep Overture-first and budget-guarded fallback.
   "Loja de Materiais de Construção": ["commercial.houseware_and_hardware.building_materials"],
   "Loja de Moda Infantil": ["commercial.clothing.kids"],
   "Loja de Móveis": ["commercial.furniture_and_interior"],
@@ -189,6 +208,7 @@ export const GEOAPIFY_CATEGORIES: Record<string, readonly string[] | null> = {
   "Loja de Produtos Naturais": null,
   "Loja de Roupas": ["commercial.clothing.clothes"],
   "Loja de Suplementos": null,
+  "Loja de Utilidades Domésticas": null, // No verified specific Geoapify category; keep Overture-first and budget-guarded fallback.
   "Papelaria / Artesanato": ["commercial.stationery"],
   "Adestramento": null,
   "Banho e Tosa": null,
@@ -228,7 +248,7 @@ export function geoapifyCategoryForSegment(value: string): {
 /** Pure self-check for the future public launch and catalog changes. */
 export function validateGeoapifyCoverage() {
   const names = SEGMENT_GROUPS.flatMap(group => group.items);
-  return names.length === 196 &&
+  return names.length === 216 &&
     names.every(name => Object.hasOwn(GEOAPIFY_CATEGORIES,name)) &&
     Object.keys(GEOAPIFY_CATEGORIES).every(name=>names.includes(name));
 }
