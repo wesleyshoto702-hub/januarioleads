@@ -42,6 +42,12 @@
 - [ANPD / guia de legítimo interesse](https://www.gov.br/anpd/pt-br/assuntos/noticias/anpd-lanca-guia-orientativo-sobre-legitimo-interesse)
 - [Supabase / preços e limites](https://supabase.com/pricing)
 
+## Registro de execução da Fase 0 — 15/11/2026
+
+**Fase 0 INICIADA, NÃO CONCLUÍDA.** Auditoria apenas de leitura confirmou conta Supabase **Free** sem backups automáticos diários, baseline de **212 leads/2 contas**, checagens de integridade e RLS; ainda é necessário **revogar credencial antiga** e **gerar/testar backup recuperável**. Foi preparado o script local criptografado, sem acesso a dados ou senhas no CI.
+
+**Registro técnico detalhado e checklist:** [Fase 0 — segurança, baseline e backup](FASE-0-SEGURANCA-BACKUP-2026-11-15.md).
+
 ## 1. Visão de entrega — não confundir etapas
 
 **Produto mínimo do beta:** pesquisa real por UF/cidade/nicho → resultados úteis e identificados por origem → filtros verdadeiros → salvar no CRM → favoritar → enviar mensagem manualmente → registrar histórico e próximo acompanhamento. Sem envio automático em massa, sem prometer Instagram confirmado, sem "sem site" como prova, sem consultas pagas.
