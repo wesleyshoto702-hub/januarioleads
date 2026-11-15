@@ -621,8 +621,8 @@ export function SearchLeadsView({
         const existingLead = findBusinessDuplicate(located, existingLeads);
         const savedInstagramIsConfirmed = Boolean(
           existingLead?.instagram?.trim() &&
-          existingLead.instagramConfidence !== "medium" &&
-          existingLead.instagramConfidence !== "low" &&
+          (existingLead.instagramConfidence === "high" ||
+            existingLead.instagramSource === "manual_confirmation") &&
           !existingLead.instagramNeedsReview,
         );
         const hydratedBusiness =
