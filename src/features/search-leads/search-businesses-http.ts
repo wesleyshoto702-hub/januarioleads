@@ -1,5 +1,6 @@
 import type { BusinessSearchResponse } from "./types.ts";
 import type { SearchLocation } from "./search-location.ts";
+import { parseSearchContinuation } from "../../../supabase/functions/_shared/search-continuation.ts";
 
 /** HTTP contract for a single Buscar Leads request.
  * Pure dependency injection: no auth provider, credentials, real endpoint,
@@ -55,6 +56,9 @@ export async function requestSearchBusinesses(
 ): Promise<BusinessSearchResponse> {
   // Do not send requests if the user has no current session.
   if(!deps.accessToken?.trim()) return failures.missingSession;
+  if(input.pageToken!==undefined && parseSearchContinuation(input.pageToken).kind==="invalid")
+    return {ok:false,code:"INVALID_REQUEST",message:"O token de continuação da busca é inválido."};
+
   if(!deps.endpoint.startsWith("https://") || !deps.publishableKey.trim())
     return {
       ok: false, code: "NOT_CONFIGURED",
