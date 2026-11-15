@@ -12,6 +12,26 @@ const row=(id:string,category:string,phone:string|null=null)=>({
 });
 Deno.test("Overture categories strictly match the selected niche, not vague searches",()=>{
   assert(categoriesForOverture("Barbearia").includes("barber"),"Barbers category required");
+  assert(categoriesForOverture("Mercado / Supermercado").includes("grocery_store"), "Overture mapping missing: Mercado / Supermercado");
+  assert(categoriesForOverture("Bar / Pub").includes("bar"), "Overture mapping missing: Bar / Pub");
+  assert(categoriesForOverture("Posto de Combustível").includes("gas_station"), "Overture mapping missing: Posto de Combustível");
+  assert(categoriesForOverture("Autopeças").includes("auto_parts_store"), "Overture mapping missing: Autopeças");
+  assert(categoriesForOverture("Loja de Cosméticos").includes("beauty_supply_store"), "Overture mapping missing: Loja de Cosméticos");
+  assert(categoriesForOverture("Provedor de Internet").includes("internet_service_provider"), "Overture mapping missing: Provedor de Internet");
+  assert(categoriesForOverture("Loja de Celulares").includes("mobile_phone_store"), "Overture mapping missing: Loja de Celulares");
+  assert(categoriesForOverture("Loja de Eletrônicos").includes("electronics_store"), "Overture mapping missing: Loja de Eletrônicos");
+  assert(categoriesForOverture("Loja de Departamentos").includes("department_store"), "Overture mapping missing: Loja de Departamentos");
+  assert(categoriesForOverture("Loja de Conveniência").includes("convenience_store"), "Overture mapping missing: Loja de Conveniência");
+  assert(categoriesForOverture("Revenda de Motos").includes("motorcycle_dealer"), "Overture mapping missing: Revenda de Motos");
+  assert(categoriesForOverture("Loja de Lingerie").includes("lingerie_store"), "Overture mapping missing: Loja de Lingerie");
+  assert(categoriesForOverture("Loja de Utilidades Domésticas").includes("home_goods_store"), "Overture mapping missing: Loja de Utilidades Domésticas");
+  assert(categoriesForOverture("Funerária").includes("funeral_service"), "Overture mapping missing: Funerária");
+  assert(categoriesForOverture("Livraria").includes("bookstore"), "Overture mapping missing: Livraria");
+  assert(categoriesForOverture("Loja de Artigos para Festas").includes("party_supply_store"), "Overture mapping missing: Loja de Artigos para Festas");
+  assert(categoriesForOverture("Loja de Artigos Esportivos").includes("sporting_goods_store"), "Overture mapping missing: Loja de Artigos Esportivos");
+  assert(categoriesForOverture("Restaurante Japonês").includes("sushi_restaurant"), "Overture mapping missing: Restaurante Japonês");
+  assert(categoriesForOverture("Loja de Brinquedos").includes("toy_store"), "Overture mapping missing: Loja de Brinquedos");
+  assert(categoriesForOverture("Loja de Eletrodomésticos").includes("appliance_store"), "Overture mapping missing: Loja de Eletrodomésticos");
   assert(categoriesForOverture("Academia").includes("gym"),"Gym category required");
   assert(categoriesForOverture("Loja de Materiais de Construção").includes("building_supply_store"),
     "Material shops must use observed Overture taxonomy");
