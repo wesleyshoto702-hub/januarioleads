@@ -7,6 +7,7 @@ import {
   Clock3,
   ExternalLink,
   MapPin,
+  Mail,
   MessageCircle,
   Phone,
   Search,
@@ -33,6 +34,7 @@ import {
   type ExistingLeadIdentity,
 } from "./identity";
 import { searchBusinesses } from "./search-businesses";
+import { hasUsableBusinessEmail } from "./business-contact";
 import { SearchResultsAttribution } from "./BusinessSourceCredit";
 import { GoogleMapsLink } from "./GoogleMapsLink";
 import {
@@ -72,6 +74,7 @@ export type SearchMessageTarget = {
 type ResultFilter =
   | "all"
   | "phone"
+  | "email"
   | "whatsapp"
   | "with-site"
   | "without-site"
@@ -88,7 +91,7 @@ type ResultSort =
 
 type LeadStatusFilter = "all" | "new" | LeadStatus;
 
-type ContactFilter = "all" | "phone" | "whatsapp";
+type ContactFilter = "all" | "phone" | "email" | "whatsapp";
 type WebsiteFilter = "all" | "with-site" | "without-site";
 type InstagramFilter = "all" | "with-instagram" | "without-instagram";
 type ChanceFilter = "all" | "high";
@@ -177,7 +180,7 @@ function loadSearchLeadsSession(): SearchLeadsSession | null {
       (saved.nextPageToken !== null && typeof saved.nextPageToken !== "string") ||
       (saved.screen !== "segments" && saved.screen !== "results") ||
       !filters ||
-      !["all", "phone", "whatsapp"].includes(filters.contact) ||
+      !["all", "phone", "email", "whatsapp"].includes(filters.contact) ||
       !["all", "with-site", "without-site"].includes(filters.website) ||
       !["all", "with-instagram", "without-instagram"].includes(filters.instagram) ||
       !["all", "high"].includes(filters.chance) ||
@@ -201,6 +204,7 @@ function loadSearchLeadsSession(): SearchLeadsSession | null {
 const RESULT_FILTER_OPTIONS: Array<[ResultFilter, string]> = [
   ["all", "Todos"],
   ["phone", "Com telefone"],
+  ["email", "Com e-mail"],
   ["whatsapp", "Com WhatsApp"],
   ["with-site", "Com site"],
   ["without-site", "Sem site"],
@@ -319,6 +323,9 @@ function manualResultFilters(value: ResultFilter): ResultFilterState {
   if (value === "whatsapp") {
     return { ...DEFAULT_RESULT_FILTERS, contact: "whatsapp" };
   }
+  if (value === "email") {
+    return { ...DEFAULT_RESULT_FILTERS, contact: "email" };
+  }
   if (value === "with-site") {
     return { ...DEFAULT_RESULT_FILTERS, website: "with-site" };
   }
@@ -341,6 +348,7 @@ function isManualResultFilterActive(
   if (value === "all") return sameResultFilters(filters, DEFAULT_RESULT_FILTERS);
   if (value === "phone") return filters.contact === "phone";
   if (value === "whatsapp") return filters.contact === "whatsapp";
+  if (value === "email") return filters.contact === "email";
   if (value === "with-site") return filters.website === "with-site";
   if (value === "without-site") return filters.website === "without-site";
   if (value === "with-instagram") return filters.instagram === "with-instagram";
@@ -364,6 +372,9 @@ function matchesResultFilters(
   }
 
   if (filters.contact === "phone" && !hasValidBusinessPhone(business)) {
+    return false;
+  }
+  if (filters.contact === "email" && !hasUsableBusinessEmail(business.email)) {
     return false;
   }
   if (filters.contact === "whatsapp" && !hasUsableWhatsApp(business)) {
@@ -1632,6 +1643,12 @@ function BusinessCard({
             <span>
               <Phone size={14} />
               {business.phone}
+            </span>
+          )}
+          {hasUsableBusinessEmail(business.email) && (
+            <span title="E-mail de diretório público, ainda não verificado">
+              <Mail size={14} />
+              {business.email} · não verificado
             </span>
           )}
           {business.rating !== null && (
