@@ -12,6 +12,7 @@ export const SEGMENT_GROUPS: SegmentGroup[] = [
       "Açaiteria",
       "Açougue",
       "Adega",
+      "Bar / Pub",
       "Buffet",
       "Buffet Infantil",
       "Cafeteria",
@@ -21,11 +22,13 @@ export const SEGMENT_GROUPS: SegmentGroup[] = [
       "Hamburgueria",
       "Hortifruti",
       "Marmitaria",
+      "Mercado / Supermercado",
       "Padaria",
       "Peixaria",
       "Pizzaria",
       "Restaurante",
       "Restaurante Fine Dining",
+      "Restaurante Japonês",
       "Sorveteria"
     ]
   },
@@ -94,6 +97,7 @@ export const SEGMENT_GROUPS: SegmentGroup[] = [
       "Personal Organizer",
       "Pintor",
       "Piscineiro",
+      "Provedor de Internet",
       "Refrigeração / Ar Condicionado",
       "Segurança Eletrônica / Alarmes",
       "Serralheria",
@@ -134,6 +138,7 @@ export const SEGMENT_GROUPS: SegmentGroup[] = [
     "items": [
       "Acessórios Automotivos",
       "Auto Elétrica",
+      "Autopeças",
       "Estacionamento",
       "Estética Automotiva",
       "Funilaria",
@@ -144,6 +149,8 @@ export const SEGMENT_GROUPS: SegmentGroup[] = [
       "Loja de Veículos Seminovos",
       "Mecânica Automotiva",
       "Oficina de Motos",
+      "Posto de Combustível",
+      "Revenda de Motos",
       "Vistoria Veicular"
     ]
   },
@@ -211,6 +218,7 @@ export const SEGMENT_GROUPS: SegmentGroup[] = [
       "Despachante",
       "Escritório de Advocacia",
       "Fotógrafo",
+      "Funerária",
       "Marketing Digital"
     ]
   },
@@ -238,10 +246,21 @@ export const SEGMENT_GROUPS: SegmentGroup[] = [
       "Gráfica Rápida",
       "Imobiliária",
       "Joalheria",
+      "Livraria",
+      "Loja de Artigos Esportivos",
+      "Loja de Artigos para Festas",
       "Loja de Bicicletas",
+      "Loja de Brinquedos",
       "Loja de Calçados",
+      "Loja de Celulares",
+      "Loja de Cosméticos",
+      "Loja de Conveniência",
+      "Loja de Departamentos",
+      "Loja de Eletrônicos",
+      "Loja de Eletrodomésticos",
       "Loja de Informática",
       "Loja de Instrumentos Musicais",
+      "Loja de Lingerie",
       "Loja de Materiais de Construção",
       "Loja de Moda Infantil",
       "Loja de Móveis",
@@ -249,6 +268,7 @@ export const SEGMENT_GROUPS: SegmentGroup[] = [
       "Loja de Produtos Naturais",
       "Loja de Roupas",
       "Loja de Suplementos",
+      "Loja de Utilidades Domésticas",
       "Papelaria / Artesanato"
     ]
   },
