@@ -13,7 +13,7 @@
 - Busca lê no máximo **3 páginas x 100 registros** por cidade/nicho, sempre `order=id.asc`, antes de classificar contatos e paginar 20 ao usuário. Não equivale a pesquisa completa do banco.
 - Falha de qualquer página → resultado `UNAVAILABLE` (fail-closed), evitando resposta parcial mascarada de completa.
 - Foram incluídos testes offline cobrindo ordenação por contatos, falha de página posterior, limite de leituras, 216 rótulos e 162 nichos mapeados.
-- Foi incluído workflow PR offline e sem segredos para rodar verificações específicas do Overture.
+- Foi incluído workflow PR offline e sem segredos para rodar verificações específicas do Overture. **O workflow focado passou** (run [43731267802](https://github.com/wesleyshoto702-hub/januarioleads/actions/runs/43731267802)). Isso valida os testes unitários e tipos do módulo, não chamadas reais do Supabase.
 - **Não tratar resultado total como contagem nacional exaustiva**; só há uma janela limitada, sobretudo após crescerem as capitais.
 
 ## Trabalho 3 — amostragem real (homologação, SQL SELECT)
@@ -42,6 +42,7 @@ Exemplos exatos observados: Lavras tem 4 registros `dental_clinic`, 1 `gym` e 1 
 9. Frontend não é publicado automaticamente. Separar publicação do frontend e do backend, evitando divergência entre ambiente staging e produção.
 
 ## Bloqueadores e critérios de aprovação
-- CI geral está bloqueado historicamente por auditoria de migrations que espera 24 e encontra 42 arquivos locais no snapshot do workflow #43731102268; isso não foi causado pelo mapeamento de nichos.
+- CI geral está bloqueado historicamente por auditoria de migrations que espera 24 e encontra 42 arquivos locais no snapshot do workflow #43731102268; isso não foi causado pelo mapeamento de nichos. O step **Testar nichos e compatibilidade** do próprio CI geral passou, independentemente da falha de migrations.
+- Supabase homologação consultado via metadados somente leitura: `search-places` **ACTIVE versão 29, `verify_jwt=true`**; sem alteração ou deploy nesta sessão.
 - Apenas testes simulados e consultas SQL agregadas foram feitos nesta rodada. **Não foi realizado teste real de chamadas Edge Function, deploy nem browser conectado à homologação.**
 - Integração de 162 nichos e ranking precisam de validação de carga/leitura do Supabase depois da importação, antes da ativação.
