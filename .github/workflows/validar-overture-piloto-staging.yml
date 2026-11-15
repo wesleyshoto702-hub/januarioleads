@@ -1,0 +1,26 @@
+name: Validar piloto Buscar Leads Overture em homologação (offline)
+on:
+  pull_request:
+    paths:
+      - "supabase/functions/_shared/overture-search.ts"
+      - "tests/overture-staging-search-pilot.test.ts"
+      - "scripts/overture_buscar_leads_piloto_readonly.sql"
+      - ".github/workflows/validar-overture-piloto-staging.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  overture-pilot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Teste sem consultas ao Overture, Supabase ou APIs pagas
+        run: deno test tests/overture-staging-search-pilot.test.ts
+      - name: Type check Overture search without environment variables
+        run: deno check tests/overture-staging-search-pilot.test.ts
