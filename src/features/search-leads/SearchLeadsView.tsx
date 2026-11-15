@@ -744,7 +744,10 @@ export function SearchLeadsView({
     hasActiveSearchRef.current = true;
     // A duplicate "Load more" tap should not trigger the same page twice.
     if(append && (!pageToken || pageToken!==nextPageToken || loadingMore || loading))return;
-    const requestId = searchRequestGateRef.current.next();
+    const requestId = append
+      ? searchRequestGateRef.current.nextPage(pageToken!)
+      : searchRequestGateRef.current.next();
+    if(requestId===null)return;
     if (append) {
       setLoadingMore(true);
     } else {
@@ -766,6 +769,7 @@ export function SearchLeadsView({
 
     // Out-of-order network responses must not overwrite the latest search.
     if (!searchRequestGateRef.current.isCurrent(requestId)) return;
+    searchRequestGateRef.current.finish(requestId);
 
     if (!response.ok) {
       if (!append && response.code === "QUOTA") {
