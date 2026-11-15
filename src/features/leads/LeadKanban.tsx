@@ -5,6 +5,8 @@ import { STATUS_LABEL } from "./lead-status";
 import { getLeadActionSummary } from "../next-actions/next-actions";
 import { LeadFavoriteButton } from "./LeadFavoriteButton";
 import { LeadNicheIcon } from "./LeadNicheIcon";
+import { DigitalOpportunityBadge } from "../qualification/DigitalOpportunityBadge";
+import { hasEnoughDataForLeadChance } from "../lead-chance/lead-chance";
 
 const COLUMNS: readonly LeadStatus[] = ["send_message", "waiting", "accepted", "rejected"];
 
@@ -84,6 +86,9 @@ export function LeadKanban({
                         />
                       </div>
                       <small>{lead.segment}{lead.city ? " · " + lead.city : ""}</small>
+                      {hasEnoughDataForLeadChance(lead) && (
+                        <DigitalOpportunityBadge business={lead} />
+                      )}
                       {next.saved && (
                         <span className="lead-kanban-action"><CalendarClock size={13} aria-hidden="true" />
                           {next.saved.label}{next.saved.date ? " · " + next.saved.date.split("-").reverse().join("/") : ""}
