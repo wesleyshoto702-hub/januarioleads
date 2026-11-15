@@ -74,7 +74,8 @@
 
 ### FASE 1 — QUALIDADE DO CATÁLOGO OVERTURE | P1
 - [x] **1.1** Fixar conjunto reproduzível de testes por **18 pares** de nicho/cidade em 14 UFs, com SQL somente leitura e relatório agregado. [Relatório](FASE-1-PILOTO-OVERTURE-18-BUSCAS-2026-11-15.md) e [SQL](../scripts/fase1-overture-amostra-18-readonly.sql). *Este aceite valida a amostra, não toda a qualidade da base.*
-- [ ] **1.2** Medir taxa de registros realmente comerciais, relevante ao nicho, com contato utilizável, duplicações, filial legítima, categoria desconhecida e endereços ausentes. Marcar fonte, lote/release e nível de confiança.
+- [x] **1.2a — Auditoria quantitativa interna:** 321.179 registros auditados via consultas `SELECT` agregadas; telefone/e-mail/website/Instagram plausíveis por sintaxe, grupos com nome/contato repetidos, ausência de endereço, confiança, mapeamento de 186 categorias e distribuição entre municípios. [Relatório Fase 1.2](FASE-1-2-AUDITORIA-QUALIDADE-OVERTURE-2026-11-15.md) e [SQL reproduzível](../scripts/fase1-2-auditoria-overture-somente-leitura.sql). **Não equivale a verificar empresas ou contatos no mundo real.**
+- [ ] **1.2b — Validação qualitativa / real:** medir taxa de empresas efetivamente existentes, titularidade dos contatos, precisão da associação ao nicho e filiais legítimas por amostras externas legalmente autorizadas, quando a Fase 0 estiver resolvida. A coluna `data_release` contém apenas `latest`; snapshot real deve ser registrado na próxima carga. **Não marcar esta parte como concluída agora.**
 - [ ] **1.3** Verificar os **216 nichos**: **125 mapeados**, **91 pendentes**. Só criar mapeamento com correspondência semântica específica; não prometer cobertura homogênea.
 - [ ] **1.4** Classificar regiões/nichos como **cobertura boa / limitada / sem resultados**, sem inventar empresas; não gastar créditos externos para esconder falhas.
 - [ ] **1.5** Testar deduplicação baseada em nome, localização e ID, inclusive filiais homônimas e telefones repetidos. Validar telefone BR, website real e Instagram; não chamar dados apenas presentes de "verificados".
@@ -147,7 +148,7 @@
 | Ordem | Fase | Estado em 15/11 | Dependência |
 |---|---|---|---|
 | 0 | Segredos, backup e segurança | **ADIADA a pedido — continua bloqueio P0** | antes de qualquer ação de risco / lançamento |
-| 1 | Qualidade Overture | **ATIVA — 1.1 concluída; somente leitura/offline** | sem produção, segredo ou escrita |
+| 1 | Qualidade Overture | **ATIVA — 1.1 + 1.2a concluídas, 1.2b pendente; próxima 1.3** | somente leitura/offline; sem produção |
 | 2 | Buscar Leads E2E staging | preparação offline permitida; E2E real bloqueado | 1 + resolver 0 para teste real seguro |
 | 3 | Compliance/custos/migração canário | documentação/compliance permitidos; migração bloqueada | 0–2 |
 | 4 | CRM e UX beta | testes offline/visuais permitidos; aceite real pendente | 0 + 2–3 |
@@ -173,7 +174,7 @@
 - [ ] Integração automática de pagamentos antes do beta estabilizado.
 
 ## 6. Próxima ação única e retomada
-**AGORA: FASE 1.2 — auditoria agregada de relevância, duplicações e completude, exclusivamente por consultas de leitura na homologação e testes offline.** A amostra de 18 buscas da Fase 1.1 está documentada. Não executar Colab nem consultar fornecedores externos para este trabalho.
+**AGORA: FASE 1.3 — auditar sistematicamente os 216 nichos e os 125 mapeados para Overture; tratar os 91 sem mapeamento com critérios semânticos explícitos.** As Fases 1.1 e 1.2a têm evidências agregadas salvas. Não executar Colab, alterar a base ou consultar fornecedores externos. **A verificação real de empresas/contatos (1.2b) continua pendente, dependente da Fase 0.**
 
 **QUANDO O USUÁRIO VOLTAR AO COMPUTADOR: retomar a FASE 0.1 e 0.2 imediatamente**, confirmar revogação da chave `service_role` de homologação exposta e concluir backup/ensaio de restauração da produção. Sem isso, nenhuma migração, beta público, assinatura ou lançamento comercial pode ser considerado aprovado. A implementação atual da busca na homologação foi atualizada para usar preferencialmente `sb_secret_` (Edge Function v31), mas isso **não revoga a chave antiga**.
 
