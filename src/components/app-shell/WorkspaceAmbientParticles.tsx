@@ -119,6 +119,7 @@ export function WorkspaceAmbientParticles({
     };
   }, [accentColor, reduceMotion]);
 
-  return <canvas ref={canvasRef} className="jl-workspace-ambient-particles"
+  // When the user removes animations, do not render particles at all.
+  return reduceMotion ? null : <canvas ref={canvasRef} className="jl-workspace-ambient-particles"
     aria-hidden="true" role="presentation" data-accent={accentColor} />;
 }
