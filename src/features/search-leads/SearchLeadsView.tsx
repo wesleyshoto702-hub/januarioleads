@@ -96,13 +96,6 @@ type SmartFilterId =
   | "waiting"
   | "instagram-no-site";
 
-type ResultWithContext = {
-  business: BusinessSearchResult;
-  existingLead: ExistingLeadIdentity | null;
-  alreadyAdded: boolean;
-  chance: LeadChanceResult;
-};
-
 type SmartFilterPreset = {
   id: SmartFilterId;
   label: string;
