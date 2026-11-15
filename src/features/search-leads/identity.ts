@@ -1,8 +1,7 @@
 import type { LeadStatus } from "../leads/remote-leads";
 import type { InstagramSource } from "../business-presence/types";
 import type { BusinessSearchResult } from "./types";
-import { normalizeSearchText } from "./segments";
-import { sameLocation } from "../../lib/location";
+import { normalizeLocationText, sameLocation } from "../../lib/location";
 
 export type ExistingLeadIdentity = {
   id?: string | undefined;
@@ -32,7 +31,7 @@ export function normalizeBrazilianPhone(value: string | null | undefined) {
 }
 
 function normalizeIdentity(value: string | null | undefined) {
-  return normalizeSearchText(value ?? "");
+  return normalizeLocationText(value);
 }
 
 export function findBusinessDuplicate(
