@@ -5,7 +5,7 @@ function assert(value: unknown, message: string): asserts value {
 }
 const read = (path: string) => Deno.readTextFileSync(new URL(path, import.meta.url));
 const settings = read("../../features/settings/user-settings.ts");
-const accentList = settings.match(/export const ACCENT_COLORS = \\[([\\s\\S]*?)\\] as const;/)?.[1] ?? "";
+const accentList = settings.match(/export const ACCENT_COLORS = \[([\s\S]*?)\] as const;/)?.[1] ?? "";
 const supportedAccents = [...accentList.matchAll(/"([a-z]+)"/g)].map(x => x[1]);
 const component = read("./WorkspaceAmbientParticles.tsx");
 const shell = read("./AppShell.tsx");
