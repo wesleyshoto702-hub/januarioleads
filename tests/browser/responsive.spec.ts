@@ -33,6 +33,13 @@ async function loginWithMockedSupabase(page: Page) {
   // real production requests. Includes CORS preflights and optional local BFF.
   let signedIn = false;
   const trail: string[] = [];
+  const clientErrors: string[] = [];
+  page.on("pageerror",error=>clientErrors.push(error.message.slice(0,350)));
+  page.on("console",msg=>{if(msg.type()==="error")clientErrors.push(msg.text().slice(0,350));});
+  page.on("requestfailed",request=>{
+    const url=new URL(request.url());
+    clientErrors.push("request-failed "+url.pathname+" "+(request.failure()?.errorText??""));
+  });
   const headers = {
     "Access-Control-Allow-Origin": "http://127.0.0.1:5173",
     "Access-Control-Allow-Headers": "authorization, apikey, content-type",
@@ -87,6 +94,19 @@ async function loginWithMockedSupabase(page: Page) {
     return route.abort("blockedbyclient");
   });
   await page.goto("/login");
+  // TanStack Start renders the form server-side before client events are
+  // attached. Clicking during this gap can silently submit NOTHING.
+  try {
+    await page.waitForFunction(() => {
+      const form = document.querySelector("form.jl-signup-form");
+      return Boolean(form && Object.keys(form).some(key =>
+        key.startsWith("__reactProps$") || key.startsWith("__reactFiber$")
+      ));
+    }, undefined, {timeout:20_000});
+  } catch (error) {
+    throw new Error("Mocked login page did not hydrate: "+
+      JSON.stringify({clientErrors,mockedRequests:trail}), {cause:error});
+  }
   await page.getByPlaceholder("seu@email.com").fill("fake@example.invalid");
   await page.getByPlaceholder("Sua senha").fill("fictional-test-password");
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
@@ -99,7 +119,7 @@ async function loginWithMockedSupabase(page: Page) {
       location:location.pathname,
     }));
     throw new Error("CRM workspace did not appear after mocked login: " +
-      JSON.stringify({diagnostics,mockedRequests:trail}), {cause:error});
+      JSON.stringify({diagnostics,mockedRequests:trail,clientErrors}), {cause:error});
   }
 }
 
