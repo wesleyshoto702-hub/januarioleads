@@ -20,7 +20,7 @@ export type ResultFilter =
   | "with-instagram"
   | "without-instagram";
 
-type ResultSort =
+export type ResultSort =
   | "chance-desc"
   | "chance-asc"
   | "rating"
@@ -42,6 +42,13 @@ export type ResultFilterState = {
   chance: ChanceFilter;
 };
 
+
+export type ResultWithContext = {
+  business: BusinessSearchResult;
+  existingLead: ExistingLeadIdentity | null;
+  alreadyAdded: boolean;
+  chance: LeadChanceResult;
+};
 
 export const DEFAULT_RESULT_FILTERS: ResultFilterState = {
   contact: "all",
