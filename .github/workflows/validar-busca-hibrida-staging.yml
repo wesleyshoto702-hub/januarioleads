@@ -6,6 +6,7 @@ on:
       - 'supabase/functions/search-places/**'
       - 'supabase/functions/_shared/**'
       - 'src/features/search-leads/**'
+      - 'src/features/qualification/**'
       - '.github/workflows/validar-busca-hibrida-staging.yml'
   workflow_dispatch:
 permissions:
