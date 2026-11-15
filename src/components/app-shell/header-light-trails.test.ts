@@ -49,6 +49,6 @@ Deno.test("header effect stays below controls, behind text, with reduced-motion 
     "Animation must not intercept clicks or escape banner");
   assert(css.includes("> :not(.jl-header-beams)")&&css.includes("z-index: 1"),
     "Text and buttons remain in front of light effect");
-  assert(css.includes("prefers-reduced-motion")&&css.includes("js-settings-reduce-motion"),
+  assert(css.includes("prefers-reduced-motion")&&css.includes("js-settings-remove-animations"),
     "Respect system and user accessibility preferences");
 });
