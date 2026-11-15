@@ -6921,3 +6921,71 @@ a{
   --primary-soft:rgba(129,140,248,.10);--primary-soft-strong:rgba(129,140,248,.18);
   --primary-contrast:#071327;
 }
+
+/* Evidence-based commercial signals: shared by search results, details,
+   desktop/mobile CRM and Kanban. Never rely solely on color for meaning. */
+.digital-opportunity-badge{
+  display: inline-flex;
+  align-items: center;
+  flex: 0 1 auto;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 24px;
+  padding: 3px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 7px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1.35;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+.digital-opportunity--website-prospect{
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+  background: var(--primary-soft);
+}
+.digital-opportunity--contact-research{ color: var(--muted); }
+.digital-opportunity--multichannel{
+  border-color: color-mix(in srgb, var(--accepted) 35%, var(--border));
+}
+.digital-opportunity-explanation{
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  padding: 14px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+  overflow-wrap: anywhere;
+}
+.digital-opportunity-explanation strong{font-size:12px;color:var(--text)}
+.digital-opportunity-explanation p{
+  margin:0;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.5;
+}
+.digital-opportunity-explanation ul{
+  display:grid;
+  gap:3px;
+  margin:0;
+  padding-left:18px;
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.55;
+}
+.business-facts span{
+  max-width:100%;
+  overflow-wrap:anywhere;
+}
+.business-facts span svg{ flex-shrink:0; }
+.jl-lead-company-copy .digital-opportunity-badge,
+.lead-kanban-card .digital-opportunity-badge{max-width:100%}
+@media (max-width:640px){
+  .business-name-line .digital-opportunity-badge{align-self:flex-start}
+  .digital-opportunity-explanation{padding:12px}
+}
