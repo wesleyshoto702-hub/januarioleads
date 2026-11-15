@@ -31,8 +31,8 @@ class SearchFlowContract(unittest.TestCase):
             self.assertIn(marker,self.view)
         self.assertNotIn("function matchesResultFilters(",self.view)
         self.assertNotIn("function hasConfirmedInstagram(",self.view)
-        self.assertIn("const requestId = ++searchRequestIdRef.current",self.view)
-        self.assertIn("if (requestId !== searchRequestIdRef.current) return",self.view)
+        self.assertIn("const requestId = searchRequestGateRef.current.next()",self.view)
+        self.assertIn("if (!searchRequestGateRef.current.isCurrent(requestId)) return",self.view)
         self.assertIn("if (append) setLoadingMore(false)",self.view)
         self.assertIn("item.source===\"overture\" || item.source===\"geoapify\"",self.view)
 
