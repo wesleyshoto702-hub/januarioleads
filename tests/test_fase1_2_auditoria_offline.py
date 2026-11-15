@@ -25,7 +25,7 @@ class Fase12AuditSafety(unittest.TestCase):
             r"\b(INSERT|DELETE|UPDATE|ALTER|DROP|TRUNCATE|CREATE|GRANT|REVOKE|COPY|CALL|DO|EXECUTE|PERFORM)\b",
             re.I))
         self.assertNotRegex(sql,re.compile(r"(?:http[s]?://|auth\.users|service_role|apikey)",re.I))
-        self.assertEqual(sql.count("FROM public.overture_places"),6)
+        self.assertEqual(sql.count("FROM public.overture_places"),8)
 
     def test_exact_category_snapshot_matches_adapter(self):
         source=self.source.split("export type OverturePlace",1)[0]
@@ -39,7 +39,7 @@ class Fase12AuditSafety(unittest.TestCase):
 
     def test_report_does_not_claim_verification_or_release(self):
         self.assertIn("não verifica titularidade",self.report)
-        self.assertIn("não foi conferida",self.report)
+        self.assertIn("não foram conferidas",self.report)
         self.assertIn("data_release = 'latest'",self.report)
         self.assertIn("Fase 0 continua pendente",self.report)
 
