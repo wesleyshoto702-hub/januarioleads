@@ -1447,7 +1447,7 @@ function BusinessCard({
               href={safeExternalHref(business.instagram) ?? undefined}
               target="_blank"
               rel="noopener noreferrer"
-              title="Abrir Instagram confirmado"
+              title="Abrir perfil com alta confiança; vínculo oficial com a empresa não verificado"
             >
               @{instagramHandle(business)} <ExternalLink size={12} />
             </a>
@@ -1473,7 +1473,7 @@ function BusinessCard({
           Ver empresa
         </button>
         {business.phone && (
-          <button type="button" className="secondary-button compact-button" onClick={() => onWhatsApp(business)}>
+          <button type="button" className="secondary-button compact-button" title="Abrir o número no WhatsApp; a existência da conta não foi verificada" onClick={() => onWhatsApp(business)}>
             WhatsApp
           </button>
         )}
