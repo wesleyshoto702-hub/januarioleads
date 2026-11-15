@@ -233,3 +233,70 @@ test("SaaS visual refresh is visible: dashboard hero, KPI icons and styled activ
   const background = await active.evaluate((node) => getComputedStyle(node).backgroundImage);
   expect(background).toContain("gradient");
 });
+
+for (const width of [320, 390, 1280]) {
+  test(`search results and factual qualification stay legible at ${width}px`, async ({page}) => {
+    test.setTimeout(150_000);
+    const mobile = width <= 900;
+    await page.setViewportSize({width,height:mobile?844:900});
+    await loginWithMockedSupabase(page);
+    // No real requests to IBGE or any paid provider: both responses are mocked.
+    await page.route("**/api/v1/localidades/estados/*/municipios*",route=>
+      route.fulfill({status:200,contentType:"application/json",
+        body:JSON.stringify([{nome:"Lavras"}])}));
+    let searchCalls=0;
+    await page.route("**/functions/v1/search-places",route=>{
+      searchCalls++;
+      return route.fulfill({status:200,contentType:"application/json",
+        body:JSON.stringify({ok:true,provider:"overture",nextPageToken:null,results:[
+          {
+            placeId:"overture:fixture-1",source:"overture",name:"Mercado Exemplo do Centro",
+            primaryCategory:"grocery_store",categories:["grocery_store"],
+            description:null,address:"Rua A, 123, Lavras, MG",neighborhood:null,
+            city:"Lavras",state:"MG",phone:"(35) 99999-9999",internationalPhone:null,
+            email:"contato.muito-comprido-para-teste-de-responsividade@mercadoexemplo.com.br",
+            rating:null,reviewCount:null,isOpenNow:null,openingHours:[],
+            website:null,instagram:null,
+            instagramCandidates:[{url:"https://www.instagram.com/mercadoexemplo/",
+              username:"mercadoexemplo",confidence:"medium",score:4,signals:["Diretório"],
+              evidenceUrls:[]}],
+            googleMapsUrl:null,businessStatus:"open",latitude:-21.2,longitude:-45.0,
+          },
+          {
+            placeId:"overture:fixture-2",source:"overture",name:"Mercado com Site",
+            primaryCategory:"grocery_store",categories:["grocery_store"],
+            description:null,address:"Rua B, 45, Lavras, MG",neighborhood:null,
+            city:"Lavras",state:"MG",phone:null,internationalPhone:null,email:null,
+            rating:null,reviewCount:null,isOpenNow:null,openingHours:[],
+            website:"https://mercadocomsite.example",instagram:null,
+            instagramCandidates:[],googleMapsUrl:null,businessStatus:"open",
+            latitude:-21.2,longitude:-45.0,
+          },
+        ]})});
+    });
+    await navigateTo(page,"Buscar Leads",mobile);
+    await expect(page.locator(".search-location-help")).toContainText("Municípios oficiais do IBGE.");
+    await page.getByRole("button",{name:"Mercado / Supermercado",exact:true}).click();
+    await page.getByRole("button",{name:"Buscar leads",exact:true}).click();
+    await expect(page.locator(".business-card")).toHaveCount(2);
+    await expect(page.locator(".digital-opportunity-badge")).toHaveCount(2);
+    await assertNoPageOverflow(page,`${width}px search results`);
+    const filters=page.locator(".result-filters");
+    await filters.getByRole("button",{name:"Sem site",exact:true}).click();
+    await expect(page.locator(".business-card")).toHaveCount(1);
+    await expect(page.locator(".business-card")).toContainText("Potencial para site");
+    await filters.getByRole("button",{name:"Com e-mail",exact:true}).click();
+    await expect(page.locator(".business-card")).toHaveCount(1);
+    await expect(page.locator(".business-card")).toContainText("não verificado");
+    await expect(page.locator(".business-card")).toContainText("Possível Instagram");
+    expect(searchCalls).toBe(1);
+    await page.getByRole("button",{name:"Ver empresa",exact:true}).first().click();
+    const modal=page.getByRole("dialog",{name:"Mercado Exemplo do Centro"});
+    await expect(modal).toBeVisible();
+    await expect(modal.getByRole("region",{name:"Análise de canais comerciais"})).toBeVisible();
+    await assertNoPageOverflow(page,`${width}px search details`);
+    const rect=await modal.boundingBox();
+    expect(rect).not.toBeNull();
+    expect(rect!.width).toBeLessThanOrEqual(width+1);
+  });
+}
