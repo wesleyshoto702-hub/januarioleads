@@ -1,6 +1,7 @@
 import {
   categoriesForOverture, enoughRelevantResults, searchOverture, isRelevantOverture,
 } from "./overture-search.ts";
+import { ALL_SEARCH_SEGMENTS } from "./niche-catalog.ts";
 
 function assert(value:unknown,message:string):asserts value{
   if(!value)throw Error(message);
@@ -223,3 +224,128 @@ Deno.test("Unavailable Overture database fails closed instead of silently spendi
     async()=>new Response(null,{status:503}));
   assert(!fail.ok,"No silent paid provider fallback when base is down");
 });
+
+
+Deno.test("stage 3 exact Brazilian categories enable additional previously-unmapped niches",()=>{
+  const observed: Record<string, readonly string[]> = {
+    "Acupuntura":["acupuncture"],
+    "Adega":["liquor_store"],
+    "Cartório / Serviços Notariais":["notary_public"],
+    "Consultoria Empresarial":["business_consulting"],
+    "Curso Profissionalizante":["vocational_and_technical_school"],
+    "Dedetizadora":["pest_control_service"],
+    "Encanador":["plumbing"],
+    "Fonoaudiólogo":["speech_therapy"],
+    "Guincho":["towing_service"],
+    "Hotel para Pets":["pet_boarding"],
+    "Jardinagem / Paisagismo":["landscaping","gardener"],
+    "Maquiagem Profissional":["makeup_artist"],
+    "Podólogo":["podiatry"],
+    "Psiquiatra":["psychiatry"],
+    "Terapeuta Ocupacional":["occupational_therapy"],
+    "Chaveiro":["key_and_locksmith"],
+  };
+  const mapped=ALL_SEARCH_SEGMENTS.filter(segment=>categoriesForOverture(segment).length>0);
+  assert(ALL_SEARCH_SEGMENTS.length===216,"Keep the canonical 216 selectable niches");
+  assert(mapped.length===162,"Stage 4 should map 162 niches, preserving all earlier mappings");
+    for(const [niche,categories] of Object.entries(observed)){
+    const mapped=categoriesForOverture(niche);
+    for(const category of categories) {
+      assert(mapped.includes(category),niche+" missing exact category "+category);
+      const sample={...row("exact",category),name:niche+" Teste"};
+      assert(isRelevantOverture(sample,niche),niche+" rejected its exact category");
+    }
+  }
+  for(const [niche,broad] of [
+    ["Consultoria Empresarial","professional_service"],
+    ["Curso Profissionalizante","school"],
+    ["Jardinagem / Paisagismo","nursery_and_gardening_store"],
+    ["Hotel para Pets","animal_or_pet_service"],
+    ["Guincho","automotive_service"],
+    ["Maquiagem Profissional","beauty_salon"],
+    ["Dedetizadora","home_cleaning"],
+  ]) {
+    assert(!categoriesForOverture(niche).includes(broad),
+      niche+" must not silently match broad and unrelated businesses");
+  }
+});
+
+Deno.test("stage 4 exact new niches remain separate from broad Overture categories",()=>{
+  const confirmed: Record<string,string[]> = {
+    "Bronzeamento":["tanning_salon"],
+    "Depilação a Laser":["laser_hair_removal"],
+    "Cardiologista":["cardiology"],
+    "Ginecologista":["obstetrics_and_gynecology"],
+    "Massoterapeuta":["massage_therapy"],
+    "Ortopedista":["orthopedics"],
+    "Pediatra":["pediatric_clinic"],
+    "Montador de Móveis":["furniture_assembly"],
+    "Loja de Iluminação":["lighting_store"],
+    "Auto Elétrica":["auto_electrical_repair"],
+    "Vistoria Veicular":["emissions_inspection"],
+    "Reforço Escolar":["tutoring_service"],
+    "Assessoria de Casamentos":["wedding_planning"],
+    "DJ / Som para Eventos":["dj_service"],
+    "Passeios Turísticos":["sightseeing_tour_agency","boat_tour","bus_tour"],
+    "Coach":["life_coach"],
+    "Consultoria Financeira":["financial_advising"],
+    "Empresa de Limpeza Comercial":["janitorial_service"],
+    "Produtora Audiovisual":["video_film_production"],
+    "Adestramento":["dog_trainer"],
+    "Pet Sitter":["pet_sitting"],
+    "Loja de Rações":["livestock_feed_and_supply_store"],
+  };
+  for(const [niche,types] of Object.entries(confirmed)){
+    for(const type of types){
+      assert(categoriesForOverture(niche).includes(type),niche+" must map "+type);
+      assert(isRelevantOverture({...row("specific",type),name:niche+" Teste"},niche),
+        niche+" must accept observed category "+type);
+    }
+  }
+  for(const [niche,broad] of [
+    ["Reforço Escolar","school"],
+    ["Montador de Móveis","furniture_store"],
+    ["Loja de Iluminação","home_goods_store"],
+    ["Produtora Audiovisual","broadcasting_media_production"],
+    ["Empresa de Limpeza Comercial","home_cleaning"],
+    ["Adestramento","animal_or_pet_service"],
+    ["Passeios Turísticos","travel_service"],
+    ["Depilação a Laser","medical_spa"],
+  ]){
+    assert(!categoriesForOverture(niche).includes(broad),
+      "Reject unrelated category "+broad+" for "+niche);
+  }
+});
+
+Deno.test("Overture inspects later bounded pages before ranking contactable companies",async()=>{
+  const records=Array.from({length:250},(_,i)=>row(String(i).padStart(3,"0"),"barber",
+    i>=200?"35999999999":null));
+  const calls:string[]=[];
+  const admin=async(uri:string)=>{
+    calls.push(uri);
+    const params=new URL("https://example.invalid/"+uri).searchParams;
+    const start=Number(params.get("offset")||0);
+    return Response.json(records.slice(start,start+Number(params.get("limit")||100)));
+  };
+  const result=await searchOverture({segment:"Barbearia",city:"Lavras",state:"MG"},admin);
+  assert(result.ok,"Expected bounded scan to succeed");
+  if(!result.ok)return;
+  assert(calls.length===3,"Read three bounded database pages, not the whole city");
+  assert(calls.every(x=>x.includes("order=id.asc")&&x.includes("limit=100")),
+    "Every page must have stable ordering and bounded size");
+  assert(result.results.length===20 && result.results.every(x=>x.phone!==null),
+    "Later candidates with phone should rank above earlier uncontactable results");
+  assert(result.allCount===250,"Count reflects candidates examined in bounded window");
+});
+Deno.test("Overture rejects a failed later page rather than treating partial results as complete",async()=>{
+  let n=0;
+  const result=await searchOverture({segment:"Barbearia",city:"Lavras",state:"MG"},async()=>{
+    n++;
+    return n===2?new Response(null,{status:503}):Response.json(
+      Array.from({length:100},(_,i)=>row(String(i),"barber"))
+    );
+  });
+  assert(!result.ok && n===2,"Do not silently return an incomplete ranking");
+});
+
+

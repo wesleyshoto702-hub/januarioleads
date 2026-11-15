@@ -1,0 +1,27 @@
+name: Validar nichos e busca Overture (PR offline)
+on:
+  pull_request:
+    paths:
+      - "supabase/functions/_shared/overture-search.ts"
+      - "supabase/functions/_shared/overture-search.test.ts"
+      - "supabase/functions/_shared/niche-catalog.ts"
+      - "supabase/functions/_shared/niche-catalog.test.ts"
+      - ".github/workflows/validar-nichos-overture-pr.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  niches-and-ranked-window:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Verify TypeScript without credentials or provider calls
+        run: |
+          deno check supabase/functions/_shared/overture-search.ts
+          deno test supabase/functions/_shared/overture-search.test.ts supabase/functions/_shared/niche-catalog.test.ts
