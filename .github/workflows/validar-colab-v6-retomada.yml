@@ -1,0 +1,23 @@
+name: Validar Colab V6 retomada segura (offline)
+on:
+  pull_request:
+    paths:
+      - "notebooks/Januario_Leads_Fase_9_V6_Retomada_Priorizada_9h.ipynb"
+      - "tests/test_colab_v6_resume_offline.py"
+      - ".github/workflows/validar-colab-v6-retomada.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  colab-v6-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate V6 syntax, checkpoints, quotas and batch prioritization
+        run: python -m unittest discover -s tests -p test_colab_v6_resume_offline.py -v
