@@ -6,6 +6,7 @@ on:
       - "src/features/search-leads/**"
       - "src/features/qualification/**"
       - "src/features/leads/**"
+      - "src/features/opportunities/**"
       - "src/styles.css"
       - "tests/browser/responsive.spec.ts"
       - ".github/workflows/validar-prospeccao-responsiva-4-etapas.yml"
