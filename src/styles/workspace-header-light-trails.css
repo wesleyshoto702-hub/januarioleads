@@ -1,0 +1,71 @@
+/* Animated light traveling along fixed, section-specific SVG lines.
+   Only /app loads this stylesheet. Never escapes a banner or covers controls. */
+.saas-main :is(.saas-page-header, .page-heading, .js-settings-hero):has(> .jl-header-beams) {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.saas-main :is(.saas-page-header, .page-heading, .js-settings-hero) > .jl-header-beams {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  user-select: none;
+  overflow: hidden;
+  opacity: .84;
+  background: radial-gradient(ellipse 58% 125% at 80% 42%,
+    color-mix(in srgb, var(--primary) 12%, transparent), transparent 78%);
+}
+.saas-main .jl-header-beams svg {
+  display: block;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+.saas-main .jl-header-beams .jl-header-beam-pulse {
+  stroke-dasharray: 140 860;
+  stroke-dashoffset: 1060;
+  animation-name: jl-header-beam-travel;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  filter: drop-shadow(0 0 3px var(--primary));
+}
+@keyframes jl-header-beam-travel {
+  from { stroke-dashoffset: 1060; }
+  to { stroke-dashoffset: -1060; }
+}
+/* Real headings, actions and badges are ABOVE the decorative layer.
+   The existing ::before/::after geometry remains static behind the SVG. */
+.saas-main :is(.saas-page-header, .page-heading, .js-settings-hero):has(> .jl-header-beams)
+  > :not(.jl-header-beams) {
+  position: relative;
+  z-index: 1;
+}
+/* Match the aesthetic and breathing space of each actual banner. */
+.saas-main .jl-header-beams--dashboard { opacity: .79; }
+.saas-main .jl-header-beams--leads { opacity: .68; }
+.saas-main .jl-header-beams--search { opacity: .76; }
+.saas-main .jl-header-beams--prospecting { opacity: .70; }
+.saas-main .jl-header-beams--opportunities { opacity: .75; }
+.saas-main .jl-header-beams--messages { opacity: .60; }
+.saas-main .jl-header-beams--finance { opacity: .72; }
+.saas-main .jl-header-beams--settings { opacity: .50; }
+@media (max-width: 640px) {
+  .saas-main .jl-header-beams { opacity: .48; }
+  .saas-main .jl-header-beams .jl-header-beam-pulse { stroke-width: 1.6; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .saas-main .jl-header-beams .jl-header-beam-pulse {
+    animation: none !important;
+    stroke-dasharray: none;
+    opacity: .25;
+    filter: none;
+  }
+}
+/* Workspace user preference takes precedence over OS default. */
+.saas-shell.js-settings-reduce-motion .jl-header-beams .jl-header-beam-pulse {
+  animation: none !important;
+  stroke-dasharray: none;
+  opacity: .25;
+  filter: none;
+}
