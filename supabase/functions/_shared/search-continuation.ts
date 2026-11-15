@@ -19,14 +19,12 @@ export function parseSearchContinuation(value: unknown): SearchContinuation {
       value.length > MAX_TOKEN_LENGTH || value !== value.trim()) {
     return { kind: "invalid" };
   }
-  const parts = value.split(":", 2);
-  const prefix = parts[0];
-  if (prefix === "overture" || prefix === "geoapify") {
-    const offset = parts[1] ?? "";
-    if (!/^(20|40|60|80)$/.test(offset)) return { kind: "invalid" };
-    const number = Number(offset);
-    if (!OFFSETS.has(number)) return { kind: "invalid" };
-    return { kind: prefix, offset: number };
+  const open = /^(overture|geoapify):(20|40|60|80)$/.exec(value);
+  if (open) {
+    const kind = open[1] as "overture" | "geoapify";
+    const offset = Number(open[2]);
+    if (!OFFSETS.has(offset)) return { kind: "invalid" };
+    return { kind, offset };
   }
   if (value.startsWith("google:")) {
     const token = value.slice("google:".length);
