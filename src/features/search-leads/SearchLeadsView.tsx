@@ -1,4 +1,5 @@
 import { safeExternalHref } from "../../lib/safe-external-url";
+import { HeaderLightTrails } from "../../components/app-shell/HeaderLightTrails";
 import { accountLocalStorage, accountSessionStorage } from "../../lib/account-storage";
 import {
   ArrowLeft,
@@ -1091,6 +1092,7 @@ export function SearchLeadsView({
     return (
       <section className="page-wrap search-leads-page">
         <div className="page-heading search-page-heading">
+          <HeaderLightTrails variant="search" />
           <div>
             <p className="eyebrow">
               PROSPECÇÃO NACIONAL · BRASIL · {selectedState.name.toLocaleUpperCase("pt-BR")} ({selectedState.code})
