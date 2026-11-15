@@ -1,4 +1,5 @@
 import { accountLocalStorage, isLegacyWorkspaceOwner } from "../../lib/account-storage";
+import { HeaderLightTrails } from "../../components/app-shell/HeaderLightTrails";
 import * as AlertDialog from "@radix-ui/react-alert-dialog";
 import { ArrowLeft, Check, Edit3, Plus, RotateCcw, Star, Trash2 } from "lucide-react";
 import { useState, type FormEvent } from "react";
@@ -223,6 +224,7 @@ export function MessagesView({
   return (
     <section className="page-wrap messages-page">
       <div className="page-heading">
+        <HeaderLightTrails variant="messages" />
         <div>
           <p className="eyebrow">ATALHOS DE ABORDAGEM</p>
           <h1>Mensagens</h1>

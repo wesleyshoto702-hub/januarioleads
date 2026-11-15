@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { HeaderLightTrails } from "../../components/app-shell/HeaderLightTrails";
 import { BarChart3, Filter } from "lucide-react";
 import type { ExistingLeadIdentity } from "./identity";
 import { ProspectingInformationPanel } from "./ProspectingInformationPanel";
@@ -33,6 +34,7 @@ export function ProspectingInformationView({
   return (
     <section className="page-wrap prospecting-information-page">
       <div className="page-heading prospecting-information-page-heading">
+        <HeaderLightTrails variant="prospecting" />
         <div>
           <p className="eyebrow">CARTEIRA COMERCIAL · BRASIL</p>
           <h1>Informações de Prospecção</h1>

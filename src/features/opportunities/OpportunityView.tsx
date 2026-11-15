@@ -10,6 +10,7 @@ import {
   Star,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { HeaderLightTrails } from "../../components/app-shell/HeaderLightTrails";
 import { AnimatedNumber } from "../../components/app-shell/AnimatedNumber";
 import type { BusinessPresence } from "../business-presence/types";
 import type { PersistedLead } from "../leads/remote-leads";
@@ -342,6 +343,7 @@ export function OpportunityView({
   return (
     <section className="page-wrap opportunity-page">
       <div className="page-heading opportunity-heading">
+        <HeaderLightTrails variant="opportunities" />
         <div>
           <p className="eyebrow">INTELIGÊNCIA COMERCIAL · BRASIL</p>
           <h1>Oportunidades</h1>
