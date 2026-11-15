@@ -151,6 +151,9 @@ export type OvertureOutcome =
 
 const PAGE_SIZE=20;
 const MAX_OFFSET=80;
+// Keep each PostgREST response bounded while considering more valid candidates
+// for quality ranking in larger towns. Staging data is private to the Edge Function.
+const MAX_RAW_CANDIDATES=250;
 function normalized(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g,"")
     .toLowerCase().replace(/[^a-z0-9]+/g," ").trim().replace(/\s+/g," ");
@@ -209,6 +212,25 @@ export function isRelevantOverture(place: OverturePlace,segment: string) {
   );
   return true;
 }
+/** Same-name records should only be merged when they represent the same
+ * physical location. No address does NOT mean every branch in a city is one
+ * business. Follow the existing Overture importer's 15-meter heuristic.
+ */
+export function isSameLocatedOvertureBusiness(a: OverturePlace,b: OverturePlace):boolean {
+  if(normalized(a.name)!==normalized(b.name))return false;
+  const coords=(p:OverturePlace)=>p.latitude!==null&&p.longitude!==null&&
+    Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)&&
+    Math.abs(p.latitude)<=90&&Math.abs(p.longitude)<=180;
+  if(coords(a)&&coords(b)){
+    const x1=a.latitude!, y1=a.longitude!, x2=b.latitude!, y2=b.longitude!;
+    const r=Math.PI/180;
+    const da=(x2-x1)*r, db=(y2-y1)*r;
+    const h=Math.sin(da/2)**2+Math.cos(x1*r)*Math.cos(x2*r)*Math.sin(db/2)**2;
+    return 2*6371000*Math.asin(Math.min(1,Math.sqrt(h)))<=15;
+  }
+  const addressA=normalized(a.address||""), addressB=normalized(b.address||"");
+  return Boolean(addressA&&addressB&&addressA===addressB);
+}
 export function enoughRelevantResults(results: readonly {
   name: string; phone: string|null; internationalPhone: string|null;
 }[]) {
@@ -234,7 +256,8 @@ export async function searchOverture(
     state:"eq."+input.state.toUpperCase(),
     city_key:"eq."+normalized(input.city),
     category:"in.("+categories.join(",")+")",
-    limit:"100",
+    order:"id.asc", // stable bounded candidate set between equivalent requests
+    limit:String(MAX_RAW_CANDIDATES),
   });
   let response:Response|null;
   try{response=await adminRest("overture_places?"+query.toString());}
@@ -246,12 +269,16 @@ export async function searchOverture(
     const filtered=payload.filter(validPlace).filter(p=>isRelevantOverture(p,input.segment))
       .filter(p=>p.operating_status!=="permanently_closed")
       .sort((a,b)=>leadScore(b)-leadScore(a)||a.name.localeCompare(b.name,"pt-BR"));
+    // Only compare records with the same normalized name; do not merge
+    // distinct branches merely because both are missing an address.
     const unique:OverturePlace[]=[];
-    const seen=new Set<string>();
+    const byName=new Map<string,OverturePlace[]>();
     for(const p of filtered){
-      const signature=normalized(p.name)+"|"+normalized(p.address||"")+"|"+p.city+"|"+p.state;
-      if(seen.has(signature))continue;
-      seen.add(signature);
+      const name=normalized(p.name);
+      const candidates=byName.get(name)??[];
+      if(candidates.some(prior=>isSameLocatedOvertureBusiness(prior,p)))continue;
+      candidates.push(p);
+      byName.set(name,candidates);
       unique.push(p);
     }
     return {ok:true,results:unique.slice(offset,offset+PAGE_SIZE).map(toBusiness),
