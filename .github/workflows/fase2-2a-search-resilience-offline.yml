@@ -1,0 +1,40 @@
+name: Fase 2.2a — estados, cache, paginação e concorrência (offline)
+on:
+  pull_request:
+    paths:
+      - "supabase/functions/_shared/search-continuation.ts"
+      - "supabase/functions/search-places/index.ts"
+      - "src/features/search-leads/SearchLeadsView.tsx"
+      - "src/features/search-leads/search-businesses-http.ts"
+      - "src/features/search-leads/search-empty-state.ts"
+      - "src/features/search-leads/search-request-gate.ts"
+      - "src/features/opportunities/open-search-cache-policy.ts"
+      - "src/features/opportunities/places-search-cache.ts"
+      - "tests/fase2_2a_search_resilience_offline.test.ts"
+      - "tests/test_fase2_2a_search_contract_offline.py"
+      - ".github/workflows/fase2-2a-search-resilience-offline.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  search-resilience:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Testar continuação, cotas, 100 resultados, cache e corrida (offline)
+        run: deno test tests/fase2_2a_search_resilience_offline.test.ts
+      - name: Verificar TypeScript dos componentes e contratos reais testados
+        run: deno check tests/fase2_2a_search_resilience_offline.test.ts
+      - name: Regressões de fluxo, CRM e deduplicação
+        run: deno test tests/fase2_1a_buscar_leads_offline.test.ts tests/overture-staging-search-pilot.test.ts tests/fase1_5_conservative_dedup_offline.test.ts
+      - name: Validar uso efetivo dos guardas pela UI e Edge Function
+        run: python -m unittest discover -s tests -p test_fase2_2a_search_contract_offline.py -v

@@ -1,6 +1,6 @@
 # JANUÁRIO LEADS — PLANO MESTRE E AUDITORIA DE LANÇAMENTO
 
-**Versão:** 1.5 | **Data-base:** 15/11/2026 | **Ambiente auditado:** GitHub `main`, Supabase homologação e produção, projeto Lovable (somente leitura)
+**Versão:** 1.6 | **Data-base:** 15/11/2026 | **Ambiente auditado:** GitHub `main`, Supabase homologação e produção, projeto Lovable (somente leitura)
 **Objetivo único:** entregar um **Buscar Leads + CRM confiáveis** e um beta pequeno, sem custos inesperados e sem perda dos dados existentes. Depois habilitar comercialização.
 **Fonte única de prioridades:** este documento. `docs/roadmap-saas-2026-11-06.md` e planos anteriores são históricos, não listas paralelas de trabalho.
 
@@ -87,7 +87,8 @@
 ### FASE 2 — BUSCAR LEADS DE PONTA A PONTA NO STAGING | P1
 - [x] **2.1a — Fluxo de pesquisa simulado e testado:** funções REAIS conectadas à UI extraídas para helpers puros, transporte HTTP com fetch falso, 43 empresas fictícias em **3 páginas (20+20+3)**, UF/cidade/nicho, erros 401/403/429/503, filtros de contatos/site/Instagram/status/chance, CRM e preservação de Instagram confirmado. Falsas duplicações por telefone compartilhado corrigidas e endereços normalizados. [Relatório e CI da Fase 2.1a](FASE-2-1A-BUSCAR-LEADS-TESTES-OFFLINE-2026-11-15.md). **Sem rede, segredos, usuários reais ou deploy.**
 - [ ] **2.1b — E2E autenticado real:** validar UX desktop/mobile, login/JWT/RLS, 18 pesquisas, estado do CRM e chamadas externas efetivamente bloqueadas após resolver a Fase 0. Testes de navegador com API simulada ainda têm falhas por investigar.
-- [ ] **2.2** Conferir limites de 20 resultados, páginas seguintes, estados vazios, erros de rede/cota e recuperação de sessão.
+- [x] **2.2a — Paginação, estados e cache offline com funções reais:** **10 cenários** de tokens de continuação, HTTP inválido bloqueado antes de qualquer provedor, 125 empresas fictícias e **5 páginas de até 20** (máximo 100), respostas fora de ordem, cliques duplicados, falhas/cota, cache restrito a **fontes Overture/Geoapify**, sem tokens Google, até **60 registros** e mensagem específica para estado vazio. Corrigido risco de token desconhecido entrar no caminho Google pagável e de cache truncado pular páginas. [Relatório Fase 2.2a](FASE-2-2A-BUSCAR-LEADS-RESILIENCIA-OFFLINE-2026-11-15.md). **Somente GitHub, sem deploy nem custos externos.**
+- [ ] **2.2b — Testes de navegador autenticado, cache e sessão reais:** verificar RLS, trocas de conta, paginação de todos os provedores, erros ao vivo e UI responsiva. **Pendente e bloqueado pela Fase 0**.
 - [ ] **2.3** Alinhar filtros "Com telefone", "Com WhatsApp", "Com email", "Site não identificado", "Instagram confirmado"/"Instagram possível"; os contadores devem declarar quando valem **só para os resultados carregados**, não para o universo inteiro.
 - [ ] **2.4** Medir latência p50/p95, falhas e volume de chamadas; registrar baseline e corrigir gargalos com índices/consultas paginadas no servidor. Não buscar em massa a cada clique.
 - [ ] **2.5** Testar CRM com dados fictícios: adicionar, editar, favoritar/desfavoritar, organizar status, recuperar pesquisa, registrar contato e follow-up sem duplicar leads.
@@ -153,7 +154,7 @@
 |---|---|---|---|
 | 0 | Segredos, backup e segurança | **ADIADA a pedido — continua bloqueio P0** | antes de qualquer ação de risco / lançamento |
 | 1 | Qualidade Overture | **Auditorias 1.1, 1.2a, 1.3a, 1.4a e 1.5a concluídas; validações E2E/reais bloqueadas pela Fase 0** | somente leitura/offline; sem deploy/produção |
-| 2 | Buscar Leads E2E staging | **2.1a mock/CI concluída; E2E real e 2.2–2.6 pendentes** | Fase 0 obrigatória antes de E2E real |
+| 2 | Buscar Leads E2E staging | **2.1a e 2.2a offline aprovadas; 2.1b/2.2b reais pendentes; próxima 2.3a** | Fase 0 obrigatória antes de E2E real/deploy |
 | 3 | Compliance/custos/migração canário | documentação/compliance permitidos; migração bloqueada | 0–2 |
 | 4 | CRM e UX beta | testes offline/visuais permitidos; aceite real pendente | 0 + 2–3 |
 | 5 | Beta fechado | não iniciado | 4 |
@@ -178,7 +179,7 @@
 - [ ] Integração automática de pagamentos antes do beta estabilizado.
 
 ## 6. Próxima ação única e retomada
-**AGORA: FASE 2.2a — testar offline estados vazios, tokens inválidos, quotas, respostas concorrentes e cache, preservando as fontes e sem publicar.** A Fase 2.1a testou funções reais do Buscar Leads com dados sintéticos, incluindo transporte HTTP, 3 páginas, filtros e CRM, e corrigiu problemas revelados pelos testes. **A Fase 2.1b (UI autenticada) e validações reais 1.2b–1.5b continuam bloqueadas pela Fase 0.** Um teste de navegador HttpOnly com backend simulado falhou esperando botão `Sair`; investigar a causa antes de promover para qualquer deploy. Sem nova Colab, orçamento pago ou alterações nos bancos.
+**AGORA: FASE 2.3a — alinhar linguagem dos filtros e contadores à evidência real, com verificações offline.** As Fases **2.1a e 2.2a** possuem testes automatizados de funções reais com dados sintéticos; 2.2a endureceu os tokens de paginação antes de qualquer caminho Google, limitou o cache a 60 fontes abertas e passou a distinguir lista vazia de resultados filtrados. **2.1b/2.2b (E2E autenticado) e validações reais da Fase 1 ainda aguardam a Fase 0.** O teste de navegador HttpOnly com backend simulado e a reconciliação de migrations do CI geral continuam pendentes. Nenhuma função Supabase foi publicada nesta etapa; não liberar beta, não retomar Colab nem executar consultas pagas por causa deste marco.
 
 **QUANDO O USUÁRIO VOLTAR AO COMPUTADOR: retomar a FASE 0.1 e 0.2 imediatamente**, confirmar revogação da chave `service_role` de homologação exposta e concluir backup/ensaio de restauração da produção. Sem isso, nenhuma migração, beta público, assinatura ou lançamento comercial pode ser considerado aprovado. A implementação atual da busca na homologação foi atualizada para usar preferencialmente `sb_secret_` (Edge Function v31), mas isso **não revoga a chave antiga**.
 

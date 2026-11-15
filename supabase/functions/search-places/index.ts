@@ -3,6 +3,7 @@ import { approvedExternalPlacesDailyCap } from "../_shared/external-provider-app
 import { selectInternalSupabaseCredential } from "../_shared/internal-supabase-credential.ts";
 import type { OpeningHoursSnapshot } from "../_shared/open-now.ts";
 import { searchOverture, type OvertureBusiness } from "../_shared/overture-search.ts";
+import { parseSearchContinuation } from "../_shared/search-continuation.ts";
 import { providerInstagramCandidate, type PublicInstagramCandidate } from "../_shared/public-instagram-candidate.ts";
 import {
   findBrazilianState,
@@ -1014,24 +1015,21 @@ async function runSegmentSearch(
     return failure("INVALID_REQUEST",
       "Informe uma cidade e uma UF válidas do Brasil para realizar a busca.", 400);
   }
-  if (pageToken !== undefined &&
-      (typeof pageToken !== "string" ||
-      pageToken.trim().length === 0 || pageToken.length > 4096)) {
+  const continuation = parseSearchContinuation(pageToken);
+  if (continuation.kind === "invalid" ||
+      (pageToken !== undefined && continuation.kind === "first")) {
     return failure("INVALID_REQUEST","O token de continuação da busca é inválido.",400);
   }
 
   const query = (searchTextForSegment(segment.trim()) ?? segment.trim()) +
     " em " + location.city + ", " + stateName(location.state) + ", Brasil";
-  const token = typeof pageToken === "string" ? pageToken.trim() : "";
-  const directGoogle = token.length > 0 && !token.startsWith("geoapify:") && !token.startsWith("overture:");
-  // Continuation tokens do not restart Geoapify or repeat the first call.
-  if (directGoogle) {
+  // Only explicitly namespaced Google continuation may reserve Google quota.
+  // Unknown tokens are rejected above; they must NEVER trigger a paid lookup.
+  if (continuation.kind === "google") {
     if (!googleApiKey) {
       return failure("NOT_CONFIGURED", "A pesquisa complementar Google não está configurada.", 503);
     }
-    const googleToken = token.startsWith("google:") ? token.slice(7) : token;
-    if (!googleToken) return failure("INVALID_REQUEST","Token da pesquisa inválido.",400);
-    const searched = await textSearch(googleApiKey, query, 20, googleToken,userId);
+    const searched = await textSearch(googleApiKey, query, 20, continuation.value,userId);
     if (!searched.ok) return searched.response;
     return json({
       ok: true,
@@ -1040,13 +1038,10 @@ async function runSegmentSearch(
       provider: "google_places",
     });
   }
-  if (token.startsWith("overture:")) {
-    const offset = Number(token.slice("overture:".length));
-    if (!Number.isInteger(offset) || offset < 0 || offset > 80 || offset % 20 !== 0) {
-      return failure("INVALID_REQUEST", "Token do Overture inválido.", 400);
-    }
+  if (continuation.kind === "overture") {
     const overturePage = await searchOverture({
-      city: location.city, state: location.state, segment, offset,
+      city: location.city, state: location.state, segment,
+      offset: continuation.offset,
     },adminRest);
     if (!overturePage.ok) {
       return failure("REQUEST_FAILED", "Os dados Overture não estão disponíveis agora.", 503);
@@ -1058,7 +1053,7 @@ async function runSegmentSearch(
     });
   }
 
-  const overtureFetched = token.startsWith("geoapify:")
+  const overtureFetched = continuation.kind === "geoapify"
     ? null : await searchOverture({
       city: location.city, state: location.state, segment,
     },adminRest);
@@ -1077,7 +1072,7 @@ async function runSegmentSearch(
       nextPageToken: overture.nextPageToken, provider: "overture",
     });
   }
-  const offset = token.startsWith("geoapify:") ? Number(token.slice(9)) : 0;
+  const offset = continuation.kind === "geoapify" ? continuation.offset : 0;
   if (!Number.isInteger(offset) || offset < 0 || offset > 80 || offset % 20 !== 0) {
     return failure("INVALID_REQUEST","Token da pesquisa Geoapify inválido.",400);
   }
@@ -1095,7 +1090,7 @@ async function runSegmentSearch(
       })
     : { ok: false as const, reason: "NOT_CONFIGURED" as const };
   // A Geoapify continuation does not restart Google or duplicate first pages.
-  if (token.startsWith("geoapify:")) {
+  if (continuation.kind === "geoapify") {
     if (!geo.ok) return failure("REQUEST_FAILED",
       "Não foi possível carregar esta página de resultados agora.",503);
     return json({
