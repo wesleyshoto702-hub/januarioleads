@@ -1,10 +1,18 @@
 # JANUÁRIO LEADS — PLANO MESTRE E AUDITORIA DE LANÇAMENTO
 
-**Versão:** 1.0 | **Data-base:** 15/11/2026 | **Ambiente auditado:** GitHub `main`, Supabase homologação e produção, projeto Lovable (somente leitura)
+**Versão:** 1.1 | **Data-base:** 15/11/2026 | **Ambiente auditado:** GitHub `main`, Supabase homologação e produção, projeto Lovable (somente leitura)
 **Objetivo único:** entregar um **Buscar Leads + CRM confiáveis** e um beta pequeno, sem custos inesperados e sem perda dos dados existentes. Depois habilitar comercialização.
 **Fonte única de prioridades:** este documento. `docs/roadmap-saas-2026-11-06.md` e planos anteriores são históricos, não listas paralelas de trabalho.
 
 > **Regra central: UMA etapa ativa por vez.** Ideias novas entram no backlog. Para mudar a prioridade, registrar motivo, risco e impacto aqui. Não iniciar novas Colabs, enriquecimentos, refatorações estéticas nem pagamentos durante um bloqueio P0/P1 sem explicar a necessidade.
+
+## Exceção controlada — trabalho pelo celular (15/11/2026)
+
+**Decisão do proprietário:** adiar temporariamente a Fase 0 para quando estiver com acesso ao computador. **A Fase 0 não está concluída, continua P0, e o risco da chave `service_role` exposta não foi resolvido.** A recomendação é revogar a credencial comprometida assim que possível. Esta exceção somente altera a ORDEM DAS TAREFAS DE BAIXO RISCO, não os requisitos de lançamento.
+
+**FASE ATIVA: Fase 1 (auditoria somente de leitura no Supabase de HOMOLOGAÇÃO + testes offline sem segredos)**; é permitido também preparar código/testes locais do Buscar Leads e UX que não dependam de usuários reais, serviços pagos, segredos ou produção. **Não** iniciar importação Colab com a credencial exposta, não fazer escritas na homologação enquanto a rotação estiver pendente, não mover dados para produção, não alterar Auth/policies/financeiro/cobranças nem abrir beta público. Fases 2–7 podem receber tarefas de preparação offline, mas seus critérios de conclusão continuam bloqueados pelos portões de segurança. O backup da produção continua obrigatório antes de qualquer migração ou mudança de risco.
+
+**Evidência inicial:** [Fase 1 — piloto reproduzível de 18 buscas](FASE-1-PILOTO-OVERTURE-18-BUSCAS-2026-11-15.md) (14 UFs, 0–10 empresas por par consultado, acesso read-only, nenhum provedor externo).
 
 ## 0. Diagnóstico confirmado em 15/11/2026
 
@@ -56,16 +64,16 @@
 
 ## 2. Etapas ordenadas e portões objetivos
 
-### FASE 0 — CONTENÇÃO, BASELINE E BACKUP | **PRÓXIMA ETAPA ATIVA** | P0
+### FASE 0 — CONTENÇÃO, BASELINE E BACKUP | **ADIADA A PEDIDO, NÃO CONCLUÍDA — BLOQUEIO DE PRODUÇÃO** | P0
 - [ ] **0.1** Confirmar revogação/rotação da antiga `service_role` comprometida, atualizar todos os usos no Colab/ambientes e verificar que a chave antiga perdeu o acesso. **Nunca enviar credenciais ao ChatGPT ou GitHub.**
 - [ ] **0.2** Criar backup recuperável da **produção**, protegendo os **212 leads** e dados associados; testar restauração em ambiente isolado. Verificar o recurso disponível no plano Supabase.
 - [ ] **0.3** Registrar versões/commit do frontend, Edge Functions e migrações de cada ambiente, tabela/policies, usuários e volumes, para rollback.
 - [ ] **0.4** Revisar RLS para duas contas, chamadas privilegiadas, proteção Auth (senhas vazadas), `sync-leads` e exposição dos endpoints com testes negativos. Não alterar Auth em produção sem plano de reversão.
 - [ ] **0.5** Verificar se todo serviço externo faz *deny by default*: nenhuma chamada Google ou Geoapify paga sem aprovação explícita, limite por SKU, usuário e projeto; conferência das faturas reais.
-**Sair da fase quando:** chave revogada confirmada, backup restaurável, inventário de deploy e testes de isolamento/autorização aprovados, risco financeiro limitado. **Não pular.**
+**Sair da fase quando:** chave revogada confirmada, backup restaurável, inventário de deploy e testes de isolamento/autorização aprovados, risco financeiro limitado. **Não dispensar esta fase para produção, beta público ou cobrança; apenas antecipar tarefas seguras de leitura e desenvolvimento offline.**
 
 ### FASE 1 — QUALIDADE DO CATÁLOGO OVERTURE | P1
-- [ ] **1.1** Fixar conjunto reproduzível de testes por **12–20 pares** de nicho/cidade: capitais, municípios médios, pequenos, casos zero e casos com muitos resultados. Guardar contagens e critérios.
+- [x] **1.1** Fixar conjunto reproduzível de testes por **18 pares** de nicho/cidade em 14 UFs, com SQL somente leitura e relatório agregado. [Relatório](FASE-1-PILOTO-OVERTURE-18-BUSCAS-2026-11-15.md) e [SQL](../scripts/fase1-overture-amostra-18-readonly.sql). *Este aceite valida a amostra, não toda a qualidade da base.*
 - [ ] **1.2** Medir taxa de registros realmente comerciais, relevante ao nicho, com contato utilizável, duplicações, filial legítima, categoria desconhecida e endereços ausentes. Marcar fonte, lote/release e nível de confiança.
 - [ ] **1.3** Verificar os **216 nichos**: **125 mapeados**, **91 pendentes**. Só criar mapeamento com correspondência semântica específica; não prometer cobertura homogênea.
 - [ ] **1.4** Classificar regiões/nichos como **cobertura boa / limitada / sem resultados**, sem inventar empresas; não gastar créditos externos para esconder falhas.
@@ -138,11 +146,11 @@
 
 | Ordem | Fase | Estado em 15/11 | Dependência |
 |---|---|---|---|
-| 0 | Segredos, backup e segurança | **ATIVA — BLOQUEADORA** | nenhuma |
-| 1 | Qualidade Overture | parcial, testes SQL realizados | 0 |
-| 2 | Buscar Leads E2E staging | código parcialmente pronto, E2E pendente | 1 |
-| 3 | Compliance/custos/migração canário | não iniciado | 0–2 |
-| 4 | CRM e UX beta | funcionalidades existentes, aceite E2E pendente | 2–3 |
+| 0 | Segredos, backup e segurança | **ADIADA a pedido — continua bloqueio P0** | antes de qualquer ação de risco / lançamento |
+| 1 | Qualidade Overture | **ATIVA — 1.1 concluída; somente leitura/offline** | sem produção, segredo ou escrita |
+| 2 | Buscar Leads E2E staging | preparação offline permitida; E2E real bloqueado | 1 + resolver 0 para teste real seguro |
+| 3 | Compliance/custos/migração canário | documentação/compliance permitidos; migração bloqueada | 0–2 |
+| 4 | CRM e UX beta | testes offline/visuais permitidos; aceite real pendente | 0 + 2–3 |
 | 5 | Beta fechado | não iniciado | 4 |
 | 6 | Planos/pagamentos | estrutura staging parcial, cobrança não pronta | 5 |
 | 7 | Lançamento pago | não iniciado | 6 |
@@ -165,8 +173,8 @@
 - [ ] Integração automática de pagamentos antes do beta estabilizado.
 
 ## 6. Próxima ação única e retomada
-**EXECUTAR FASE 0.1 + 0.2: comprovar rotação da chave secret/service_role de homologação e estabelecer um backup restaurável da produção ANTES de qualquer mudança grande.**
+**AGORA: FASE 1.2 — auditoria agregada de relevância, duplicações e completude, exclusivamente por consultas de leitura na homologação e testes offline.** A amostra de 18 buscas da Fase 1.1 está documentada. Não executar Colab nem consultar fornecedores externos para este trabalho.
 
-Somente após a fase 0 ser comprovada, iniciar Fase 1 com as 12–20 buscas fixas de controle. A integração e a deduplicação Overture já foram preparadas na homologação (`search-places` versão 30, PR #156), portanto não é necessário recomeçar essa implementação.
+**QUANDO O USUÁRIO VOLTAR AO COMPUTADOR: retomar a FASE 0.1 e 0.2 imediatamente**, confirmar revogação da chave `service_role` de homologação exposta e concluir backup/ensaio de restauração da produção. Sem isso, nenhuma migração, beta público, assinatura ou lançamento comercial pode ser considerado aprovado. A implementação atual da busca na homologação foi atualizada para usar preferencialmente `sb_secret_` (Edge Function v31), mas isso **não revoga a chave antiga**.
 
 **Registro de decisão:** nenhum dado real foi movido da homologação para produção durante esta auditoria; nenhum endpoint ou Colab foi alterado.
