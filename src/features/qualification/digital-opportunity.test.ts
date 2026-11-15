@@ -21,6 +21,11 @@ Deno.test("does not interpret provider Instagram candidates as confirmed", () =>
   assert(lead.kind==="channel-review", "Candidate is not official Instagram");
   assert(lead.signals.some(x=>x.includes("conferência")), "Show verification needed");
   assert(qualifyDigitalOpportunity({
+    website:"https://empresa.com.br",phone:"35999999999",
+    instagram:"https://instagram.com/empresa",instagramConfidence:null,
+  }).kind==="channel-review",
+    "Instagram without explicit high-confidence verification is not confirmed");
+  assert(qualifyDigitalOpportunity({
     website:"https://empresa.com.br", phone:"35999999999",
     instagram:"https://instagram.com/empresa", instagramConfidence:"high",
     instagramNeedsReview:true,
