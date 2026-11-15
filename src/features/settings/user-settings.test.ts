@@ -43,12 +43,13 @@ Deno.test("Workspace settings reject unknown start pages and corrupt field types
   assert(value.notifyDueToday&&value.notifyOverdue, "Invalid notifications fall back safely");
 });
 
-Deno.test("All eleven approved workspace accent colors are accepted and persist safely",()=>{
+Deno.test("All fourteen approved workspace accent colors are accepted and persist safely",()=>{
   const supported = [
     "green","yellow","blue","red","white","black",
     "purple","cyan","orange","pink","indigo",
+    "turquoise","ruby","bronze",
   ];
-  assert(supported.length===11, "Expected eleven available accent choices");
+  assert(supported.length===14, "Expected fourteen available accent choices");
   for(const color of supported){
     assert(isAccentColor(color), "Valid accent missing: "+color);
     assert(parseUserSettings({accent_color:color}).accentColor===color,

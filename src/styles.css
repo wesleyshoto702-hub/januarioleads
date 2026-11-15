@@ -6921,6 +6921,27 @@ a{
   --primary-soft:rgba(129,140,248,.10);--primary-soft-strong:rgba(129,140,248,.18);
   --primary-contrast:#071327;
 }
+/* Three additional accents. Existing dark surfaces and semantic status colors
+   remain unchanged; both ambient canvas and SVG banners read --primary. */
+:root.dark[data-jl-accent="turquoise"]{
+  --primary:#14b8a6;--primary-hover:#2dd4bf;
+  --primary-action:#14b8a6;--primary-action-hover:#2dd4bf;
+  --primary-soft:rgba(20,184,166,.11);--primary-soft-strong:rgba(20,184,166,.19);
+  --primary-contrast:#061a17;
+}
+:root.dark[data-jl-accent="ruby"]{
+  --primary:#a83f65;--primary-hover:#c85c83;
+  --primary-action:#a83f65;--primary-action-hover:#bf5278;
+  --primary-soft:rgba(168,63,101,.13);--primary-soft-strong:rgba(168,63,101,.21);
+  --primary-contrast:#ffffff;
+}
+:root.dark[data-jl-accent="bronze"]{
+  --primary:#b88a55;--primary-hover:#d5a86e;
+  --primary-action:#b88a55;--primary-action-hover:#cca06b;
+  --primary-soft:rgba(184,138,85,.12);--primary-soft-strong:rgba(184,138,85,.20);
+  --primary-contrast:#161007;
+}
+
 
 /* Evidence-based commercial signals: shared by search results, details,
    desktop/mobile CRM and Kanban. Never rely solely on color for meaning. */

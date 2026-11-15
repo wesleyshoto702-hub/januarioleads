@@ -8,6 +8,7 @@ export type SettingsHomeView =
 export const ACCENT_COLORS = [
   "green", "yellow", "blue", "red", "white", "black",
   "purple", "cyan", "orange", "pink", "indigo",
+  "turquoise", "ruby", "bronze",
 ] as const;
 export type AccentColor = (typeof ACCENT_COLORS)[number];
 export function isAccentColor(value:unknown): value is AccentColor {
@@ -65,7 +66,7 @@ function validateSettings(value: UserSettings): UserSettings {
   if (displayName.length > 80)
     throw new Error("O nome de exibição deve ter até 80 caracteres.");
   if (!isAccentColor(value.accentColor))
-    throw new Error("Selecione uma das onze cores disponíveis.");
+    throw new Error("Selecione uma das quatorze cores disponíveis.");
   if (!HOME_VIEWS.includes(value.homeView))
     throw new Error("A página inicial selecionada é inválida.");
   return { ...value, displayName };

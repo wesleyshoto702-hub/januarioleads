@@ -25,8 +25,8 @@ Deno.test("background is mounted only in authenticated SaaS main, never in sideb
     "Do not size the canvas to cover the whole website");
 });
 
-Deno.test("all eleven user colors and motion preference flow through the authenticated shell", () => {
-  assert(supportedAccents.length === 11, "All eleven accents must remain supported");
+Deno.test("all fourteen user colors and motion preference flow through the authenticated shell", () => {
+  assert(supportedAccents.length === 14, "All fourteen accents must remain supported");
   assert(appRoute.includes("accentColor={userSettings.accentColor}"),
     "Use the persisted accent color");
   assert(shell.includes("accentColor={accentColor} reduceMotion={reduceMotion}"),
