@@ -36,6 +36,7 @@ import {
   type ExistingLeadIdentity,
 } from "./identity";
 import { searchBusinesses } from "./search-businesses";
+import { mergeSearchPageResults } from "./search-page-merge";
 import { hasUsableBusinessEmail } from "./business-contact";
 import {
   DEFAULT_RESULT_FILTERS,
@@ -793,31 +794,10 @@ export function SearchLeadsView({
       return;
     }
 
-    const combinedResults = append
-      ? [...results, ...response.results]
-      : response.results;
-    // A repeated Places ID on the next page must never erase an Instagram
-    // already confirmed by the automatic or manual discovery.
-    const uniqueByPlace = new Map<string, BusinessSearchResult>();
-    for (const item of combinedResults) {
-      const previous = uniqueByPlace.get(item.placeId);
-      if (previous && hasConfirmedInstagram(previous) && !hasConfirmedInstagram(item)) {
-        uniqueByPlace.set(item.placeId, {
-          ...item,
-          instagram: previous.instagram,
-          instagramConfidence: previous.instagramConfidence,
-          instagramSource: previous.instagramSource,
-          instagramUsername: previous.instagramUsername,
-          instagramDisplayName: previous.instagramDisplayName,
-          instagramCheckedAt: previous.instagramCheckedAt,
-          instagramSearchSignature: previous.instagramSearchSignature,
-          instagramNeedsReview: false,
-        });
-      } else {
-        uniqueByPlace.set(item.placeId, item);
-      }
-    }
-    const uniqueResults = [...uniqueByPlace.values()];
+    const uniqueResults=mergeSearchPageResults(
+      append ? results : [],
+      response.results,
+    );
 
     setResults(uniqueResults);
     setSearchNotice("");
