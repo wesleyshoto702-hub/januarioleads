@@ -159,10 +159,10 @@ Deno.test("newer request invalidates late successes AND late quota cache reads",
   eq(visible,["overture:22"],"Old response cannot replace latest results");
 
   const ticket3=gate.next();
+  let resolveCache!:(v:OpenSearchCacheSnapshot)=>void;
   const cachedPending=new Promise<OpenSearchCacheSnapshot>(resolve=>{
     resolveCache=resolve;
   });
-  let resolveCache!:(v:OpenSearchCacheSnapshot)=>void;
   const cachePromise=(async()=>{
     const cache=await cachedPending;
     if(!gate.isCurrent(ticket3))return;
