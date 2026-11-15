@@ -97,6 +97,9 @@ Deno.test("Places queries use canonical names and natural language", () => {
     "Historical query should resolve to clinic");
   assert(searchTextForSegment("Arquiteto / Escritório de Arquitetura") ===
     "escritório de arquitetura", "Architecture query should not contain slash");
+  assert(searchTextForSegment("Bar / Pub") === "bar","Bar/ Pub must use a natural term");
+  assert(searchTextForSegment("Mercado / Supermercado") === "supermercado",
+    "Market/ Supermarket must not include slash in fallback");
   assert(searchTextForSegment("nicho inexistente") === null,
     "Unknown niche should not be accepted");
 });
