@@ -24,10 +24,13 @@ Escopo: **GitHub + Supabase de HOMOLOGAÇÃO**, sem modificar a Colab, o banco d
 - A Edge Function `search-places` de **HOMOLOGAÇÃO** foi implantada na versão **29**, `ACTIVE`, JWT obrigatório. Os novos guardas dos outros endpoints estão no GitHub, mas **não foram implantados neles** nesta execução. Produção permanece sem alterações. Testes offline não são testes de credenciais de provedores.
 - Mesmo com limites no código, definir também alertas e orçamento no painel do Google Cloud continua recomendado como defesa adicional.
 
+
+- **Conferência de deploy auxiliar:** ao consultar a homologação, `open-now-niches`, `sync-leads` e `deep-enrich-business` não estavam publicados. Assim, as proteções adicionadas a esses endpoints permanecem no GitHub para o caso de implantação futura, sem garantir proteção em outros ambientes fora da homologação.
+
 ## 3. Qualificação comercial
 
 - `qualifyDigitalOpportunity`: sinais descritivos **Potencial para site**, **Contato a investigar**, **Canais a revisar**, **Presença digital identificada**.
-- Disponível no código de resultados do Buscar Leads, detalhes da empresa, cartões Meus Leads desktop/mobile e Kanban. Nenhuma pontuação arbitrária de "chance de fechar negócio", nem WhatsApp declarado como verificado por causa de um telefone.
+- Disponível no código de resultados do Buscar Leads, detalhes da empresa, cartões Meus Leads desktop/mobile, Kanban **e cartões de Oportunidades**. Nenhuma pontuação arbitrária de "chance de fechar negócio", nem WhatsApp declarado como verificado por causa de um telefone. Um Instagram apenas informado, mas sem confiança alta, também **não é considerado confirmado**.
 - A qualificação é local em memória, sem gravação de atributos novos em Supabase nem consulta externa.
 
 ## 4. Responsividade e CRM
@@ -35,7 +38,7 @@ Escopo: **GitHub + Supabase de HOMOLOGAÇÃO**, sem modificar a Colab, o banco d
 - Verificações existentes em `tests/browser/responsive.spec.ts` incluem resoluções **320 a 1920 px**, navegação por Dashboard, Meus Leads, Buscar Leads, Oportunidades, Mensagens e Financeiro, modais, menu mobile e áreas interativas.
 - Casos de teste adicionais usam **empresas e usuários fictícios**, simulando o backend: filtros de site/e-mail, seleção de novo nicho, rótulos de qualificação, detalhes e favoritos no celular, sem Google Places nem WhatsApp real.
 - Testes funcionais de Kanban, follow-up, notificações e carregamento do CRM também existem em `tests/browser/prospecting-workflow.spec.ts`, mas não devem ser considerados aprovados sem executar.
-- O workflow `validar-prospeccao-responsiva-4-etapas.yml` executa um subconjunto Chromium offline no CI, com TypeScript e build. Reportar o resultado **específico**; não confundir com o workflow geral de migrations, que já apresentava falhas anteriores não relacionadas.
+- O workflow `validar-prospeccao-responsiva-4-etapas.yml` executa um subconjunto Chromium offline no CI, com TypeScript e build. A rodada do commit `a9c6645c7854` passou: **4 testes Chromium simulados + TypeScript + build**, sem APIs externas reais: https://github.com/wesleyshoto702-hub/januarioleads/actions/runs/43726916310. Rodadas posteriores devem ser conferidas separadamente. O workflow geral `Validar catálogo de nichos` **segue falhando** por baseline de migrations e testes de navegador de outras funcionalidades (47 falhas e 78 sucessos na rodada `43727014413`). Isso impede afirmar que a suíte completa está aprovada. Não modificar produção nem executar migrations corretivas durante a Colab para resolver esses testes.
 
 ## Etapas de publicação
 
