@@ -22,6 +22,7 @@ import {
   normalizeBrazilianPhone,
 } from "../search-leads/identity";
 import type { BusinessSearchResult } from "../search-leads/types";
+import { DigitalOpportunityBadge } from "../qualification/DigitalOpportunityBadge";
 import { withSearchLocation } from "../search-leads/search-location";
 import {
   hasBusinessPhone,
@@ -598,6 +599,7 @@ export function OpportunityView({
                         </p>
                       </div>
                       <div className="opportunity-company-badges">
+                        <DigitalOpportunityBadge business={business} />
                         {!hasIdentifiedWebsite(business) && (
                           <span>Sem site identificado</span>
                         )}
