@@ -29,6 +29,7 @@ jobs:
           deno check supabase/functions/deep-enrich-business/index.ts
           deno test supabase/functions/_shared/overture-search.test.ts supabase/functions/_shared/geoapify-search.test.ts
           deno test src/features/search-leads/business-contact.test.ts supabase/functions/_shared/niche-catalog.test.ts supabase/functions/_shared/external-provider-approval.test.ts
+          deno test src/features/qualification/digital-opportunity.test.ts
       - name: Verify waterfall, budget claim, licensed sources and field masks
         run: |
           python3 - <<'PY'
