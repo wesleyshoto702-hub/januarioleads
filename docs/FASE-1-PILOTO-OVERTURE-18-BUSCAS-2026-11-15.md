@@ -6,7 +6,7 @@
 A pedido do proprietário, a **Fase 0 está adiada temporariamente**, por estar usando o celular, e **não concluída**. Continuam bloqueados: produção, migrações, backups/restaurações, alterações em credenciais, pagamentos e novas importações com a chave `service_role` exposta. A fase atual de trabalho é **Fase 1**: análise somente de leitura e testes offline. Testes de interface de staging autenticados deverão ser reavaliados antes da execução devido à credencial comprometida.
 
 ## Amostra fixa e reproduzível
-Categorias correspondem explicitamente ao mapeamento de `supabase/functions/_shared/overture-search.ts`; 18 pares, 15 UFs, incluindo cidade pequena, capitais, casos zero e diferentes nichos.
+Categorias correspondem explicitamente ao mapeamento de `supabase/functions/_shared/overture-search.ts`; 18 pares, 14 UFs, incluindo cidade pequena, capitais, casos zero e diferentes nichos.
 
 | UF | Cidade | Nicho | Registros | Telefone com 10–13 dígitos | Site não registrado | Instagram registrado |
 |---|---|---|---:|---:|---:|---:|
