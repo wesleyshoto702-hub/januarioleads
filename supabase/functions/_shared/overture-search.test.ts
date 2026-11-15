@@ -1,6 +1,8 @@
 import {
   categoriesForOverture, enoughRelevantResults, searchOverture, isRelevantOverture,
+  OVERTURE_CATEGORIES, OVERTURE_CATEGORY_EXPANSIONS,
 } from "./overture-search.ts";
+import { ALL_SEARCH_SEGMENTS } from "./niche-catalog.ts";
 
 function assert(value:unknown,message:string):asserts value{
   if(!value)throw Error(message);
@@ -254,4 +256,21 @@ Deno.test("Overture rejects a failed later page rather than treating partial res
     );
   });
   assert(!result.ok && n===2,"Do not silently return an incomplete ranking");
+});
+
+
+Deno.test("all Overture category keys belong to canonical 216 niches, without guessing missing categories",()=>{
+  const canonical=new Set<string>(ALL_SEARCH_SEGMENTS);
+  for(const [label,values] of Object.entries({...OVERTURE_CATEGORIES,...OVERTURE_CATEGORY_EXPANSIONS})){
+    assert(canonical.has(label),"Overture mapping references a missing niche: "+label);
+    assert(values.length>0,"Empty mapping must remain explicitly unmapped: "+label);
+    for(const value of values) {
+      assert(/^[a-z][a-z0-9_]*$/.test(value),"Invalid exact taxonomy key: "+value);
+    }
+  }
+  const mapped=ALL_SEARCH_SEGMENTS.filter(x=>categoriesForOverture(x).length>0);
+  const missing=ALL_SEARCH_SEGMENTS.filter(x=>categoriesForOverture(x).length===0);
+  assert(mapped.length+missing.length===216,"All niches must be classified");
+  assert(mapped.length>=125,"Previously mapped niches must not silently disappear");
+  assert(missing.includes("Consultoria de RH"),"Unsupported taxonomy must not be invented");
 });
