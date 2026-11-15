@@ -4,6 +4,7 @@ import {
   SlidersHorizontal, Smartphone, UserRound, Users, type LucideIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { HeaderLightTrails } from "../../components/app-shell/HeaderLightTrails";
 import { getValidSession, signOutOtherSessions } from "../../lib/auth";
 import { useConfirmAction } from "../../components/app-shell/ConfirmActionProvider";
 import { USE_HTTPONLY_SESSION } from "../../lib/supabase-config";
@@ -136,6 +137,7 @@ export function SettingsView({
 
   return <section className="saas-page js-settings-page" aria-labelledby="js-settings-title">
     <header className="js-settings-hero">
+      <HeaderLightTrails variant="settings" />
       <div className="js-settings-hero-mark"><Settings2 size={23}/></div>
       <div>
         <p className="saas-page-eyebrow">PREFERÊNCIAS DO WORKSPACE</p>
