@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
+import { WorkspaceMotionContext } from "./WorkspaceMotionContext";
 
 /**
  * Animate the first meaningful metric reading, not every CRM/filter update.
@@ -20,14 +21,14 @@ export function AnimatedNumber({
   value: number;
   format?: "integer" | "currency";
 }) {
+  const removeAnimations = useContext(WorkspaceMotionContext);
   const finalValue = Number.isFinite(value) ? value : 0;
   const [displayValue, setDisplayValue] = useState(finalValue);
   const hasAnimated = useRef(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
-      Boolean(document.querySelector(".saas-shell.js-settings-reduce-motion"));
+    const reduced = removeAnimations || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduced || hasAnimated.current || finalValue <= 0) {
       setDisplayValue(finalValue);
       if (reduced) hasAnimated.current = true;
@@ -49,11 +50,11 @@ export function AnimatedNumber({
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [finalValue, format]);
+  }, [finalValue, format, removeAnimations]);
 
   const formatter = format === "currency" ? brazilCurrency : brazilNumber;
   const readable = formatter.format(finalValue);
-  const visible = formatter.format(displayValue);
+  const visible = formatter.format(removeAnimations ? finalValue : displayValue);
 
   return (
     <span className="jl-motion-count">
