@@ -300,3 +300,31 @@ for (const width of [320, 390, 1280]) {
     expect(rect!.width).toBeLessThanOrEqual(width+1);
   });
 }
+
+test("mobile favorite marker and filtered CRM wallet remain usable", async ({page}) => {
+  test.setTimeout(90_000);
+  await page.setViewportSize({width:390,height:844});
+  await loginWithMockedSupabase(page);
+  await navigateTo(page,"Meus Leads",true);
+  const original=page.getByRole("button",{
+    name:/Adicionar aos favoritos: Empresa de Teste com Nome Comprido/
+  }).first();
+  await expect(original).toBeVisible();
+  await original.click();
+  await expect(page.getByRole("button",{
+    name:/Remover dos favoritos: Empresa de Teste com Nome Comprido/
+  }).first()).toHaveAttribute("aria-pressed","true");
+  const controls=page.getByRole("group",{name:"Visualizar leads favoritos"});
+  await controls.getByRole("button",{name:/Favoritos/}).click();
+  await expect(controls.getByRole("button",{name:/Favoritos/})).toHaveAttribute("aria-pressed","true");
+  await expect(page.locator(".lead-card").filter({hasText:"Empresa de Teste com Nome Comprido"})).toBeVisible();
+  await assertNoPageOverflow(page,"390px Meus Leads favorites");
+  await controls.getByRole("button",{name:"Todos os leads"}).click();
+  await expect(controls.getByRole("button",{name:"Todos os leads"})).toHaveAttribute("aria-pressed","true");
+
+  // Check the main CRM modules without any paid provider calls.
+  for(const view of ["Mensagens","Oportunidades","Dashboard"]) {
+    await navigateTo(page,view,true);
+    await assertNoPageOverflow(page,`390px ${view} after favorite change`);
+  }
+});
