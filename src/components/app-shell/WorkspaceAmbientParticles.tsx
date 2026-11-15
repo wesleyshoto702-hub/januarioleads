@@ -50,13 +50,13 @@ export function WorkspaceAmbientParticles({
       canvas!.height = Math.round(height * ratio);
       context!.setTransform(ratio, 0, 0, ratio, 0, 0);
       // Responsive density is intentionally lower than the reference demo.
-      const count = Math.min(width < 640 ? 12 : 26, Math.max(8, Math.floor(width / 38)));
+      const count = Math.min(width < 640 ? 22 : 54, Math.max(14, Math.floor(width / 24)));
       particles = Array.from({ length: count }, () => ({
         x: Math.random() * width,
         y: Math.random() * height,
-        vx: (Math.random() - 0.5) * 0.22,
-        vy: (Math.random() - 0.5) * 0.22,
-        r: 0.65 + Math.random() * 0.7,
+        vx: (Math.random() - 0.5) * 0.32,
+        vy: (Math.random() - 0.5) * 0.32,
+        r: 1.1 + Math.random() * 1.0,
       }));
       draw(false);
     }
@@ -71,17 +71,17 @@ export function WorkspaceAmbientParticles({
         }
         context!.beginPath();
         context!.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        context!.fillStyle = `rgba(${color.r},${color.g},${color.b},0.22)`;
+        context!.fillStyle = `rgba(${color.r},${color.g},${color.b},0.65)`;
         context!.fill();
         for (let j = i + 1; j < particles.length; j++) {
           const q = particles[j]!;
           const distance = Math.hypot(p.x - q.x, p.y - q.y);
-          if (distance >= 110) continue;
+          if (distance >= 145) continue;
           context!.beginPath();
           context!.moveTo(p.x, p.y);
           context!.lineTo(q.x, q.y);
-          context!.lineWidth = 0.65;
-          context!.strokeStyle = `rgba(${color.r},${color.g},${color.b},${(1-distance/110)*0.09})`;
+          context!.lineWidth = 0.85;
+          context!.strokeStyle = `rgba(${color.r},${color.g},${color.b},${(1-distance/145)*0.28})`;
           context!.stroke();
         }
       }
