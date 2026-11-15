@@ -29,54 +29,77 @@ const NAVIGATION = [
 ] as const;
 
 async function loginWithMockedSupabase(page: Page) {
-  await page.route("**/*", (route) => {
+  // Intercept everything from ONE handler: no route-order dependency and no
+  // real production requests. Includes CORS preflights and optional local BFF.
+  let signedIn = false;
+  const trail: string[] = [];
+  const headers = {
+    "Access-Control-Allow-Origin": "http://127.0.0.1:5173",
+    "Access-Control-Allow-Headers": "authorization, apikey, content-type",
+    "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS, DELETE",
+    "Content-Type": "application/json",
+  };
+  await page.route("**/*", async (route) => {
     const url = new URL(route.request().url());
-    return url.hostname === "127.0.0.1" ? route.continue() : route.abort();
-  });
-  await page.route("**/*.supabase.co/**", (route) => {
-    const url = new URL(route.request().url());
-    let data: unknown = [];
-    if (url.pathname === "/auth/v1/token") {
-      data = {
-        access_token: "fictional-access",
-        refresh_token: "fictional-refresh",
-        expires_in: 3600,
-        user: { id: USER_ID, email: "fake@example.invalid" },
+    const method = route.request().method();
+    const local = url.hostname === "127.0.0.1";
+    const isSupabase = url.hostname.endsWith(".supabase.co") ||
+      (local && url.pathname.startsWith("/api/supabase/"));
+    const session = local && url.pathname === "/api/session";
+
+    if (isSupabase || session) {
+      trail.push(method + " " + url.pathname);
+      if (trail.length > 30) trail.shift();
+      if (method === "OPTIONS") {
+        return route.fulfill({status:204,headers});
+      }
+      if (session) {
+        if (method === "POST") signedIn = true;
+        if (method === "DELETE") signedIn = false;
+        return route.fulfill({
+          status: signedIn || method === "DELETE" ? 200 : 401,
+          headers,
+          body: JSON.stringify(signedIn ? {
+            ok:true, user:{id:USER_ID,email:"fake@example.invalid"},
+            expiresAt:Date.now()+3600_000,
+          } : {ok:method==="DELETE"}),
+        });
+      }
+      let data: unknown = [];
+      if (url.pathname.endsWith("/auth/v1/token")) data = {
+        access_token:"fictional-access",refresh_token:"fictional-refresh",
+        expires_in:3600,user:{id:USER_ID,email:"fake@example.invalid"},
       };
+      if (url.pathname.endsWith("/auth/v1/user")) data = {
+        id:USER_ID,email:"fake@example.invalid",
+      };
+      if (url.pathname.endsWith("/rest/v1/private_access")) {
+        data = [{user_id:USER_ID}];
+      }
+      if (url.pathname.endsWith("/rest/v1/leads")) {
+        data = url.searchParams.get("offset")==="0" ? [DEMO_LEAD] : [];
+      }
+      return route.fulfill({
+        status:200,headers,body:JSON.stringify(data),
+      });
     }
-    if (url.pathname === "/auth/v1/user") {
-      data = { id: USER_ID, email: "fake@example.invalid" };
-    }
-    if (url.pathname === "/rest/v1/private_access") {
-      data = [{ user_id: USER_ID }];
-    }
-    if (url.pathname === "/rest/v1/leads") {
-      data = url.searchParams.get("offset") === "0" ? [DEMO_LEAD] : [];
-    }
-    return route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify(data),
-    });
+    if (local) return route.continue();
+    return route.abort("blockedbyclient");
   });
   await page.goto("/login");
   await page.getByPlaceholder("seu@email.com").fill("fake@example.invalid");
   await page.getByPlaceholder("Sua senha").fill("fictional-test-password");
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
-  // The last Firefox desktop run is CPU-heavy on shared CI runners: allow
-  // hydration to finish, without skipping any authentication or layout checks.
   try {
     await expect(page.locator(".saas-shell")).toBeVisible({ timeout: 20_000 });
   } catch (error) {
     const diagnostics = await page.evaluate(() => ({
-      title: document.title,
-      text: document.body.innerText.slice(0, 800),
-      location: location.pathname,
+      title:document.title,
+      text:document.body.innerText.slice(0,850),
+      location:location.pathname,
     }));
-    throw new Error(
-      "CRM workspace did not appear after mocked login: " + JSON.stringify(diagnostics),
-      { cause: error },
-    );
+    throw new Error("CRM workspace did not appear after mocked login: " +
+      JSON.stringify({diagnostics,mockedRequests:trail}), {cause:error});
   }
 }
 
