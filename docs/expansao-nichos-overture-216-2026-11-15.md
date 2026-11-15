@@ -36,7 +36,7 @@ A função `categoriesForOverture` une `OVERTURE_CATEGORIES` + `OVERTURE_CATEGOR
 - O seletor web importa diretamente `SEGMENT_GROUPS`, portanto as 20 novas opções passam a existir no **código** sem editar o componente.
 - A Edge Function `search-places` usa o mesmo catálogo e `categoriesForOverture`, pesquisando primeiro a base de homologação. Sem resultados suficientes, os provedores complementares existentes permanecem sujeitos a suas verificações de credenciais, permissões e orçamento. **Não houve consumo de APIs pagas nestas alterações.**
 - Os dados Overture permanecem associados à fonte Overture. Não mesclar campos de provedores sem respeitar as licenças.
-- **Nenhuma função Supabase foi publicada automaticamente por esta alteração de código.** Para aparecer no serviço ativo, a versão correspondente da Edge Function e o frontend precisam ser implantados nos ambientes pretendidos após homologação. Não publicar na produção sem validação específica.
+- **Edge Function `search-places` implantada somente na HOMOLOGAÇÃO:** versão **28**, status `ACTIVE`, `verify_jwt=true`, com os oito arquivos do bundle preservados e apenas os três arquivos compartilhados de catálogo/busca atualizados. A versão implantada foi relida e conferida após o deploy. A função da **produção não foi publicada nem alterada**. Para que o novo menu apareça num site hospedado, o frontend correspondente também precisa estar publicado nesse ambiente; o catálogo frontend está atualizado no GitHub, mas publicação da UI não foi executada aqui.
 - A Colab V5, os índices, o banco, a autenticação, os registros existentes e as políticas RLS não foram modificados.
 
 ## Testes
