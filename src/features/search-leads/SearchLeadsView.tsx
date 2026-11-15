@@ -37,6 +37,9 @@ import {
 } from "./identity";
 import { searchBusinesses } from "./search-businesses";
 import { mergeSearchPageResults } from "./search-page-merge";
+import { createSearchRequestGate } from "./search-request-gate";
+import { searchEmptyState } from "./search-empty-state";
+import { eligibleQuotaCache } from "../opportunities/open-search-cache-policy";
 import { hasUsableBusinessEmail } from "./business-contact";
 import {
   DEFAULT_RESULT_FILTERS,
@@ -400,7 +403,7 @@ export function SearchLeadsView({
   const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([]);
   const hasActiveSearchRef = useRef(Boolean(initialSearchSession));
   // A slower search must never replace results from a newer user request.
-  const searchRequestIdRef = useRef(0);
+  const searchRequestGateRef = useRef(createSearchRequestGate());
   useEffect(() => {
     // Do not replace the remote last search with an empty default session.
     if (!selectedSegment && !resultsSegment) return;
@@ -692,6 +695,15 @@ export function SearchLeadsView({
     leadStatusFilter !== "all" ||
     !sameResultFilters(resultFilters, DEFAULT_RESULT_FILTERS);
 
+  const emptyState = searchEmptyState({
+    loading,
+    visibleCount:visibleResults.length,
+    loadedCount:results.length,
+    mode,
+    filtersActive:hasActiveFilters,
+    hasError:Boolean(error),
+  });
+
   const alreadyAddedCount = resultWithExisting.filter((item) => item.alreadyAdded).length;
   const newCount = resultWithExisting.length - alreadyAddedCount;
   const openCount = resultWithExisting.filter((item) => item.business.isOpenNow === true).length;
@@ -724,7 +736,9 @@ export function SearchLeadsView({
     if (!append) onModeChange("all");
     // A user-initiated search takes precedence over a pending cache refresh.
     hasActiveSearchRef.current = true;
-    const requestId = ++searchRequestIdRef.current;
+    // A duplicate "Load more" tap should not trigger the same page twice.
+    if(append && (!pageToken || pageToken!==nextPageToken || loadingMore || loading))return;
+    const requestId = searchRequestGateRef.current.next();
     if (append) {
       setLoadingMore(true);
     } else {
@@ -745,7 +759,7 @@ export function SearchLeadsView({
     });
 
     // Out-of-order network responses must not overwrite the latest search.
-    if (requestId !== searchRequestIdRef.current) return;
+    if (!searchRequestGateRef.current.isCurrent(requestId)) return;
 
     if (!response.ok) {
       if (!append && response.code === "QUOTA") {
@@ -754,14 +768,15 @@ export function SearchLeadsView({
           segment,
         ).catch(() => null);
 
-        if (requestId !== searchRequestIdRef.current) return;
-        if (cached?.results.length) {
+        if (!searchRequestGateRef.current.isCurrent(requestId)) return;
+        const eligible = eligibleQuotaCache(cached,location,segment);
+        if (eligible) {
           const checkedAt = new Intl.DateTimeFormat("pt-BR", {
             dateStyle: "short",
             timeStyle: "short",
-          }).format(new Date(cached.checkedAt));
+          }).format(new Date(eligible.checkedAt));
 
-          setResults(cached.results);
+          setResults(eligible.results);
           setResultsLocation(location);
           setResultsSegment(segment);
           setNextPageToken(null);
@@ -769,7 +784,7 @@ export function SearchLeadsView({
           setLeadStatusFilter("all");
           setScreen("results");
           setSearchNotice(
-            `A consulta atingiu um limite temporário. Mostrando ${cached.results.length} resultados salvos da última busca (${checkedAt}).`,
+            `A consulta atingiu um limite temporário. Mostrando ${eligible.results.length} resultados salvos da última busca (${checkedAt}).`,
           );
           setRecentSearches(
             storeRecentSearch({
@@ -1239,15 +1254,11 @@ export function SearchLeadsView({
 
       {error && <SearchError error={error} />}
 
-      {!loading && visibleResults.length === 0 && !error ? (
+      {emptyState ? (
         <div className="search-state">
           <Search size={20} />
-          <strong>{mode === "open" ? "Nenhuma empresa marcada como aberta nesta pesquisa" : "Nenhuma empresa encontrada"}</strong>
-          <p>
-            {mode === "open"
-              ? "O resultado considera somente empresas sinalizadas como abertas na última busca. Alterne para Todas as empresas sem realizar outra consulta."
-              : "Tente outro segmento ou altere os filtros atuais."}
-          </p>
+          <strong>{emptyState.title}</strong>
+          <p>{emptyState.description}</p>
         </div>
       ) : (
         <div className="business-results-shell">
