@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { HeaderLightTrails, type BeamVariant } from "./HeaderLightTrails";
 
 export function PageHeader({
   eyebrow,
@@ -11,8 +12,15 @@ export function PageHeader({
   description?: string;
   actions?: ReactNode;
 }) {
+  const paths: Record<string, BeamVariant> = {
+    Dashboard: "dashboard", Financeiro: "finance",
+    "Análise de presença digital": "digital", "Propostas comerciais": "proposals",
+    "Campanhas de prospecção": "campaigns", "Sequências de prospecção": "sequences",
+    "Agenda comercial": "agenda", "Gestão de projetos": "projects",
+  };
   return (
     <header className="saas-page-header">
+      <HeaderLightTrails variant={paths[title] ?? "dashboard"} />
       <div>
         {eyebrow && <p className="saas-page-eyebrow">{eyebrow}</p>}
         <h1>{title}</h1>
