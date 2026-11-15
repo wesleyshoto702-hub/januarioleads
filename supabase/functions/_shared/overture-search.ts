@@ -124,6 +124,68 @@ export const OVERTURE_CATEGORY_EXPANSIONS: Record<string, readonly string[]> = {
   "Loja de Materiais de Construção": ["lumber_store"],
 };
 
+/**
+ * Fase 1.3: conservative, existing-category-only matches from STAGING.
+ * Prepared in code, NOT deployed to Supabase until Phase 0 security gates.
+ * Category/brand/phone ownership has not been verified; these are taxonomy
+ * matches, not a promise of business coverage in a municipality.
+ * Never map broad categories like school, shopping or professional_service
+ * solely to inflate results. No fuzzy matching or external API calls.
+ */
+export const OVERTURE_CATEGORY_PHASE13: Record<string, readonly string[]> = {
+  "Acupuntura": ["acupuncture"],
+  "Adega": ["liquor_store"],
+  "Adestramento": ["dog_trainer"],
+  "Agência de Viagens": ["travel_agent"],
+  "Assessoria de Casamentos": ["wedding_planning"],
+  "Auto Elétrica": ["auto_electrical_repair"],
+  "Bar / Pub": ["gastropub","wine_bar","beer_garden"],
+  "Berçário / Creche": ["day_care_preschool"],
+  "Bronzeamento": ["tanning_salon"],
+  "Cardiologista": ["cardiology"],
+  "Cartório / Serviços Notariais": ["notary_public"],
+  "Chaveiro": ["key_and_locksmith"],
+  "Clínica de Imagem": ["radiology"],
+  "Consultoria Empresarial": ["business_consulting"],
+  "Consultoria Financeira": ["financial_advising"],
+  "Curso Profissionalizante": ["vocational_and_technical_school"],
+  "Dedetizadora": ["pest_control_service"],
+  "Depilação a Laser": ["laser_hair_removal"],
+  "DJ / Som para Eventos": ["dj_service"],
+  "Empresa de Recrutamento": ["employment_agency"],
+  "Encanador": ["plumbing"],
+  "Estética / Depilação": ["hair_removal","waxing"],
+  "Fonoaudiólogo": ["speech_therapy"],
+  "Fotógrafo": ["photography_service"],
+  "Ginecologista": ["obstetrics_and_gynecology"],
+  "Guincho": ["towing_service"],
+  "Home Care / Cuidados Domiciliares": ["home_health_care"],
+  "Hotel para Pets": ["pet_boarding"],
+  "Jardinagem / Paisagismo": ["landscaping","gardener"],
+  "Lavanderia": ["laundromat","dry_cleaning"],
+  "Locadora de Veículos": ["car_rental_service"],
+  "Loja Agropecuária": ["agricultural_seed_store"],
+  "Loja de Iluminação": ["lighting_store"],
+  "Loja de Rações": ["livestock_feed_and_supply_store"],
+  "Maquiagem Profissional": ["makeup_artist"],
+  "Marketing Digital": ["social_media_agency"],
+  "Massoterapeuta": ["massage_therapy"],
+  "Medicina e Segurança do Trabalho": ["occupational_safety","occupational_medicine"],
+  "Montador de Móveis": ["furniture_assembly"],
+  "Ortopedista": ["orthopedics"],
+  "Passeios Turísticos": ["sightseeing_tour_agency","boat_tour","bus_tour"],
+  "Pediatra": ["pediatric_clinic"],
+  "Peixaria": ["fishmonger"],
+  "Pet Sitter": ["pet_sitting"],
+  "Podólogo": ["podiatry"],
+  "Psiquiatra": ["psychiatry"],
+  "Reforço Escolar": ["tutoring_service"],
+  "Restaurante Japonês": ["japanese_restaurant"],
+  "Serralheria": ["metal_fabricator"],
+  "Terapeuta Ocupacional": ["occupational_therapy"],
+  "Vistoria Veicular": ["emissions_inspection"],
+};
+
 export type OverturePlace = {
   id: string; name: string; category: string | null; city: string;
   state: string; address: string | null; latitude: number | null;
@@ -198,6 +260,7 @@ export function categoriesForOverture(segment: string): readonly string[] {
   return Array.from(new Set([
     ...(OVERTURE_CATEGORIES[canonical]??[]),
     ...(OVERTURE_CATEGORY_EXPANSIONS[canonical]??[]),
+    ...(OVERTURE_CATEGORY_PHASE13[canonical]??[]),
   ]));
 }
 export function isRelevantOverture(place: OverturePlace,segment: string) {
