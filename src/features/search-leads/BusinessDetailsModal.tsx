@@ -35,6 +35,7 @@ import type {
 } from "../leads/remote-leads";
 import { STATUS_LABEL } from "../leads/lead-status";
 import { normalizeBrazilianPhone } from "./identity";
+import { hasConfirmedInstagram } from "./search-result-filters";
 import type { BusinessSearchResult } from "./types";
 import { BusinessSourceCredit } from "./BusinessSourceCredit";
 import { GoogleMapsLink } from "./GoogleMapsLink";
@@ -140,11 +141,7 @@ export function BusinessDetailsModal({
   const factualDescription =
     displayBusinessDescription(business, segmentLabel);
   const confirmedInstagram =
-    business.instagram &&
-    business.instagramConfidence !== "medium" &&
-    business.instagramConfidence !== "low"
-      ? business.instagram
-      : null;
+    hasConfirmedInstagram(business) ? business.instagram : null;
   const candidates = business.instagramCandidates ?? [];
   const googleInstagramSearch = `https://www.google.com/search?q=${encodeURIComponent(
     ["site:instagram.com", `"${business.name}"`, business.city, business.state, business.phone]
@@ -475,7 +472,8 @@ export function BusinessDetailsModal({
               {confirmedInstagram ? (
                 <div className="instagram-confirmed">
                   <div>
-                    <strong>Instagram identificado</strong>
+                    <strong>Instagram com alta confiança</strong>
+                    <small>O vínculo com a empresa não foi verificado oficialmente.</small>
                     <span>
                       @{business.instagramUsername ??
                         instagramUsername(confirmedInstagram)}
