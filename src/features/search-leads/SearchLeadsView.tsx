@@ -51,7 +51,6 @@ import {
   manualResultFilters,
   matchesResultFilters,
   sameResultFilters,
-  type ResultFilter,
   type ResultSort,
   type LeadStatusFilter,
   type ResultFilterState,
