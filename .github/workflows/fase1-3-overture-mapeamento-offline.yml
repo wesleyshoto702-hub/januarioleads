@@ -1,0 +1,36 @@
+name: Fase 1.3 — conferir 216 nichos e mapeamento Overture (offline)
+on:
+  pull_request:
+    paths:
+      - "supabase/functions/_shared/overture-search.ts"
+      - "supabase/functions/_shared/niche-catalog.ts"
+      - "tests/fase1_3_overture_mapping.test.ts"
+      - "tests/fixtures/fase1_3_overture_category_counts.json"
+      - "tests/test_fase1_2_auditoria_offline.py"
+      - "scripts/fase1-2-auditoria-overture-somente-leitura.sql"
+      - ".github/workflows/fase1-3-overture-mapeamento-offline.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  mapping-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Test all niche mappings using frozen aggregate-only STAGING counts
+        run: deno test --allow-read=tests/fixtures tests/fase1_3_overture_mapping.test.ts
+      - name: Verify TypeScript syntax and compatibility
+        run: deno check tests/fase1_3_overture_mapping.test.ts
+      - name: Existing Overture search relevance and pagination tests
+        run: deno test tests/overture-staging-search-pilot.test.ts
+      - name: Preserve historical Phase 1.2 baseline and read-only audit
+        run: python -m unittest discover -s tests -p test_fase1_2_auditoria_offline.py -v
