@@ -1,6 +1,6 @@
 # JANUÁRIO LEADS — PLANO MESTRE E AUDITORIA DE LANÇAMENTO
 
-**Versão:** 1.2 | **Data-base:** 15/11/2026 | **Ambiente auditado:** GitHub `main`, Supabase homologação e produção, projeto Lovable (somente leitura)
+**Versão:** 1.3 | **Data-base:** 15/11/2026 | **Ambiente auditado:** GitHub `main`, Supabase homologação e produção, projeto Lovable (somente leitura)
 **Objetivo único:** entregar um **Buscar Leads + CRM confiáveis** e um beta pequeno, sem custos inesperados e sem perda dos dados existentes. Depois habilitar comercialização.
 **Fonte única de prioridades:** este documento. `docs/roadmap-saas-2026-11-06.md` e planos anteriores são históricos, não listas paralelas de trabalho.
 
@@ -78,7 +78,8 @@
 - [ ] **1.2b — Validação qualitativa / real:** medir taxa de empresas efetivamente existentes, titularidade dos contatos, precisão da associação ao nicho e filiais legítimas por amostras externas legalmente autorizadas, quando a Fase 0 estiver resolvida. A coluna `data_release` contém apenas `latest`; snapshot real deve ser registrado na próxima carga. **Não marcar esta parte como concluída agora.**
 - [x] **1.3a — Auditoria dos 216 nichos e preparação offline de mapeamentos:** 125 anteriormente mapeados → **164 com correspondência preparada no GitHub**, **52 ainda sem correspondência**; 59 códigos específicos novos, permitindo potencialmente encontrar **4.291 registros existentes** a mais (194.629 → 198.920 em categorias únicas no banco). Sem publicar Supabase. [Relatório completo](FASE-1-3-AUDITORIA-NICHOS-2026-11-15.md) e [Matriz CSV dos 216 nichos](FASE-1-3-MATRIZ-COMPLETA-216-NICHOS.csv).
 - [ ] **1.3b — Validação antes da publicação:** testar nichos novos na busca autenticada no staging somente após corrigir a Fase 0, medir falsos positivos e revisar os 52 nichos sem correspondência. Não inferir cobertura uniforme nem mapear categorias amplas como `school`, `professional_service`, `shopping`, `party_and_event_planning` apenas para trazer resultados.
-- [ ] **1.4** Classificar regiões/nichos como **cobertura boa / limitada / sem resultados**, sem inventar empresas; não gastar créditos externos para esconder falhas.
+- [x] **1.4a — Cobertura nacional quantitativa e reproduzível:** 216 nichos × 5.572 municípios, **1.203.552 pares** analisados. Mapeamento preparado: **1.079.030 pares sem candidatos, 123.926 limitados, somente 596 pares com ≥8 candidatos e ≥5 telefones de formato plausível**; **469 municípios** e **23 nichos** atingem ao menos uma dessas combinações. [Relatório 1.4](FASE-1-4-AUDITORIA-COBERTURA-2026-11-15.md), [CSV 216 nichos](FASE-1-4-MATRIZ-COBERTURA-216-NICHOS.csv), [CSV 27 UFs](FASE-1-4-COBERTURA-27-UFS.csv), [18 casos](FASE-1-4-COBERTURA-18-CENARIOS.csv), SQL read-only e CI. **Não equivale a cobertura comercial validada.**
+- [ ] **1.4b — Classificação real na interface:** apresentar quantidades e estados honestos a partir do resultado efetivamente carregado da busca (após deduplicação, filtros e limitações), **não usar CSV de snapshot para rótulos de cobertura em produção**, verificar UX autenticada após resolver Fase 0. Não ativar fontes pagas para camuflar lacunas.
 - [ ] **1.5** Testar deduplicação baseada em nome, localização e ID, inclusive filiais homônimas e telefones repetidos. Validar telefone BR, website real e Instagram; não chamar dados apenas presentes de "verificados".
 **Sair da fase quando:** relatório claro de cobertura e qualidade, 0 misturas flagrantes de nichos e 0 duplicações óbvias nos cenários de regressão. Se a amostra tiver pouca cobertura, **reduzir o escopo inicial anunciado**, não ficar importando indefinidamente.
 
@@ -149,7 +150,7 @@
 | Ordem | Fase | Estado em 15/11 | Dependência |
 |---|---|---|---|
 | 0 | Segredos, backup e segurança | **ADIADA a pedido — continua bloqueio P0** | antes de qualquer ação de risco / lançamento |
-| 1 | Qualidade Overture | **ATIVA — 1.1 + 1.2a + 1.3a concluídas; validações reais pendentes; próxima 1.4** | somente leitura/offline; sem deploy/produção |
+| 1 | Qualidade Overture | **ATIVA — 1.1, 1.2a, 1.3a e 1.4a concluídas; etapas reais pendentes; próxima 1.5a** | somente leitura/offline; sem deploy/produção |
 | 2 | Buscar Leads E2E staging | preparação offline permitida; E2E real bloqueado | 1 + resolver 0 para teste real seguro |
 | 3 | Compliance/custos/migração canário | documentação/compliance permitidos; migração bloqueada | 0–2 |
 | 4 | CRM e UX beta | testes offline/visuais permitidos; aceite real pendente | 0 + 2–3 |
@@ -175,7 +176,7 @@
 - [ ] Integração automática de pagamentos antes do beta estabilizado.
 
 ## 6. Próxima ação única e retomada
-**AGORA: FASE 1.4 — classificar cobertura dos nichos e municípios com consultas SQL agregadas somente leitura.** A auditoria de 216 nichos (1.3a) e a ampliação conservadora de 125 para 164 mapeamentos foram preparadas em código, **não implantadas no Supabase**, e aguardam validação real (1.3b) depois da Fase 0. A verificação individual de empresas/contatos (1.2b) também permanece pendente. Nenhuma nova Colab, alteração de banco ou chamada paga é necessária.
+**AGORA: FASE 1.5a — auditoria adicional de duplicações e qualidade por nome, localização e ID em consultas SQL agregadas, com testes sintéticos/offline.** A Fase 1.4a demonstrou que apenas **596 de 1.203.552 pares município×nicho** atingem o limiar provisório 8 resultados/5 telefones, e os **4.291 registros potencialmente acessíveis pela Fase 1.3** não elevaram esse número. **Fase 1.4b (UX real), 1.3b (E2E real), 1.2b (titularidade/contatos) e 1.5b (amostras reais) aguardam a Fase 0.** Não executar nova Colab nem alterar banco ou produção por causa desta medição.
 
 **QUANDO O USUÁRIO VOLTAR AO COMPUTADOR: retomar a FASE 0.1 e 0.2 imediatamente**, confirmar revogação da chave `service_role` de homologação exposta e concluir backup/ensaio de restauração da produção. Sem isso, nenhuma migração, beta público, assinatura ou lançamento comercial pode ser considerado aprovado. A implementação atual da busca na homologação foi atualizada para usar preferencialmente `sb_secret_` (Edge Function v31), mas isso **não revoga a chave antiga**.
 
