@@ -24,6 +24,7 @@ import {
 } from "../lead-finance/finance";
 import { normalizeBrazilianStateCode } from "../../lib/brazil-locations";
 import { ChanceBadge } from "../lead-chance/ChanceBadge";
+import { DigitalOpportunityBadge } from "../qualification/DigitalOpportunityBadge";
 import { calculateLeadChance, hasEnoughDataForLeadChance } from "../lead-chance/lead-chance";
 import { getLeadActionSummary } from "../next-actions/next-actions";
 import { LeadNicheIcon } from "./LeadNicheIcon";
@@ -106,6 +107,7 @@ export function LeadRow({
           <strong className="jl-lead-company-name" title={lead.company}>{lead.company}</strong>
           <span className="lead-segment">{lead.segment || "Nicho não informado"}</span>
           {chance && <ChanceBadge chance={chance} />}
+          {chance && <DigitalOpportunityBadge business={lead} />}
           {lead.enrichedAt && <small className="enriched-badge">Dados enriquecidos</small>}
           {updateCount > 0 && (
             <small className="lead-update-badge">
@@ -186,6 +188,7 @@ export function LeadCard({
             <strong className="jl-lead-company-name" title={lead.company}>{lead.company}</strong>
             <span className="lead-segment">{lead.segment || "Nicho não informado"}</span>
             {chance && <ChanceBadge chance={chance} />}
+          {chance && <DigitalOpportunityBadge business={lead} />}
             {lead.enrichedAt && <small className="enriched-badge">Dados enriquecidos</small>}
             {updateCount > 0 && (
               <small className="lead-update-badge">{updateCount} {updateCount === 1 ? "atualização" : "atualizações"}</small>
