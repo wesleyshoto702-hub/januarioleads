@@ -32,7 +32,7 @@ export function WorkspaceAmbientParticles({
         .getPropertyValue("--primary").trim();
       const hex = /^#([0-9a-f]{6})$/i.exec(raw);
       if (hex) {
-        const value = hex[1];
+        const value = hex[1]!;
         color = { r: parseInt(value.slice(0, 2), 16),
           g: parseInt(value.slice(2, 4), 16), b: parseInt(value.slice(4, 6), 16) };
         return;
@@ -64,7 +64,7 @@ export function WorkspaceAmbientParticles({
     function draw(move: boolean) {
       context!.clearRect(0, 0, width, height); // Never paint over the workspace background.
       for (let i = 0; i < particles.length; i++) {
-        const p = particles[i];
+        const p = particles[i]!;
         if (move) {
           p.x = (p.x + p.vx + width) % width;
           p.y = (p.y + p.vy + height) % height;
@@ -74,7 +74,7 @@ export function WorkspaceAmbientParticles({
         context!.fillStyle = `rgba(${color.r},${color.g},${color.b},0.22)`;
         context!.fill();
         for (let j = i + 1; j < particles.length; j++) {
-          const q = particles[j];
+          const q = particles[j]!;
           const distance = Math.hypot(p.x - q.x, p.y - q.y);
           if (distance >= 110) continue;
           context!.beginPath();
