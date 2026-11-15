@@ -13,11 +13,14 @@ Um token legado `service_role` de HOMOLOGAÇÃO foi colado anteriormente como c�
 - [x] Verificar que chave publicável moderna está presente e ativa. Isso **não** revoga `service_role`.
 - [x] Mapear código `search-places` na HOMOLOGAÇÃO: hoje `adminConfig()` **prioriza** `SUPABASE_SERVICE_ROLE_KEY` antes de `SUPABASE_SECRET_KEYS`, um impedimento importante à migração. `staging-plan-preview` também possui referências a ambas as formas.
 - [ ] No Dashboard de homologação, conferir/criar nova `sb_secret_...` para backend (não compartilhar o valor).
-- [ ] Preparar e testar o leitor de chave para usar **`SUPABASE_SECRET_KEYS` em primeiro lugar**, com autenticação JWT de usuários intacta; testar todas as Edge Functions dependentes e os scripts Colab sem segredo no código.
+- [x] Preparar e testar offline o seletor de `sb_secret_` moderno: [PR #159](https://github.com/wesleyshoto702-hub/januarioleads/pull/159) integrada, função `search-places` da homologação publicada na **versão 31 (ACTIVE)**. JWT de usuários continua exigido; base Overture preservada.
+- [ ] Testar busca ponta a ponta com usuário autenticado; validar `staging-plan-preview`, Colab e consumidores legados antes de revogar a chave antiga. CI isolado e deploy ACTIVE não comprovam E2E.
 - [ ] Conferir GitHub Actions, Colab, workers e webhooks: nenhum deve depender da chave antiga.
 - [ ] Desativar a chave legada no Supabase Dashboard e confirmar o status **desativado**; verificar a aplicação e observar erros. Não presumir que criar a nova chave invalida a antiga. Rotação de chaves de assinatura JWT é um trabalho distinto: não executar indiscriminadamente.
 - [ ] Conferir se a sessão antiga do Colab foi desconectada e se o notebook usa campo oculto.
 - [ ] Marcar 0.1 concluída **somente** após evidência de chave antiga desativada, nova credencial ativa e fluxos testados.
+
+**Verificação adicional:** PR #158 (script de backup criptografado) e PR #159 (seletor moderno primeiro) integradas em `main`; GitHub Actions verde. Somente homologação recebeu função v31; produção mantém `search-places` versão 34, sem alterações. Rotação/revogação antiga ainda não confirmada.
 
 **Referência oficial:** https://supabase.com/docs/guides/getting-started/migrating-to-new-api-keys
 
