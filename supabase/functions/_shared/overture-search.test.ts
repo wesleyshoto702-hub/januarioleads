@@ -1,6 +1,7 @@
 import {
   categoriesForOverture, enoughRelevantResults, searchOverture, isRelevantOverture,
 } from "./overture-search.ts";
+import { ALL_SEARCH_SEGMENTS } from "./niche-catalog.ts";
 
 function assert(value:unknown,message:string):asserts value{
   if(!value)throw Error(message);
@@ -244,7 +245,10 @@ Deno.test("stage 3 exact Brazilian categories enable additional previously-unmap
     "Terapeuta Ocupacional":["occupational_therapy"],
     "Chaveiro":["key_and_locksmith"],
   };
-  for(const [niche,categories] of Object.entries(observed)){
+  const mapped=ALL_SEARCH_SEGMENTS.filter(segment=>categoriesForOverture(segment).length>0);
+  assert(ALL_SEARCH_SEGMENTS.length===216,"Keep the canonical 216 selectable niches");
+  assert(mapped.length===140,"Stage 3 should map 140 niches, preserving all earlier mappings");
+    for(const [niche,categories] of Object.entries(observed)){
     const mapped=categoriesForOverture(niche);
     for(const category of categories) {
       assert(mapped.includes(category),niche+" missing exact category "+category);
