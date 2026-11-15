@@ -78,6 +78,51 @@ export const OVERTURE_CATEGORIES: Record<string, readonly string[]> = {
   "Loja de Lingerie":["lingerie_store"],
   "Loja de Utilidades Domésticas":["home_goods_store"],
 };
+/**
+ * Stage 2: additional EXACT Overture category matches observed in Brazil STAGING.
+ * These enrich existing canonical niches without adding duplicate menu choices.
+ * Do not include broad taxonomies (school, professional_service, shopping, etc.)
+ * because they produce unrelated businesses. No paid API calls or DB changes.
+ */
+export const OVERTURE_CATEGORY_EXPANSIONS: Record<string, readonly string[]> = {
+  "Banho e Tosa": ["pet_groomer"],
+  "Loja de Suplementos": ["vitamin_and_supplement_store"],
+  "Vidraçaria": ["glass_and_mirror_sales_service"],
+  "Energia Solar": ["solar_installation"],
+  "Escola de Dança": ["dance_studio"],
+  "Corretor de Seguros": ["insurance_agency"],
+  "Marketing Digital": ["marketing_agency","internet_marketing_service"],
+  "Marmoraria": ["granite_supplier"],
+  "Loja de Produtos Naturais": ["health_food_store"],
+  "Desenvolvimento de Software": ["software_development"],
+  "Empresa de Uniformes": ["uniform_store"],
+  "Loja de Bicicletas": ["bike_store"],
+  "Funilaria": ["auto_body_shop"],
+  "Refrigeração / Ar Condicionado": ["hvac_service"],
+  "Piscineiro": ["pool_cleaning"],
+  "Personal Trainer": ["fitness_trainer"],
+  "Fotografia de Eventos": ["event_photography_service"],
+  "Agência de Publicidade": ["advertising_agency","b2b_advertising_and_marketing_service"],
+  "Papelaria / Artesanato": ["office_supply_store","arts_crafts_and_hobby_store"],
+  "Costureira / Ateliê": ["sewing_and_alterations"],
+  "Clínica Odontológica": ["orthodontics","cosmetic_dentistry"],
+  "Nutricionista": ["nutrition_service"],
+  "Psicólogo / Terapeuta": ["psychotherapy","psychology"],
+  "Dermatologista": ["dermatology"],
+  "Academia de Artes Marciais": ["martial_arts_club"],
+  "Clínica de Estética": ["medical_spa"],
+  "Loja de Colchões": ["mattress_store"],
+  "Transportadora": ["freight_and_cargo_service"],
+  "Empresa de Limpeza Residencial": ["home_cleaning"],
+  "Segurança Eletrônica / Alarmes": ["home_security"],
+  "Confeitaria": ["chocolatier"],
+  "Empório": ["specialty_foods_store"],
+  "Restaurante": ["italian_restaurant","seafood_restaurant","bar_and_grill_restaurant","diner","buffet_restaurant"],
+  "Acessórios Automotivos": ["car_stereo_store"],
+  "Escola de Informática": ["computer_coaching"],
+  "Loja de Materiais de Construção": ["lumber_store"],
+};
+
 export type OverturePlace = {
   id: string; name: string; category: string | null; city: string;
   state: string; address: string | null; latitude: number | null;
@@ -143,7 +188,13 @@ function toBusiness(p: OverturePlace): OvertureBusiness {
 /** Exported for offline testing. */
 export function categoriesForOverture(segment: string): readonly string[] {
   const canonical=resolveSearchSegment(segment);
-  return canonical ? OVERTURE_CATEGORIES[canonical]??[] : [];
+  if(!canonical)return [];
+  // Merge original and newly observed categories without changing the labels
+  // or losing existing specialties such as 'used_auto_dealer'.
+  return Array.from(new Set([
+    ...(OVERTURE_CATEGORIES[canonical]??[]),
+    ...(OVERTURE_CATEGORY_EXPANSIONS[canonical]??[]),
+  ]));
 }
 export function isRelevantOverture(place: OverturePlace,segment: string) {
   const cats=categoriesForOverture(segment);
