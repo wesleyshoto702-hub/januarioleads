@@ -14,12 +14,22 @@ function assert(condition: unknown, message: string): asserts condition {
 
 Deno.test("catalog has unique selectable niches in distinct groups", () => {
   assert(SEGMENT_GROUPS.length === 16, "Expected 16 organized groups");
-  assert(ALL_SEARCH_SEGMENTS.length === 196, "Unexpected total of searchable niches");
+  assert(ALL_SEARCH_SEGMENTS.length === 216, "Unexpected total of searchable niches");
   const normalize = (v: string) => v.normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
   const unique = new Set(ALL_SEARCH_SEGMENTS.map(normalize));
   assert(unique.size === ALL_SEARCH_SEGMENTS.length, "Duplicate canonical niche");
   assert(SEGMENT_GROUPS.every((g) => g.label && g.items.length > 0), "Empty category");
+});
+
+Deno.test("all 20 Overture-backed niches are selectable with distinct names", () => {
+  const expected = ["Bar / Pub","Mercado / Supermercado","Restaurante Japonês","Provedor de Internet","Autopeças","Posto de Combustível","Revenda de Motos","Funerária","Livraria","Loja de Artigos Esportivos","Loja de Artigos para Festas","Loja de Brinquedos","Loja de Celulares","Loja de Cosméticos","Loja de Conveniência","Loja de Departamentos","Loja de Eletrônicos","Loja de Eletrodomésticos","Loja de Lingerie","Loja de Utilidades Domésticas"];
+  assert(expected.length === 20, "Expected exactly 20 new niches");
+  expected.forEach(segment=>{
+    assert(ALL_SEARCH_SEGMENTS.includes(segment), `Missing commercial niche: ${segment}`);
+    assert(resolveSearchSegment(segment.toLowerCase())===segment, `Cannot resolve ${segment}`);
+    assert(searchTextForSegment(segment)!==null,`Cannot query ${segment}`);
+  });
 });
 
 Deno.test("removed duplications remain usable as legacy search aliases", () => {
