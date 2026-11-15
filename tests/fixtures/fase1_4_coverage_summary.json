@@ -1,0 +1,117 @@
+{
+  "meta": {
+    "checked": "2026-11-15",
+    "project": "staging",
+    "project_id": "prlrxjothrslhswpkoza",
+    "niche_catalog_sha": "17b65e60d33adc25d49e5377078dd821f91cb2ea",
+    "overture_search_sha": "32fe20550714342460f6dae40fbed6f373e7c2c2",
+    "coverage_criteria": {
+      "no_candidates": "count=0",
+      "limited": "count>=1 but count<8 or plausible_phone_count<5",
+      "more": "count>=8 and plausible_phone_count>=5"
+    },
+    "important": "Rows are aggregate candidate counts, not validated live results; prepared mapping not deployed."
+  },
+  "summary": {
+    "old": {
+      "city_total": 5572,
+      "niches": 216,
+      "combinations": 1203552,
+      "sem_candidatos": 1082934,
+      "limitada": 120022,
+      "mais_candidatos": 596,
+      "niches_com_maior_cobertura": 23,
+      "candidate_memberships": 199765
+    },
+    "prepared": {
+      "city_total": 5572,
+      "niches": 216,
+      "combinations": 1203552,
+      "sem_candidatos": 1079030,
+      "limitada": 123926,
+      "mais_candidatos": 596,
+      "niches_com_maior_cobertura": 23,
+      "candidate_memberships": 204056
+    }
+  },
+  "examples": {
+    "strong_niches": [
+      {
+        "niche": "Hotel",
+        "cities_with_more": 201,
+        "cities_with_any": 3528
+      },
+      {
+        "niche": "Restaurante",
+        "cities_with_more": 173,
+        "cities_with_any": 4421
+      },
+      {
+        "niche": "Clínica Odontológica",
+        "cities_with_more": 48,
+        "cities_with_any": 3479
+      },
+      {
+        "niche": "Loja de Roupas",
+        "cities_with_more": 44,
+        "cities_with_any": 4452
+      },
+      {
+        "niche": "Mercado / Supermercado",
+        "cities_with_more": 22,
+        "cities_with_any": 4453
+      },
+      {
+        "niche": "Salão de Beleza",
+        "cities_with_more": 22,
+        "cities_with_any": 3919
+      },
+      {
+        "niche": "Imobiliária",
+        "cities_with_more": 19,
+        "cities_with_any": 2166
+      },
+      {
+        "niche": "Pousada",
+        "cities_with_more": 18,
+        "cities_with_any": 1090
+      },
+      {
+        "niche": "Loja de Materiais de Construção",
+        "cities_with_more": 9,
+        "cities_with_any": 3058
+      },
+      {
+        "niche": "Loja de Lingerie",
+        "cities_with_more": 8,
+        "cities_with_any": 470
+      },
+      {
+        "niche": "Loja de Móveis",
+        "cities_with_more": 7,
+        "cities_with_any": 2556
+      },
+      {
+        "niche": "Posto de Combustível",
+        "cities_with_more": 7,
+        "cities_with_any": 3033
+      },
+      {
+        "niche": "Loja de Veículos Seminovos",
+        "cities_with_more": 4,
+        "cities_with_any": 1477
+      },
+      {
+        "niche": "Bar / Pub",
+        "cities_with_more": 3,
+        "cities_with_any": 3303
+      },
+      {
+        "niche": "Cafeteria",
+        "cities_with_more": 2,
+        "cities_with_any": 1132
+      }
+    ],
+    "never_strong_niches": 193
+  }
+}
