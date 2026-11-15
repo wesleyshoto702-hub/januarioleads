@@ -162,7 +162,7 @@ Teste automatizado: `deno test src/lib/account-storage.test.ts`.
 ## Catálogo nacional de nichos
 
 **Buscar Leads** e **Nichos Abertos Agora** compartilham o mesmo catálogo central:
-**196 nichos distintos em 16 categorias**, incluindo construção e reformas,
+**216 nichos distintos em 16 categorias**, incluindo construção e reformas,
 turismo/hospedagem, serviços empresariais, casa e decoração, pets e agronegócio.
 Cada nicho possui uma família comercial para o planejamento de páginas e
 prospecção, evitando categorias novas sem estratégia definida.
