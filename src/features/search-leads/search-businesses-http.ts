@@ -37,12 +37,12 @@ const FAILURE_CODES = new Set([
 function parseSearchResponse(value: unknown): BusinessSearchResponse | null {
   if(!value || typeof value!=="object") return null;
   const p=value as Record<string, unknown>;
-  if(p.ok===false && typeof p.code==="string" && FAILURE_CODES.has(p.code) &&
-    typeof p.message==="string")
+  if(p["ok"]===false && typeof p["code"]==="string" && FAILURE_CODES.has(p["code"]) &&
+    typeof p["message"]==="string")
     return p as BusinessSearchResponse;
-  if(p.ok!==true || !Array.isArray(p.results) ||
-    !(p.nextPageToken===null || typeof p.nextPageToken==="string") ||
-    !p.results.every(row=>row && typeof row==="object" &&
+  if(p["ok"]!==true || !Array.isArray(p["results"]) ||
+    !(p["nextPageToken"]===null || typeof p["nextPageToken"]==="string") ||
+    !p["results"].every(row=>row && typeof row==="object" &&
       typeof row.placeId==="string" && row.placeId.length>0 &&
       typeof row.name==="string" && row.name.length>0 &&
       Array.isArray(row.categories)))
