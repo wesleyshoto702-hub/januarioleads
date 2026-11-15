@@ -1,0 +1,60 @@
+{
+  "meta": {
+    "date": "2026-11-15",
+    "environment": "staging",
+    "project_id": "prlrxjothrslhswpkoza",
+    "table": "public.overture_places",
+    "note": "Aggregate-only, no company IDs, addresses, phones, emails or user data. Not verified contacts."
+  },
+  "identity": {
+    "total": 321179,
+    "distinct_ids": 321179,
+    "missing_name_key": 127,
+    "repeated_name_city_groups": 6864,
+    "rows_in_repeated_groups": 13854,
+    "excess_if_name_only_merged": 6990,
+    "groups_with_different_rounded_coords": 6655,
+    "groups_with_distinct_known_addresses": 2812,
+    "groups_with_distinct_categories": 1133
+  },
+  "nearby": {
+    "name_nearby_pairs_15m": 276,
+    "name_city_groups_with_near_pairs": 276,
+    "address_conflicts": 149,
+    "category_conflicts": 68,
+    "phone_conflicts": 22,
+    "any_conflict": 209,
+    "structurally_compatible_pairs": 67
+  },
+  "shared_contact": {
+    "repeated_phone_groups": 9658,
+    "rows_with_shared_phone": 22034,
+    "phone_groups_10plus": 42,
+    "rows_in_phone_10plus": 2117,
+    "high_reuse_phones_multiple_cities": 42,
+    "highest_phone_reuse": 483,
+    "repeated_email_groups": 7159,
+    "rows_with_shared_email": 15299,
+    "email_groups_10plus": 16,
+    "rows_in_email_10plus": 624,
+    "high_reuse_emails_multiple_cities": 16,
+    "highest_email_reuse": 190
+  },
+  "contact_format": {
+    "total": 321179,
+    "phone_present": 296652,
+    "plausible_br_phone_length_prefix": 296064,
+    "phone_other_format": 588,
+    "repeated_digit_numbers": 1,
+    "email_present": 228277,
+    "email_invalid_basic": 0,
+    "website_present": 128850,
+    "website_invalid_http_format": 1,
+    "website_points_to_social": 3,
+    "instagram_present": 42742,
+    "instagram_invalid_domain_format": 5,
+    "instagram_content_not_profiles": 618,
+    "instagram_homepage": 182,
+    "instagram_single_path_segment": 41094
+  }
+}
