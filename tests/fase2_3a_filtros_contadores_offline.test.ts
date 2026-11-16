@@ -151,6 +151,7 @@ Deno.test("quick-filter chips count ONLY loaded cards and current mode",()=>{
     ctx(b("a",{phone:"(35) 98888-8888",website:null,isOpenNow:true})),
     ctx(b("b",{phone:"123",website:null,isOpenNow:false})),
     ctx(b("c",{phone:"(35) 98888-8888",
+      website:"https://example.invalid",
       instagram:"https://instagram.com/example",
       instagramConfidence:"high",isOpenNow:null})),
   ];
