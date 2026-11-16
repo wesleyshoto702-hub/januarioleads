@@ -32,6 +32,12 @@ A preparação e execução das importações devem ficar **suspensas** até a m
 - **NÃO CONCLUÍDA:** 0.1 ainda precisa do teste autenticado real com nova credencial, auditoria de consumidores e desativação/verificação negativa da chave antiga. Não confundir implantação com revogação.
 - **Próximo passo obrigatório:** smoke test real em HOMOLOGAÇÃO com conta de teste autorizada, sem provedores pagos, e então preparar desativação da JWT legada no Dashboard conforme `verify_jwt=true` das funções. Backup/restauração 0.2 ainda pendentes. [Registro técnico completo](FASE-0-SEGURANCA-BACKUP-2026-11-15.md#fase-01--rollout-das-duas-funções-de-homologação-em-16112026).
 
+### 16/11/2026 — teste HTTP autenticado real de staging aprovado
+- [x] Reexecutado [GitHub Actions 43864506127 (tentativa 2)](https://github.com/wesleyshoto702-hub/januarioleads/actions/runs/43864506127): **SUCCESS**. Conta autorizada autenticou, `search-places` v32 retornou Overture via `overture:0` com HTTP 200 e `provider=overture`, duas funções recusaram acesso não autenticado (401), e `staging-plan-preview` v7 rejeitou plano inválido (400) sem alterar assinatura.
+- [ ] **A Fase 0.1 continua PENDENTE:** verificar consumidores adicionais e efetuar/revalidar a revogação de `service_role` legada em HOMOLOGAÇÃO e, se pertinente, migrar o JWT signing secret com cuidado devido a `verify_jwt=true`. O teste do preview não fez gravação administrativa, apenas guardas de autenticação.
+- [ ] **A Fase 0.2 continua PENDENTE:** backup real criptografado de produção e restauração em banco isolado.
+- Proibida retomada da Colab/importações até fechamento dos bloqueios. [Relatório detalhado](FASE-0-SEGURANCA-BACKUP-2026-11-15.md#teste-autenticado-aprovado--16112026-github-actions-execução-43864506127).
+
 ## 0. Diagnóstico confirmado em 15/11/2026
 
 ### Dados e ambientes
