@@ -9,7 +9,7 @@ import {
 } from "./next-actions.ts";
 
 export type CrmNextActionPatch = {
-  nextActionType: NextActionType | undefined;
+  nextActionType?: NextActionType | undefined;
   nextActionDate?: string | undefined;
   nextActionNotes?: string | undefined;
 };
