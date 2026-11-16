@@ -16,6 +16,8 @@ from urllib.request import Request, urlopen
 from urllib.parse import urlsplit
 
 STAGING_URL = "https://prlrxjothrslhswpkoza.supabase.co"
+# Intentionally public sb_publishable_ key; never use a service_role or sb_secret here.
+STAGING_PUBLIC_KEY = "sb_publishable_g92A_nFfOkpIQGKaxN8ilg_MJ4-yKpD"
 MAX_RESPONSE_BYTES = 128_000
 
 class SmokeError(RuntimeError):
@@ -68,7 +70,7 @@ def run(env: dict[str, str]) -> None:
     require(not configured_url or configured_url == STAGING_URL,
             "Refusing to test: configured staging URL points to another project")
     url = STAGING_URL
-    key = env.get("JANUARIO_STAGING_SUPABASE_KEY", "").strip()
+    key = env.get("JANUARIO_STAGING_SUPABASE_KEY", "").strip() or STAGING_PUBLIC_KEY
     email = env.get("JANUARIO_STAGING_A_EMAIL", "").strip()
     password = env.get("JANUARIO_STAGING_A_PASSWORD", "")
     require(public_key_only(key), "Staging publishable/anon key not configured or unexpectedly privileged")
