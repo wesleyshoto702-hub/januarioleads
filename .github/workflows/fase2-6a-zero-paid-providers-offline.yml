@@ -1,0 +1,36 @@
+name: Fase 2.6a — orçamentos externos zero, sem rede
+on:
+  pull_request:
+    paths:
+      - "supabase/functions/search-places/index.ts"
+      - "supabase/functions/_shared/geoapify-search.ts"
+      - "supabase/functions/_shared/external-provider-approval.ts"
+      - "supabase/functions/_shared/external-provider-execution.ts"
+      - "tests/fase2_6a_zero_paid_providers_offline.test.ts"
+      - "tests/test_fase2_6a_paid_provider_contract_offline.py"
+      - ".github/workflows/fase2-6a-zero-paid-providers-offline.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  no-paid-calls:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validar cap zero, reserva atômica falsa e ZERO calls mockadas
+        run: deno test tests/fase2_6a_zero_paid_providers_offline.test.ts
+      - name: Verificar TypeScript puro da guarda de provedores
+        run: deno check tests/fase2_6a_zero_paid_providers_offline.test.ts
+      - name: Garantir que os pontos reais de rede usam os módulos testados
+        run: python -m unittest discover -s tests -p test_fase2_6a_paid_provider_contract_offline.py -v
+      - name: Regressões offline 2.2a, 2.4a e 2.5a
+        run: deno test --no-check tests/fase2_2a_search_resilience_offline.test.ts tests/fase2_4a_search_metrics_offline.test.ts tests/fase2_5a_crm_journey_offline.test.ts
