@@ -97,3 +97,40 @@ Consultar:
 **Próxima ação única:** executar a substituição segura da credencial na HOMOLOGAÇÃO, primeiro revisando os consumidores `SUPABASE_SERVICE_ROLE_KEY` e preparando a precedência da nova chave. Não desativar a antiga enquanto os consumidores não forem testados. Em paralelo, executar backup protegido LOCAL com o script, sem enviar dados para o repositório.
 
 **Nunca declarar Fase 0 concluída enquanto chave exposta ou backup/restore não estiverem comprovados.**
+
+
+## Atualização de execução — 16/11/2026 (retomada solicitada)
+
+**Status: FASE 0 EM EXECUÇÃO, AINDA BLOQUEADORA.** Auditoria realizada por acesso somente de leitura aos dois projetos. Nenhuma chave foi revogada, nenhum backup foi produzido ou restaurado, nenhuma migration foi executada e nenhum registro de cliente foi alterado nesta atualização.
+
+### Evidência observada (16/11/2026)
+
+| Métrica | Produção | Homologação |
+|---|---:|---:|
+| Ref Supabase | `czkazbianiflhldenhcj` | `prlrxjothrslhswpkoza` |
+| Banco, bytes (no momento da consulta) | 22.809.747 | 191.633.075 |
+| Tabelas base públicas | 20 | 43 |
+| Tabelas públicas com RLS | 20 | 43 |
+| Policies públicas | 46 | 56 |
+| Migrações aplicadas no Supabase | 63 | 57 |
+| Contas em Auth | 2 | 1 |
+| Leads CRM | 212 | não conferido |
+| Atividades CRM | 259 | não conferido |
+| Storage | 1 bucket / 9 objetos | não conferido |
+
+- As **63/57 versões remotas** evidenciam que o script histórico `scripts/audit_migration_reconciliation.py` (ledger fixo de 51 versões da produção e 24 migrações locais) não pode ser usado para afirmar sincronização atual. Revisar a reconciliação sob novo snapshot e sem executar ou excluir migrações; preservar baseline histórico imutável.
+- Produção: `anon` tem **0 grants diretos SELECT/INSERT** no schema `public` (teste apenas de privilégios da tabela; não substitui teste HTTP negativo ou revisão de functions). A homologação possui grants de tabela, mas RLS está habilitado em todas as 43 tabelas base, portanto a exposição efetiva deve ser verificada por policies e testes com tokens próprios; não confundir grants com linhas acessíveis.
+- Os avisos ativos de segurança **não foram corrigidos**, apenas confirmados: proteção contra senhas vazadas desligada em ambos; extensão `pg_net` em `public` na produção; avisos informativos de RLS sem policy em tabelas administrativas de staging.
+- Chave pública moderna `sb_publishable_` de staging presente e ativa. **Isso não prova revogação da antiga `service_role`**. `search-places` v31 e `staging-plan-preview` v6 ainda referenciam caminhos de chave de serviço (nova/legada); verificar todos os consumidores antes do corte. O conector disponível não administra as chaves secretas/legadas: intervenção no Dashboard é necessária.
+- Nenhuma leitura de valores secretos, credenciais pessoais ou conteúdo de leads foi necessária.
+
+### Sequência exata para encerrar os portões, sem perder dados
+
+1. **0.1 — credencial de staging:** interromper/desconectar todas as Colabs e jobs de importação; no Dashboard **somente de HOMOLOGAÇÃO**, verificar nova `sb_secret_` no menu de API keys; revisar todos os consumidores autorizados, inclusive scripts/Colab, `search-places`, `staging-plan-preview`, funções auxiliares, CI e webhooks; testar com **nova chave** pelo canal secreto apropriado; desativar a legacy key e aplicar as instruções oficiais pertinentes para **revogar o JWT secret legado** se a chave exposta ainda puder validar, sem fazer rotação global às cegas. Confirmar desligamento e testes de falha da chave antiga por canal seguro; não compartilhar chaves no chat/GitHub.
+2. **0.2 — backup real de PRODUÇÃO:** em **computador Windows confiável**, executar `powershell -NoProfile -File scripts/fase0-backup-producao.ps1 -Mode Check` e depois `-Mode Backup`; usar somente host/usuário da produção e senha solicitada localmente em campo oculto. Guardar o arquivo `.dump.gpg` e manifesto em cópia offline privada. Exportar **bytes** dos 9 objetos Storage e demais configurações não cobertas; não declarar cópia completa só por existir dump do banco.
+3. **0.2 — restauração isolada:** validar descriptografia, restauração efetiva em **ambiente isolado**, contagens de usuários/leads/atividades, acessos/RLS, funções e arquivos; `pg_restore --list` isoladamente não basta. Não usar produção como destino de teste e não gerar serviços pagos sem orçamento aprovado.
+4. **0.3 — reconciliação:** comparar versões remotas 63/57, arquivos locais e baseline histórico, registrar divergências e correções versionadas no GitHub com testes offline; **proibido `db push`, `migration repair`, `db reset` ou cópia direta de tabelas entre projetos** até o inventário estar coerente e o backup validado.
+5. **0.4 — isolamento/autorização:** testar duas contas de staging autorizadas sem tocar em usuários reais; verificações negativas de CRUD cruzado e funções `sync-leads`/provider; revisar Auth, RLS e Storage, sempre com política de rollback.
+6. **0.5 — finanças:** verificar no painel Usage/Billing dos provedores os limites efetivos, alertas e aprovação de custo zero; os testes sintéticos de `deny by default` não provam a configuração publicada ou as faturas.
+
+**Próximo bloqueio imediato:** evidência da 0.1 (nova credencial operacional + antiga revogada) e 0.2 (backup privado efetivo + teste de restauração). Não mover Overture para produção nem abrir beta até cumprir os portões.
