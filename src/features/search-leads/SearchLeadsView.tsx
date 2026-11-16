@@ -39,6 +39,8 @@ import { searchBusinesses } from "./search-businesses";
 import { mergeSearchPageResults } from "./search-page-merge";
 import { createSearchRequestGate } from "./search-request-gate";
 import { searchEmptyState } from "./search-empty-state";
+import { RESULT_FILTER_OPTIONS, SMART_FILTERS, type SmartFilterId, type SmartFilterPreset } from "./search-filter-presentation";
+import { countLoadedMatches, summarizeLoadedSearchResults } from "./search-loaded-counts";
 import { eligibleQuotaCache, onlyOpenSourceSearchResults } from "../opportunities/open-search-cache-policy";
 import { safeOpenContinuationToken } from "../../../supabase/functions/_shared/search-continuation";
 import { hasUsableBusinessEmail } from "./business-contact";
@@ -49,7 +51,6 @@ import {
   manualResultFilters,
   matchesResultFilters,
   sameResultFilters,
-  type ResultFilter,
   type ResultSort,
   type LeadStatusFilter,
   type ResultFilterState,
@@ -90,22 +91,6 @@ export type SearchMessageTarget = {
   id?: string;
   company: string;
   phone: string;
-};
-
-type SmartFilterId =
-  | "no-site-phone"
-  | "no-site-whatsapp"
-  | "high-chance-no-site"
-  | "not-contacted"
-  | "waiting"
-  | "instagram-no-site";
-
-type SmartFilterPreset = {
-  id: SmartFilterId;
-  label: string;
-  title: string;
-  resultFilters: ResultFilterState;
-  leadStatusFilter: LeadStatusFilter;
 };
 
 const SEARCH_LEADS_SESSION_KEY = "leadflow:search-leads-session:v1";
@@ -180,78 +165,6 @@ function loadSearchLeadsSession(): SearchLeadsSession | null {
     return null;
   }
 }
-
-const RESULT_FILTER_OPTIONS: Array<[ResultFilter, string]> = [
-  ["all", "Todos"],
-  ["phone", "Com telefone"],
-  ["email", "Com e-mail"],
-  ["whatsapp", "Com WhatsApp"],
-  ["with-site", "Com site"],
-  ["without-site", "Sem site"],
-  ["with-instagram", "Com Instagram"],
-  ["without-instagram", "Sem Instagram"],
-];
-
-const SMART_FILTERS: SmartFilterPreset[] = [
-  {
-    id: "no-site-phone",
-    label: "Sem site + telefone",
-    title: "Empresas sem site identificado e com telefone válido.",
-    resultFilters: {
-      ...DEFAULT_RESULT_FILTERS,
-      contact: "phone",
-      website: "without-site",
-    },
-    leadStatusFilter: "all",
-  },
-  {
-    id: "no-site-whatsapp",
-    label: "Sem site + WhatsApp",
-    title: "Empresas sem site identificado e com número utilizável no WhatsApp.",
-    resultFilters: {
-      ...DEFAULT_RESULT_FILTERS,
-      contact: "whatsapp",
-      website: "without-site",
-    },
-    leadStatusFilter: "all",
-  },
-  {
-    id: "high-chance-no-site",
-    label: "Alta Chance + sem site",
-    title: "Empresas com Chance alta ou muito alta e sem site identificado.",
-    resultFilters: {
-      ...DEFAULT_RESULT_FILTERS,
-      website: "without-site",
-      chance: "high",
-    },
-    leadStatusFilter: "all",
-  },
-  {
-    id: "not-contacted",
-    label: "Não contatados",
-    title: "Empresas já salvas com status Enviar mensagem.",
-    resultFilters: DEFAULT_RESULT_FILTERS,
-    leadStatusFilter: "send_message",
-  },
-  {
-    id: "waiting",
-    label: "Aguardando",
-    title: "Empresas já salvas com status Aguardando.",
-    resultFilters: DEFAULT_RESULT_FILTERS,
-    leadStatusFilter: "waiting",
-  },
-  {
-    id: "instagram-no-site",
-    label: "Instagram + sem site",
-    title: "Empresas com Instagram confirmado e sem site identificado.",
-    resultFilters: {
-      ...DEFAULT_RESULT_FILTERS,
-      website: "without-site",
-      instagram: "with-instagram",
-    },
-    leadStatusFilter: "all",
-  },
-];
 
 const RECENT_SEARCHES_KEY = "leadflow:recent-searches";
 
@@ -677,14 +590,12 @@ export function SearchLeadsView({
       Object.fromEntries(
         SMART_FILTERS.map((preset) => [
           preset.id,
-          resultWithExisting.filter((item) =>
-            (mode !== "open" || item.business.isOpenNow === true) &&
-            matchesResultFilters(
-              item,
-              preset.resultFilters,
-              preset.leadStatusFilter,
-            ),
-          ).length,
+          countLoadedMatches(
+            resultWithExisting,
+            preset.resultFilters,
+            preset.leadStatusFilter,
+            mode,
+          ),
         ]),
       ) as Record<SmartFilterId, number>,
     [resultWithExisting, mode],
@@ -710,10 +621,8 @@ export function SearchLeadsView({
     hasError:Boolean(error),
   });
 
-  const alreadyAddedCount = resultWithExisting.filter((item) => item.alreadyAdded).length;
-  const newCount = resultWithExisting.length - alreadyAddedCount;
-  const openCount = resultWithExisting.filter((item) => item.business.isOpenNow === true).length;
-  const unknownHoursCount = resultWithExisting.filter((item) => item.business.isOpenNow === null).length;
+  const { loadedCount, displayedCount, newCount, savedCount, openCount, unknownHoursCount } =
+    summarizeLoadedSearchResults(resultWithExisting, visibleResults.length);
 
   function clearResultFilters() {
     setResultFilters(DEFAULT_RESULT_FILTERS);
@@ -1131,9 +1040,9 @@ export function SearchLeadsView({
           </p>
           <h1>{resultsSegment}</h1>
           <p className="subtitle">
-            {results.length} {results.length === 1 ? "empresa encontrada" : "empresas encontradas"}.
-            {" "}{newCount} ainda não {newCount === 1 ? "cadastrada" : "cadastradas"} e {alreadyAddedCount} já
-            {" "}{alreadyAddedCount === 1 ? "está" : "estão"} nos seus leads.
+            {loadedCount} {loadedCount === 1 ? "resultado carregado" : "resultados carregados"} nesta pesquisa.
+            {" "}{newCount} ainda não {newCount === 1 ? "cadastrado" : "cadastrados"} e {savedCount} já
+            {" "}{savedCount === 1 ? "está" : "estão"} nos seus leads.
           </p>
         </div>
       </div>
@@ -1141,6 +1050,11 @@ export function SearchLeadsView({
       {/* The geographical information panel lives on the niche-selection screen. */}
       {/* Choose the open-now filter only after the niche search has returned. */}
       <SearchModeSwitcher mode={mode} onModeChange={onModeChange} />
+      <p className="search-results-scope" role="status" aria-live="polite">
+        Exibindo <strong>{displayedCount}</strong> de {loadedCount} {loadedCount === 1 ? "resultado carregado" : "resultados carregados"}.
+        {" "}Contagens referentes somente aos resultados carregados nesta pesquisa, não ao total de empresas da cidade.
+        {nextPageToken && " Há mais páginas disponíveis."}
+      </p>
       {mode === "open" && (
         <p className="search-mode-count" role="status">
           <Clock3 size={15} aria-hidden="true" />
@@ -1167,7 +1081,7 @@ export function SearchLeadsView({
       <div className="results-toolbar">
         <div className="quick-filters">
           <div className="quick-filters-heading">
-            <span>Atalhos de prospecção</span>
+            <span>Atalhos de prospecção · {loadedCount} {loadedCount === 1 ? "resultado carregado" : "resultados carregados"}</span>
             {hasActiveFilters && (
               <button
                 type="button"
@@ -1178,6 +1092,9 @@ export function SearchLeadsView({
               </button>
             )}
           </div>
+          <p className="search-filter-count-note">
+            Os números dos atalhos consideram somente os resultados carregados e o modo de visualização atual.
+          </p>
           <div className="quick-filter-list" aria-label="Atalhos de prospecção">
             {SMART_FILTERS.map((preset) => {
               const active = activeSmartFilter === preset.id;
@@ -1189,12 +1106,12 @@ export function SearchLeadsView({
                     active ? "quick-filter-chip active" : "quick-filter-chip"
                   }
                   aria-pressed={active}
-                  title={preset.title}
+                  title={`${preset.title} Contagem limitada aos resultados carregados.`}
                   onClick={() => applySmartFilter(preset)}
                 >
                   {active && <Check size={12} aria-hidden="true" />}
                   <span>{preset.label}</span>
-                  <small>{quickFilterCounts[preset.id]}</small>
+                  <small aria-label={`${quickFilterCounts[preset.id]} correspondências entre os resultados carregados`}>{quickFilterCounts[preset.id]}</small>
                 </button>
               );
             })}
@@ -1202,7 +1119,7 @@ export function SearchLeadsView({
         </div>
 
         <div className="result-filters">
-          {RESULT_FILTER_OPTIONS.map(([value, label]) => (
+          {RESULT_FILTER_OPTIONS.map(([value, label, description]) => (
             <button
               key={value}
               type="button"
@@ -1212,6 +1129,8 @@ export function SearchLeadsView({
                   : "filter-chip"
               }
               aria-pressed={isManualResultFilterActive(value, resultFilters)}
+              title={description}
+              aria-label={`${label}. ${description}`}
               onClick={() => setResultFilters(manualResultFilters(value))}
             >
               {label}
@@ -1527,7 +1446,7 @@ function BusinessCard({
               href={safeExternalHref(business.instagram) ?? undefined}
               target="_blank"
               rel="noopener noreferrer"
-              title="Abrir Instagram confirmado"
+              title="Abrir perfil com alta confiança; vínculo oficial com a empresa não verificado"
             >
               @{instagramHandle(business)} <ExternalLink size={12} />
             </a>
@@ -1553,7 +1472,7 @@ function BusinessCard({
           Ver empresa
         </button>
         {business.phone && (
-          <button type="button" className="secondary-button compact-button" onClick={() => onWhatsApp(business)}>
+          <button type="button" className="secondary-button compact-button" title="Abrir o número no WhatsApp; a existência da conta não foi verificada" onClick={() => onWhatsApp(business)}>
             WhatsApp
           </button>
         )}

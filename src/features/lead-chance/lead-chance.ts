@@ -2,6 +2,7 @@ export type LeadChanceInput = {
   website?: string | null | undefined;
   instagram?: string | null | undefined;
   instagramConfidence?: "high" | "medium" | "low" | null | undefined;
+  instagramNeedsReview?: boolean | null | undefined;
   phone?: string | null | undefined;
   internationalPhone?: string | null | undefined;
   rating?: number | null | undefined;
@@ -83,10 +84,11 @@ export function calculateLeadChance(
   let score: number = LEAD_CHANCE_WEIGHTS.base;
 
   const hasSite = Boolean(business.website?.trim());
+  // Missing confidence is NOT a confirmation of ownership.
   const hasInstagram = Boolean(
     business.instagram?.trim() &&
-    business.instagramConfidence !== "medium" &&
-    business.instagramConfidence !== "low",
+    business.instagramConfidence === "high" &&
+    !business.instagramNeedsReview,
   );
   const hasPhone = Boolean(business.phone?.trim() || business.internationalPhone?.trim());
   const reviews =

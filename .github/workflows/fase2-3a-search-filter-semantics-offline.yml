@@ -1,0 +1,38 @@
+name: Fase 2.3a — filtros e contadores honestos (offline)
+on:
+  pull_request:
+    paths:
+      - "src/features/search-leads/SearchLeadsView.tsx"
+      - "src/features/search-leads/search-result-filters.ts"
+      - "src/features/search-leads/search-filter-presentation.ts"
+      - "src/features/search-leads/search-loaded-counts.ts"
+      - "src/features/search-leads/BusinessDetailsModal.tsx"
+      - "src/features/lead-chance/lead-chance.ts"
+      - "tests/fase2_3a_filtros_contadores_offline.test.ts"
+      - "tests/test_fase2_3a_filter_presentation_offline.py"
+      - ".github/workflows/fase2-3a-search-filter-semantics-offline.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  filter-semantics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Testar filtros e contagens nos dados carregados, sem rede
+        run: deno test tests/fase2_3a_filtros_contadores_offline.test.ts
+      - name: Verificar contratos e tipos dos filtros reais
+        run: deno check tests/fase2_3a_filtros_contadores_offline.test.ts
+      - name: Testar regressão das fases 2.1a e 2.2a
+        run: deno test tests/fase2_1a_buscar_leads_offline.test.ts tests/fase2_2a_search_resilience_offline.test.ts
+      - name: Verificar integração com UI, modal e score de chance
+        run: python -m unittest discover -s tests -p test_fase2_3a_filter_presentation_offline.py -v
