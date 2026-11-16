@@ -1,0 +1,25 @@
+name: Colab seguinte — lote Geoapify seguro sem rede
+on:
+  pull_request:
+    paths:
+      - "notebooks/Januario_Leads_Proxima_Colab_V1_Preparacao_Geoapify_Offline.ipynb"
+      - "scripts/colab_proximo_lote_geoapify_candidatos_readonly.sql"
+      - "scripts/colab_proximo_lote_geoapify_historico_readonly.sql"
+      - "tests/test_proxima_colab_geoapify_offline.py"
+      - ".github/workflows/validar-proxima-colab-geoapify-offline.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  colab-offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Rodar Colab em modo DEMONSTRACAO e modo CSV (dados 100% fictícios)
+        run: python -m unittest discover -s tests -p test_proxima_colab_geoapify_offline.py -v
