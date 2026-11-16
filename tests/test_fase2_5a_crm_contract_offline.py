@@ -77,7 +77,7 @@ class CrmJourneyContract(unittest.TestCase):
         self.assertIn("mergePendingLeads(remote",self.pending)
         self.assertIn("next.revision !== item.revision",self.queue)
         self.assertIn('throw new Error("ACCOUNT_CHANGED")',self.queue)
-        self.assertIn("saved lead",self.gate.lower())
+        self.assertIn("scoped to one mounted crm workspace",self.gate.lower())
 
     def test_instagram_evidence_is_not_fabricated(self):
         self.assertIn('business.instagramConfidence ?? "medium"',self.storage)
