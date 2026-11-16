@@ -23,10 +23,13 @@ export function createFoundLeadSaveGate(){
   const inFlight=new Map<string,Promise<FoundLeadSaveResult>>();
   const confirmed=new Map<string,string>();
   const confirmedByLead=new Map<string,Set<string>>();
+  // Logout/account reset invalidates results from old in-flight requests.
+  let generation=0;
 
   function run(business:BusinessSearchResult,
     save:()=>Promise<FoundLeadSaveResult>):Promise<FoundLeadSaveResult>{
     const ids=keys(business);
+    const currentGeneration=generation;
     for(const key of ids){
       const leadId=confirmed.get(key);
       if(leadId)return Promise.resolve({ok:true,leadId});
@@ -36,9 +39,12 @@ export function createFoundLeadSaveGate(){
       if(same)return same;
     }
     // Enqueue synchronously before invoking the async saver.
-    const task=Promise.resolve().then(save)
+    const task=Promise.resolve()
+      .then(()=>currentGeneration===generation?save():{
+        ok:false as const,message:"A sessão mudou. Repita a ação na conta atual.",
+      })
       .then(result=>{
-        if(result.ok){
+        if(result.ok && currentGeneration===generation){
           let group=confirmedByLead.get(result.leadId);
           if(!group){group=new Set();confirmedByLead.set(result.leadId,group);}
           for(const key of ids){confirmed.set(key,result.leadId);group.add(key);}
@@ -59,6 +65,7 @@ export function createFoundLeadSaveGate(){
     confirmedByLead.delete(leadId);
   }
   function reset(){
+    generation++;
     inFlight.clear();
     confirmed.clear();
     confirmedByLead.clear();
