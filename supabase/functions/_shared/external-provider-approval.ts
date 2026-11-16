@@ -44,7 +44,7 @@ export function approvedInstagramWebSearchDailyCap(
 ): number {
   if (spendApproved !== "true" ||
       typeof rawCap !== "string" ||
-      !/^[1-9]\\d*$/.test(rawCap.trim())) return 0;
+      !/^[1-9]\d*$/.test(rawCap.trim())) return 0;
   const cap=Number(rawCap.trim());
   if (!Number.isSafeInteger(cap)) return 0;
   return Math.min(cap, 5);
