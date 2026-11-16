@@ -10,9 +10,16 @@
 
 **Decisão do proprietário:** adiar temporariamente a Fase 0 para quando estiver com acesso ao computador. **A Fase 0 não está concluída, continua P0, e o risco da chave `service_role` exposta não foi resolvido.** A recomendação é revogar a credencial comprometida assim que possível. Esta exceção somente altera a ORDEM DAS TAREFAS DE BAIXO RISCO, não os requisitos de lançamento.
 
-**FASE ATIVA: Fase 1 (auditoria somente de leitura no Supabase de HOMOLOGAÇÃO + testes offline sem segredos)**; é permitido também preparar código/testes locais do Buscar Leads e UX que não dependam de usuários reais, serviços pagos, segredos ou produção. **Não** iniciar importação Colab com a credencial exposta, não fazer escritas na homologação enquanto a rotação estiver pendente, não mover dados para produção, não alterar Auth/policies/financeiro/cobranças nem abrir beta público. Fases 2–7 podem receber tarefas de preparação offline, mas seus critérios de conclusão continuam bloqueados pelos portões de segurança. O backup da produção continua obrigatório antes de qualquer migração ou mudança de risco.
+**REGISTRO HISTÓRICO DE 15/11: Fase 1 foi autorizada apenas para auditoria somente de leitura no Supabase de HOMOLOGAÇÃO + testes offline sem segredos**; é permitido também preparar código/testes locais do Buscar Leads e UX que não dependam de usuários reais, serviços pagos, segredos ou produção. **Não** iniciar importação Colab com a credencial exposta, não fazer escritas na homologação enquanto a rotação estiver pendente, não mover dados para produção, não alterar Auth/policies/financeiro/cobranças nem abrir beta público. Fases 2–7 podem receber tarefas de preparação offline, mas seus critérios de conclusão continuam bloqueados pelos portões de segurança. O backup da produção continua obrigatório antes de qualquer migração ou mudança de risco.
 
 **Evidência inicial:** [Fase 1 — piloto reproduzível de 18 buscas](FASE-1-PILOTO-OVERTURE-18-BUSCAS-2026-11-15.md) (14 UFs, 0–10 empresas por par consultado, acesso read-only, nenhum provedor externo).
+
+
+## Atualização do plano em 16/11/2026 — Fase 0 retomada
+
+**FASE ATIVA: Fase 0.** A exceção de 15/11 para trabalhar pelo celular foi encerrada por solicitação do proprietário. A revogação da `service_role` exposta, o backup/restauração da produção e os testes negativos reais continuam pendentes; **nenhum dado real ou migração foi alterado nesta retomada**. Leitura atual: produção **63 migrations remotas, 20/20 tabelas públicas com RLS, 212 leads, 2 usuários Auth, 1 bucket/9 objetos**; homologação **57 migrations remotas, 43/43 tabelas com RLS**. Auditoria e instruções: [registro da Fase 0 atualizado](FASE-0-SEGURANCA-BACKUP-2026-11-15.md#atualização-de-execução--16112026-retomada-solicitada).
+
+A preparação e execução das importações devem ficar **suspensas** até a migração/revogação comprovada da chave comprometida na homologação. Não migrar Overture nem publicar funções ou cobranças na produção antes da Fase 0 ser aprovada. As etapas offline já concluídas permanecem registradas como tal.
 
 ## 0. Diagnóstico confirmado em 15/11/2026
 
@@ -64,7 +71,7 @@
 
 ## 2. Etapas ordenadas e portões objetivos
 
-### FASE 0 — CONTENÇÃO, BASELINE E BACKUP | **ADIADA A PEDIDO, NÃO CONCLUÍDA — BLOQUEIO DE PRODUÇÃO** | P0
+### FASE 0 — CONTENÇÃO, BASELINE E BACKUP | **RETOMADA EM 16/11/2026 — AINDA NÃO CONCLUÍDA / BLOQUEIO DE PRODUÇÃO** | P0
 - [ ] **0.1** Confirmar revogação/rotação da antiga `service_role` comprometida, atualizar todos os usos no Colab/ambientes e verificar que a chave antiga perdeu o acesso. **Nunca enviar credenciais ao ChatGPT ou GitHub.**
 - [ ] **0.2** Criar backup recuperável da **produção**, protegendo os **212 leads** e dados associados; testar restauração em ambiente isolado. Verificar o recurso disponível no plano Supabase.
 - [ ] **0.3** Registrar versões/commit do frontend, Edge Functions e migrações de cada ambiente, tabela/policies, usuários e volumes, para rollback. **Pendência real encontrada no CI:** o auditor `scripts/audit_migration_reconciliation.py` espera 24 migrations locais, mas encontra 42. Essa falha já ocorria no workflow `Validar catálogo de nichos` da PR #162, anterior à etapa 1.3; identificar versões/aplicação efetivas e corrigir o mecanismo de reconciliação, **sem excluir migrations nem aplicar SQL**. A PR #162 também apresentou falha no teste de navegador com backend simulado; revisar regressão do frontend antes de liberar beta.
