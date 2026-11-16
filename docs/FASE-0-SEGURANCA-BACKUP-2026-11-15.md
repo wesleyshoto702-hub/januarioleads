@@ -186,3 +186,20 @@ Docs oficiais: https://supabase.com/docs/guides/getting-started/migrating-to-new
 - **Rollback controlado:** para `search-places`, a versão 31 anterior fornece o pacote exato (apenas desfazer o bloco de seleção); para `staging-plan-preview`, a v6 anterior fornece o seletor original. No entanto, **não restaurar o fallback comprometido como solução permanente**; priorizar corrigir acesso à chave moderna, e avaliar o risco de rollback de segurança antes de acioná-lo.
 
 **Próximo portão:** teste autenticado com usuário autorizado em STAGING de `search-places` (somente Overture, provedores externos sem aprovação) e `staging-plan-preview` (operação de simulação intencional e reversível), incluindo um teste negativo de autorização; verificar registros de erro e ausência de gastos. Somente após comprovação da nova credencial e inventário dos consumidores restantes executar a desativação da chave legada e tratar a migração/revogação de JWT signing keys pela documentação oficial. **Fase 0.1 ainda NÃO CONCLUÍDA; imports permanecem suspensos.**
+
+
+## Teste HTTP real do staging — 16/11/2026 (negativo confirmado, E2E autenticado bloqueado)
+
+**Solicitação do proprietário:** executar o teste autenticado da Fase 0.1. Criado o [script seguro](../scripts/fase0-staging-authenticated-smoke.py) e [workflow GitHub Actions](../.github/workflows/fase0-staging-authenticated-smoke.yml), em `main`, usando `environment: staging`, `timeout-minutes: 5` e somente a URL fixa `https://prlrxjothrslhswpkoza.supabase.co`.
+
+**Resultados reais obtidos:**
+- A sintaxe Python e a inicialização do job GitHub Actions passaram após correção de um erro YAML na definição do step.
+- A [execução 43864506127](https://github.com/wesleyshoto702-hub/januarioleads/actions/runs/43864506127) realizou requisições HTTP POST reais com **chave sb_publishable_ pública**, **sem Authorization de usuário**, aos endpoints `search-places` v32 e `staging-plan-preview` v7. Ambos rejeitaram as chamadas com **HTTP 401**, conforme esperado. **Teste negativo de acesso anônimo: APROVADO**.
+- Logo após o teste negativo, o job parou no pré-requisito `Staging test account email/password missing from protected secrets`, antes de fazer login. **Teste autenticado e verificação runtime da chave sb_secret_: NÃO EXECUTADOS / NÃO APROVADOS**.
+- O teste autenticado planejado solicita `pageToken: "overture:0"`, garantindo caminho de busca Overture que não aciona Geoapify/Google; `staging-plan-preview` recebe um plano inválido, evitando alteração de assinaturas. O teste pode consumir **uma cota interna de busca** ao ser executado com usuário, mas não há faturamento externo autorizado.
+- `STAGING_PUBLIC_KEY` no script é **publicável, não secreta**, e foi obtida pela ferramenta Supabase; `service_role`, `sb_secret_` e senhas **não** foram copiados para o repositório ou logs.
+- A homologação continha **uma conta Auth e um registro em `private_access`**, mas nenhuma senha de usuário é acessível pelo conector (corretamente). Não criar nem extrair JWT a partir do banco.
+  
+**Único bloqueio atual para a etapa HTTP autenticada:** configurar no ambiente protegido `staging` do GitHub Actions os dois secrets `JANUARIO_STAGING_A_EMAIL` e `JANUARIO_STAGING_A_PASSWORD` para uma **conta de teste autorizada da HOMOLOGAÇÃO**, sem compartilhar os valores no chat ou no GitHub em texto aberto. Depois rerodar o job; só considerar 0.1 aprovada após retorno `SUCCESS` do smoke autenticado, validação de consumidores, e **desativação + teste negativo** da chave `service_role` legada no Supabase Dashboard.
+
+**Nenhuma autenticação de usuário foi tentada por este último job; nenhuma linha de leads foi alterada. Produção permanece sem alteração.**
