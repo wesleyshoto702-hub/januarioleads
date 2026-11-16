@@ -37,3 +37,13 @@ Deno.test("staging search-places excludes legacy service_role from its selector"
  assert(selectInternalSupabaseCredential("broken-json",undefined)===null,
    "Missing/malformed modern keys must not allow access in staging");
 });
+
+Deno.test("staging-plan-preview never uses compromised service_role key",async()=>{
+ const source=await Deno.readTextFile(new URL("../supabase/functions/staging-plan-preview/index.ts",import.meta.url));
+ assert(source.includes('const raw = Deno.env.get("SUPABASE_SECRET_KEYS")'),
+   "Staging plan preview must require a modern secret");
+ assert(!source.includes('SUPABASE_SERVICE_ROLE_KEY'),
+   "Staging plan preview must not load the legacy service_role key");
+ assert(source.includes("return null;"),
+   "Missing modern key must deny preview access");
+});
