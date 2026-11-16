@@ -1,0 +1,39 @@
+name: Fase 2.5a — Jornada CRM sintética, sem serviços externos
+on:
+  pull_request:
+    paths:
+      - "src/routes/app.tsx"
+      - "src/features/leads/build-found-lead.ts"
+      - "src/features/leads/found-lead-save-gate.ts"
+      - "src/features/next-actions/crm-journey.ts"
+      - "src/features/business-presence/storage.ts"
+      - "tests/fase2_5a_crm_journey_offline.test.ts"
+      - "tests/test_fase2_5a_crm_contract_offline.py"
+      - ".github/workflows/fase2-5a-crm-jornada-offline.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  crm-journey:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      # The CRM types are defined in the browser-side remote-leads module,
+      # whose auth typings require the web/Node build. Deno runs the pure
+      # synthetic behavior without compiling unrelated browser auth.ts.
+      # Real application TS is enforced by the separate SaaS build workflow.
+      - name: Testar busca, gravação simultânea, favorito, status e follow-up sem rede
+        run: deno test --no-check tests/fase2_5a_crm_journey_offline.test.ts
+      - name: Conferir que o aplicativo usa os módulos testados
+        run: python -m unittest discover -s tests -p test_fase2_5a_crm_contract_offline.py -v
+      - name: Não regredir as fases 1.5 e 2.1a a 2.4a
+        run: deno test tests/fase1_5_conservative_dedup_offline.test.ts tests/fase2_1a_buscar_leads_offline.test.ts tests/fase2_2a_search_resilience_offline.test.ts tests/fase2_3a_filtros_contadores_offline.test.ts tests/fase2_4a_search_metrics_offline.test.ts

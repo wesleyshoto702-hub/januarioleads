@@ -46,9 +46,7 @@ import {
   type NextActionPatch,
 } from "../features/next-actions/LeadNextActionSection";
 import {
-  DEFAULT_FOLLOW_UP_DAYS,
   NEXT_ACTION_LABEL,
-  addDaysToDateKey,
   clearActionForStatus,
   crmToday,
   getLeadActionSummary,
@@ -96,6 +94,9 @@ import {
   resolveMunicipality,
 } from "../features/search-leads/search-location";
 import { findBusinessDuplicate, normalizeBrazilianPhone } from "../features/search-leads/identity";
+import { buildFoundLead } from "../features/leads/build-found-lead";
+import { createFoundLeadSaveGate } from "../features/leads/found-lead-save-gate";
+import { toggleLeadFavorite, changeLeadStatus, applyNextActionPatch, applyConfirmedContact } from "../features/next-actions/crm-journey";
 import type { BusinessSearchResult } from "../features/search-leads/types";
 import { getValidSession, signOut, subscribeAuthChange } from "../lib/auth";
 import { accountLocalStorage } from "../lib/account-storage";
@@ -298,6 +299,7 @@ function LeadFlowApp() {
   } = useLeadWorkspace();
   const [view, setView] = useState<AppView>("dashboard");
   const navigationTouched = useRef(false);
+  const foundLeadSaveGateRef = useRef(createFoundLeadSaveGate());
   const [userSettings,setUserSettings]=useState<UserSettings>({...DEFAULT_USER_SETTINGS});
   const [settingsLoading,setSettingsLoading]=useState(true);
   const [settingsLoadError,setSettingsLoadError]=useState("");
@@ -878,19 +880,7 @@ function LeadFlowApp() {
     const previous = leads.find((lead) => lead.id === id);
     if (!previous) return;
 
-    const next: Lead = patch.nextActionType
-      ? {
-          ...previous,
-          nextActionType: patch.nextActionType,
-          nextActionDate: patch.nextActionDate,
-          nextActionNotes: patch.nextActionNotes,
-        }
-      : {
-          ...previous,
-          nextActionType: undefined,
-          nextActionDate: undefined,
-          nextActionNotes: undefined,
-        };
+    const next = applyNextActionPatch(previous,patch);
 
     updateLeadLocally(id, () => next);
 
@@ -956,6 +946,7 @@ function LeadFlowApp() {
   }
 
   function removeLeadLocally(id: string) {
+    foundLeadSaveGateRef.current.forgetSaved(id);
     enqueueLead(id, null);
     setLeads((current) => current.filter((lead) => lead.id !== id));
     void flushPendingLeads().catch(() =>
@@ -1107,10 +1098,7 @@ function LeadFlowApp() {
   function toggleFavorite(lead: Lead) {
     // Use the existing per-account offline queue and Supabase synchronization.
     // Favorite state belongs to the saved lead, not to the Google Places result.
-    updateLeadLocally(lead.id, (current) => ({
-      ...current,
-      isFavorite: current.isFavorite !== true,
-    }));
+    updateLeadLocally(lead.id, toggleLeadFavorite);
   }
 
   function changeStatus(id: string, status: Status) {
@@ -1120,7 +1108,7 @@ function LeadFlowApp() {
     const previousStatus = STATUS_LABEL[lead.status];
     const newStatus = STATUS_LABEL[status];
 
-    const nextLead = clearActionForStatus(lead, status);
+    const nextLead = changeLeadStatus(lead, status);
     updateLeadLocally(id, () => nextLead);
     recordActivity(id, {
       type: "status_changed",
@@ -1214,29 +1202,10 @@ function LeadFlowApp() {
     const shouldScheduleDefaultFollowUp =
       shouldAdvanceToWaiting && (!currentLead.nextActionType || completedInitialContact);
 
-    let nextLead: Lead = {
-      ...currentLead,
-      lastContact: today,
-      ...(shouldAdvanceToWaiting ? { status: "waiting" as Status } : {}),
-    };
+    const nextLead = applyConfirmedContact(
+      currentLead,today,pendingWhatsAppHandoff.followUp,
+    );
 
-    if (completedScheduledFollowUp) {
-      nextLead = {
-        ...nextLead,
-        nextActionType: undefined,
-        nextActionDate: undefined,
-        nextActionNotes: undefined,
-      };
-    }
-
-    if (shouldScheduleDefaultFollowUp) {
-      nextLead = {
-        ...nextLead,
-        nextActionType: "follow_up",
-        nextActionDate: addDaysToDateKey(today, DEFAULT_FOLLOW_UP_DAYS),
-        nextActionNotes: undefined,
-      };
-    }
 
     if (!remoteReady) {
       setMessageActionPending(false);
@@ -1587,94 +1556,11 @@ function LeadFlowApp() {
     }
   }
 
-  function buildFoundLead(business: BusinessSearchResult, selectedSegment: string): Lead {
-    const foundPhone = business.phone ?? business.internationalPhone ?? "";
-    const details = [
-      business.city
-        ? `Lead encontrado através do buscador de empresas em ${business.city}${business.state ? ` - ${business.state}` : ""}.`
-        : "Lead encontrado através do buscador de empresas.",
-      business.address ? `Endereço: ${business.address}` : "",
-      business.website ? `Site: ${business.website}` : "",
-      business.instagram ? `Instagram: ${business.instagram}` : "",
-    ].filter(Boolean);
-
-    const discoveredPresence = presenceFromBusiness(business);
-    const factualDescription = buildFactualBusinessDescription(business, selectedSegment);
-
-    const newLead: Lead = {
-      id: crypto.randomUUID(),
-      company: business.name,
-      segment: selectedSegment,
-      phone: foundPhone,
-      status: "send_message",
-      firstContact: new Date().toISOString().slice(0, 10),
-      notes: details.join("\n"),
-      createdAt: new Date().toISOString(),
-      placeId: business.placeId,
-      source: "places-search",
-      factualDescription,
-      ...(discoveredPresence
-        ? {
-            instagramCheckedAt: discoveredPresence.instagramCheckedAt,
-            instagramUsername: discoveredPresence.instagramUsername ?? undefined,
-            instagramDisplayName: discoveredPresence.instagramDisplayName ?? undefined,
-            instagramCandidates: discoveredPresence.instagramCandidates,
-            instagramRejectedUrls: discoveredPresence.instagramRejectedUrls,
-            instagramSearchSignature: discoveredPresence.instagramSearchSignature ?? undefined,
-            instagramNeedsReview: discoveredPresence.instagramNeedsReview,
-            ...(discoveredPresence.instagramUrl
-              ? {
-                  instagram: discoveredPresence.instagramUrl,
-                  instagramConfidence: discoveredPresence.instagramConfidence ?? "high",
-                  instagramSource: discoveredPresence.instagramSource ?? "existing_data",
-                }
-              : {}),
-          }
-        : {}),
-      ...(business.address ? { address: business.address } : {}),
-      ...(business.website ? { website: business.website } : {}),
-      ...(business.googleMapsUrl ? { googleMapsUrl: business.googleMapsUrl } : {}),
-      ...(business.instagram && !discoveredPresence?.instagramUrl
-        ? { instagram: business.instagram }
-        : {}),
-      ...(business.primaryCategory ? { primaryCategory: business.primaryCategory } : {}),
-      ...(business.categories.length ? { categories: business.categories } : {}),
-      ...(business.description ? { description: business.description } : {}),
-      ...(business.neighborhood ? { neighborhood: business.neighborhood } : {}),
-      ...(business.city ? { city: business.city } : {}),
-      ...(business.state
-        ? {
-            state: normalizeBrazilianStateCode(business.state) || business.state,
-          }
-        : {}),
-      ...(business.internationalPhone ? { internationalPhone: business.internationalPhone } : {}),
-      ...(business.rating !== null ? { rating: business.rating } : {}),
-      ...(business.reviewCount !== null ? { reviewCount: business.reviewCount } : {}),
-      ...(business.isOpenNow !== null ? { isOpenNow: business.isOpenNow } : {}),
-      ...(business.openingHours.length ? { openingHours: business.openingHours } : {}),
-      ...(business.businessStatus ? { businessStatus: business.businessStatus } : {}),
-      ...(business.latitude !== null ? { latitude: business.latitude } : {}),
-      ...(business.longitude !== null ? { longitude: business.longitude } : {}),
-      ...(business.verifiedContent ? { verifiedContent: business.verifiedContent } : {}),
-      ...(business.verifiedImages ? { verifiedImages: business.verifiedImages } : {}),
-      ...(business.confirmedChannels ? { confirmedChannels: business.confirmedChannels } : {}),
-      ...(business.deepEnrichmentStatus
-        ? { deepEnrichmentStatus: business.deepEnrichmentStatus }
-        : {}),
-      ...(business.deepEnrichmentQuality
-        ? { deepEnrichmentQuality: business.deepEnrichmentQuality }
-        : {}),
-      ...(business.deepEnrichmentCheckedAt
-        ? { deepEnrichmentCheckedAt: business.deepEnrichmentCheckedAt }
-        : {}),
-    };
-    return newLead;
-  }
-
   async function addFoundLeadConfirmed(
     business: BusinessSearchResult,
     selectedSegment: string,
   ): Promise<BusinessAddResult> {
+    return foundLeadSaveGateRef.current.run(business,async()=>{
     const duplicate = findBusinessDuplicate(business, leads);
     if (duplicate?.id) {
       return { ok: true, leadId: duplicate.id };
@@ -1714,12 +1600,13 @@ function LeadFlowApp() {
       description: "Empresa adicionada a Meus Leads pelo buscador.",
       metadata: {
         source: "places-search",
-        provider: business.source === "geoapify" ? "geoapify" : "google_places",
+        provider: business.source ?? "unknown",
         placeId: newLead.placeId ?? null,
       },
     });
 
     return { ok: true, leadId: newLead.id };
+    });
   }
 
   function navigateTo(nextView: AppView) {
@@ -1731,6 +1618,7 @@ function LeadFlowApp() {
 
   async function logoutWorkspace(){
     try {
+      foundLeadSaveGateRef.current.reset();
       await signOut();
       await navigate({ to: "/login", replace: true });
     } catch {
