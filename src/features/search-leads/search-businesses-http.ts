@@ -1,5 +1,6 @@
 import type { BusinessSearchResponse } from "./types.ts";
 import type { SearchLocation } from "./search-location.ts";
+import { httpStatusClass, type SearchHttpObservation } from "./search-metrics.ts";
 import { parseSearchContinuation } from "../../../supabase/functions/_shared/search-continuation.ts";
 
 /** HTTP contract for a single Buscar Leads request.
@@ -15,6 +16,10 @@ export type SearchHttpDependencies = {
   endpoint: string;
   publishableKey: string;
   accessToken: string | null;
+  /** Optional in-memory telemetry sink, no PII or external delivery. */
+  onObservation?: (value:SearchHttpObservation)=>void;
+  /** Inject a deterministic clock for offline tests; do not persist timings. */
+  clockNowMs?: ()=>number;
 };
 const failures = {
   missingSession: {
@@ -54,44 +59,69 @@ export async function requestSearchBusinesses(
   input: SearchRequestInput,
   deps: SearchHttpDependencies,
 ): Promise<BusinessSearchResponse> {
-  // Do not send requests if the user has no current session.
-  if(!deps.accessToken?.trim()) return failures.missingSession;
-  if(input.pageToken!==undefined && parseSearchContinuation(input.pageToken).kind==="invalid")
-    return {ok:false,code:"INVALID_REQUEST",message:"O token de continuação da busca é inválido."};
+  // The observer only receives duration/status/count; never request body,
+  // headers, credentials, search text, city, phone or lead metadata.
+  const observe=deps.onObservation;
+  const clock=deps.clockNowMs??Date.now;
+  const started=observe?clock():0;
+  let httpAttempts:0|1=0;
+  let observedHttpStatus:number|null=null;
 
-  if(!deps.endpoint.startsWith("https://") || !deps.publishableKey.trim())
-    return {
-      ok: false, code: "NOT_CONFIGURED",
-      message: "A conexão pública com o Supabase ainda não está configurada neste ambiente.",
-    };
-  try {
-    const response=await deps.fetcher(deps.endpoint,{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        apikey:deps.publishableKey,
-        Authorization:`Bearer ${deps.accessToken}`,
-      },
-      body:JSON.stringify({
-        segment:input.segment,
-        city:input.city,
-        state:input.state,
-        ...(input.pageToken?{pageToken:input.pageToken}:{}),
-      }),
-    });
-    if(response.status===401) return failures.missingSession;
-    let payload:unknown;
-    try{payload=await response.json();}
-    catch{return failures.malformed;}
-    const parsed=parseSearchResponse(payload);
-    // A non-2xx response cannot be accepted as success, even if malformed
-    // upstream code sends {ok:true} with HTTP 500.
-    if(!response.ok){
-      if(parsed && !parsed.ok)return parsed;
-      return failures.malformed;
+  async function request():Promise<BusinessSearchResponse>{
+    if(!deps.accessToken?.trim()) return failures.missingSession;
+    if(input.pageToken!==undefined && parseSearchContinuation(input.pageToken).kind==="invalid")
+      return {ok:false,code:"INVALID_REQUEST",message:"O token de continuação da busca é inválido."};
+
+    if(!deps.endpoint.startsWith("https://") || !deps.publishableKey.trim())
+      return {
+        ok: false, code: "NOT_CONFIGURED",
+        message: "A conexão pública com o Supabase ainda não está configurada neste ambiente.",
+      };
+    try {
+      httpAttempts=1;
+      const response=await deps.fetcher(deps.endpoint,{
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json",
+          apikey:deps.publishableKey,
+          Authorization:`Bearer ${deps.accessToken}`,
+        },
+        body:JSON.stringify({
+          segment:input.segment,
+          city:input.city,
+          state:input.state,
+          ...(input.pageToken?{pageToken:input.pageToken}:{}),
+        }),
+      });
+      observedHttpStatus=response.status;
+      if(response.status===401) return failures.missingSession;
+      let payload:unknown;
+      try{payload=await response.json();}
+      catch{return failures.malformed;}
+      const parsed=parseSearchResponse(payload);
+      if(!response.ok){
+        if(parsed && !parsed.ok)return parsed;
+        return failures.malformed;
+      }
+      return parsed??failures.malformed;
+    }catch{
+      return failures.unavailable;
     }
-    return parsed??failures.malformed;
-  }catch{
-    return failures.unavailable;
   }
+  const outcome=await request();
+  if(observe){
+    try{
+      observe({
+        page:input.pageToken?"continuation":"initial",
+        outcome:outcome.ok?"ok":outcome.code,
+        elapsedMs:Math.max(0,clock()-started),
+        httpAttempts,
+        httpStatusClass:httpStatusClass(observedHttpStatus),
+        returnedCount:outcome.ok?outcome.results.length:0,
+      });
+    }catch{
+      // Measurements must never break business search or leak private data.
+    }
+  }
+  return outcome;
 }
