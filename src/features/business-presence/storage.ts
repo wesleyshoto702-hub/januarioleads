@@ -167,9 +167,11 @@ export function presenceFromBusiness(business: PresenceBusiness): BusinessPresen
     instagramUsername:
       business.instagramUsername?.trim() || (usernameFromInstagram(instagramUrl) ?? null),
     instagramDisplayName: business.instagramDisplayName?.trim() || null,
-    instagramConfidence: instagramUrl ? (business.instagramConfidence ?? "high") : null,
+    // Unknown directory confidence MUST NOT become "high" upon CRM save.
+    instagramConfidence: instagramUrl ? (business.instagramConfidence ?? "medium") : null,
+    // A placeId can be Overture/Geoapify. Never infer Google provenance.
     instagramSource: instagramUrl
-      ? (business.instagramSource ?? (business.placeId?.trim() ? "google_places" : "existing_data"))
+      ? (business.instagramSource ?? "existing_data")
       : null,
     instagramCheckedAt: business.instagramCheckedAt ?? new Date(0).toISOString(),
     instagramCandidates: business.instagramCandidates ?? [],
@@ -178,6 +180,7 @@ export function presenceFromBusiness(business: PresenceBusiness): BusinessPresen
     ...(business.instagramSearchScope
       ? { instagramSearchScope: business.instagramSearchScope }
       : {}),
-    instagramNeedsReview: business.instagramNeedsReview ?? false,
+    instagramNeedsReview: business.instagramNeedsReview ??
+      (Boolean(instagramUrl) && business.instagramConfidence !== "high"),
   };
 }
