@@ -5,7 +5,7 @@
  */
 import { normalizeLocationText } from "../../lib/location.ts";
 import type { BusinessSearchResult } from "../search-leads/types.ts";
-import type { BusinessAddResult } from "../search-leads/BusinessDetailsModal.tsx";
+export type FoundLeadSaveResult = {ok:true;leadId:string} | {ok:false;message:string};
 
 function keys(business:BusinessSearchResult):string[]{
   const result:string[]=[];
@@ -20,12 +20,12 @@ function keys(business:BusinessSearchResult):string[]{
   return result;
 }
 export function createFoundLeadSaveGate(){
-  const inFlight=new Map<string,Promise<BusinessAddResult>>();
+  const inFlight=new Map<string,Promise<FoundLeadSaveResult>>();
   const confirmed=new Map<string,string>();
   const confirmedByLead=new Map<string,Set<string>>();
 
   function run(business:BusinessSearchResult,
-    save:()=>Promise<BusinessAddResult>):Promise<BusinessAddResult>{
+    save:()=>Promise<FoundLeadSaveResult>):Promise<FoundLeadSaveResult>{
     const ids=keys(business);
     for(const key of ids){
       const leadId=confirmed.get(key);
