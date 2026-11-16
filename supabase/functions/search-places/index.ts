@@ -266,6 +266,30 @@ async function claimExternalSearchCall(
   }catch{return false;}
 }
 
+/** A paid OpenAI web-search call needs three independent permissions:
+ * explicit human approval + positive configured eligibility cap + successful
+ * atomic project budget reservation. The required database RPC is NOT
+ * provisioned in Fase 2.6a; if missing it returns DENY. A key never unlocks.
+ */
+async function claimInstagramWebSearchBudget(userId:string):Promise<boolean> {
+  if (!userId || approvedInstagramWebSearchDailyCap(
+    Deno.env.get("OPENAI_INSTAGRAM_WEB_SEARCH_DAILY_CAP"),
+    Deno.env.get("OPENAI_INSTAGRAM_WEB_SEARCH_SPEND_APPROVED"),
+  ) <= 0) return false;
+  try {
+    const response=await adminRest("rpc/claim_saas_openai_web_search_budget",{
+      method:"POST",
+      body:JSON.stringify({
+        p_user_id:userId,
+        p_operation:"instagram_web_search",
+      }),
+    });
+    return Boolean(response?.ok && (await response.json())===true);
+  } catch {
+    return false;
+  }
+}
+
 async function claimApiBudget(
   userId: string,
   bucket: "places_search" | "lead_enrichment" | "presence_discovery" | "presence_site",
@@ -2480,7 +2504,7 @@ function emptyPresence(
   };
 }
 
-async function runPresenceDiscovery(body: Record<string, unknown>) {
+async function runPresenceDiscovery(body: Record<string, unknown>,userId:string) {
   const businessValue = body.business;
   if (!businessValue || typeof businessValue !== "object") {
     return failure(
@@ -2560,17 +2584,18 @@ async function runPresenceDiscovery(body: Record<string, unknown>) {
   }
 
   if (knownInstagram && !business.instagramSource && !force) {
+    // A URL without verified provenance is a CANDIDATE, not a Google source.
     const presence: BusinessPresence = {
       instagramUrl: knownInstagram,
       instagramUsername: instagramUsername(knownInstagram),
       instagramDisplayName: business.instagramDisplayName || null,
-      instagramConfidence: "high",
-      instagramSource: "google_places",
+      instagramConfidence: "medium",
+      instagramSource: "existing_data",
       instagramCheckedAt: checkedAt,
       instagramCandidates: [],
       instagramRejectedUrls: rejectedUrls,
       instagramSearchSignature: signature,
-      instagramNeedsReview: false,
+      instagramNeedsReview: true,
     };
     return json({ ok: true, mode: "presence-discovery", presence });
   }
@@ -2650,11 +2675,25 @@ async function runPresenceDiscovery(body: Record<string, unknown>) {
 
   let rawCandidates: RawWebCandidate[];
   try {
-    rawCandidates = await discoverInstagramOnWeb(
-      openAiApiKey,
-      business,
-      rejectedUrls,
+    const reserved = await runReservedExternalCall(
+      () => claimInstagramWebSearchBudget(userId),
+      () => discoverInstagramOnWeb(openAiApiKey, business, rejectedUrls),
     );
+    if (!reserved.ok) {
+      if (officialCandidates.length > 0) {
+        return json({
+          ok: true, mode: "presence-discovery",
+          presence: {
+            ...emptyPresence(checkedAt, signature, rejectedUrls),
+            instagramCandidates: officialCandidates,
+          },
+        });
+      }
+      return failure("QUOTA",
+        "A pesquisa paga de Instagram está desativada ou não possui orçamento autorizado.",
+        429);
+    }
+    rawCandidates = reserved.value;
   } catch (error) {
     if (officialCandidates.length > 0) {
       return json({
@@ -2929,7 +2968,7 @@ async function handleRequest(request: Request) {
 
   try {
     if (mode === "presence-discovery") {
-      return await runPresenceDiscovery(requestBody);
+      return await runPresenceDiscovery(requestBody,userId);
     }
 
     if (mode === "lead-enrichment") {
