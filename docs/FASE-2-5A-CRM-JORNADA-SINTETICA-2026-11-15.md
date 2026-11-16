@@ -24,7 +24,7 @@
 
 O código verificava `findBusinessDuplicate(business,leads)` **antes** de aguardar `flushPendingLeads` e `saveRemoteLead`. Duas chamadas antes do retorno poderiam ambas ver a lista antiga e criar dois IDs distintos.
 
-Criado `src/features/leads/found-lead-save-gate.ts`, usado diretamente no `addFoundLeadConfirmed`, com chave por **`placeId`** e, quando nome/endereço/município/UF estiverem conhecidos, chave secundária conservadora por esses campos. **Telefone nunca é identidade exclusiva**: redes e filiais podem compartilhá-lo. Requisições equivalentes em curso compartilham a mesma promessa; salvamento confirmado é reconhecido no workspace até exclusão explícita; falha permite retry. A exclusão limpa o registro e o logout reinicia o controle. A geração de sessão protege o controle contra conclusão tardia de um salvamento da conta anterior.
+Criado `src/features/leads/found-lead-save-gate.ts`, usado diretamente no `addFoundLeadConfirmed`, com chave por **`placeId`** e chave secundária por **nome + endereço + município/UF + categoria + telefone**, apenas quando **todos** estiverem presentes e consistentes. Mesmo nome/endereço com telefone ou categoria divergentes **não** é fundido; quando faltar informação, preserva-se a empresa ambígua. **Telefone nunca é identidade exclusiva**: redes e filiais podem compartilhá-lo. Requisições equivalentes em curso compartilham a mesma promessa; salvamento confirmado é reconhecido no workspace até exclusão explícita; falha permite retry. A exclusão limpa o registro e o logout reinicia o controle. A geração de sessão protege o controle contra conclusão tardia de um salvamento da conta anterior.
 
 **Limitação crítica:** trava **somente no navegador e no workspace montado**. Não garante unicidade entre dois dispositivos, abas independentes, operações manuais ou transações concorrentes no servidor. A Fase 2.5b deverá testar a restrição de identidade/owner, RLS, gravação atômica e isolamento real após a Fase 0. Não adicionar um índice `UNIQUE` no banco sem primeiro verificar conflitos históricos e necessidade legítima de filiais distintas.
 
@@ -57,12 +57,13 @@ Arquivo: `tests/fase2_5a_crm_journey_offline.test.ts`. Casos planejados:
 2. Preservar confiança, revisão e proveniência reais do Instagram.
 3. Identidade por `placeId` ou nome+endereço+município/UF, mas não pelo telefone compartilhado.
 4. Três tentativas de salvar a mesma empresa/alias em paralelo → **uma gravação simulada**; exclusão permite refazer.
-5. Troca de conta fictícia durante gravação em curso → conclusão antiga não contamina novo controle.
-6. Falha remota simulada → lead não aparece como salvo, permite retry.
-7. Favoritar/desfavoritar, status, próxima ação, aceito/recusado preservam outros campos.
-8. Abrir WhatsApp não registra contato; confirmação explícita agenda follow-up 5 dias depois.
-9. Fila de mutações confirma **revision exata** e não perde edição feita durante envio.
-10. Conta trocada/falha no envio não descarta mutações pendentes.
+5. Mesmo nome/endereço, porém **telefone ou categoria divergente** → três gravações fictícias distintas, sem fusão automática.
+6. Troca de conta fictícia durante gravação em curso → conclusão antiga não contamina novo controle.
+7. Falha remota simulada → lead não aparece como salvo, permite retry.
+8. Favoritar/desfavoritar, status, próxima ação, aceito/recusado preservam outros campos.
+9. Abrir WhatsApp não registra contato; confirmação explícita agenda follow-up 5 dias depois.
+10. Fila de mutações confirma **revision exata** e não perde edição feita durante envio.
+11. Conta trocada/falha no envio não descarta mutações pendentes.
 
 `tests/test_fase2_5a_crm_contract_offline.py` verifica estaticamente que o CRM **usa essas funções reais**, preserva gates de autenticação e só confirma WhatsApp após a ação específica do usuário.
 
