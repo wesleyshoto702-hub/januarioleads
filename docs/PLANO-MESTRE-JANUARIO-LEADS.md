@@ -21,6 +21,17 @@
 
 A preparação e execução das importações devem ficar **suspensas** até a migração/revogação comprovada da chave comprometida na homologação. Não migrar Overture nem publicar funções ou cobranças na produção antes da Fase 0 ser aprovada. As etapas offline já concluídas permanecem registradas como tal.
 
+
+
+## Retomada operacional 16/11 — atualizações da Fase 0.1
+
+- **Colab desligada:** usuário confirmou parada/desconexão; progresso read-only em staging = **338.540 empresas**, 1.654 checkpoints e banco de 193.246.899 bytes; sem confirmação de que o número de lotes da sessão corresponda exatamente ao checkpoint.
+- **Chave moderna:** usuário confirmou que já possui `sb_secret_`; ferramenta não permite consultar valor, estado efetivo do segredo ou revogar JWT legada.
+- **Duas Edge Functions implantadas EXCLUSIVAMENTE em homologação:** `staging-plan-preview` **v7 ACTIVE** sem fallback `service_role`, `search-places` **v32 ACTIVE** com fallback proibido para a URL exata de staging. `verify_jwt=true` preservado; os nove arquivos auxiliares da busca não foram alterados.
+- [PR de testes e preparação #173](https://github.com/wesleyshoto702-hub/januarioleads/pull/173) segue em **draft**; CI offline aprovado. Código de stage atualizado por patch mínimo na versão publicada anterior — reconciliar com o GitHub antes do merge.
+- **NÃO CONCLUÍDA:** 0.1 ainda precisa do teste autenticado real com nova credencial, auditoria de consumidores e desativação/verificação negativa da chave antiga. Não confundir implantação com revogação.
+- **Próximo passo obrigatório:** smoke test real em HOMOLOGAÇÃO com conta de teste autorizada, sem provedores pagos, e então preparar desativação da JWT legada no Dashboard conforme `verify_jwt=true` das funções. Backup/restauração 0.2 ainda pendentes. [Registro técnico completo](FASE-0-SEGURANCA-BACKUP-2026-11-15.md#fase-01--rollout-das-duas-funções-de-homologação-em-16112026).
+
 ## 0. Diagnóstico confirmado em 15/11/2026
 
 ### Dados e ambientes
