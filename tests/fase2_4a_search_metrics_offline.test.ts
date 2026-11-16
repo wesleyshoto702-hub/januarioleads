@@ -1,4 +1,5 @@
 /// <reference lib="deno.ns" />
+// SYNTHETIC fixtures only; no PII/secrets, no network, no real metrics.
 import {
   createSearchMetricsCollector, httpStatusClass, percentileNearestRank,
   type SearchHttpObservation,
