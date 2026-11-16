@@ -1,4 +1,4 @@
-name: Fase 0.1 — smoke autenticado staging sem provedores pagos
+name: Fase 0.1 - smoke autenticado em staging
 on:
   push:
     branches: [main]
@@ -8,14 +8,12 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-concurrency:
-  group: fase0-staging-auth-smoke
-  cancel-in-progress: false
 jobs:
   authenticated-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    environment: staging
+    environment:
+      name: staging
     env:
       JANUARIO_STAGING_SUPABASE_URL: ${{ secrets.JANUARIO_STAGING_SUPABASE_URL }}
       JANUARIO_STAGING_SUPABASE_KEY: ${{ secrets.JANUARIO_STAGING_SUPABASE_KEY }}
