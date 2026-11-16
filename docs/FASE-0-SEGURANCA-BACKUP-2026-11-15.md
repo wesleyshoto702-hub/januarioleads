@@ -150,3 +150,21 @@ Em 16/11/2026, mediante solicitação explícita do proprietário para executar 
 **Importante:** isto é uma preparação parcial. A exposição original da `service_role` **continua um bloqueio P0**. Não interpretar o novo guard da Colab como revogação da credencial no projeto.
 
 Docs oficiais: https://supabase.com/docs/guides/getting-started/migrating-to-new-api-keys e https://supabase.com/docs/guides/auth/signing-keys
+
+
+## Continuação 0.1 — 16/11/2026: sessão Colab encerrada e consumidores preparados
+
+**Confirmação do usuário:** a execução do Colab V6.3 foi interrompida e desconectada após aproximadamente o lote 106. A chave moderna `sb_secret_` **já existe** em homologação, segundo o proprietário. **A presença, permissões, runtime e revogação efetiva da chave antiga ainda não foram testados com credencial real.** Não foram compartilhadas chaves nem senhas.
+
+**Checagem read-only do Supabase staging após a desconexão (16/11 às ~08h45 BRT):**
+- `public.overture_places`: **338.540 registros**;
+- Banco PostgreSQL: **193.246.899 bytes**, aproximadamente **193,25 MB**;
+- `overture_phase9_v5_attempts`: **1.654 linhas** de histórico; **0 linhas com `error_code` não nulo nas últimas 24h** segundo filtro por `attempted_at`;
+- Checkpoint mais recente: **16/11/2026 às 11:41:35 UTC** (08:41:35 BRT), incluindo `Laranjeiras/SE`. Os checkpoints observados confirmam gravação de progresso, **não validam o número exato de lotes da sessão** nem provam a ausência de alguma gravação ainda em trânsito.
+
+**Preparação de segurança no GitHub:**
+- `main`: Colab V6.3 exige `sb_secret_` e rejeita JWT legado antes da conexão.
+- [PR #173](https://github.com/wesleyshoto702-hub/januarioleads/pull/173) **draft, não mergeada, não publicada**: `search-places` na URL exata do projeto staging deixa de usar fallback `service_role`; versão atual da `staging-plan-preview` foi recuperada para controle de versão com fallback legado removido. Produção permanece inalterada.
+- [CI de segurança da PR](https://github.com/wesleyshoto702-hub/januarioleads/actions/runs/43860688087) **aprovada**, incluindo testes offline das duas rotas, sem acesso a segredos ou rede Supabase. Validação estática e simulada não prova runtime.
+
+**Portão ainda pendente:** confirmar `SUPABASE_SECRET_KEYS` efetivo com teste autenticado que não recorra ao fallback; fazer rollout reversível das duas funções **somente em staging**, validar resultado com usuário autorizado e custos externos zero, conferir consumidores restantes e então usar o Dashboard para desativar a chave legada e planejar a revogação do JWT signing secret com segurança para funções `verify_jwt=true`. Não iniciar nova Colab até concluir a Fase 0.1.
