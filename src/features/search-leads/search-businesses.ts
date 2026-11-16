@@ -1,5 +1,6 @@
 import type { BusinessSearchResponse } from "./types";
 import { requestSearchBusinesses } from "./search-businesses-http";
+import type { SearchHttpObservation } from "./search-metrics";
 import { getAccessToken } from "../../lib/auth";
 import type { SearchLocation } from "./search-location";
 
@@ -29,6 +30,7 @@ function getSupabaseConfig() {
 
 export async function searchBusinesses(
   input: SearchBusinessesInput,
+  onObservation?: (event:SearchHttpObservation)=>void,
 ): Promise<BusinessSearchResponse> {
   const config = getSupabaseConfig();
 
@@ -47,6 +49,7 @@ export async function searchBusinesses(
       endpoint:config.functionUrl,
       publishableKey:config.publishableKey,
       accessToken,
+      onObservation,
     });
   }catch{
     return {
