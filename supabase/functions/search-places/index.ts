@@ -1,5 +1,9 @@
 import { isAllowedBrowserOrigin as isTrustedBrowserOrigin } from "../_shared/allowed-browser-origins.ts";
-import { approvedExternalPlacesDailyCap } from "../_shared/external-provider-approval.ts";
+import {
+  approvedExternalPlacesDailyCap, mayContactExternalPlacesProvider,
+  approvedInstagramWebSearchDailyCap,
+} from "../_shared/external-provider-approval.ts";
+import { runReservedExternalCall } from "../_shared/external-provider-execution.ts";
 import { selectInternalSupabaseCredential } from "../_shared/internal-supabase-credential.ts";
 import type { OpeningHoursSnapshot } from "../_shared/open-now.ts";
 import { searchOverture, type OvertureBusiness } from "../_shared/overture-search.ts";
@@ -840,12 +844,6 @@ async function textSearch(
 ) {
   // Reserve for EACH actual Google text request, including enrichment calls
   // and pagination; never count a single workflow as just one API request.
-  if (!await claimExternalSearchCall("google_places",userId||"","text_search_enterprise")) {
-    return {
-      ok: false as const,
-      response: failure("QUOTA", "Limite diário seguro de consultas Google atingido ou desativado.", 429),
-    };
-  }
   const body: Record<string, unknown> = {
     textQuery,
     pageSize,
@@ -855,18 +853,28 @@ async function textSearch(
 
   if (pageToken) body.pageToken = pageToken;
 
-  const response = await fetch(
-    "https://places.googleapis.com/v1/places:searchText",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Goog-Api-Key": googleApiKey,
-        "X-Goog-FieldMask": TEXT_FIELD_MASK,
+  const reserved = await runReservedExternalCall(
+    () => claimExternalSearchCall("google_places",userId||"","text_search_enterprise"),
+    () => fetch(
+      "https://places.googleapis.com/v1/places:searchText",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Goog-Api-Key": googleApiKey,
+          "X-Goog-FieldMask": TEXT_FIELD_MASK,
+        },
+        body: JSON.stringify(body),
       },
-      body: JSON.stringify(body),
-    },
+    ),
   );
+  if (!reserved.ok) {
+    return {
+      ok: false as const,
+      response: failure("QUOTA", "Limite diário seguro de consultas Google atingido ou desativado.", 429),
+    };
+  }
+  const response = reserved.value;
 
   let payload: GoogleResponse;
   try {
@@ -899,23 +907,27 @@ async function textSearch(
 }
 
 async function placeDetails(googleApiKey: string, placeId: string,userId?:string) {
-  if (!await claimExternalSearchCall("google_places",userId||"","place_details_enterprise")) {
+  const reserved = await runReservedExternalCall(
+    () => claimExternalSearchCall("google_places",userId||"","place_details_enterprise"),
+    () => fetch(
+      `https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Goog-Api-Key": googleApiKey,
+          "X-Goog-FieldMask": DETAILS_FIELD_MASK,
+        },
+      },
+    ),
+  );
+  if (!reserved.ok) {
     return {
       ok: false as const,
       response: failure("QUOTA", "Limite diário seguro de consultas Google atingido ou desativado.", 429),
     };
   }
-  const response = await fetch(
-    `https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}`,
-    {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Goog-Api-Key": googleApiKey,
-        "X-Goog-FieldMask": DETAILS_FIELD_MASK,
-      },
-    },
-  );
+  const response = reserved.value;
 
   let payload: GooglePlace;
   try {
@@ -1079,9 +1091,12 @@ async function runSegmentSearch(
 
   const geoApiKey = Deno.env.get("GEOAPIFY_API_KEY");
   // Unsupported niches must not reserve a Geoapify quota slot.
-  const geoAllowed = Boolean(geoApiKey?.trim()) &&
-    Boolean(geoapifyCategoryForSegment(segment)) &&
-    externalSearchDailyCap("geoapify")>0;
+  const geoAllowed = Boolean(geoapifyCategoryForSegment(segment)) &&
+    mayContactExternalPlacesProvider(
+      "geoapify", geoApiKey,
+      Deno.env.get("GEOAPIFY_SEARCH_DAILY_CAP"),
+      Deno.env.get("GOOGLE_PLACES_SPEND_APPROVED"),
+    );
   const geo = geoAllowed
     ? await searchGeoapifyFirst({
         apiKey: geoApiKey,
@@ -1121,8 +1136,11 @@ async function runSegmentSearch(
   }
   // Google is optional only when credentials or budget are unavailable.
   // Each paid request reserves a SKU-specific monthly project slot atomically.
-  const googleAllowed = Boolean(googleApiKey?.trim()) &&
-    externalSearchDailyCap("google_places") > 0;
+  const googleAllowed = mayContactExternalPlacesProvider(
+    "google_places", googleApiKey,
+    Deno.env.get("GOOGLE_PLACES_SEARCH_DAILY_CAP"),
+    Deno.env.get("GOOGLE_PLACES_SPEND_APPROVED"),
+  );
   if (!googleAllowed) {
     if (openResults.length) {
       return json({
