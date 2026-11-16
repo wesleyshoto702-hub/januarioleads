@@ -1,5 +1,10 @@
 name: Fase 0.1 - smoke autenticado em staging
 on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/fase0-staging-authenticated-smoke.yml"
+      - "scripts/fase0-staging-authenticated-smoke.py"
   workflow_dispatch:
 permissions:
   contents: read
@@ -18,7 +23,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Verificar bloqueios: somente homologação e chave pública
+      - name: "Verificar bloqueios: somente homologação e chave pública"
         run: |
           python3 -m py_compile scripts/fase0-staging-authenticated-smoke.py
       - name: Testar autorização, busca Overture-only e preview não mutável
