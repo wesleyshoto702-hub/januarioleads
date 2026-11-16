@@ -1,5 +1,9 @@
 import { isAllowedBrowserOrigin as isTrustedBrowserOrigin } from "../_shared/allowed-browser-origins.ts";
-import { approvedExternalPlacesDailyCap } from "../_shared/external-provider-approval.ts";
+import {
+  approvedExternalPlacesDailyCap, mayContactExternalPlacesProvider,
+  approvedInstagramWebSearchDailyCap,
+} from "../_shared/external-provider-approval.ts";
+import { runReservedExternalCall } from "../_shared/external-provider-execution.ts";
 import { selectInternalSupabaseCredential } from "../_shared/internal-supabase-credential.ts";
 import type { OpeningHoursSnapshot } from "../_shared/open-now.ts";
 import { searchOverture, type OvertureBusiness } from "../_shared/overture-search.ts";
@@ -260,6 +264,30 @@ async function claimExternalSearchCall(
     });
     return Boolean(response?.ok && (await response.json())===true);
   }catch{return false;}
+}
+
+/** A paid OpenAI web-search call needs three independent permissions:
+ * explicit human approval + positive configured eligibility cap + successful
+ * atomic project budget reservation. The required database RPC is NOT
+ * provisioned in Fase 2.6a; if missing it returns DENY. A key never unlocks.
+ */
+async function claimInstagramWebSearchBudget(userId:string):Promise<boolean> {
+  if (!userId || approvedInstagramWebSearchDailyCap(
+    Deno.env.get("OPENAI_INSTAGRAM_WEB_SEARCH_DAILY_CAP"),
+    Deno.env.get("OPENAI_INSTAGRAM_WEB_SEARCH_SPEND_APPROVED"),
+  ) <= 0) return false;
+  try {
+    const response=await adminRest("rpc/claim_saas_openai_web_search_budget",{
+      method:"POST",
+      body:JSON.stringify({
+        p_user_id:userId,
+        p_operation:"instagram_web_search",
+      }),
+    });
+    return Boolean(response?.ok && (await response.json())===true);
+  } catch {
+    return false;
+  }
 }
 
 async function claimApiBudget(
@@ -840,12 +868,6 @@ async function textSearch(
 ) {
   // Reserve for EACH actual Google text request, including enrichment calls
   // and pagination; never count a single workflow as just one API request.
-  if (!await claimExternalSearchCall("google_places",userId||"","text_search_enterprise")) {
-    return {
-      ok: false as const,
-      response: failure("QUOTA", "Limite diário seguro de consultas Google atingido ou desativado.", 429),
-    };
-  }
   const body: Record<string, unknown> = {
     textQuery,
     pageSize,
@@ -855,18 +877,28 @@ async function textSearch(
 
   if (pageToken) body.pageToken = pageToken;
 
-  const response = await fetch(
-    "https://places.googleapis.com/v1/places:searchText",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Goog-Api-Key": googleApiKey,
-        "X-Goog-FieldMask": TEXT_FIELD_MASK,
+  const reserved = await runReservedExternalCall(
+    () => claimExternalSearchCall("google_places",userId||"","text_search_enterprise"),
+    () => fetch(
+      "https://places.googleapis.com/v1/places:searchText",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Goog-Api-Key": googleApiKey,
+          "X-Goog-FieldMask": TEXT_FIELD_MASK,
+        },
+        body: JSON.stringify(body),
       },
-      body: JSON.stringify(body),
-    },
+    ),
   );
+  if (!reserved.ok) {
+    return {
+      ok: false as const,
+      response: failure("QUOTA", "Limite diário seguro de consultas Google atingido ou desativado.", 429),
+    };
+  }
+  const response = reserved.value;
 
   let payload: GoogleResponse;
   try {
@@ -899,23 +931,27 @@ async function textSearch(
 }
 
 async function placeDetails(googleApiKey: string, placeId: string,userId?:string) {
-  if (!await claimExternalSearchCall("google_places",userId||"","place_details_enterprise")) {
+  const reserved = await runReservedExternalCall(
+    () => claimExternalSearchCall("google_places",userId||"","place_details_enterprise"),
+    () => fetch(
+      `https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Goog-Api-Key": googleApiKey,
+          "X-Goog-FieldMask": DETAILS_FIELD_MASK,
+        },
+      },
+    ),
+  );
+  if (!reserved.ok) {
     return {
       ok: false as const,
       response: failure("QUOTA", "Limite diário seguro de consultas Google atingido ou desativado.", 429),
     };
   }
-  const response = await fetch(
-    `https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}`,
-    {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Goog-Api-Key": googleApiKey,
-        "X-Goog-FieldMask": DETAILS_FIELD_MASK,
-      },
-    },
-  );
+  const response = reserved.value;
 
   let payload: GooglePlace;
   try {
@@ -1079,9 +1115,12 @@ async function runSegmentSearch(
 
   const geoApiKey = Deno.env.get("GEOAPIFY_API_KEY");
   // Unsupported niches must not reserve a Geoapify quota slot.
-  const geoAllowed = Boolean(geoApiKey?.trim()) &&
-    Boolean(geoapifyCategoryForSegment(segment)) &&
-    externalSearchDailyCap("geoapify")>0;
+  const geoAllowed = Boolean(geoapifyCategoryForSegment(segment)) &&
+    mayContactExternalPlacesProvider(
+      "geoapify", geoApiKey,
+      Deno.env.get("GEOAPIFY_SEARCH_DAILY_CAP"),
+      Deno.env.get("GOOGLE_PLACES_SPEND_APPROVED"),
+    );
   const geo = geoAllowed
     ? await searchGeoapifyFirst({
         apiKey: geoApiKey,
@@ -1121,8 +1160,11 @@ async function runSegmentSearch(
   }
   // Google is optional only when credentials or budget are unavailable.
   // Each paid request reserves a SKU-specific monthly project slot atomically.
-  const googleAllowed = Boolean(googleApiKey?.trim()) &&
-    externalSearchDailyCap("google_places") > 0;
+  const googleAllowed = mayContactExternalPlacesProvider(
+    "google_places", googleApiKey,
+    Deno.env.get("GOOGLE_PLACES_SEARCH_DAILY_CAP"),
+    Deno.env.get("GOOGLE_PLACES_SPEND_APPROVED"),
+  );
   if (!googleAllowed) {
     if (openResults.length) {
       return json({
@@ -2462,7 +2504,7 @@ function emptyPresence(
   };
 }
 
-async function runPresenceDiscovery(body: Record<string, unknown>) {
+async function runPresenceDiscovery(body: Record<string, unknown>,userId:string) {
   const businessValue = body.business;
   if (!businessValue || typeof businessValue !== "object") {
     return failure(
@@ -2542,17 +2584,18 @@ async function runPresenceDiscovery(body: Record<string, unknown>) {
   }
 
   if (knownInstagram && !business.instagramSource && !force) {
+    // A URL without verified provenance is a CANDIDATE, not a Google source.
     const presence: BusinessPresence = {
       instagramUrl: knownInstagram,
       instagramUsername: instagramUsername(knownInstagram),
       instagramDisplayName: business.instagramDisplayName || null,
-      instagramConfidence: "high",
-      instagramSource: "google_places",
+      instagramConfidence: "medium",
+      instagramSource: "existing_data",
       instagramCheckedAt: checkedAt,
       instagramCandidates: [],
       instagramRejectedUrls: rejectedUrls,
       instagramSearchSignature: signature,
-      instagramNeedsReview: false,
+      instagramNeedsReview: true,
     };
     return json({ ok: true, mode: "presence-discovery", presence });
   }
@@ -2632,11 +2675,25 @@ async function runPresenceDiscovery(body: Record<string, unknown>) {
 
   let rawCandidates: RawWebCandidate[];
   try {
-    rawCandidates = await discoverInstagramOnWeb(
-      openAiApiKey,
-      business,
-      rejectedUrls,
+    const reserved = await runReservedExternalCall(
+      () => claimInstagramWebSearchBudget(userId),
+      () => discoverInstagramOnWeb(openAiApiKey, business, rejectedUrls),
     );
+    if (!reserved.ok) {
+      if (officialCandidates.length > 0) {
+        return json({
+          ok: true, mode: "presence-discovery",
+          presence: {
+            ...emptyPresence(checkedAt, signature, rejectedUrls),
+            instagramCandidates: officialCandidates,
+          },
+        });
+      }
+      return failure("QUOTA",
+        "A pesquisa paga de Instagram está desativada ou não possui orçamento autorizado.",
+        429);
+    }
+    rawCandidates = reserved.value;
   } catch (error) {
     if (officialCandidates.length > 0) {
       return json({
@@ -2911,7 +2968,7 @@ async function handleRequest(request: Request) {
 
   try {
     if (mode === "presence-discovery") {
-      return await runPresenceDiscovery(requestBody);
+      return await runPresenceDiscovery(requestBody,userId);
     }
 
     if (mode === "lead-enrichment") {

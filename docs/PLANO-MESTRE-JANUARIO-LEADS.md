@@ -1,6 +1,6 @@
 # JANUÁRIO LEADS — PLANO MESTRE E AUDITORIA DE LANÇAMENTO
 
-**Versão:** 1.9 | **Data-base:** 15/11/2026 | **Ambiente auditado:** GitHub `main`, Supabase homologação e produção, projeto Lovable (somente leitura)
+**Versão:** 1.10 | **Data-base:** 15/11/2026 | **Ambiente auditado:** GitHub `main`, Supabase homologação e produção, projeto Lovable (somente leitura)
 **Objetivo único:** entregar um **Buscar Leads + CRM confiáveis** e um beta pequeno, sem custos inesperados e sem perda dos dados existentes. Depois habilitar comercialização.
 **Fonte única de prioridades:** este documento. `docs/roadmap-saas-2026-11-06.md` e planos anteriores são históricos, não listas paralelas de trabalho.
 
@@ -95,7 +95,8 @@
 - [ ] **2.4b — Medição e tuning reais:** p50/p95 em busca autenticada com fonte Overture e relógio monotônico, contagem **no servidor** por provedor (incluindo fontes pagas), investigação de planos de consulta/índices/paginação, ensaios controlados sem custo, rollback e validação responsiva. **Bloqueado pela Fase 0.**
 - [x] **2.5a — Jornada CRM em testes sintéticos:** `Buscar → Salvar → Favoritar/desfavoritar → Status → Próxima ação → Contato confirmado/follow-up` com empresas fictícias. Extraídos e conectados à UI helpers puros para conversão de empresa, favorito, status e agendamento. Proteção por sessão contra múltiplos saves concorrentes de mesma origem/empresa conhecida, sem confundir filiais com telefone compartilhado; falha permite retry e exclusão limpa a proteção. Corrigido histórico que classificava Overture como Google e Instagram sem confiança promovido a `high`. Fila de mutações testada com revisão concorrente e conta fictícia alterada. [Relatório da 2.5a](FASE-2-5A-CRM-JORNADA-SINTETICA-2026-11-15.md). **Sem banco ou usuário real.**
 - [ ] **2.5b — Validação real/isolamento:** editar e salvar após login, dois usuários reais, múltiplas abas/dispositivos, favoritos, fila, histórico, confirmação manual WhatsApp e agendamento, RLS/uniqueness e rollback após Fase 0. Nunca considerar a trava do frontend uma garantia de unicidade no banco.
-- [ ] **2.6** Fechar os provedores externos por padrão; teste integrado deve demonstrar **0 chamadas pagas**.
+- [x] **2.6a — Guardas de custo OFFLINE:** rotas reais da Edge Function Google Text Search, Place Details, Geoapify geocode/Places agora usam reserva atômica antes do `fetch`, com **negação por padrão**. Cap ausente, zero, inválido ou chave ausente não permitem fallback pago; Google exige `GOOGLE_PLACES_SPEND_APPROVED="true"`. Descoberta paga de Instagram por OpenAI ganhou opt-in financeiro e RPC de orçamento própria, **ainda não criada**; portanto segue desabilitada mesmo com chave. Corrigido Instagram de fonte desconhecida promovido a `high`/Google no backend. Testes com chaves fictícias e `fetch` interceptado demonstram **zero chamadas EXTERNAS mockadas** com orçamento zero, preservando a busca interna Overture; **não comprovam zero cobrança real**. Typecheck da Edge Function e regressões 2.2a/2.4a/2.5a no CI. [Relatório 2.6a](FASE-2-6A-ORCAMENTO-ZERO-PROVEDORES-OFFLINE-2026-11-15.md). Nenhum deploy.
+- [ ] **2.6b — Auditoria viva de zero custo:** após Fase 0, conferir segredos e habilitações por ambiente, quotas SQL atômicas por projeto/SKU, outros consumidores em jobs/Edge/scripts, logs/medição controlada com conta autenticada, faturas e alertas nos consoles de provedores. **Bloqueada pela Fase 0.** Não confundir bloqueio no código com garantia de fatura R$0.
 **Sair da fase quando:** cenário completo Buscar → Salvar → Favoritar → Próximo contato funciona em desktop/mobile; filtros e erros honestos; **zero gasto não autorizado**; CI + teste real autenticado aprovados.
 
 ### FASE 3 — CONFORMIDADE, CUSTOS E PUBLICAÇÃO CONTROLADA | P1
@@ -157,7 +158,7 @@
 |---|---|---|---|
 | 0 | Segredos, backup e segurança | **ADIADA a pedido — continua bloqueio P0** | antes de qualquer ação de risco / lançamento |
 | 1 | Qualidade Overture | **Auditorias 1.1, 1.2a, 1.3a, 1.4a e 1.5a concluídas; validações E2E/reais bloqueadas pela Fase 0** | somente leitura/offline; sem deploy/produção |
-| 2 | Buscar Leads E2E staging | **2.1a–2.5a offline preparadas/testadas; etapas b e 2.6 ainda pendentes; próxima 2.6a** | Fase 0 obrigatória antes de testes reais/deploy |
+| 2 | Buscar Leads E2E staging | **2.1a–2.6a no GitHub com testes offline; etapas b de validação real pendentes; próxima segura 3.1a** | Fase 0 obrigatória antes de testes reais/deploy |
 | 3 | Compliance/custos/migração canário | documentação/compliance permitidos; migração bloqueada | 0–2 |
 | 4 | CRM e UX beta | testes offline/visuais permitidos; aceite real pendente | 0 + 2–3 |
 | 5 | Beta fechado | não iniciado | 4 |
@@ -182,7 +183,7 @@
 - [ ] Integração automática de pagamentos antes do beta estabilizado.
 
 ## 6. Próxima ação única e retomada
-**AGORA: FASE 2.6a — validar com mocks no código real que buscar no Overture, salvar lead e operar CRM não inicia Geoapify/Google quando o orçamento de fornecedores externos for zero.** A 2.5a testou offline a jornada Buscar → Salvar → Favoritar → Status → Próximo contato e preparou correções de concorrência, origem dos eventos e confiança de Instagram. **Ainda NÃO há prova de unicidade no banco, RLS, E2E autenticado ou zero chamadas pagas no ambiente real.** A 2.6b e as etapas b anteriores aguardam conclusão da Fase 0. Retomar P0 de segredos e backup antes de publicar, migrar, medir desempenho real ou lançar beta. Histórico HttpOnly/migrations ainda requer investigação independente.
+**AGORA: FASE 3.1a — revisar OFFLINE atribuições, condições de licença e proveniência Overture/Geoapify/Google, NOTICE da interface e armazenamento/eliminação de dados externos, sem consultar provedores pagos ou modificar o banco.** A 2.6a concluiu testes sintéticos de guards com cap financeiro zero no código (inclusive OpenAI Instagram web desativado por padrão), não uma prova de faturamento real. **A Fase 2 continua sem aceite E2E autenticado**: 2.1b/2.2b/2.3b/2.4b/2.5b/2.6b aguardam a conclusão da Fase 0 e a validação de RLS, rollback, custos e integração real. Não publicar, ativar APIs pagas, migrar dados nem lançar beta até esses portões.
 
 **QUANDO O USUÁRIO VOLTAR AO COMPUTADOR: retomar a FASE 0.1 e 0.2 imediatamente**, confirmar revogação da chave `service_role` de homologação exposta e concluir backup/ensaio de restauração da produção. Sem isso, nenhuma migração, beta público, assinatura ou lançamento comercial pode ser considerado aprovado. A implementação atual da busca na homologação foi atualizada para usar preferencialmente `sb_secret_` (Edge Function v31), mas isso **não revoga a chave antiga**.
 

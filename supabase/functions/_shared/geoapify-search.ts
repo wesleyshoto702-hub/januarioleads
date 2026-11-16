@@ -1,4 +1,5 @@
 import { findBrazilianState } from "./brazil-locations.ts";
+import { runReservedExternalCall } from "./external-provider-execution.ts";
 import { geoapifyCategoryForSegment } from "./geoapify-niche-categories.ts";
 import {
   canonicalPublicInstagram, firstProviderInstagram, providerInstagramCandidate,
@@ -100,8 +101,12 @@ async function cityPlaceId(key: string, city: string, state: string,
     type: "city", filter: "countrycode:br", lang: "pt",
     limit: "5", format: "json", apiKey: key,
   }).toString();
-  if (reserveCredit && !(await reserveCredit("geocode"))) return null;
-  const response = await jsonWithinTimeout(url, GEOCODE_TIMEOUT_MS);
+  const geocode = await runReservedExternalCall(
+    () => reserveCredit ? reserveCredit("geocode") : Promise.resolve(false),
+    () => jsonWithinTimeout(url, GEOCODE_TIMEOUT_MS),
+  );
+  if (!geocode.ok) return null;
+  const response = geocode.value;
   if (!response.ok) return null;
   const results = record(response.value).results;
   if (!Array.isArray(results)) return null;
@@ -207,9 +212,12 @@ export async function searchGeoapifyFirst(input: {
       lang: "pt", limit: String(PAGE_SIZE), offset: String(offset),
       apiKey: key,
     }).toString();
-    if (input.reserveCredit && !(await input.reserveCredit("places")))
-      return {ok:false,reason:"UPSTREAM"};
-    const response = await jsonWithinTimeout(url, PLACES_TIMEOUT_MS);
+    const places = await runReservedExternalCall(
+      () => input.reserveCredit ? input.reserveCredit("places") : Promise.resolve(false),
+      () => jsonWithinTimeout(url, PLACES_TIMEOUT_MS),
+    );
+    if (!places.ok) return {ok:false,reason:"UPSTREAM"};
+    const response = places.value;
     if (!response.ok) return { ok: false, reason: "UPSTREAM" };
     const rawFeatures = record(response.value).features;
     if (!Array.isArray(rawFeatures)) return { ok: false, reason: "UPSTREAM" };
