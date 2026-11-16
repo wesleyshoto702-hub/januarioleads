@@ -203,3 +203,18 @@ Docs oficiais: https://supabase.com/docs/guides/getting-started/migrating-to-new
 **Único bloqueio atual para a etapa HTTP autenticada:** configurar no ambiente protegido `staging` do GitHub Actions os dois secrets `JANUARIO_STAGING_A_EMAIL` e `JANUARIO_STAGING_A_PASSWORD` para uma **conta de teste autorizada da HOMOLOGAÇÃO**, sem compartilhar os valores no chat ou no GitHub em texto aberto. Depois rerodar o job; só considerar 0.1 aprovada após retorno `SUCCESS` do smoke autenticado, validação de consumidores, e **desativação + teste negativo** da chave `service_role` legada no Supabase Dashboard.
 
 **Nenhuma autenticação de usuário foi tentada por este último job; nenhuma linha de leads foi alterada. Produção permanece sem alteração.**
+
+
+## Teste autenticado aprovado — 16/11/2026 (GitHub Actions execução 43864506127)
+
+**Status: teste HTTP autenticado real APROVADO, porém Fase 0.1 ainda aberta até revogação efetiva da credencial legada.** O proprietário adicionou `JANUARIO_STAGING_A_EMAIL` e `JANUARIO_STAGING_A_PASSWORD` ao ambiente protegido `staging` no GitHub Actions, sem compartilhar os valores no chat.
+
+Reexecutada a [execução 43864506127, tentativa 2](https://github.com/wesleyshoto702-hub/januarioleads/actions/runs/43864506127). Resultado **SUCCESS**, job `authenticated-smoke` concluído com sucesso. Logs confirmam:
+- `PASS: unauthorized requests rejected by both functions`: HTTP 401 de `search-places` v32 e `staging-plan-preview` v7 sem sessão.
+- `PASS: staging user authenticated (no token printed)`: login da conta de homologação via Auth real.
+- `PASS: Overture-only authenticated search; provider=overture; no paid-provider path`: pesquisa real em `search-places`, com `pageToken=overture:0`, retornou HTTP 200, `ok=true` e `provider=overture` usando o caminho privilegiado **sem fallback legado**.
+- `PASS: plan-preview authorized entry path, invalid plan rejected without mutation`: chamada autenticada em `staging-plan-preview` v7 retornou `INVALID_PLAN`/HTTP 400 antes da mutação, comprovando guardas do endpoint e a presença de configuração moderna; **não testa uma gravação administrativa da função de planos**.
+- Logs do teste não expuseram e-mail, senha, JWT ou chaves secretas; o script utiliza somente chave pública no cliente e segura as credenciais via secrets de ambiente.
+- A chamada de busca pode consumir uma quota **interna** de API, sem invocar Geoapify/Google Places. Não houve alterações de assinaturas, nem migração/cópia de dados entre projetos.
+
+**Portões remanescentes da 0.1:** confirmar dependências adicionais (Colab, webhooks, scripts e funções auxiliares), preparar desligamento do JWT legado com verificação das Edge Functions `verify_jwt=true`, desativar a `service_role` legada no dashboard de HOMOLOGAÇÃO e testar seu efetivo bloqueio por canal protegido. **A execução bem-sucedida com a nova credencial não equivale à revogação da antiga**. Nunca enviar segredos para chat ou GitHub.
