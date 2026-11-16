@@ -74,7 +74,6 @@ def run(env: dict[str, str]) -> None:
     email = env.get("JANUARIO_STAGING_A_EMAIL", "").strip()
     password = env.get("JANUARIO_STAGING_A_PASSWORD", "")
     require(public_key_only(key), "Staging publishable/anon key not configured or unexpectedly privileged")
-    require(email and password, "Staging test account email/password missing from protected secrets")
     require(urlsplit(url).hostname == "prlrxjothrslhswpkoza.supabase.co", "Non-staging target denied")
 
     # First ensure unauthenticated functions cannot be used.
@@ -86,6 +85,7 @@ def run(env: dict[str, str]) -> None:
         status, _ = http_json(url, key, "/functions/v1/" + name, "POST", payload)
         require(status == 401, f"{name}: unauthenticated request was not rejected with HTTP 401")
     print("PASS: unauthorized requests rejected by both functions")
+    require(email and password, "Staging test account email/password missing from protected secrets")
 
     # Password grant with a dedicated, allowlisted staging identity only.
     status, login = http_json(url, key, "/auth/v1/token?grant_type=password", "POST",
