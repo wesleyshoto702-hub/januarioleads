@@ -168,3 +168,21 @@ Docs oficiais: https://supabase.com/docs/guides/getting-started/migrating-to-new
 - [CI de segurança da PR](https://github.com/wesleyshoto702-hub/januarioleads/actions/runs/43860688087) **aprovada**, incluindo testes offline das duas rotas, sem acesso a segredos ou rede Supabase. Validação estática e simulada não prova runtime.
 
 **Portão ainda pendente:** confirmar `SUPABASE_SECRET_KEYS` efetivo com teste autenticado que não recorra ao fallback; fazer rollout reversível das duas funções **somente em staging**, validar resultado com usuário autorizado e custos externos zero, conferir consumidores restantes e então usar o Dashboard para desativar a chave legada e planejar a revogação do JWT signing secret com segurança para funções `verify_jwt=true`. Não iniciar nova Colab até concluir a Fase 0.1.
+
+
+## Fase 0.1 — rollout das duas funções de homologação em 16/11/2026
+
+**Mudança em staging concluída tecnicamente, validação autenticada pendente.** O usuário confirmou que a última sessão do Colab estava desconectada e que a chave `sb_secret_` já existia. Constatou-se na [documentação do Supabase](https://supabase.com/docs/guides/functions/secrets) que `SUPABASE_SECRET_KEYS` é fornecida por padrão às Edge Functions hospedadas; isso **não comprova** se a chave está ativa no runtime concreto, nem seu uso bem-sucedido.
+
+| Função | Versão anterior | Versão atual | Resultado da verificação |
+|---|---:|---:|---|
+| `staging-plan-preview` | 6 | **7 ACTIVE** | `SUPABASE_SERVICE_ROLE_KEY` removida do seletor, `SUPABASE_SECRET_KEYS` permanece; `verify_jwt=true` |
+| `search-places` | 31 | **32 ACTIVE** | Apenas o bloco de seleção da credencial administrativa alterado: no projeto de staging o fallback JWT é passado como `undefined`; **nove arquivos de dependência idênticos** ao pacote implantado v31, `verify_jwt=true` |
+
+- A implantação foi feita **somente no projeto `prlrxjothrslhswpkoza`**, preservando a fonte anterior via histórico de versões Supabase. Não houve alteração de banco, migrations, produção, quotas nem usuários.
+- [PR #173](https://github.com/wesleyshoto702-hub/januarioleads/pull/173) contém a alteração e testes **em draft**. O código da `search-places` implantado foi um **patch mínimo no pacote remoto v31**, e não substituição integral pelo arquivo de GitHub; reconciliar o código-fonte publicado versus PR antes de merge definitivo.
+- **Pós-deploy consultado por conector:** v7/v32 ativas, ambas `verify_jwt=true`; staging **338.540 empresas**, **1.654 checkpoints**, **193.246.899 bytes** de PostgreSQL; produção continua com **212 leads e 2 contas Auth**.
+- Não foi possível executar requisição HTTP autenticada real no ambiente de execução (nenhum token de usuário deve ser compartilhado ou extraído; acesso direto de rede não disponível). O status ACTIVE e os testes CI **não significam E2E aprovado**, nem provam que a `sb_secret_` autenticou uma requisição privilegiada.
+- **Rollback controlado:** para `search-places`, a versão 31 anterior fornece o pacote exato (apenas desfazer o bloco de seleção); para `staging-plan-preview`, a v6 anterior fornece o seletor original. No entanto, **não restaurar o fallback comprometido como solução permanente**; priorizar corrigir acesso à chave moderna, e avaliar o risco de rollback de segurança antes de acioná-lo.
+
+**Próximo portão:** teste autenticado com usuário autorizado em STAGING de `search-places` (somente Overture, provedores externos sem aprovação) e `staging-plan-preview` (operação de simulação intencional e reversível), incluindo um teste negativo de autorização; verificar registros de erro e ausência de gastos. Somente após comprovação da nova credencial e inventário dos consumidores restantes executar a desativação da chave legada e tratar a migração/revogação de JWT signing keys pela documentação oficial. **Fase 0.1 ainda NÃO CONCLUÍDA; imports permanecem suspensos.**
