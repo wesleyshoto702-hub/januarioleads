@@ -25,3 +25,15 @@ Deno.test("no key fails closed",()=>{
  assert(selectInternalSupabaseCredential(undefined,undefined)===null,"Missing credentials must fail closed");
  assert(selectInternalSupabaseCredential("{}", "not-a-jwt")===null,"Malformed key accepted");
 });
+
+Deno.test("staging search-places excludes legacy service_role from its selector",async()=>{
+ const source=await Deno.readTextFile(new URL("../supabase/functions/search-places/index.ts",import.meta.url));
+ assert(source.includes('const isJanuarioStaging = url === "https://prlrxjothrslhswpkoza.supabase.co"'),
+   "Staging must be identified by exact project URL");
+ assert(source.includes('isJanuarioStaging ? undefined : Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")'),
+   "Legacy key must not be passed to selector on staging");
+ assert(selectInternalSupabaseCredential('{"default":"sb_publishable_TEST"}',undefined)===null,
+   "A publishable key must not become a privileged staging credential");
+ assert(selectInternalSupabaseCredential("broken-json",undefined)===null,
+   "Missing/malformed modern keys must not allow access in staging");
+});
