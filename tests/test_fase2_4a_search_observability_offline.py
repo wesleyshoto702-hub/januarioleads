@@ -32,7 +32,7 @@ class SearchObservabilityContract(unittest.TestCase):
         self.assertIn("httpStatusClass(observedHttpStatus)",self.http)
         self.assertIn("returnedCount:outcome.ok?outcome.results.length:0",self.http)
         self.assertIn('import type { SearchHttpObservation } from "./search-metrics"',self.wrapper)
-        self.assertIn("onObservation,",self.wrapper)
+        self.assertIn("...(onObservation ? {onObservation} : {})",self.wrapper)
         self.assertIn('import { createSearchMetricsCollector } from "./search-metrics"',self.view)
         self.assertIn("searchMetricsRef.current.observe",self.view)
         self.assertIn("useRef(createSearchMetricsCollector())",self.view)
