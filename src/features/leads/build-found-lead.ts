@@ -3,7 +3,7 @@
  */
 import type { PersistedLead } from "./remote-leads.ts";
 import type { BusinessSearchResult } from "../search-leads/types.ts";
-import { presenceFromBusiness } from "../business-presence/storage.ts";
+import { presenceFromBusiness } from "../business-presence/presence-transform.ts";
 import { buildFactualBusinessDescription } from "../business-presence/business-description.ts";
 import { normalizeBrazilianStateCode } from "../../lib/brazil-locations.ts";
 
