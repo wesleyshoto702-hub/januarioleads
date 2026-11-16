@@ -134,3 +134,19 @@ Consultar:
 6. **0.5 — finanças:** verificar no painel Usage/Billing dos provedores os limites efetivos, alertas e aprovação de custo zero; os testes sintéticos de `deny by default` não provam a configuração publicada ou as faturas.
 
 **Próximo bloqueio imediato:** evidência da 0.1 (nova credencial operacional + antiga revogada) e 0.2 (backup privado efetivo + teste de restauração). Não mover Overture para produção nem abrir beta até cumprir os portões.
+
+
+## Complemento 0.1 — bloqueio da credencial legada no Colab V6.3
+
+Em 16/11/2026, mediante solicitação explícita do proprietário para executar o máximo possível da rotação:
+
+- [x] Notebook **`notebooks/Januario_Leads_Fase_9_V6_3_Sessao_Estendida.ipynb`** alterado em `main` para aceitar **somente `sb_secret_`** e rejeitar `eyJ...`/JWT legado **antes de abrir qualquer conexão**; verificação estática local feita na mesma ação. Esta revisão **não** executa o notebook nem cria ou revoga chaves.
+- [x] Função implantada de staging `search-places` v31 e `staging-plan-preview` v6 examinadas sem expor valores de segredos: ambas fazem referência à chave moderna e mantêm caminho de compatibilidade legado. **Não remover o fallback ou publicar novas versões antes de confirmar a chave nova ativa em runtime e os testes autenticados.**
+- [x] Confirmado que `get_publishable_keys` oferece informações apenas de chaves públicas: a presença de `sb_publishable_` **não é comprovação** de `sb_secret_`.
+- [ ] **Sessão Colab antiga desconectada**: não há ferramenta conectada para inspecionar ou desconectar os runtimes pessoais do Google Colab.
+- [ ] **Nova chave `sb_secret_` habilitada e consumidores validados**: as ferramentas Supabase conectadas não oferecem criação/revogação/leitura administrativa de chaves secretas. Necessário usar Dashboard; não compartilhar segredo.
+- [ ] **JWT legado invalidado e testes negativos**: não realizado, pois a revogação pode afetar sessões/Edge Functions `verify_jwt=true`. Seguir o roteiro oficial de migração do JWT secret, somente após inventariar e validar os consumidores.
+
+**Importante:** isto é uma preparação parcial. A exposição original da `service_role` **continua um bloqueio P0**. Não interpretar o novo guard da Colab como revogação da credencial no projeto.
+
+Docs oficiais: https://supabase.com/docs/guides/getting-started/migrating-to-new-api-keys e https://supabase.com/docs/guides/auth/signing-keys
