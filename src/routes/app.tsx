@@ -46,9 +46,7 @@ import {
   type NextActionPatch,
 } from "../features/next-actions/LeadNextActionSection";
 import {
-  DEFAULT_FOLLOW_UP_DAYS,
   NEXT_ACTION_LABEL,
-  addDaysToDateKey,
   clearActionForStatus,
   crmToday,
   getLeadActionSummary,
