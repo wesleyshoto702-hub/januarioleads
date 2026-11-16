@@ -359,11 +359,13 @@ function adminConfig() {
   const url = Deno.env.get("SUPABASE_URL")?.replace(/\/$/, "");
   if (!url) return null;
 
-  // Modern keys first. Legacy service_role remains a temporary compatibility
-  // fallback until the compromised legacy key has been disabled in STAGING.
+  // STAGING is fail-closed: never fall back to the previously exposed
+  // legacy service_role JWT, even when modern secrets are absent or malformed.
+  // Production retains its current compatibility path until separately audited.
+  const isJanuarioStaging = url === "https://prlrxjothrslhswpkoza.supabase.co";
   const credential = selectInternalSupabaseCredential(
     Deno.env.get("SUPABASE_SECRET_KEYS"),
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
+    isJanuarioStaging ? undefined : Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
   );
   if (!credential) return null;
   return { url, key: credential.key, authorization: credential.authorization };
