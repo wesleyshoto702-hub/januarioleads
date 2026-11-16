@@ -1,6 +1,6 @@
 # JANUÁRIO LEADS — PLANO MESTRE E AUDITORIA DE LANÇAMENTO
 
-**Versão:** 1.7 | **Data-base:** 15/11/2026 | **Ambiente auditado:** GitHub `main`, Supabase homologação e produção, projeto Lovable (somente leitura)
+**Versão:** 1.8 | **Data-base:** 15/11/2026 | **Ambiente auditado:** GitHub `main`, Supabase homologação e produção, projeto Lovable (somente leitura)
 **Objetivo único:** entregar um **Buscar Leads + CRM confiáveis** e um beta pequeno, sem custos inesperados e sem perda dos dados existentes. Depois habilitar comercialização.
 **Fonte única de prioridades:** este documento. `docs/roadmap-saas-2026-11-06.md` e planos anteriores são históricos, não listas paralelas de trabalho.
 
@@ -91,7 +91,8 @@
 - [ ] **2.2b — Testes de navegador autenticado, cache e sessão reais:** verificar RLS, trocas de conta, paginação de todos os provedores, erros ao vivo e UI responsiva. **Pendente e bloqueado pela Fase 0**.
 - [x] **2.3a — Clareza de filtros e contadores offline:** oito filtros e seis atalhos com textos/explicações ligados às funções realmente usadas; `Telefone informado` (campo preenchido) separado de `Número compatível com WhatsApp` (somente formato), `Site não identificado` e `Instagram não confirmado` não afirmam inexistência; perfil marcado com alta confiança sem revisão pendente não é comprovação oficial. **X carregados e Y exibidos** explicitamente limitados aos resultados da pesquisa, inclusive antes de carregar as próximas páginas. Corrigido score heurístico que contava Instagram com confiança ausente. [Relatório 2.3a](FASE-2-3A-FILTROS-CONTADORES-HONESTOS-2026-11-15.md) e CI Deno/Python offline, sem deploy.
 - [ ] **2.3b — Validação real/UX mobile:** testar textos e contadores em navegador autenticado, RLS, diferentes municípios e páginas, confirmação de perfil e CRM. **Bloqueado pela Fase 0.**
-- [ ] **2.4** Medir latência p50/p95, falhas e volume de chamadas; registrar baseline e corrigir gargalos com índices/consultas paginadas no servidor. Não buscar em massa a cada clique.
+- [x] **2.4a — Observabilidade e baseline SINTÉTICO offline:** instrumentação do HTTP real de `Buscar Leads` com coletor **local limitado a 256 observações** (máximo 1000), sem registrar conteúdo de buscas, tokens, telefones ou nomes; p50/p95 nearest-rank, contagem de erros/sucessos, respostas 2xx/4xx/5xx, tentativas de rede e resultados. Relógio simulado com 10 requisições, **p50 = 50 ms e p95 = 100 ms artificiais, 20% falhas fictícias**; 5 páginas Overture fictícias = 5 leituras de até 250 candidatos, até 100 resultados e **0 chamadas pagas apenas no teste**. Os percentis **NÃO representam desempenho real do SaaS**. [Relatório 2.4a](FASE-2-4A-OBSERVABILIDADE-LATENCIA-MOCK-2026-11-15.md), testes offline e CI. Nenhum deploy.
+- [ ] **2.4b — Medição e tuning reais:** p50/p95 em busca autenticada com fonte Overture e relógio monotônico, contagem **no servidor** por provedor (incluindo fontes pagas), investigação de planos de consulta/índices/paginação, ensaios controlados sem custo, rollback e validação responsiva. **Bloqueado pela Fase 0.**
 - [ ] **2.5** Testar CRM com dados fictícios: adicionar, editar, favoritar/desfavoritar, organizar status, recuperar pesquisa, registrar contato e follow-up sem duplicar leads.
 - [ ] **2.6** Fechar os provedores externos por padrão; teste integrado deve demonstrar **0 chamadas pagas**.
 **Sair da fase quando:** cenário completo Buscar → Salvar → Favoritar → Próximo contato funciona em desktop/mobile; filtros e erros honestos; **zero gasto não autorizado**; CI + teste real autenticado aprovados.
@@ -155,7 +156,7 @@
 |---|---|---|---|
 | 0 | Segredos, backup e segurança | **ADIADA a pedido — continua bloqueio P0** | antes de qualquer ação de risco / lançamento |
 | 1 | Qualidade Overture | **Auditorias 1.1, 1.2a, 1.3a, 1.4a e 1.5a concluídas; validações E2E/reais bloqueadas pela Fase 0** | somente leitura/offline; sem deploy/produção |
-| 2 | Buscar Leads E2E staging | **2.1a, 2.2a e 2.3a offline preparadas/testadas; validações reais continuam pendentes; próxima 2.4a** | Fase 0 obrigatória antes de E2E real/deploy |
+| 2 | Buscar Leads E2E staging | **2.1a/2.2a/2.3a/2.4a preparadas/testadas offline; 2.4b e validações autenticadas pendentes; próxima 2.5a** | Fase 0 obrigatória antes de testes reais ou deploy |
 | 3 | Compliance/custos/migração canário | documentação/compliance permitidos; migração bloqueada | 0–2 |
 | 4 | CRM e UX beta | testes offline/visuais permitidos; aceite real pendente | 0 + 2–3 |
 | 5 | Beta fechado | não iniciado | 4 |
@@ -180,7 +181,7 @@
 - [ ] Integração automática de pagamentos antes do beta estabilizado.
 
 ## 6. Próxima ação única e retomada
-**AGORA: FASE 2.4a — instrumentação e ensaio de latência/volume com fontes simuladas, sem chaves nem consultas externas.** Os testes offline 2.1a/2.2a foram preservados e a 2.3a preparou nomenclaturas honestas, diferença entre telefone informado e formato WhatsApp, site/Instagram não identificados, 8 filtros, 6 atalhos e contadores vinculados a resultados carregados. **Fase 2.1b/2.2b/2.3b e validações reais da Fase 1 aguardam a Fase 0; nenhum deploy publicado.** Teste de navegador HttpOnly com backend simulado, responsividade real e reconciliação de migrações devem ser verificados antes do beta. Não executar Colab, provedores pagos ou alterações de produção por causa desta etapa.
+**AGORA: FASE 2.5a — preparar e testar OFFLINE a jornada do CRM Buscar → Salvar → Favoritar → Status → Próximo contato, com empresas e usuários fictícios, sem banco, autenticação ou API real.** A Fase 2.4a preparou observabilidade PII-free da requisição HTTP e cenários reproduzíveis de p50/p95, falhas e tentativas. **Esses percentis são artificialmente simulados; não são métricas reais de performance.** A validação real 2.4b, todas as etapas b da Fase 2, testes reais da Fase 1 e análises de índices exigem antes a conclusão da **Fase 0**. O teste antigo de navegador HttpOnly e a reconciliação de migrations seguem pendentes. Nenhuma função Supabase foi publicada, nenhuma Colab iniciada e nenhum orçamento pago consumido por esta etapa.
 
 **QUANDO O USUÁRIO VOLTAR AO COMPUTADOR: retomar a FASE 0.1 e 0.2 imediatamente**, confirmar revogação da chave `service_role` de homologação exposta e concluir backup/ensaio de restauração da produção. Sem isso, nenhuma migração, beta público, assinatura ou lançamento comercial pode ser considerado aprovado. A implementação atual da busca na homologação foi atualizada para usar preferencialmente `sb_secret_` (Edge Function v31), mas isso **não revoga a chave antiga**.
 
