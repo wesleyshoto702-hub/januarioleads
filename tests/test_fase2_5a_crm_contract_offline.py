@@ -71,7 +71,8 @@ class CrmJourneyContract(unittest.TestCase):
         self.assertIn("if(result.ok && currentGeneration===generation)",self.gate)
         self.assertIn("forgetSaved(leadId:string)",self.gate)
         self.assertIn("const address=normalizeLocationText(business.address)",self.gate)
-        self.assertNotIn("business.phone",self.gate)
+        self.assertIn("name&&address&&city&&state&&category&&phone",self.gate)
+        self.assertIn("A shared phone alone is NEVER identity",self.gate)
 
     def test_account_isolation_and_pending_mutations_not_lost(self):
         self.assertIn("sameOwner: async () =>",self.pending)
