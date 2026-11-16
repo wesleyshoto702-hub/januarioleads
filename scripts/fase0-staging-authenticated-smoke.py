@@ -63,11 +63,14 @@ def http_json(base: str, key: str, path: str, method: str, payload: dict, token:
         return status, None
 
 def run(env: dict[str, str]) -> None:
-    url = env.get("JANUARIO_STAGING_SUPABASE_URL", "").strip().rstrip("/")
+    configured_url = env.get("JANUARIO_STAGING_SUPABASE_URL", "").strip().rstrip("/")
+    # Never accept another project; a missing optional URL cannot redirect us.
+    require(not configured_url or configured_url == STAGING_URL,
+            "Refusing to test: configured staging URL points to another project")
+    url = STAGING_URL
     key = env.get("JANUARIO_STAGING_SUPABASE_KEY", "").strip()
     email = env.get("JANUARIO_STAGING_A_EMAIL", "").strip()
     password = env.get("JANUARIO_STAGING_A_PASSWORD", "")
-    require(url == STAGING_URL, "Refusing to test: staging project URL mismatch")
     require(public_key_only(key), "Staging publishable/anon key not configured or unexpectedly privileged")
     require(email and password, "Staging test account email/password missing from protected secrets")
     require(urlsplit(url).hostname == "prlrxjothrslhswpkoza.supabase.co", "Non-staging target denied")
