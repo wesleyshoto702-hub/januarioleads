@@ -1,0 +1,32 @@
+name: Fase 0.1 — smoke autenticado staging sem provedores pagos
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/fase0-staging-authenticated-smoke.yml"
+      - "scripts/fase0-staging-authenticated-smoke.py"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: fase0-staging-auth-smoke
+  cancel-in-progress: false
+jobs:
+  authenticated-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: staging
+    env:
+      JANUARIO_STAGING_SUPABASE_URL: ${{ secrets.JANUARIO_STAGING_SUPABASE_URL }}
+      JANUARIO_STAGING_SUPABASE_KEY: ${{ secrets.JANUARIO_STAGING_SUPABASE_KEY }}
+      JANUARIO_STAGING_A_EMAIL: ${{ secrets.JANUARIO_STAGING_A_EMAIL }}
+      JANUARIO_STAGING_A_PASSWORD: ${{ secrets.JANUARIO_STAGING_A_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verificar bloqueios: somente homologação e chave pública
+        run: |
+          python3 -m py_compile scripts/fase0-staging-authenticated-smoke.py
+      - name: Testar autorização, busca Overture-only e preview não mutável
+        run: python3 scripts/fase0-staging-authenticated-smoke.py
