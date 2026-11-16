@@ -49,7 +49,7 @@ export async function searchBusinesses(
       endpoint:config.functionUrl,
       publishableKey:config.publishableKey,
       accessToken,
-      onObservation,
+      ...(onObservation ? {onObservation} : {}),
     });
   }catch{
     return {
