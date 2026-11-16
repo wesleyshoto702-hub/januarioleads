@@ -182,6 +182,9 @@
 - [ ] Reintrodução de Mapas/Buscar via Maps (fora do escopo por decisão anterior).
 - [ ] Integração automática de pagamentos antes do beta estabilizado.
 
+## Colab preparada em paralelo (não altera fase ativa)
+- [x] **Próxima Colab V1 de triagem Geoapify — SEM rede e SEM escrita:** notebook em [notebooks/Januario_Leads_Proxima_Colab_V1_Preparacao_Geoapify_Offline.ipynb](../notebooks/Januario_Leads_Proxima_Colab_V1_Preparacao_Geoapify_Offline.ipynb), com demonstração offline e modo CSV somente após Fase 0. Em 16/11/2026, a tabela de sugestões Geoapify de homologação tinha **38 tentativas anteriores, todas `no_match`**; o notebook exclui IDs já tentados e prepara no máximo 25 candidatos, sem transferir dados entre ambientes. [Detalhes](COLAB-PROXIMO-LOTE-GEOAPIFY-2026-11-16.md). Esta preparação **não libera API paga, Colab de execução real, importação, backup nem publicação**; o próximo marco de desenvolvimento segue **Fase 3.1a**.
+
 ## 6. Próxima ação única e retomada
 **AGORA: FASE 3.1a — revisar OFFLINE atribuições, condições de licença e proveniência Overture/Geoapify/Google, NOTICE da interface e armazenamento/eliminação de dados externos, sem consultar provedores pagos ou modificar o banco.** A 2.6a concluiu testes sintéticos de guards com cap financeiro zero no código (inclusive OpenAI Instagram web desativado por padrão), não uma prova de faturamento real. **A Fase 2 continua sem aceite E2E autenticado**: 2.1b/2.2b/2.3b/2.4b/2.5b/2.6b aguardam a conclusão da Fase 0 e a validação de RLS, rollback, custos e integração real. Não publicar, ativar APIs pagas, migrar dados nem lançar beta até esses portões.
 
