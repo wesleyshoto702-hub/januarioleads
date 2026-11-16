@@ -1,0 +1,36 @@
+name: Fase 2.4a — medição sintética de desempenho e volume (offline)
+on:
+  pull_request:
+    paths:
+      - "src/features/search-leads/search-metrics.ts"
+      - "src/features/search-leads/search-businesses-http.ts"
+      - "src/features/search-leads/search-businesses.ts"
+      - "src/features/search-leads/SearchLeadsView.tsx"
+      - "tests/fase2_4a_search_metrics_offline.test.ts"
+      - "tests/test_fase2_4a_search_observability_offline.py"
+      - ".github/workflows/fase2-4a-observabilidade-offline.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  performance-mock:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Medir p50, p95, erros, tentativas HTTP e leituras Overture SIMULADAS
+        run: deno test tests/fase2_4a_search_metrics_offline.test.ts
+      - name: Verificar tipagem das medições testadas
+        run: deno check tests/fase2_4a_search_metrics_offline.test.ts
+      - name: Garantir que a UI usa a instrumentação testada sem PII
+        run: python -m unittest discover -s tests -p test_fase2_4a_search_observability_offline.py -v
+      - name: Regressões Busca 2.1a, 2.2a, 2.3a e dedup 1.5
+        run: deno test tests/fase2_1a_buscar_leads_offline.test.ts tests/fase2_2a_search_resilience_offline.test.ts tests/fase2_3a_filtros_contadores_offline.test.ts tests/fase1_5_conservative_dedup_offline.test.ts
