@@ -36,6 +36,7 @@ import {
   type ExistingLeadIdentity,
 } from "./identity";
 import { searchBusinesses } from "./search-businesses";
+import { createSearchMetricsCollector } from "./search-metrics";
 import { mergeSearchPageResults } from "./search-page-merge";
 import { createSearchRequestGate } from "./search-request-gate";
 import { searchEmptyState } from "./search-empty-state";
@@ -323,6 +324,8 @@ export function SearchLeadsView({
   const hasActiveSearchRef = useRef(Boolean(initialSearchSession));
   // A slower search must never replace results from a newer user request.
   const searchRequestGateRef = useRef(createSearchRequestGate());
+  // Bounded local-only observations; never uploaded, persisted or logged.
+  const searchMetricsRef = useRef(createSearchMetricsCollector());
   useEffect(() => {
     // Do not replace the remote last search with an empty default session.
     if (!selectedSegment && !resultsSegment) return;
@@ -674,7 +677,7 @@ export function SearchLeadsView({
       city: location.city,
       state: location.state,
       ...(pageToken ? { pageToken } : {}),
-    });
+    }, searchMetricsRef.current.observe);
 
     // Out-of-order network responses must not overwrite the latest search.
     if (!searchRequestGateRef.current.isCurrent(requestId)) return;
