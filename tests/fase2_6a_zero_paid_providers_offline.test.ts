@@ -204,7 +204,7 @@ Deno.test("OpenAI Instagram web discovery defaults to DENY; key alone means noth
 Deno.test("malformed paid continuation token never becomes a provider call",async()=>{
   let requests=0;
   for(const token of ["bad-google-token","google:","overture:100",
-    "geoapify:-1","google:\\n","not-a-token"]){
+    "geoapify:-1","google:\n","not-a-token"]){
     const continuation=parseSearchContinuation(token);
     eq(continuation.kind,"invalid","Bad/unknown token must be denied");
     if(continuation.kind==="google"){
