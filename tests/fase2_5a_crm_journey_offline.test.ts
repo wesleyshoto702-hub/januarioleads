@@ -141,6 +141,31 @@ Deno.test("parallel and rapid-repeat saves resolve once, including alias source 
   eq(writes,3,"Fresh writes only after delete/reset");
 });
 
+Deno.test("same-name same-address shops with conflicting phone/category remain separate",async()=>{
+  const gate=createFoundLeadSaveGate();
+  const common={name:"Barbearia Mesmo Endereço",address:"Rua Exemplo 25"};
+  const a=business("shop-a",common);
+  const differentPhone=business("shop-b",{
+    ...common,phone:"(35) 97777-7777",
+  });
+  const differentCategory=business("shop-c",{
+    ...common,primaryCategory:"hair_salon",
+  });
+  let writes=0;
+  const save=(id:string)=>async()=>{
+    writes++;
+    return {ok:true as const,leadId:id};
+  };
+  const results=await Promise.all([
+    gate.run(a,save("crm-a")),
+    gate.run(differentPhone,save("crm-b")),
+    gate.run(differentCategory,save("crm-c")),
+  ]);
+  eq(results.map(x=>x.ok?x.leadId:null),["crm-a","crm-b","crm-c"],
+    "Do not collapse different shops sharing known address");
+  eq(writes,3,"Each distinct conflicting shop must have its own fake save");
+});
+
 Deno.test("reset during an in-flight save cannot leak old account's result",async()=>{
   const gate=createFoundLeadSaveGate();
   const company=business("tenant");
