@@ -141,6 +141,26 @@ Deno.test("parallel and rapid-repeat saves resolve once, including alias source 
   eq(writes,3,"Fresh writes only after delete/reset");
 });
 
+Deno.test("reset during an in-flight save cannot leak old account's result",async()=>{
+  const gate=createFoundLeadSaveGate();
+  const company=business("tenant");
+  let completeOld!:(result:{ok:true;leadId:string})=>void;
+  const old=gate.run(company,()=>new Promise(resolve=>{completeOld=resolve;}));
+  await Promise.resolve();
+  gate.reset(); // Simulated logout/account switch while old request is in flight.
+  const current=await gate.run(company,async()=>({
+    ok:true as const,leadId:"current-account",
+  }));
+  assert(current.ok&&current.leadId==="current-account","New account has its own result");
+  completeOld({ok:true,leadId:"previous-account"});
+  await old;
+  const repeated=await gate.run(company,async()=>({
+    ok:true as const,leadId:"unexpected-third",
+  }));
+  assert(repeated.ok&&repeated.leadId==="current-account",
+    "Old in-flight completion cannot overwrite new account identity");
+});
+
 Deno.test("failed save or remote unavailable does not mark lead as saved; retry possible",async()=>{
   const gate=createFoundLeadSaveGate();
   const company=business("fail");
