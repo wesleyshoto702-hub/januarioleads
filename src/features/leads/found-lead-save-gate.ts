@@ -14,9 +14,13 @@ function keys(business:BusinessSearchResult):string[]{
   const address=normalizeLocationText(business.address);
   const city=normalizeLocationText(business.city);
   const state=normalizeLocationText(business.state);
-  // No phone-only merging: separate branches often share switchboard numbers.
-  if(name&&address&&city&&state)
-    result.push("location:"+[state,city,name,address].join("|"));
+  // Alias collapse requires matching *known* category and phone in addition
+  // to name/address/municipality. A shared phone alone is NEVER identity.
+  // Missing contact/category means no alias merge: preserve ambiguous shops.
+  const category=normalizeLocationText(business.primaryCategory);
+  const phone=(business.phone??business.internationalPhone??"").replace(/\\D/g,"");
+  if(name&&address&&city&&state&&category&&phone)
+    result.push("location:"+[state,city,name,address,category,phone].join("|"));
   return result;
 }
 export function createFoundLeadSaveGate(){
