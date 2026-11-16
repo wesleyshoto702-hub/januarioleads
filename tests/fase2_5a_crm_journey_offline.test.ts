@@ -11,7 +11,7 @@ import {
   getLeadActionSummary,getSavedNextAction,DEFAULT_FOLLOW_UP_DAYS,
 } from "../src/features/next-actions/next-actions.ts";
 import { findBusinessDuplicate } from "../src/features/search-leads/identity.ts";
-import { presenceFromBusiness } from "../src/features/business-presence/storage.ts";
+import { presenceFromBusiness } from "../src/features/business-presence/presence-transform.ts";
 import { drainMutations, type PendingMutation } from "../src/lib/mutation-queue.ts";
 import type { PersistedLead } from "../src/features/leads/remote-leads.ts";
 import type { BusinessSearchResult } from "../src/features/search-leads/types.ts";
