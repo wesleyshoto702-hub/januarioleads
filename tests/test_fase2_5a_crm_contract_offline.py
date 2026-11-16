@@ -68,7 +68,7 @@ class CrmJourneyContract(unittest.TestCase):
         self.assertNotIn('business.source === "geoapify" ? "geoapify" : "google_places"',main)
         self.assertIn(".then(()=>currentGeneration===generation?save()",self.gate)
         self.assertIn("generation++",self.gate)
-        self.assertIn("if(result.ok)",self.gate)
+        self.assertIn("if(result.ok && currentGeneration===generation)",self.gate)
         self.assertIn("forgetSaved(leadId:string)",self.gate)
         self.assertIn("const address=normalizeLocationText(business.address)",self.gate)
         self.assertNotIn("business.phone",self.gate)
