@@ -30,6 +30,8 @@ jobs:
         run: deno test tests/fase2_6a_zero_paid_providers_offline.test.ts
       - name: Verificar TypeScript puro da guarda de provedores
         run: deno check tests/fase2_6a_zero_paid_providers_offline.test.ts
+      - name: Verificar tipos da Edge Function real sem deploy
+        run: deno check supabase/functions/search-places/index.ts supabase/functions/_shared/geoapify-search.ts
       - name: Garantir que os pontos reais de rede usam os módulos testados
         run: python -m unittest discover -s tests -p test_fase2_6a_paid_provider_contract_offline.py -v
       - name: Regressões offline 2.2a, 2.4a e 2.5a
