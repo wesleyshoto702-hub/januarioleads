@@ -263,3 +263,14 @@ Reexecutada a [execução 43864506127, tentativa 2](https://github.com/wesleysho
 **Estado pós-teste:** `search-places` v33 e `staging-plan-preview` v8 ativas em staging, `verify_jwt=true` mantido; `overture_places=338540`, `overture_phase9_v5_attempts=1654`, database bytes `193287859`. Não houve importações, migrações ou alteração da produção.
 
 **Importante:** o botão **Disable JWT-based API keys** não revoga necessariamente o **JWT signing secret legado**: JWTs existentes podem permanecer válidos até que sua chave de assinatura seja efetivamente revogada. A consulta conector não testou o token antigo `service_role`, nem alterou signing keys. Não marcar comprometimento totalmente remediado. Próximo portão: planejar a migração das 9 funções `verify_jwt=true` para autenticação compatível e verificação de JWT no código, antes de rotacionar/revogar o segredo de assinatura legado seguindo [documentação oficial](https://supabase.com/docs/guides/auth/signing-keys). Não pedir nem publicar JWT antigo em arquivos, chat ou logs. Após isso, executar testes de isolamento 0.4 e backup/restauração 0.2; Colab permanece pausada até os portões.
+
+
+## 17/11/2026 — Preparação JWT ES256 verificada em nove funções
+
+- **Novo documento de procedimento:** [Fase 0.1 — runbook de revogação JWT legado](FASE-0-1-REVOGACAO-JWT-LEGADO-2026-11-17.md).
+- `staging-plan-preview` foi corrigida de v8 para **v9 ACTIVE**: antes, `INVALID_PLAN` podia ser devolvido antes de verificar usuário; agora faz Auth e `private_access` antes de analisar o plano. `verify_jwt=true` preservado.
+- [CI estática 44173527586](https://github.com/wesleyshoto702-hub/januarioleads/actions/runs/44173527586): **SUCCESS**. [E2E de homologação 44174568092](https://github.com/wesleyshoto702-hub/januarioleads/actions/runs/44174568092): **SUCCESS** — bloqueia Bearers inválidos/chave publicável indevida, login do usuário autorizado com JWT **ES256**, sete rotas descontinuadas respondendo 410 com token assimétrico, busca Overture 200 sem provedor externo e preview inválido 400 após autorização sem escrita.
+- A documentação oficial atual sobre `verify_jwt` e migração JWT exige cuidado; nossa evidência real mostra que **o gateway atual aceita tokens ES256 com `verify_jwt=true`**. Não desativar globalmente nem rotacionar a chave moderna atual.
+- `anon` JWT-based API key legada ainda `disabled=true`, moderna publishable ativa, dados Overture preservados (338.540 empresas, 1.654 checkpoints, 193.287.859 bytes de banco na última consulta).
+- **PENDENTE**: inspecionar e revogar o **JWT signing key legado**, se ainda ativo em `Previously used`, pelo Dashboard Supabase de homologação. O conector não expõe esse status; ES256 atual **não garante** que a assinatura legada foi revogada. Só após essa etapa e teste negativo com credencial antiga em canal protegido poderá encerrar 0.1. Não tocar na produção.
+
