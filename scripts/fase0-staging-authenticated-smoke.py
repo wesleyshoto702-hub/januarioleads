@@ -121,6 +121,22 @@ def run(env: dict[str, str]) -> None:
     alg = signing_algorithm(token)
     print("JWT_SIGNING_ALGORITHM: " + alg + " (header only; no token printed)")
 
+    # All seven retired diagnostics/Maps functions are inert (HTTP 410)
+    # and their published sources were inspected: no fetch, DB, or paid APIs.
+    for slug in (
+        "geoapify-personal",
+        "geoapify-places",
+        "geoapify-name-inspection",
+        "google-places-staging-smoke",
+        "geoapify-credential-smoke",
+        "geoapify-one-shot-inspection",
+        "verify-lead-company",
+    ):
+        code, _ = http_json(url, key, "/functions/v1/" + slug, "POST",
+                            {"probe":"jwt-signing-readiness"}, token)
+        require(code == 410, f"Retired function {slug} did not respond with HTTP 410")
+    print("PASS: seven retired Edge Functions accept signed user JWT but remain HTTP 410")
+
     # This overture:0 continuation *must* return directly from searchOverture,
     # without executing Geoapify or Google branches (verified in function source).
     status, result = http_json(url, key, "/functions/v1/search-places", "POST", {
