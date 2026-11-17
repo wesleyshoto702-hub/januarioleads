@@ -1,9 +1,19 @@
 name: Fase 0 — validar backup de producao sem credenciais
 on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/fase0-backup-producao.ps1"
+      - "scripts/fase0-backup-storage-producao.py"
+      - "tests/test_fase0_backup_safety.py"
+      - "tests/test_fase0_storage_backup_safety.py"
+      - ".github/workflows/fase0-validar-backup.yml"
   pull_request:
     paths:
       - "scripts/fase0-backup-producao.ps1"
+      - "scripts/fase0-backup-storage-producao.py"
       - "tests/test_fase0_backup_safety.py"
+      - "tests/test_fase0_storage_backup_safety.py"
       - ".github/workflows/fase0-validar-backup.yml"
   workflow_dispatch:
 permissions:
@@ -20,7 +30,10 @@ jobs:
         with:
           python-version: "3.11"
       - name: Validate production-only backup safety offline
-        run: python -m unittest discover -s tests -p test_fase0_backup_safety.py -v
+        run: |
+          python -m unittest discover -s tests -p test_fase0_backup_safety.py -v
+          python -m unittest discover -s tests -p test_fase0_storage_backup_safety.py -v
+          python -m py_compile scripts/fase0-backup-storage-producao.py
       - name: Parse PowerShell without executing or connecting to databases
         shell: pwsh
         run: |
