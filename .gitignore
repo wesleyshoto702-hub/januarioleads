@@ -43,3 +43,11 @@ supabase/functions/.env
 
 # Python test artifacts
 __pycache__/
+
+# Local private backup artifacts — never push customer data
+*.dump
+*.dump.gpg
+januario-prod-*-manifest.json
+januario-prod-storage-*/
+JanuarioLeads-Backups/
+Januario-Leads-Privado-*/
