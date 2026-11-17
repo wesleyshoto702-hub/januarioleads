@@ -99,6 +99,22 @@ Aprovar apenas se:
 
 **Status oficial de Fase 0.2: PENDENTE.** Scripts preparados e testados offline não equivalem a backup real ou restauração bem-sucedida. Não autorizar migração Overture à produção nem publicar beta até cumprir este portão.
 
+## 17/11/2026 — HTTP 400 no backup Storage; diagnóstico seguro incorporado
+
+O proprietário informou que o script Python de Storage retornou `BLOQUEADO: Listagem Storage recusada (HTTP 400)` ao usar uma `sb_secret_` recém-criada no projeto **PRODUÇÃO**. **O erro não demonstra, por si, que a chave esteja incorreta.** Orientação: não criar mais chaves, não redefinir credenciais e não enviar segredos.
+
+O script foi atualizado para apresentar apenas **classificações fixas e seguras** do erro (não imprime corpo da resposta, nome de objeto, token ou cabeçalhos); ganhou a opção `--diagnose`, que faz **somente a listagem**, sem baixar arquivos. A autenticação usa unicamente `apikey: sb_secret_...`, nunca Bearer com chave opaca, em conformidade com a documentação do Supabase. O diagnóstico foi testado offline no CI com respostas simuladas contendo segredos fictícios, para verificar não exposição.
+
+Comandos locais, no PowerShell, após `git pull`:
+
+```powershell
+python .\scripts\fase0-backup-storage-producao.py --diagnose --directory "$HOME\JanuarioLeads-Backups" --confirm-encrypted-volume
+```
+
+O modo diagnóstico solicita a chave oculta e classifica o motivo quando a API responder com um erro conhecido. Se a chave for aceita, imprime **somente a contagem**; se HTTP 400 persistir com motivo não classificado, interromper tentativas e optar pelo download manual dos 9 arquivos pelo Dashboard do Storage. Não usar chave JWT legada, não mudar a `sb_secret_` principal e não inserir chaves em tickets.
+
+Consulta PostgreSQL somente de leitura após o erro confirma que a produção segue com **9 objetos, total metadata 760.690 bytes**, no bucket privado. **Fase 0.2C e 0.2D continuam pendentes; backup cifrado do banco feito pelo proprietário está preservado.**
+
 ## Referências
 - [Backups no plano Free](https://supabase.com/docs/guides/platform/backups)
 - [Supabase CLI db dump](https://supabase.com/docs/reference/cli/supabase-db-dump)
