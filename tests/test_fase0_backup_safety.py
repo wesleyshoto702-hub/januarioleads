@@ -30,6 +30,14 @@ class PhaseZeroBackupSafety(unittest.TestCase):
                           "curl ", "DROP TABLE", "ALTER TABLE", "DELETE FROM"):
             self.assertNotIn(forbidden, self.script)
 
+    def test_temporary_plaintext_remains_on_encrypted_volume_and_not_in_git(self):
+        self.assertIn("[switch]$ConfirmoVolumeCriptografado", self.script)
+        self.assertIn("if (-not $ConfirmoVolumeCriptografado)", self.script)
+        self.assertIn("o backup nao pode ficar dentro do repositorio Git", self.script)
+        self.assertIn("$tempDump = Join-Path $output", self.script)
+        self.assertIn("$tempVerify = Join-Path $output", self.script)
+        self.assertNotIn("$env:TEMP", self.script)
+
     def test_dump_is_readonly_encrypted_and_verified(self):
         for marker in ("--schema', 'public'", "--schema', 'auth'", "--schema', 'storage'",
                        "--format', 'custom'", "pg_restore --list",
