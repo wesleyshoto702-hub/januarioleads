@@ -20,6 +20,27 @@ function getAdminKey(): { key: string; bearer: boolean } | null {
   return null;
 }
 
+/** Stage functions must not depend on the legacy anon JWT after key deactivation. */
+function getPublishableKey(): string | null {
+  const raw = Deno.env.get("SUPABASE_PUBLISHABLE_KEYS");
+  if (raw) {
+    try {
+      const parsed: unknown = JSON.parse(raw);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        const keys = parsed as Record<string, unknown>;
+        const candidates = [keys.default, ...Object.values(keys)];
+        for (const value of candidates) {
+          if (typeof value === "string" && value.trim().startsWith("sb_publishable_")) {
+            return value.trim();
+          }
+        }
+      }
+    } catch { /* Invalid modern config: deny, do not use legacy anon. */ }
+  }
+  const single = Deno.env.get("SUPABASE_PUBLISHABLE_KEY")?.trim();
+  return single?.startsWith("sb_publishable_") ? single : null;
+}
+
 function allowedOrigin(value: string): boolean {
   if (!value) return true;
   try {
@@ -52,8 +73,7 @@ Deno.serve(async (request) => {
   if (request.method !== "POST") return reply(request, { ok: false, code: "INVALID_METHOD" }, 405);
 
   const auth = request.headers.get("authorization") ?? "";
-  const publishable = Deno.env.get("SUPABASE_ANON_KEY")?.trim() ||
-    Deno.env.get("SUPABASE_PUBLISHABLE_KEY")?.trim();
+  const publishable = getPublishableKey();
   const admin = getAdminKey();
   if (!/^Bearer\s+\S+$/i.test(auth) || !publishable || !admin) {
     return reply(request, { ok: false, code: "AUTH_REQUIRED" }, 401);
