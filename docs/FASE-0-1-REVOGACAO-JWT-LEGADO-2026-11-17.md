@@ -48,3 +48,21 @@ O [guia de JWT Signing Keys](https://supabase.com/docs/guides/auth/signing-keys)
 - [Workflow de smoke](../.github/workflows/fase0-staging-authenticated-smoke.yml)
 - [Script de smoke](../scripts/fase0-staging-authenticated-smoke.py)
 - [Testes offline das funções](../tests/staging-modern-secret-key.test.ts)
+
+
+## 17/11/2026 — revogação HS256 informada pelo proprietário e teste pós-operação
+
+**Usuário confirmou “pronto” após orientações para revogar EXCLUSIVAMENTE a chave Previous — HS256 (Shared Secret)** no Dashboard de JWT Signing Keys da **HOMOLOGAÇÃO**. O conector disponível não lê o status das chaves de assinatura JWT; registrar a revogação como **informada pelo proprietário**, e não verificada no plano criptográfico.
+
+**Teste real de homologação posterior:** GitHub Actions [44174568092 — tentativa 2](https://github.com/wesleyshoto702-hub/januarioleads/actions/runs/44174568092), concluído em **SUCCESS** (~21:07 UTC / 18:07 BRT), com segredos da conta de teste mantidos no ambiente protegido GitHub. Logs comprovam:
+- 401 nas duas funções ativas para chamadas sem sessão, Bearer malformado e chave pública indevidamente usada como Bearer.
+- Login real de staging aprovado, JWT Auth com algoritmo **assimétrico ES256** (header inspecionado sem exposição de token).
+- Sete endpoints descontinuados respondem **410** com JWT de usuário válido.
+- Busca pela função `search-places` com `pageToken=overture:0` retorna HTTP 200 e `provider=overture`, sem chamar Geoapify/Google.
+- Simulador de planos verifica autenticação e `private_access` e recusa plano inválido HTTP 400 sem escrita.
+- Chaves publicáveis listadas: `anon` legada `disabled=true`; `sb_publishable_` moderna ativa. Funções implantadas na consulta: `search-places` v34 e `staging-plan-preview` v10, ambas ACTIVE com `verify_jwt=true`.
+- Dados persistidos: **338.540 empresas Overture**, **1.654 checkpoints**, **193.287.859 bytes** de PostgreSQL. Produção: **212 leads** e aproximadamente **22,85 MB**, sem alteração planejada.
+
+**Limite da prova:** o teste **não** enviou a JWT `service_role` comprometida para confirmar 401, nem pôde consultar diretamente se HS256 aparece como `Revoked` no Dashboard. Assim, o funcionamento com a assinatura nova foi validado, mas falta confirmação independente da revogação da assinatura antiga. Se necessário, confirmar visualmente a linha HS256 em **Revoked**, sem compartilhar segredo; nunca reutilizar a credencial antiga. Não rodar novamente `Rotate`.
+
+**Próximo trabalho — Fase 0.2:** backup cifrado da produção, dos objetos Storage e **teste de restauração real em ambiente isolado**, antes de importar mais empresas ou mover dados de homologação para produção.
