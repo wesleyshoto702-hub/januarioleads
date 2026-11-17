@@ -93,6 +93,49 @@ class StorageSafetyTests(unittest.TestCase):
             self.assertEqual(before, len(list(Path(d).iterdir())),
                              "Partial backup directory must be removed on failed size check")
 
+    def test_http400_diagnostics_never_show_credentials_or_raw_api_payload(self):
+        import io
+        from urllib.error import HTTPError
+        token = "sb_secret_SUPER_PRIVATE_NEVER_ECHO"
+        cases = [
+            ({"code": "InvalidRequest", "message": f"bad request {token}"}, "estrutura"),
+            ({"error": "Bad Request", "message": f"Missing Authorization header. {token}"}, "Authorization"),
+            ({"code": "InvalidJWT", "message": f"Invalid JWT {token}"}, "JWT"),
+            ({"message": f"Some unknown error {token} object/secret.png"}, "nao classificado"),
+            ({"code": "InvalidKey", "message": f"Invalid Key {token}"}, "API key"),
+        ]
+        for body, expected in cases:
+            with self.subTest(expected=expected):
+                err = HTTPError("https://test.invalid", 400, "bad", None,
+                                io.BytesIO(json.dumps(body).encode("utf-8")))
+                text = str(storage.safe_http_error(err, action="Listagem Storage recusada"))
+                self.assertIn("HTTP 400", text)
+                self.assertIn(expected, text)
+                self.assertNotIn(token, text)
+                self.assertNotIn("secret.png", text)
+
+    def test_diagnosis_mode_does_not_download_or_log_private_object_names(self):
+        import io
+        import contextlib
+        import sys
+        key = "sb_secret_THIS_IS_A_SYNTHETIC_KEY_DO_NOT_USE"
+        with tempfile.TemporaryDirectory() as d, \\
+             mock.patch.object(storage.getpass, "getpass", return_value=key), \\
+             mock.patch.object(storage, "list_all_objects",
+                               return_value=[("private/path/client.jpg", 500)]), \\
+             mock.patch.object(storage, "backup_storage",
+                               side_effect=AssertionError("diagnose should not download")), \\
+             mock.patch.object(sys, "argv",
+                               ["test-script", "--diagnose", "--directory", d,
+                                "--confirm-encrypted-volume"]), \\
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            result = storage.main()
+        self.assertEqual(result, 0)
+        log = output.getvalue()
+        self.assertIn("objetos encontrados: 1", log)
+        self.assertNotIn("client.jpg", log)
+        self.assertNotIn(key, log)
+
     def test_network_request_uses_apikey_not_bearer(self):
         class DummyResponse:
             def __enter__(self): return self
