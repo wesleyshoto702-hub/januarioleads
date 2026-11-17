@@ -15,7 +15,8 @@
 [CmdletBinding()]
 param(
   [ValidateSet('Check','Backup')][string]$Mode = 'Check',
-  [string]$OutputDirectory = (Join-Path $HOME 'JanuarioLeads-Backups')
+  [string]$OutputDirectory = (Join-Path $HOME 'JanuarioLeads-Backups'),
+  [switch]$ConfirmoVolumeCriptografado
 )
 
 Set-StrictMode -Version Latest
@@ -43,6 +44,9 @@ if ($Mode -eq 'Check') {
   return
 }
 
+if (-not $ConfirmoVolumeCriptografado) {
+  throw 'BLOQUEADO: use -ConfirmoVolumeCriptografado somente se o destino estiver em volume protegido (BitLocker ou equivalente). O pg_dump temporario contem dados pessoais.'
+}
 Write-Host 'PRODUCAO SOMENTE: projeto czkazbianiflhldenhcj.'
 Write-Host 'Copie o HOST e o USER da conexao de Session Pooler (porta 5432) em Supabase > Connect.'
 Write-Host 'Nao forneca URL com senha; digite somente host e usuario separados.'
@@ -65,11 +69,21 @@ if (-not (Test-Path -LiteralPath $OutputDirectory)) {
   New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
 }
 $output = (Resolve-Path -LiteralPath $OutputDirectory).Path
+$repositoryRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
+$comparison = [StringComparison]::OrdinalIgnoreCase
+$separator = [IO.Path]::DirectorySeparatorChar
+$repoNormalized = $repositoryRoot.TrimEnd([char[]]@('/', '\\'))
+$outNormalized = $output.TrimEnd([char[]]@('/', '\\'))
+if ($outNormalized.Equals($repoNormalized, $comparison) -or
+    $outNormalized.StartsWith($repoNormalized + $separator, $comparison)) {
+  throw 'BLOQUEADO: o backup nao pode ficar dentro do repositorio Git.'
+}
 $stamp = (Get-Date).ToUniversalTime().ToString('yyyyMMddTHHmmssZ')
 $archive = Join-Path $output "januario-prod-$stamp.dump.gpg"
 $manifest = Join-Path $output "januario-prod-$stamp-manifest.json"
-$tempDump = Join-Path $env:TEMP ("januario-prod-" + [guid]::NewGuid().ToString('N') + '.dump')
-$tempVerify = Join-Path $env:TEMP ("januario-verify-" + [guid]::NewGuid().ToString('N') + '.dump')
+# Unencrypted intermediate files stay exclusively on the owner-confirmed encrypted volume.
+$tempDump = Join-Path $output (".januario-prod-" + [guid]::NewGuid().ToString('N') + '-temp.dump')
+$tempVerify = Join-Path $output (".januario-verify-" + [guid]::NewGuid().ToString('N') + '-temp.dump')
 $oldPgSslMode = [Environment]::GetEnvironmentVariable('PGSSLMODE','Process')
 $oldPgConnectTimeout = [Environment]::GetEnvironmentVariable('PGCONNECT_TIMEOUT','Process')
 $ok = $false
