@@ -71,3 +71,14 @@ Deno.test("staging search-places rejects legacy anon API key fallback",async()=>
  assert(source.includes("if (!isJanuarioStaging)"),
    "Legacy anon fallback must be excluded from staging");
 });
+
+Deno.test("preview checks real user allowlist before parsing or applying plan",async()=>{
+ const source=await Deno.readTextFile(new URL("../supabase/functions/staging-plan-preview/index.ts",import.meta.url));
+ const allowlist = source.indexOf("const rows: unknown = await access.json()");
+ const plan = source.indexOf("let plan: string;");
+ const mutation = source.indexOf("const adminHeaders: Record<string, string>");
+ assert(allowlist >= 0 && plan > allowlist && mutation > plan,
+   "Preview must authenticate/authorize before validating the plan or writing");
+ assert(source.includes('const u = await fetch(STAGING + "/auth/v1/user"'),
+   "User JWT must be confirmed by Supabase Auth");
+});
