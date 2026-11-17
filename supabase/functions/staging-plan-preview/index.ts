@@ -78,16 +78,6 @@ Deno.serve(async (request) => {
   if (!/^Bearer\s+\S+$/i.test(auth) || !publishable || !admin) {
     return reply(request, { ok: false, code: "AUTH_REQUIRED" }, 401);
   }
-  let plan: string;
-  try {
-    const parsed: unknown = await request.json();
-    if (!parsed || typeof parsed !== "object" ||
-        !("plan" in parsed) || typeof parsed.plan !== "string") throw new Error("Bad plan");
-    plan = parsed.plan;
-  } catch { return reply(request, { ok: false, code: "INVALID_REQUEST" }, 400); }
-  if (!["free", "pro", "advanced"].includes(plan)) {
-    return reply(request, { ok: false, code: "INVALID_PLAN" }, 400);
-  }
 
   try {
     const headers = { apikey: publishable, Authorization: auth };
@@ -109,6 +99,18 @@ Deno.serve(async (request) => {
       r && typeof r === "object" && "user_id" in r && r.user_id === id)) {
       return reply(request, { ok: false, code: "FORBIDDEN" }, 403);
     }
+
+    let plan: string;
+    try {
+      const parsed: unknown = await request.json();
+      if (!parsed || typeof parsed !== "object" ||
+          !("plan" in parsed) || typeof parsed.plan !== "string") throw new Error("Bad plan");
+      plan = parsed.plan;
+    } catch { return reply(request, { ok: false, code: "INVALID_REQUEST" }, 400); }
+    if (!["free", "pro", "advanced"].includes(plan)) {
+      return reply(request, { ok: false, code: "INVALID_PLAN" }, 400);
+    }
+
 
     const adminHeaders: Record<string, string> = {
       apikey: admin.key,
