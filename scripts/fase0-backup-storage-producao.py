@@ -53,7 +53,7 @@ def valid_segment(segment: str) -> bool:
     return (bool(segment) and segment not in (".", "..") and
             not segment.endswith((" ", ".")) and
             not re.search(r'[<>:"\\|?*\x00-\x1f/]', segment) and
-            not re.match(r"^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\\..*)?$",
+            not re.match(r"^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\..*)?$",
                          segment, flags=re.IGNORECASE))
 
 
