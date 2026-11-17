@@ -246,3 +246,20 @@ Reexecutada a [execução 43864506127, tentativa 2](https://github.com/wesleysho
 
 **O conector Supabase não permite administrar API keys, rotacionar signing keys ou operar a sessão Colab do usuário. Essas ações não foram realizadas.**
 
+
+
+## 17/11/2026 — desativação das JWT-based API keys confirmada e smoke após o corte
+
+**User action confirmed:** o proprietário utilizou no Dashboard da HOMOLOGAÇÃO a opção **Disable JWT-based API keys**, sem compartilhar chaves ou credenciais. Não houve ação na produção.
+
+**Verificação read-only posterior:** ferramenta `get_publishable_keys` do Supabase staging `prlrxjothrslhswpkoza` reportou `anon` legado `disabled=true` e `default` moderno do tipo `publishable` `disabled=false`. A ferramenta **não expõe o status da antiga `service_role` secreta**, portanto não é correto afirmar que testamos sua recusa por HTTP. A desativação foi feita pelo controle de JWT-based API keys, que visa o par legado.
+
+**Teste real APÓS a desativação:** [GitHub Actions run 43864506127, tentativa 5](https://github.com/wesleyshoto702-hub/januarioleads/actions/runs/43864506127) = **SUCCESS** (2026-11-17 ~20:44 UTC); logs:
+- `PASS: unauthorized requests rejected by both functions` (as duas rotas rejeitam sem sessão, HTTP 401);
+- `PASS: staging user authenticated (no token printed)`;
+- `PASS: Overture-only authenticated search; provider=overture; no paid-provider path` (HTTP 200, resposta do Overture, nenhum caminho Geoapify/Google);
+- `PASS: plan-preview authorized entry path, invalid plan rejected without mutation` (HTTP 400, plano intencionalmente inválido, sem escrita).
+
+**Estado pós-teste:** `search-places` v33 e `staging-plan-preview` v8 ativas em staging, `verify_jwt=true` mantido; `overture_places=338540`, `overture_phase9_v5_attempts=1654`, database bytes `193287859`. Não houve importações, migrações ou alteração da produção.
+
+**Importante:** o botão **Disable JWT-based API keys** não revoga necessariamente o **JWT signing secret legado**: JWTs existentes podem permanecer válidos até que sua chave de assinatura seja efetivamente revogada. A consulta conector não testou o token antigo `service_role`, nem alterou signing keys. Não marcar comprometimento totalmente remediado. Próximo portão: planejar a migração das 9 funções `verify_jwt=true` para autenticação compatível e verificação de JWT no código, antes de rotacionar/revogar o segredo de assinatura legado seguindo [documentação oficial](https://supabase.com/docs/guides/auth/signing-keys). Não pedir nem publicar JWT antigo em arquivos, chat ou logs. Após isso, executar testes de isolamento 0.4 e backup/restauração 0.2; Colab permanece pausada até os portões.
