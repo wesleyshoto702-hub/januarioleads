@@ -57,6 +57,45 @@ def valid_segment(segment: str) -> bool:
                          segment, flags=re.IGNORECASE))
 
 
+
+
+def safe_http_error(err: HTTPError, *, action: str) -> BackupBlocked:
+    """Return a fixed, secret-safe diagnostic; never echo raw API error bodies.
+
+    The upstream error body or headers could include user details, object names,
+    tokens or request echoes. Only fixed categories are displayed.
+    """
+    try:
+        raw = err.read(4096)
+        decoded = json.loads(raw)
+    except (ValueError, UnicodeDecodeError, OSError):
+        decoded = {}
+    if not isinstance(decoded, dict):
+        decoded = {}
+    code = str(decoded.get("code") or decoded.get("errorCode") or decoded.get("error") or "")
+    message = str(decoded.get("message") or decoded.get("msg") or "").lower()
+    normalized = code.lower().replace("_", "").replace("-", "").replace(" ", "")
+    if "authorization" in message and (
+        "missing" in message or "required" in message or "no " in message
+    ):
+        cause = "Storage informou ausencia do cabecalho Authorization"
+    elif normalized in ("invalidjwt", "badjwt") or ("invalid" in message and "jwt" in message):
+        cause = "JWT rejeitado pelo Storage (apikey moderno NAO e um JWT)"
+    elif normalized in ("invalidapikey", "invalidkey", "apikeyinvalid") or (
+        "api key" in message and "invalid" in message
+    ):
+        cause = "API key rejeitada pela camada de autenticacao"
+    elif normalized in ("invalidrequest", "badrequest", "missingparameter"):
+        cause = "Storage rejeitou a estrutura da solicitacao"
+    elif normalized in ("accessdenied", "unauthorized", "insufficientpermissions"):
+        cause = "Storage rejeitou as permissoes de acesso"
+    elif "bucket" in message and ("not found" in message or "does not exist" in message):
+        cause = "Bucket nao localizado ou sem permissao de leitura"
+    else:
+        cause = "motivo nao classificado; nenhuma credencial foi mostrada"
+    return BackupBlocked(f"{action} (HTTP {err.code}): {cause}. Nao troque a chave novamente.")
+
+
 def remote_json(secret: str, path: str, body: dict) -> list:
     request = Request(
         BASE + path,
@@ -73,7 +112,7 @@ def remote_json(secret: str, path: str, body: dict) -> list:
         with urlopen(request, timeout=30) as response:
             raw = response.read(1_000_001)
     except HTTPError as err:
-        raise BackupBlocked(f"Listagem Storage recusada (HTTP {err.code})") from None
+        raise safe_http_error(err, action="Listagem Storage recusada") from None
     except (URLError, TimeoutError, OSError):
         raise BackupBlocked("Nao foi possivel listar o Storage") from None
     if len(raw) > 1_000_000:
@@ -143,7 +182,7 @@ def download_object(secret: str, path: str) -> bytes:
         with urlopen(req, timeout=45) as response:
             value = response.read(MAX_ONE_OBJECT_BYTES + 1)
     except HTTPError as err:
-        raise BackupBlocked(f"Arquivo privado inacessivel (HTTP {err.code})") from None
+        raise safe_http_error(err, action="Download Storage recusado") from None
     except (URLError, TimeoutError, OSError):
         raise BackupBlocked("Falha no download de arquivo privado") from None
     if len(value) > MAX_ONE_OBJECT_BYTES:
@@ -215,12 +254,21 @@ def main() -> int:
     parser.add_argument("--confirm-encrypted-volume", action="store_true")
     parser.add_argument("--expected-count", type=int, default=DEFAULT_EXPECTED_OBJECTS)
     parser.add_argument("--expected-bytes", type=int, default=DEFAULT_EXPECTED_BYTES)
+    parser.add_argument("--diagnose", action="store_true", help="Apenas testar listagem, sem baixar arquivos")
     args = parser.parse_args()
     try:
         root = checked_output_directory(args.directory,
                                         confirmed_encrypted=args.confirm_encrypted_volume)
         if not 0 <= args.expected_count <= MAX_OBJECTS or not 0 <= args.expected_bytes <= MAX_TOTAL_BYTES:
             raise BackupBlocked("Limites invalidos")
+        if args.diagnose:
+            secret = getpass.getpass("sb_secret_ da PRODUCAO (nao sera exibida): ")
+            if not secret.startswith("sb_secret_") or len(secret) < 25:
+                raise BackupBlocked("Nao use JWT legado nem uma chave publicavel")
+            objects = list_all_objects(secret)
+            print(f"DIAGNOSTICO: listagem privada de producao autorizada; objetos encontrados: {len(objects)}")
+            print("Nenhum arquivo foi baixado ou alterado; nenhum nome de objeto foi exibido.")
+            return 0
         if input(f"Confirmar backup do Storage de PRODUCAO {PROD_REF}? Digite BACKUP_STORAGE: ").strip() != "BACKUP_STORAGE":
             raise BackupBlocked("Confirmacao de destino nao recebida")
         secret = getpass.getpass("sb_secret_ da PRODUCAO (nao sera exibida): ")
