@@ -28,12 +28,14 @@ concurrency:
 
 jobs:
   importar-piloto:
+    # Locked while Fase 0.1 revocation and Fase 0.2 backup/restore are unfinished.
+    if: false
     runs-on: ubuntu-latest
     environment: homologacao
     timeout-minutes: 40
     env:
       SUPABASE_URL: ${{ secrets.OVERTURE_SUPABASE_URL }}
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.OVERTURE_SUPABASE_SERVICE_ROLE_KEY }}
+      SUPABASE_SECRET_KEY: ${{ secrets.OVERTURE_STAGING_SECRET_KEY }}
       UF: ${{ inputs.uf }}
       MUNICIPIO: ${{ inputs.municipio }}
       LIMITE: ${{ inputs.limite_por_municipio }}
@@ -52,8 +54,8 @@ jobs:
             echo "BLOQUEADO: ambiente diferente de Supabase STAGING." >&2
             exit 1
           fi
-          if [[ -z "$SUPABASE_SERVICE_ROLE_KEY" ]]; then
-            echo "BLOQUEADO: configure o segredo OVERTURE_SUPABASE_SERVICE_ROLE_KEY em homologacao." >&2
+          if [[ "$SUPABASE_SECRET_KEY" != sb_secret_* ]]; then
+            echo "BLOQUEADO: configure OVERTURE_STAGING_SECRET_KEY moderna em homologacao." >&2
             exit 1
           fi
           if [[ ! "$UF" =~ ^(AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO)$ ]]; then
