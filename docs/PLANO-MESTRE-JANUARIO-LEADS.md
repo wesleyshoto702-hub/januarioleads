@@ -68,6 +68,15 @@ A preparação e execução das importações devem ficar **suspensas** até a m
 - [ ] **Fase 0.2 pendente:** executar backup cifrado da produção e restauração isolada, incluindo Storage. Imports e transferências para produção ainda suspensos. [Relatório completo](FASE-0-1-REVOGACAO-JWT-LEGADO-2026-11-17.md).
 
 
+### 17/11/2026 — Fase 0.2 ativa: inventário e testes offline aprovados
+
+- [x] Supabase de **PRODUÇÃO** consultado somente leitura: **22.850.707 bytes PostgreSQL**, **212 leads**, **259 atividades**, **2 contas Auth**, **3 identidades**, **20 tabelas públicas**, **1 bucket privado** `prompt-visual-references` contendo **9 objetos / 760.690 bytes (metadados)**.
+- [x] Reforçado `scripts/fase0-backup-producao.ps1`: só exporta após `-ConfirmoVolumeCriptografado`, restringe host e usuário de PROD, recusa destino dentro do Git, mantém dumps temporários no volume confirmado criptografado, utiliza GPG AES256 e índice `pg_restore`; não grava na produção.
+- [x] Novo script `scripts/fase0-backup-storage-producao.py`: cópia read-only dos bytes de objetos privados, por `sb_secret_` de **PROD** somente no computador e campo oculto, com limites, hashes SHA256 e conferência de 9 arquivos / 760.690 bytes. **Ainda não executado no ambiente real**, apenas testes sintéticos.
+- [x] [CI 44180260451](https://github.com/wesleyshoto702-hub/januarioleads/actions/runs/44180260451) **SUCCESS**: 10 testes offline e análise sintática PowerShell, sem segredos, dados ou conexões à produção.
+- [ ] **Fase 0.2 NÃO CONCLUÍDA**: falta **backup real local**, cópia de bytes Storage e **restauração efetiva em banco/stack Supabase isolada**, inclusive RLS/Auth/arquivos. O Supabase CLI `db dump` padrão exclui schemas gerenciados `auth/storage`; `pg_restore --list` **não comprova** restauração. Referência oficial em [runbook Fase 0.2](FASE-0-2-BACKUP-RESTAURACAO-PRODUCAO-2026-11-17.md).
+- **Próxima ação operacional no Windows do proprietário:** `powershell -NoProfile -File scripts/fase0-backup-producao.ps1 -Mode Check` na raiz do repositório; depois usar `-Mode Backup -OutputDirectory <volume-cifrado> -ConfirmoVolumeCriptografado` com prompts ocultos e sem enviar senhas. Importações seguem pausadas.
+
 ## 0. Diagnóstico confirmado em 15/11/2026
 
 ### Dados e ambientes
