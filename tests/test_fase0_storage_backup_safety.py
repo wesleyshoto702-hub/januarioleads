@@ -100,8 +100,8 @@ class StorageSafetyTests(unittest.TestCase):
             def read(self, length): return b"private-file-bytes"
         def mock_http(request, timeout):
             self.assertTrue(request.full_url.startswith(storage.BASE))
-            self.assertIn("apikey", request.headers or {})
-            self.assertNotIn("Authorization", request.headers or {})
+            self.assertIn("apikey", {name.lower() for name in (request.headers or {})})
+            self.assertNotIn("authorization", {name.lower() for name in (request.headers or {})})
             self.assertEqual(request.get_method(), "GET")
             return DummyResponse()
         with mock.patch.object(storage, "urlopen", side_effect=mock_http):
