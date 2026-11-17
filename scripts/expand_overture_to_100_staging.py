@@ -3,8 +3,8 @@
 
 Pre-req:
     pip install overturemaps geopandas shapely pyogrio
-    export SUPABASE_URL='https://<project>.supabase.co'
-    export SUPABASE_SERVICE_ROLE_KEY='<service role secret>'
+    export SUPABASE_URL='https://prlrxjothrslhswpkoza.supabase.co'
+    export SUPABASE_SECRET_KEY='<sb_secret_... de STAGING>'
     python scripts/expand_overture_to_100_staging.py --states MG --cities Lavras --database-max-mb 340
 
 Phase 9 top-up (staging only): accepts one state and 1-3 NEARBY cities per download.
@@ -146,17 +146,15 @@ def select_diverse_pool(records, maximum):
 
 def api(base, key, path, method="GET", payload=None, prefer=None):
     data = json.dumps(payload, ensure_ascii=False).encode() if payload is not None else None
-    # Legacy service_role JWTs use Authorization; the newer sb_secret_ keys
-    # are opaque and must be sent only as apikey, never as Bearer JWT.
-    if not (key.startswith("eyJ") or key.startswith("sb_secret_")):
-        raise RuntimeError("Use somente a chave secreta de STAGING (sb_secret_ ou service_role legada).")
+    # Fail closed: only modern sb_secret_ credentials are valid in staging.
+    # Never send opaque sb_secret_ credentials as a Bearer JWT.
+    if not key.startswith("sb_secret_"):
+        raise RuntimeError("Somente sb_secret_ moderna da HOMOLOGAÇÃO é aceita.")
     headers = {
         "apikey": key,
         "Content-Type": "application/json",
         "Prefer": prefer or "resolution=merge-duplicates,return=minimal",
     }
-    if key.startswith("eyJ"):
-        headers["Authorization"] = f"Bearer {key}"
     for attempt in range(5):
         try:
             req = request.Request(base + path, method=method, headers=headers, data=data)
@@ -400,9 +398,9 @@ def main():
         parser.error("Provide 1-3 distinct nearby municipalities")
     state = states[0]
     base = os.getenv("SUPABASE_URL", "").rstrip("/")
-    secret = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    secret = os.getenv("SUPABASE_SECRET_KEY") or os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
     if not args.dry_run and (base != STAGING_URL or
-                            not (secret.startswith("eyJ") or secret.startswith("sb_secret_"))):
+                            not secret.startswith("sb_secret_")):
         parser.error("Only the Januário Leads STAGING project with a server-side secret is accepted")
 
     boundaries = ensure_state_boundaries(state, args.boundaries)
