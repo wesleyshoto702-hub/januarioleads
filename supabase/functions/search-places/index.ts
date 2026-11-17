@@ -341,8 +341,15 @@ function getAllowedPublishableKeys() {
     }
   }
 
-  const legacyAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
-  if (legacyAnonKey?.trim()) keys.push(legacyAnonKey.trim());
+  // Staging no longer accepts legacy anon API keys (publishable keys only).
+  // Production compatibility is unchanged until its independent migration.
+  const isJanuarioStaging =
+    Deno.env.get("SUPABASE_URL")?.replace(/\/$/, "") ===
+      "https://prlrxjothrslhswpkoza.supabase.co";
+  if (!isJanuarioStaging) {
+    const legacyAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+    if (legacyAnonKey?.trim()) keys.push(legacyAnonKey.trim());
+  }
 
   return Array.from(new Set(keys));
 }
