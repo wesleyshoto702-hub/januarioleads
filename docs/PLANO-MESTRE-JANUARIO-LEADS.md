@@ -38,6 +38,14 @@ A preparação e execução das importações devem ficar **suspensas** até a m
 - [ ] **A Fase 0.2 continua PENDENTE:** backup real criptografado de produção e restauração em banco isolado.
 - Proibida retomada da Colab/importações até fechamento dos bloqueios. [Relatório detalhado](FASE-0-SEGURANCA-BACKUP-2026-11-15.md#teste-autenticado-aprovado--16112026-github-actions-execução-43864506127).
 
+### 17/11/2026 — Fase 0.1: consumidores saneados, revogação ainda pendente
+- [x] Revisados **9 Edge Functions, 39 workflows, 20 notebooks** e os scripts de importação relevantes; staging sem `pg_cron`, `pg_net` e segredos no Vault. Notebooks antigos marcados como descontinuados no README.
+- [x] **3 importadores Overture** agora recusam `service_role` JWT legada e só aceitam `sb_secret_` no projeto staging; workflow de importação antigo está **bloqueado (`if: false`)**, sem executar downloads.
+- [x] PR #173 incorporada à `main`; `search-places` staging v33 e `staging-plan-preview` v8 ativas, sem fallback legado para keys de staging, `verify_jwt=true` preservado. Rotas de produção não foram publicadas.
+- [x] CI de scripts [44111888868](https://github.com/wesleyshoto702-hub/januarioleads/actions/runs/44111888868) e CI de chaves modernas [44113375516](https://github.com/wesleyshoto702-hub/januarioleads/actions/runs/44113375516) = SUCCESS; HTTP autenticado [43864506127 tentativa 4](https://github.com/wesleyshoto702-hub/januarioleads/actions/runs/43864506127) = SUCCESS (ambas 401 sem login, busca Overture autenticada HTTP 200, preview rejeita plano inválido sem mutação). Não acionou provedores pagos.
+- [ ] **Fase 0.1 NÃO CONCLUÍDA**: no Dashboard Supabase de HOMOLOGAÇÃO, desativar `anon/service_role` legadas, executar smoke após mudança e validar efetiva inutilização. `anon` ainda aparece ativa; o conector não oferece gestão de chaves secretas. Migração/revogação do JWT signing secret deve ser coordenada separadamente; **todas as 9 funções possuem `verify_jwt=true`** e podem quebrar com rotação prematura.
+- [ ] **Fase 0.2**: backup e restauração isolada de produção ainda pendentes. Importações Colab/Overture seguem suspensas. [Evidências e checklist](FASE-0-SEGURANCA-BACKUP-2026-11-15.md#fase-01--auditoria-final-de-consumidores-e-rollout-em-17112026).
+
 ## 0. Diagnóstico confirmado em 15/11/2026
 
 ### Dados e ambientes
