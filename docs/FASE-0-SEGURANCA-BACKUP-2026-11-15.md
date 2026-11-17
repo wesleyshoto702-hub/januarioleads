@@ -281,3 +281,14 @@ Reexecutada a [execução 43864506127, tentativa 2](https://github.com/wesleysho
 Proprietário informou ter confirmado o procedimento da chave `Previous — HS256` no Dashboard de homologação. [Teste HTTP de homologação 44174568092, tentativa 2](https://github.com/wesleyshoto702-hub/januarioleads/actions/runs/44174568092): **SUCCESS** depois da ação; 401 para chamadas sem login e tokens malformados; login ES256; 7 rotas descontinuadas retornaram HTTP 410; busca somente Overture 200; simulador não alterou planos. Consulta Supabase confirmou `anon.disabled=true`, publishable moderna ativa, 338.540 empresas e 1.654 checkpoints. **Ainda não foi feita checagem criptográfica com a JWT antiga comprometida** e o conector não consulta a seção de signing keys; a revogação foi informada pelo usuário, não independentemente verificada. Ver [roteiro e resultados](FASE-0-1-REVOGACAO-JWT-LEGADO-2026-11-17.md#17112026--revogação-hs256-informada-pelo-proprietário-e-teste-pós-operação).
 
 Próxima fase operacional: **0.2 backup cifrado/restauração real da produção** em ambiente seguro; NÃO confundir testes de autenticação bem-sucedidos com backup pronto. Manter imports do Colab suspensos até aprovação dos portões.
+
+
+## 17/11/2026 — Fase 0.2 iniciada: preparação sem backup real
+
+Plano atualizado: [Fase 0.2 — backup/restauração de PRODUÇÃO](FASE-0-2-BACKUP-RESTAURACAO-PRODUCAO-2026-11-17.md).
+- Linha de base read-only de produção: 212 leads, 259 atividades, 2 contas Auth/3 identidades, 20 tabelas públicas, 22.850.707 bytes em PostgreSQL, 1 bucket privado e 9 objetos (760.690 bytes de metadados). Dados não exportados pelo conector.
+- Script `fase0-backup-producao.ps1` atualizado para recusar output Git, exigir confirmação de volume criptografado e colocar temporários nesse mesmo volume.
+- Script `fase0-backup-storage-producao.py` preparado para cópia local read-only de arquivos e hashes; autenticará com `sb_secret_` de produção inserida localmente. **Não foi testado contra a API real**.
+- [Github Actions 44180260451](https://github.com/wesleyshoto702-hub/januarioleads/actions/runs/44180260451) passou: 10 testes offline sintéticos e parser do PowerShell. Nenhuma linha de clientes, senha, ou objeto privado foi compartilhado no GitHub.
+- `supabase db dump` usa filtros de schemas internos gerenciados; exportação alternativa de `roles/schema/data` e o dump bruto são complementares, não substituem teste de recuperação. Storage bytes também são separados do SQL.
+- **Status 0.2: PENDENTE de execução local do `-Mode Check`, dump cifrado real, export privado dos objetos Storage e restauração em ambiente isolado**. Não afirmar `backup concluído` ou `restauração validada` nesta data.
