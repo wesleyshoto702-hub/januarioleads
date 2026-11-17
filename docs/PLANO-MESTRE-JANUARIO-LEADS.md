@@ -59,6 +59,15 @@ A preparação e execução das importações devem ficar **suspensas** até a m
 - [ ] **Único próximo portão manual:** inspecionar estado das chaves em [JWT Signing Keys — HOMOLOGAÇÃO](https://supabase.com/dashboard/project/prlrxjothrslhswpkoza/settings/jwt) e, **se** a chave legada estiver em `Previously used`, planejar revogação da **legada** (não `Current`). O conector não consegue consultar esse estado nem revogar signing keys. A emissão ES256 **não comprova** que o segredo legado esteja revogado.
 - [ ] Após revogação segura, repetir smoke e verificar rejeição do JWT comprometido por canal protegido. Fase 0.1 permanece **ABERTA** até confirmação; Fase 0.2 backup/restauração de produção ainda pendente; importações paradas. [Roteiro técnico](FASE-0-1-REVOGACAO-JWT-LEGADO-2026-11-17.md).
 
+### 17/11/2026 — pós-revogação HS256: smoke aprovado; iniciar Fase 0.2
+
+- [x] Proprietário confirmou operação da chave `Previous — HS256` na homologação. **Não temos confirmação independente** da marcação `Revoked` porque o conector não lê signing keys nem acessa a JWT antiga.
+- [x] [GitHub Actions 44174568092, tentativa 2](https://github.com/wesleyshoto702-hub/januarioleads/actions/runs/44174568092) **SUCCESS após a operação**: login ES256, rejeição de Bearer inválido (401), 7 funções descontinuadas com 410, busca Overture 200 sem provedores pagos, preview inválido rejeitado sem escrita. `anon` JWT legada segue desativada; chave `sb_publishable_` ativa.
+- [x] Dados de staging preservados: **338.540** empresas, **1.654** checkpoints, **193.287.859 bytes**.
+- [ ] Para evidência completa da revogação, observar no painel (sem copiar segredos) a HS256 em `Revoked`; por canal protegido, comprovar que a credencial antiga não é mais aceita se isso for viável, sem expor seu valor.
+- [ ] **Fase 0.2 pendente:** executar backup cifrado da produção e restauração isolada, incluindo Storage. Imports e transferências para produção ainda suspensos. [Relatório completo](FASE-0-1-REVOGACAO-JWT-LEGADO-2026-11-17.md).
+
+
 ## 0. Diagnóstico confirmado em 15/11/2026
 
 ### Dados e ambientes
