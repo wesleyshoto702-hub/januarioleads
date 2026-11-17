@@ -119,7 +119,9 @@ def run(env: dict[str, str]) -> None:
     require(isinstance(token, str) and len(token) > 40, "Staging token absent")
     print("PASS: staging user authenticated (no token printed)")
     alg = signing_algorithm(token)
-    print("JWT_SIGNING_ALGORITHM: " + alg + " (header only; no token printed)")
+    require(alg in ("ES256", "RS256", "EdDSA"),
+            "Staging has unexpectedly fallen back to a symmetric JWT signing algorithm")
+    print("JWT_SIGNING_ALGORITHM: asymmetric " + alg + " (header only; no token printed)")
 
     # All seven retired diagnostics/Maps functions are inert (HTTP 410)
     # and their published sources were inspected: no fetch, DB, or paid APIs.
