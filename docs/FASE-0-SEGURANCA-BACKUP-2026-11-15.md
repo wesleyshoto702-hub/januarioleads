@@ -274,3 +274,10 @@ Reexecutada a [execução 43864506127, tentativa 2](https://github.com/wesleysho
 - `anon` JWT-based API key legada ainda `disabled=true`, moderna publishable ativa, dados Overture preservados (338.540 empresas, 1.654 checkpoints, 193.287.859 bytes de banco na última consulta).
 - **PENDENTE**: inspecionar e revogar o **JWT signing key legado**, se ainda ativo em `Previously used`, pelo Dashboard Supabase de homologação. O conector não expõe esse status; ES256 atual **não garante** que a assinatura legada foi revogada. Só após essa etapa e teste negativo com credencial antiga em canal protegido poderá encerrar 0.1. Não tocar na produção.
 
+
+
+## 17/11/2026 — smoke após revogação HS256 informada
+
+Proprietário informou ter confirmado o procedimento da chave `Previous — HS256` no Dashboard de homologação. [Teste HTTP de homologação 44174568092, tentativa 2](https://github.com/wesleyshoto702-hub/januarioleads/actions/runs/44174568092): **SUCCESS** depois da ação; 401 para chamadas sem login e tokens malformados; login ES256; 7 rotas descontinuadas retornaram HTTP 410; busca somente Overture 200; simulador não alterou planos. Consulta Supabase confirmou `anon.disabled=true`, publishable moderna ativa, 338.540 empresas e 1.654 checkpoints. **Ainda não foi feita checagem criptográfica com a JWT antiga comprometida** e o conector não consulta a seção de signing keys; a revogação foi informada pelo usuário, não independentemente verificada. Ver [roteiro e resultados](FASE-0-1-REVOGACAO-JWT-LEGADO-2026-11-17.md#17112026--revogação-hs256-informada-pelo-proprietário-e-teste-pós-operação).
+
+Próxima fase operacional: **0.2 backup cifrado/restauração real da produção** em ambiente seguro; NÃO confundir testes de autenticação bem-sucedidos com backup pronto. Manter imports do Colab suspensos até aprovação dos portões.
