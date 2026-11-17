@@ -1,0 +1,37 @@
+name: Fase 0.1 - rejeitar JWT legado nos importadores de staging
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/import_overture_br.py"
+      - "scripts/expand_overture_to_100_staging.py"
+      - "scripts/expand_overture_600k_staging.py"
+      - ".github/workflows/import-overture-piloto-staging.yml"
+      - "notebooks/Januario_Leads_Fase_9_V6_3_Sessao_Estendida.ipynb"
+      - "tests/test_fase0_staging_import_secrets_offline.py"
+      - ".github/workflows/fase0-staging-import-legacy-denial-offline.yml"
+  pull_request:
+    paths:
+      - "scripts/import_overture_br.py"
+      - "scripts/expand_overture_to_100_staging.py"
+      - "scripts/expand_overture_600k_staging.py"
+      - ".github/workflows/import-overture-piloto-staging.yml"
+      - "notebooks/Januario_Leads_Fase_9_V6_3_Sessao_Estendida.ipynb"
+      - "tests/test_fase0_staging_import_secrets_offline.py"
+      - ".github/workflows/fase0-staging-import-legacy-denial-offline.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  legacy-denial-offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Verificar scripts, Colab, destino e bloqueio de workflow sem rede
+        run: python -m unittest discover -s tests -p test_fase0_staging_import_secrets_offline.py -v
