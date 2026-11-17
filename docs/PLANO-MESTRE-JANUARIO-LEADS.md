@@ -52,6 +52,13 @@ A preparação e execução das importações devem ficar **suspensas** até a m
 - [ ] Ainda **não demonstrado** que a `service_role` antiga foi rejeitada por teste direto (o conector só expõe status da chave `anon` pública). A revogação do `JWT signing secret` legado é separada e **não foi efetuada**; rotacionar sem preparar as nove funções `verify_jwt=true` pode quebrar login/busca. Preparar verificação moderna de usuário no código, migração/rotação controlada e teste negativo apropriado em canal secreto.
 - [ ] Fase 0.2: backup/restauração isolada de produção ainda pendentes. Importações continuam pausadas. [Evidências](FASE-0-SEGURANCA-BACKUP-2026-11-15.md#17112026--desativação-das-jwt-based-api-keys-confirmada-e-smoke-após-o-corte).
 
+### 17/11/2026 — JWT ES256 validado em 9 funções; revisão de chave legada no Dashboard
+- [x] `staging-plan-preview` v9 corrige ordem de validação: sessão Auth e `private_access` antes do parsing do plano; `search-places` v33 intacta. Nenhuma mudança em produção.
+- [x] [CI estático de segurança 44173527586](https://github.com/wesleyshoto702-hub/januarioleads/actions/runs/44173527586) e [HTTP real pós-deploy 44174568092](https://github.com/wesleyshoto702-hub/januarioleads/actions/runs/44174568092): SUCCESS. Fake Bearer/chave publicável como Bearer rejeitados (401) pelas 2 funções; login real com JWT **ES256**; 7 endpoints descontinuados devolvem 410 com JWT válido; busca Overture 200 sem provedores pagos; preview de plano inválido 400 sem mutação.
+- [x] Nova suíte de CI exige algoritmo JWT assimétrico em homologação, para detectar regressão a HS256.
+- [ ] **Único próximo portão manual:** inspecionar estado das chaves em [JWT Signing Keys — HOMOLOGAÇÃO](https://supabase.com/dashboard/project/prlrxjothrslhswpkoza/settings/jwt) e, **se** a chave legada estiver em `Previously used`, planejar revogação da **legada** (não `Current`). O conector não consegue consultar esse estado nem revogar signing keys. A emissão ES256 **não comprova** que o segredo legado esteja revogado.
+- [ ] Após revogação segura, repetir smoke e verificar rejeição do JWT comprometido por canal protegido. Fase 0.1 permanece **ABERTA** até confirmação; Fase 0.2 backup/restauração de produção ainda pendente; importações paradas. [Roteiro técnico](FASE-0-1-REVOGACAO-JWT-LEGADO-2026-11-17.md).
+
 ## 0. Diagnóstico confirmado em 15/11/2026
 
 ### Dados e ambientes
