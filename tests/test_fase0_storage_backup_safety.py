@@ -119,15 +119,15 @@ class StorageSafetyTests(unittest.TestCase):
         import contextlib
         import sys
         key = "sb_secret_THIS_IS_A_SYNTHETIC_KEY_DO_NOT_USE"
-        with tempfile.TemporaryDirectory() as d, \\
-             mock.patch.object(storage.getpass, "getpass", return_value=key), \\
+        with tempfile.TemporaryDirectory() as d, \
+             mock.patch.object(storage.getpass, "getpass", return_value=key), \
              mock.patch.object(storage, "list_all_objects",
-                               return_value=[("private/path/client.jpg", 500)]), \\
+                               return_value=[("private/path/client.jpg", 500)]), \
              mock.patch.object(storage, "backup_storage",
-                               side_effect=AssertionError("diagnose should not download")), \\
+                               side_effect=AssertionError("diagnose should not download")), \
              mock.patch.object(sys, "argv",
                                ["test-script", "--diagnose", "--directory", d,
-                                "--confirm-encrypted-volume"]), \\
+                                "--confirm-encrypted-volume"]), \
              contextlib.redirect_stdout(io.StringIO()) as output:
             result = storage.main()
         self.assertEqual(result, 0)
