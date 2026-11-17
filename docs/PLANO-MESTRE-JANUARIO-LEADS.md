@@ -77,6 +77,13 @@ A preparação e execução das importações devem ficar **suspensas** até a m
 - [ ] **Fase 0.2 NÃO CONCLUÍDA**: falta **backup real local**, cópia de bytes Storage e **restauração efetiva em banco/stack Supabase isolada**, inclusive RLS/Auth/arquivos. O Supabase CLI `db dump` padrão exclui schemas gerenciados `auth/storage`; `pg_restore --list` **não comprova** restauração. Referência oficial em [runbook Fase 0.2](FASE-0-2-BACKUP-RESTAURACAO-PRODUCAO-2026-11-17.md).
 - **Próxima ação operacional no Windows do proprietário:** `powershell -NoProfile -File scripts/fase0-backup-producao.ps1 -Mode Check` na raiz do repositório; depois usar `-Mode Backup -OutputDirectory <volume-cifrado> -ConfirmoVolumeCriptografado` com prompts ocultos e sem enviar senhas. Importações seguem pausadas.
 
+### 17/11/2026 — PostgreSQL de PRODUÇÃO: backup local criptografado executado
+
+- [x] Proprietário forneceu log do comando local `fase0-backup-producao.ps1 -Mode Backup -ConfirmoVolumeCriptografado`, com `pg_dump` de `public/auth/storage`, criptografia simétrica AES256 com GnuPG e conferência `pg_restore --list` concluídas sem erro.
+- [x] Nome do arquivo local gerado: `januario-prod-20261117T225954Z.dump.gpg` e manifesto `januario-prod-20261117T225954Z-manifest.json` na pasta privada `$HOME\JanuarioLeads-Backups`. **Os arquivos não foram transferidos ao repositório.**
+- [ ] **Ainda NÃO foi feita restauração real** (nem validação independente dos bytes na ferramenta); `pg_restore --list` sozinho não comprova recuperabilidade.
+- [ ] **Ainda faltam os 9 arquivos de Storage privado** (`prompt-visual-references`) e o ensaio de restauração isolada. **0.2 segue EM EXECUÇÃO**, importações continuam pausadas. Detalhes: [runbook 0.2](FASE-0-2-BACKUP-RESTAURACAO-PRODUCAO-2026-11-17.md).
+
 ## 0. Diagnóstico confirmado em 15/11/2026
 
 ### Dados e ambientes
