@@ -3,8 +3,8 @@
 
 Pre-req:
     pip install overturemaps geopandas shapely pyogrio
-    export SUPABASE_URL='https://<project>.supabase.co'
-    export SUPABASE_SERVICE_ROLE_KEY='<service role secret>'
+    export SUPABASE_URL='https://prlrxjothrslhswpkoza.supabase.co'
+    export SUPABASE_SECRET_KEY='<sb_secret_... de STAGING>'
     python scripts/import_overture_br.py --states MG,SP --database-max-mb 400
 
 The runner covers all 27 federal units by default. Each state is streamed
@@ -129,17 +129,15 @@ def select_diverse_pool(records, maximum):
 
 def api(base, key, path, method="GET", payload=None):
     data = json.dumps(payload, ensure_ascii=False).encode() if payload is not None else None
-    # Legacy service_role JWTs use Authorization; the newer sb_secret_ keys
-    # are opaque and must be sent only as apikey, never as Bearer JWT.
-    if not (key.startswith("eyJ") or key.startswith("sb_secret_")):
-        raise RuntimeError("Use somente a chave secreta de STAGING (sb_secret_ ou service_role legada).")
+    # Fail closed: only modern sb_secret_ credentials are valid in staging.
+    # Never send opaque sb_secret_ credentials as a Bearer JWT.
+    if not key.startswith("sb_secret_"):
+        raise RuntimeError("Somente sb_secret_ moderna da HOMOLOGAÇÃO é aceita.")
     headers = {
         "apikey": key,
         "Content-Type": "application/json",
         "Prefer": "resolution=merge-duplicates,return=minimal",
     }
-    if key.startswith("eyJ"):
-        headers["Authorization"] = f"Bearer {key}"
     for attempt in range(5):
         try:
             req = request.Request(base + path, method=method, headers=headers, data=data)
@@ -284,9 +282,9 @@ def main():
         parser.error("--cities requires exactly one UF in --states")
 
     base = os.getenv("SUPABASE_URL", "").rstrip("/")
-    key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
-    if not args.dry_run and (not base.startswith("https://") or not key):
-        parser.error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required")
+    key = os.getenv("SUPABASE_SECRET_KEY") or os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    if not args.dry_run and (base != "https://prlrxjothrslhswpkoza.supabase.co" or not key.startswith("sb_secret_")):
+        parser.error("Somente o projeto STAGING e uma credencial moderna sb_secret_ são aceitos")
 
     limit_bytes = args.database_max_mb * 1024 * 1024
     for state in states:
