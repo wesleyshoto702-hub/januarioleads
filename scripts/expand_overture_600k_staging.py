@@ -254,10 +254,10 @@ def main(argv=None):
         return 0
 
     base_url=os.getenv("SUPABASE_URL","").rstrip("/")
-    secret=os.getenv("SUPABASE_SERVICE_ROLE_KEY","")
+    secret=os.getenv("SUPABASE_SECRET_KEY") or os.getenv("SUPABASE_SERVICE_ROLE_KEY","")
     if (base_url!=STAGING_URL or
-        not (secret.startswith("eyJ") or secret.startswith("sb_secret_"))):
-        parser.error("Only STAGING SUPABASE_URL and private STAGING service-role key are accepted")
+        not secret.startswith("sb_secret_")):
+        parser.error("Only STAGING SUPABASE_URL and modern sb_secret_ credential are accepted")
     import_stage("storage_guard")
     status=current_stats(base_url,secret)
     if safe_capacity(status,1)==0:
