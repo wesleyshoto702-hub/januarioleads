@@ -46,6 +46,12 @@ A preparação e execução das importações devem ficar **suspensas** até a m
 - [ ] **Fase 0.1 NÃO CONCLUÍDA**: no Dashboard Supabase de HOMOLOGAÇÃO, desativar `anon/service_role` legadas, executar smoke após mudança e validar efetiva inutilização. `anon` ainda aparece ativa; o conector não oferece gestão de chaves secretas. Migração/revogação do JWT signing secret deve ser coordenada separadamente; **todas as 9 funções possuem `verify_jwt=true`** e podem quebrar com rotação prematura.
 - [ ] **Fase 0.2**: backup e restauração isolada de produção ainda pendentes. Importações Colab/Overture seguem suspensas. [Evidências e checklist](FASE-0-SEGURANCA-BACKUP-2026-11-15.md#fase-01--auditoria-final-de-consumidores-e-rollout-em-17112026).
 
+### 17/11/2026 — JWT-based API keys desativadas; smoke pós-corte aprovado
+- [x] No projeto **HOMOLOGAÇÃO**, usuário executou `Disable JWT-based API keys`. Consulta Supabase confirmou `anon` legada com `disabled=true` e `sb_publishable_` moderna ativa.
+- [x] [GitHub Actions 43864506127, tentativa 5](https://github.com/wesleyshoto702-hub/januarioleads/actions/runs/43864506127) **SUCCESS após o desligamento**: chamadas sem login rejeitadas por duas funções; login autorizado; busca Overture-only HTTP 200; preview rejeitou plano inválido sem mutação. Nenhum provedor pago acionado.
+- [ ] Ainda **não demonstrado** que a `service_role` antiga foi rejeitada por teste direto (o conector só expõe status da chave `anon` pública). A revogação do `JWT signing secret` legado é separada e **não foi efetuada**; rotacionar sem preparar as nove funções `verify_jwt=true` pode quebrar login/busca. Preparar verificação moderna de usuário no código, migração/rotação controlada e teste negativo apropriado em canal secreto.
+- [ ] Fase 0.2: backup/restauração isolada de produção ainda pendentes. Importações continuam pausadas. [Evidências](FASE-0-SEGURANCA-BACKUP-2026-11-15.md#17112026--desativação-das-jwt-based-api-keys-confirmada-e-smoke-após-o-corte).
+
 ## 0. Diagnóstico confirmado em 15/11/2026
 
 ### Dados e ambientes
