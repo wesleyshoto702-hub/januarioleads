@@ -29,7 +29,7 @@ Esses números compõem a linha de base de conferência, **não** um backup. A c
 - [x] CI automático sem acesso a dados reais: [workflow `fase0-validar-backup.yml`](../.github/workflows/fase0-validar-backup.yml) executa testes sintéticos de import/export e análise sintática do PowerShell; código do Storage **não foi exercitado contra a API real**.
 - [x] `.gitignore` ampliado para reduzir o risco de adicionar dumps de clientes por acidente. Isto **não substitui** a regra de manter backup fora do repositório.
 
-## 0.2B — Backup físico privado: OBRIGATÓRIO E NÃO REALIZADO
+## 0.2B — Backup físico privado: REALIZADO SEGUNDO LOG DO PROPRIETÁRIO (RESTORE PENDENTE)
 
 ### Pré-requisitos no PC Windows confiável
 
@@ -60,6 +60,18 @@ O script exige host e usuário PostgreSQL de **PRODUÇÃO** obtidos em [Supabase
 O `pg_dump` bruto gera um snapshot coerente dos schemas `public/auth/storage`, mas **não cobre roles globais, segredos de funções, configuração Auth, conteúdo de objetos Storage e recursos gerenciados do Supabase**. A restauração direta desse dump em Postgres simples pode falhar por dependências/ownership/extensões/roles especiais, conforme [guia oficial de migração](https://supabase.com/docs/guides/self-hosting/restore-from-platform).
 
 Para restauração completa ou migração, complementar com [`supabase db dump`](https://supabase.com/docs/reference/cli/supabase-db-dump) de **roles/schema/data**, observando que o comando padrão **exclui schemas gerenciados `auth` e `storage`**. O [script alternativo `exportar-backup-privado.ps1`](../scripts/exportar-backup-privado.ps1) já gera roles/schema/data via Supabase CLI em volume protegido, mas **não substitui** a cópia de bytes dos objetos, nem garante por si só uma restauração completa de Auth/Storage. Execute apenas após revisar a versão local da CLI e executar `supabase db dump --help`.
+
+## 17/11/2026 — Evidência de execução real do backup PostgreSQL
+
+O proprietário apresentou log da execução local em Windows, realizada em **17/11/2026 às 22:59:54 UTC**:
+- Script `scripts/fase0-backup-producao.ps1 -Mode Backup -ConfirmoVolumeCriptografado`, apontando exclusivamente ao ref de **PRODUÇÃO** `czkazbianiflhldenhcj`, Session Pooler `:5432`;
+- `pg_dump` concluiu a exportação de dados e estruturas dos schemas `public`, `auth`, `storage`, conforme saída do cliente;
+- `gpg` reportou cifragem simétrica AES256 e decifração; o script concluiu `pg_restore --list` sem erro;
+- Arquivo gerado **localmente**: `$HOME\JanuarioLeads-Backups\januario-prod-20261117T225954Z.dump.gpg`;
+- Manifesto local correspondente: `januario-prod-20261117T225954Z-manifest.json`, com hash SHA256;
+- Nenhum dado de cliente, arquivo de backup ou senha de banco/GPG foi enviado ao repositório ou à ferramenta nesta ação.
+
+**Escopo da verificação:** resultado **reportado pelo usuário com log**; este ambiente não inspecionou o conteúdo local nem recalculou o hash de forma independente. O teste de leitura de índice **não prova restauração**. Portanto 0.2B tem exportação realizada, 0.2C (bytes Storage) e 0.2D (restore isolado) permanecem pendentes.
 
 ## 0.2C — Backup dos bytes de Storage: OBRIGATÓRIO E NÃO REALIZADO
 
