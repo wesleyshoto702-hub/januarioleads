@@ -103,6 +103,9 @@ def remote_json(secret: str, path: str, body: dict) -> list:
         method="POST",
         headers={
             "apikey": secret,
+            # Supabase SDK uses both headers for Storage; only Edge Functions are
+            # special-cased to omit an opaque sb_secret_ as Bearer fallback.
+            "Authorization": f"Bearer {secret}",
             "Content-Type": "application/json",
             "Accept": "application/json",
             "User-Agent": "JanuarioLeadsPrivateBackup/1.0",
@@ -176,7 +179,8 @@ def download_object(secret: str, path: str) -> bytes:
     req = Request(
         BASE + "/storage/v1/object/" + quote(BUCKET, safe="") + "/" + quote(path, safe="/"),
         method="GET",
-        headers={"apikey": secret, "User-Agent": "JanuarioLeadsPrivateBackup/1.0"},
+        headers={"apikey": secret, "Authorization": f"Bearer {secret}",
+                 "User-Agent": "JanuarioLeadsPrivateBackup/1.0"},
     )
     try:
         with urlopen(req, timeout=45) as response:
