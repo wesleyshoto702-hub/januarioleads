@@ -72,8 +72,9 @@ $output = (Resolve-Path -LiteralPath $OutputDirectory).Path
 $repositoryRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $comparison = [StringComparison]::OrdinalIgnoreCase
 $separator = [IO.Path]::DirectorySeparatorChar
-$repoNormalized = $repositoryRoot.TrimEnd([char[]]@('/', '\\'))
-$outNormalized = $output.TrimEnd([char[]]@('/', '\\'))
+$separatorsToTrim = [char[]]@('/', [IO.Path]::DirectorySeparatorChar)
+$repoNormalized = $repositoryRoot.TrimEnd($separatorsToTrim)
+$outNormalized = $output.TrimEnd($separatorsToTrim)
 if ($outNormalized.Equals($repoNormalized, $comparison) -or
     $outNormalized.StartsWith($repoNormalized + $separator, $comparison)) {
   throw 'BLOQUEADO: o backup nao pode ficar dentro do repositorio Git.'
