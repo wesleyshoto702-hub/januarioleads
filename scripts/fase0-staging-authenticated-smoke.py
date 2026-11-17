@@ -43,6 +43,19 @@ def public_key_only(value: str) -> bool:
     except (ValueError, TypeError, UnicodeDecodeError, json.JSONDecodeError):
         return False
 
+def signing_algorithm(token: str) -> str:
+    """Read only the JWT header to classify the signing algorithm; do not log JWT."""
+    try:
+        head = token.split(".", 1)[0]
+        raw = base64.urlsafe_b64decode(head + "=" * (-len(head) % 4))
+        obj = json.loads(raw)
+        alg = obj.get("alg")
+    except (ValueError, UnicodeDecodeError, TypeError, AttributeError):
+        raise SmokeError("Cannot inspect login JWT header") from None
+    require(alg in ("HS256", "RS256", "ES256", "EdDSA"),
+            "Login JWT used unexpected signing algorithm")
+    return str(alg)
+
 def http_json(base: str, key: str, path: str, method: str, payload: dict, token: str | None = None):
     headers = {"apikey": key, "Content-Type": "application/json", "Accept": "application/json"}
     if token:
@@ -85,6 +98,17 @@ def run(env: dict[str, str]) -> None:
         status, _ = http_json(url, key, "/functions/v1/" + name, "POST", payload)
         require(status == 401, f"{name}: unauthenticated request was not rejected with HTTP 401")
     print("PASS: unauthorized requests rejected by both functions")
+
+    # Neither forged bearer text nor a publishable API key is a user session.
+    for bearer in ("invalid-jwt-for-negative-test", key):
+        for name, payload in (
+            ("search-places", {"mode":"segment-search", "segment":"Restaurante",
+                               "city":"Rio de Janeiro", "state":"RJ", "pageToken":"overture:0"}),
+            ("staging-plan-preview", {"plan":"invalid-test-plan"}),
+        ):
+            code, _ = http_json(url, key, "/functions/v1/" + name, "POST", payload, bearer)
+            require(code == 401, f"{name}: untrusted bearer unexpectedly reached application")
+    print("PASS: malformed bearer and publishable-as-bearer denied by both functions")
     require(email and password, "Staging test account email/password missing from protected secrets")
 
     # Password grant with a dedicated, allowlisted staging identity only.
@@ -94,6 +118,8 @@ def run(env: dict[str, str]) -> None:
     token = login.get("access_token")
     require(isinstance(token, str) and len(token) > 40, "Staging token absent")
     print("PASS: staging user authenticated (no token printed)")
+    alg = signing_algorithm(token)
+    print("JWT_SIGNING_ALGORITHM: " + alg + " (header only; no token printed)")
 
     # This overture:0 continuation *must* return directly from searchOverture,
     # without executing Geoapify or Google branches (verified in function source).
