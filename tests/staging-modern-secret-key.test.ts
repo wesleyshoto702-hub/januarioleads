@@ -61,3 +61,13 @@ Deno.test("staging-plan-preview uses modern publishable keys, never legacy anon"
  assert(!source.includes('Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")'),
    "Legacy service_role must not be used by preview");
 });
+
+Deno.test("staging search-places rejects legacy anon API key fallback",async()=>{
+ const source=await Deno.readTextFile(new URL("../supabase/functions/search-places/index.ts",import.meta.url));
+ assert(source.includes('Deno.env.get("SUPABASE_PUBLISHABLE_KEYS")'),
+   "Must accept modern public keys");
+ assert(source.includes("Staging no longer accepts legacy anon API keys"),
+   "Staging legacy-API-key restriction was removed");
+ assert(source.includes("if (!isJanuarioStaging)"),
+   "Legacy anon fallback must be excluded from staging");
+});
