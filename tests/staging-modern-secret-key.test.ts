@@ -47,3 +47,17 @@ Deno.test("staging-plan-preview never uses compromised service_role key",async()
  assert(source.includes("return null;"),
    "Missing modern key must deny preview access");
 });
+
+Deno.test("staging-plan-preview uses modern publishable keys, never legacy anon",async()=>{
+ const source=await Deno.readTextFile(new URL("../supabase/functions/staging-plan-preview/index.ts",import.meta.url));
+ assert(source.includes('Deno.env.get("SUPABASE_PUBLISHABLE_KEYS")'),
+   "Modern named publishable keys are required");
+ assert(source.includes('Deno.env.get("SUPABASE_SECRET_KEYS")'),
+   "Modern admin key still required");
+ assert(source.includes("const publishable = getPublishableKey();"),
+   "Authentication must use modern publishable selection");
+ assert(!source.includes('Deno.env.get("SUPABASE_ANON_KEY")'),
+   "Legacy anon must not be used for auth after deactivation");
+ assert(!source.includes('Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")'),
+   "Legacy service_role must not be used by preview");
+});
