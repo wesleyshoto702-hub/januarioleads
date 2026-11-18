@@ -129,6 +129,18 @@ python .\scripts\fase0-backup-storage-producao.py --diagnose --directory "$HOME\
 
 A chave deve ser digitada inteiramente em prompt oculto da PRODUÇÃO; não inserir em linha de comando, chats, logs ou arquivos. Se a listagem funcionar e apontar 9 objetos, executar então o backup real com `--expected-count 9 --expected-bytes 760690`; se falhar, usar download manual via Dashboard sem gerar novas chaves.
 
+## 17/11/2026 — fallback definitivo: salvar Storage manualmente pelo Dashboard
+
+O proprietário testou a correção de autenticação com os cabeçalhos `apikey` + `Authorization: Bearer` no `--diagnose`, e recebeu **`HTTP 400: Storage rejeitou as permissoes de acesso`**. A raiz exata dessa recusa não foi confirmada; **não insistir em novas chaves, mudanças RLS, JWT, permissões nem na produção**. O CI anterior valida comportamento sintético, mas não prova acesso real.
+
+Decisão: para os 9 objetos privados, utilizar o método oficial **Dashboard > Storage > Files > bucket `prompt-visual-references` > Download**. Referência: https://supabase.com/docs/guides/storage/management/download-objects . O proprietário deve salvar os bytes no volume BitLocker local `$HOME\JanuarioLeads-Backups\Storage` e preservar subpastas/nome original sem expor nomes ou conteúdo no chat/GitHub.
+
+Checagem local após download:
+```powershell
+Get-ChildItem "$HOME\JanuarioLeads-Backups\Storage" -File -Recurse | Measure-Object -Property Length -Sum
+```
+Esperado conforme inventário anterior: **Count 9; Sum 760690**. Se houver divergências, não concluir e conferir a listagem atual de metadados com query read-only. Conferir presença e integridade dos bytes (comparação de contagem/tamanho é necessária, mas não prova equivalência criptográfica dos originais). **0.2C permanece pendente até confirmação do usuário; 0.2D restore isolado permanece pendente.** Backup PostgreSQL cifrado permanece preservado.
+
 ## Referências
 - [Backups no plano Free](https://supabase.com/docs/guides/platform/backups)
 - [Supabase CLI db dump](https://supabase.com/docs/reference/cli/supabase-db-dump)
