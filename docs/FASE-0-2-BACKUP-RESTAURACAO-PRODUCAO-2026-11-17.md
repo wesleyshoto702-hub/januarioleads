@@ -1,6 +1,6 @@
 # Fase 0.2 — Backup privado, Storage e recuperação isolada da PRODUÇÃO
 
-**Data de abertura:** 17/11/2026 • **Estado:** EM EXECUÇÃO — inventário e testes de segurança preparados; **backup real e restauração NÃO executados**.
+**Data de abertura:** 17/11/2026 • **Estado:** EM EXECUÇÃO — backup PostgreSQL cifrado executado conforme log do proprietário; Storage manual com 9 arquivos/760.690 bytes conforme contagem local; **restauração real ainda NÃO executada**.
 
 **Alvo ÚNICO de leitura:** `czkazbianiflhldenhcj` (PRODUÇÃO).  
 **Projeto de homologação:** `prlrxjothrslhswpkoza` (não usar nesta fase).
@@ -73,12 +73,12 @@ O proprietário apresentou log da execução local em Windows, realizada em **17
 
 **Escopo da verificação:** resultado **reportado pelo usuário com log**; este ambiente não inspecionou o conteúdo local nem recalculou o hash de forma independente. O teste de leitura de índice **não prova restauração**. Portanto 0.2B tem exportação realizada, 0.2C (bytes Storage) e 0.2D (restore isolado) permanecem pendentes.
 
-## 0.2C — Backup dos bytes de Storage: OBRIGATÓRIO E NÃO REALIZADO
+## 0.2C — Backup dos bytes de Storage: CÓPIA LOCAL CONFERIDA POR QUANTIDADE/TAMANHO; INTEGRIDADE INDIVIDUAL AINDA PENDENTE
 
 O bucket **privado** `prompt-visual-references` contém **9 objetos** (metadados totalizam **760.690 bytes**). A exportação SQL contém apenas referências/metadados. Duas opções sem acesso público:
 
 - Manualmente baixar os nove objetos em **Storage > Files** no Dashboard de PROD, guardá-los preservando pastas/nomes em volume cifrado e validar contagem/tamanhos; ou
-- Com Python 3 e a **`sb_secret_` de PRODUÇÃO**, executar no PC (o script só solicita chave no prompt oculto e usa o cabeçalho `apikey`, sem Bearer):
+- Com Python 3 e a **`sb_secret_` de PRODUÇÃO**, executar no PC (alternativa automatizada, não funcionou contra a API real: HTTP 400 de autorização; não insistir nem trocar credenciais):
 
 ```powershell
 python scripts/fase0-backup-storage-producao.py --directory "E:\Backups-Criptografados" --confirm-encrypted-volume --expected-count 9 --expected-bytes 760690
@@ -140,6 +140,19 @@ Checagem local após download:
 Get-ChildItem "$HOME\JanuarioLeads-Backups\Storage" -File -Recurse | Measure-Object -Property Length -Sum
 ```
 Esperado conforme inventário anterior: **Count 9; Sum 760690**. Se houver divergências, não concluir e conferir a listagem atual de metadados com query read-only. Conferir presença e integridade dos bytes (comparação de contagem/tamanho é necessária, mas não prova equivalência criptográfica dos originais). **0.2C permanece pendente até confirmação do usuário; 0.2D restore isolado permanece pendente.** Backup PostgreSQL cifrado permanece preservado.
+
+## 18/11/2026 — Arquivos de Storage baixados manualmente pelo proprietário
+
+Após tentativa do script remoto falhar com HTTP 400 de autorização, o proprietário copiou manualmente os arquivos privados do bucket `prompt-visual-references` para uma pasta local específica no disco BitLocker: `$HOME\JanuarioLeads-Backups\Storage-Privado`.
+
+Resultado **informado pelo proprietário a partir de comando PowerShell**:
+
+- `Arquivos: 9 | Tamanho: 760690 bytes`
+- Corresponde exatamente à **contagem (9)** e à **soma de bytes de metadados (760.690)** da consulta read-only em PRODUÇÃO.
+- Inicialmente houve uma pasta `Storage` com 637 arquivos de código-fonte, **não considerada backup do Storage**; o inventário correto foi realizado separadamente em `Storage-Privado`.
+- **Limite de evidência:** não recebi nem abri os arquivos locais, não comparei caminhos por objeto nem hashes individuais com os originais; portanto a cópia está **conferida somente por contagem e soma de tamanhos**, não por integridade criptográfica. Não enviar arquivos, nomes privados nem hashes para Github/chat.
+
+**Próxima etapa 0.2D:** verificar se há infraestrutura local Docker Desktop e Supabase CLI, sem conectar/modificar produção, antes de elaborar ensaio de restauração real em ambiente isolado compatível. Não registrar Fase 0.2 como concluída até o teste.
 
 ## Referências
 - [Backups no plano Free](https://supabase.com/docs/guides/platform/backups)
