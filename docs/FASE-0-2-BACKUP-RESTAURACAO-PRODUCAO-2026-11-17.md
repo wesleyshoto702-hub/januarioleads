@@ -103,7 +103,7 @@ Aprovar apenas se:
 
 O proprietário informou que o script Python de Storage retornou `BLOQUEADO: Listagem Storage recusada (HTTP 400)` ao usar uma `sb_secret_` recém-criada no projeto **PRODUÇÃO**. **O erro não demonstra, por si, que a chave esteja incorreta.** Orientação: não criar mais chaves, não redefinir credenciais e não enviar segredos.
 
-O script foi atualizado para apresentar apenas **classificações fixas e seguras** do erro (não imprime corpo da resposta, nome de objeto, token ou cabeçalhos); ganhou a opção `--diagnose`, que faz **somente a listagem**, sem baixar arquivos. A autenticação usa unicamente `apikey: sb_secret_...`, nunca Bearer com chave opaca, em conformidade com a documentação do Supabase. O diagnóstico foi testado offline no CI com respostas simuladas contendo segredos fictícios, para verificar não exposição.
+O script foi atualizado para apresentar apenas **classificações fixas e seguras** do erro (não imprime corpo da resposta, nome de objeto, token ou cabeçalhos); ganhou a opção `--diagnose`, que faz **somente a listagem**, sem baixar arquivos. A versão inicial enviava somente `apikey: sb_secret_...`. A **API Storage de produção respondeu HTTP 400 exigindo `Authorization`**. Por isso, o script foi corrigido para imitar o comportamento do `fetchWithAuth` do **SDK oficial supabase-js** em chamadas ao Storage: `apikey: sb_secret_...` e `Authorization: Bearer sb_secret_...` na mesma requisição HTTPS fixa de produção. **Não aplicar essa regra às Edge Functions**, que usam política distinta para chaves modernas. O diagnóstico foi testado offline no CI com respostas simuladas contendo segredos fictícios, para verificar não exposição.
 
 Comandos locais, no PowerShell, após `git pull`:
 
@@ -114,6 +114,20 @@ python .\scripts\fase0-backup-storage-producao.py --diagnose --directory "$HOME\
 O modo diagnóstico solicita a chave oculta e classifica o motivo quando a API responder com um erro conhecido. Se a chave for aceita, imprime **somente a contagem**; se HTTP 400 persistir com motivo não classificado, interromper tentativas e optar pelo download manual dos 9 arquivos pelo Dashboard do Storage. Não usar chave JWT legada, não mudar a `sb_secret_` principal e não inserir chaves em tickets.
 
 Consulta PostgreSQL somente de leitura após o erro confirma que a produção segue com **9 objetos, total metadata 760.690 bytes**, no bucket privado. **Fase 0.2C e 0.2D continuam pendentes; backup cifrado do banco feito pelo proprietário está preservado.**
+
+## 17/11/2026 — causa do HTTP 400 confirmada; correção validada offline
+
+O proprietário executou `--diagnose` e obteve: **`HTTP 400: Storage informou ausencia do cabecalho Authorization`**, sem exposição de chave. Inspeção do [SDK oficial fetchWithAuth](https://github.com/supabase/supabase-js/blob/master/packages/core/supabase-js/src/lib/fetch.ts) confirmou que, sem sessão de usuário, o cliente pode replicar a chave de API no header `Authorization: Bearer …` para **Storage** e outros serviços; a exceção moderna é o fetch específico das Edge Functions. Código atualizado **apenas** no script Python de backup de Storage, em `remote_json` (listagem POST) e `download_object` (GET). Nenhuma chave foi modificada e não houve alteração no backend Supabase.
+
+[CI pós-correção — 44204278656](https://github.com/wesleyshoto702-hub/januarioleads/actions/runs/44204278656): **SUCCESS**, com 9 testes sintéticos de Storage, 4 testes do backup PostgreSQL e parser PowerShell. **A autenticação real continua não verificada**, aguardando nova tentativa privada do proprietário via modo `--diagnose` sem download:
+
+```powershell
+cd "$HOME\Downloads\januarioleads-backup"
+git pull
+python .\scripts\fase0-backup-storage-producao.py --diagnose --directory "$HOME\JanuarioLeads-Backups" --confirm-encrypted-volume
+```
+
+A chave deve ser digitada inteiramente em prompt oculto da PRODUÇÃO; não inserir em linha de comando, chats, logs ou arquivos. Se a listagem funcionar e apontar 9 objetos, executar então o backup real com `--expected-count 9 --expected-bytes 760690`; se falhar, usar download manual via Dashboard sem gerar novas chaves.
 
 ## Referências
 - [Backups no plano Free](https://supabase.com/docs/guides/platform/backups)
