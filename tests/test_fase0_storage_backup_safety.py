@@ -25,8 +25,8 @@ class StorageSafetyTests(unittest.TestCase):
         self.assertNotIn("prlrxjothrslhswpkoza", src)
         self.assertNotIn('method="DELETE"', src)
         self.assertNotIn('method="PUT"', src)
-        self.assertNotIn('"Authorization": secret', src)
-        self.assertNotIn('"Authorization": f"Bearer', src)
+        self.assertIn('"Authorization": f"Bearer {secret}"', src)
+        self.assertIn('"apikey": secret', src)
         self.assertIn("getpass.getpass", src)
         self.assertIn("sha256", src)
         self.assertNotIn("subprocess", src)
@@ -115,6 +115,28 @@ class StorageSafetyTests(unittest.TestCase):
                 self.assertNotIn(token, text)
                 self.assertNotIn("secret.png", text)
 
+    def test_list_uses_correct_auth_headers_and_does_not_echo_key(self):
+        from unittest.mock import Mock
+        key = "sb_secret_SYNTHETIC_KEY_NOT_FOR_USE"
+        class DummyResponse:
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def read(self, length): return b"[]"
+        def fake_urlopen(req, timeout):
+            self.assertEqual(req.get_method(), "POST")
+            headers = {name.lower(): value for name, value in req.headers.items()}
+            self.assertEqual(headers["apikey"], key)
+            self.assertEqual(headers["authorization"], "Bearer " + key)
+            self.assertNotIn(key, req.full_url)
+            self.assertTrue(req.full_url.startswith(storage.BASE + "/storage/v1/"))
+            return DummyResponse()
+        with mock.patch.object(storage, "urlopen", side_effect=fake_urlopen):
+            result = storage.remote_json(
+                key, "/storage/v1/object/list/" + storage.BUCKET,
+                {"prefix": "", "limit": 100, "offset": 0}
+            )
+        self.assertEqual(result, [])
+
     def test_diagnosis_mode_does_not_download_or_log_private_object_names(self):
         import io
         import contextlib
@@ -137,7 +159,7 @@ class StorageSafetyTests(unittest.TestCase):
         self.assertNotIn("client.jpg", log)
         self.assertNotIn(key, log)
 
-    def test_network_request_uses_apikey_not_bearer(self):
+    def test_storage_requests_use_apikey_and_bearer_fallback_like_official_sdk(self):
         class DummyResponse:
             def __enter__(self): return self
             def __exit__(self, *args): return False
@@ -145,7 +167,9 @@ class StorageSafetyTests(unittest.TestCase):
         def mock_http(request, timeout):
             self.assertTrue(request.full_url.startswith(storage.BASE))
             self.assertIn("apikey", {name.lower() for name in (request.headers or {})})
-            self.assertNotIn("authorization", {name.lower() for name in (request.headers or {})})
+                        headers = {name.lower(): value for name, value in (request.headers or {}).items()}
+            self.assertEqual(headers["authorization"], "Bearer sb_secret_TEST_NONREAL")
+            self.assertEqual(headers["apikey"], "sb_secret_TEST_NONREAL")
             self.assertEqual(request.get_method(), "GET")
             return DummyResponse()
         with mock.patch.object(storage, "urlopen", side_effect=mock_http):
