@@ -167,7 +167,7 @@ class StorageSafetyTests(unittest.TestCase):
         def mock_http(request, timeout):
             self.assertTrue(request.full_url.startswith(storage.BASE))
             self.assertIn("apikey", {name.lower() for name in (request.headers or {})})
-                        headers = {name.lower(): value for name, value in (request.headers or {}).items()}
+            headers = {name.lower(): value for name, value in (request.headers or {}).items()}
             self.assertEqual(headers["authorization"], "Bearer sb_secret_TEST_NONREAL")
             self.assertEqual(headers["apikey"], "sb_secret_TEST_NONREAL")
             self.assertEqual(request.get_method(), "GET")
