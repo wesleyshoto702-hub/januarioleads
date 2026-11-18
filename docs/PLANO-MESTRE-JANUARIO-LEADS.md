@@ -82,7 +82,8 @@ A preparação e execução das importações devem ficar **suspensas** até a m
 - [x] Proprietário forneceu log do comando local `fase0-backup-producao.ps1 -Mode Backup -ConfirmoVolumeCriptografado`, com `pg_dump` de `public/auth/storage`, criptografia simétrica AES256 com GnuPG e conferência `pg_restore --list` concluídas sem erro.
 - [x] Nome do arquivo local gerado: `januario-prod-20261117T225954Z.dump.gpg` e manifesto `januario-prod-20261117T225954Z-manifest.json` na pasta privada `$HOME\JanuarioLeads-Backups`. **Os arquivos não foram transferidos ao repositório.**
 - [ ] **Ainda NÃO foi feita restauração real** (nem validação independente dos bytes na ferramenta); `pg_restore --list` sozinho não comprova recuperabilidade.
-- [ ] **Ainda faltam os 9 arquivos de Storage privado** (`prompt-visual-references`) e o ensaio de restauração isolada. **0.2 segue EM EXECUÇÃO**, importações continuam pausadas. Detalhes: [runbook 0.2](FASE-0-2-BACKUP-RESTAURACAO-PRODUCAO-2026-11-17.md).
+- [x] **18/11/2026: cópia local manual do Storage** (`prompt-visual-references`) reportada pelo proprietário: **9 arquivos, 760.690 bytes**, em `$HOME\JanuarioLeads-Backups\Storage-Privado`. Correspondência de contagem e soma de metadados, **sem verificação dos hashes individuais ou dos caminhos**, portanto não afirmar equivalência byte a byte.
+- [ ] **Restauração real isolada continua pendente.** Verificar disponibilidade de Docker Desktop/Supabase CLI no computador antes de qualquer restore; manter produção intocada. **0.2 segue EM EXECUÇÃO**, importações pausadas. Detalhes: [runbook 0.2](FASE-0-2-BACKUP-RESTAURACAO-PRODUCAO-2026-11-17.md).
 
 ## 0. Diagnóstico confirmado em 15/11/2026
 
