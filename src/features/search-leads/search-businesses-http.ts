@@ -78,7 +78,9 @@ export async function requestSearchBusinesses(
     if(input.pageToken!==undefined && parseSearchContinuation(input.pageToken).kind==="invalid")
       return {ok:false,code:"INVALID_REQUEST",message:"O token de continuação da busca é inválido."};
 
-    if(!deps.endpoint.startsWith("https://") || !deps.publishableKey.trim())
+    const sameOrigin = deps.endpoint === "/api/search-places" ||
+      deps.endpoint === "/api/supabase/functions/v1/search-places";
+    if((!sameOrigin && !deps.endpoint.startsWith("https://")) || !deps.publishableKey.trim())
       return {
         ok: false, code: "NOT_CONFIGURED",
         message: "A conexão pública com o Supabase ainda não está configurada neste ambiente.",
@@ -88,7 +90,7 @@ export async function requestSearchBusinesses(
     const timeoutMs = typeof deps.requestTimeoutMs === "number" &&
       Number.isFinite(deps.requestTimeoutMs)
       ? Math.max(1, Math.min(30_000, Math.floor(deps.requestTimeoutMs)))
-      : 20_000;
+      : 30_000;
     const controller = new AbortController();
     let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
     const singleAttempt = async (): Promise<BusinessSearchResponse> => {
@@ -102,6 +104,7 @@ export async function requestSearchBusinesses(
             Authorization:`Bearer ${deps.accessToken}`,
           },
           signal:controller.signal,
+          ...(sameOrigin ? {credentials:"same-origin" as const} : {}),
           body:JSON.stringify({
             segment:input.segment,
             city:input.city,

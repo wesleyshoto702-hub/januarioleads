@@ -85,6 +85,10 @@ function isH3SwallowedErrorBody(body: string): boolean {
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
+      if (new URL(request.url).pathname === "/api/search-places") {
+        const { handleSearchProxy } = await import("./lib/search-proxy.server");
+        return withSecurityHeaders(await handleSearchProxy(request), request);
+      }
       if (new URL(request.url).pathname.startsWith("/api/")) {
         const { handleBffRequest } = await import("./lib/bff-server.server");
         const apiResponse = await handleBffRequest(request, env);

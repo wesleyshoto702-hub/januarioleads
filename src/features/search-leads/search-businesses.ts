@@ -22,8 +22,13 @@ function getSupabaseConfig() {
   const publishableKey =
     import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"]?.trim() || PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
+  const onLovable = typeof window !== "undefined" &&
+    /(^|\.)lovable\.(app|dev)$/.test(window.location.hostname);
+  const production = url.replace(/\/$/, "") === "https://czkazbianiflhldenhcj.supabase.co";
   return {
-    functionUrl: `${url.replace(/\/$/, "")}/functions/v1/search-places`,
+    functionUrl: !USE_HTTPONLY_SESSION && onLovable && production
+      ? "/api/search-places"
+      : `${url.replace(/\/$/, "")}/functions/v1/search-places`,
     publishableKey,
   };
 }
