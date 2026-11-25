@@ -20,6 +20,8 @@ export type SearchHttpDependencies = {
   onObservation?: (value:SearchHttpObservation)=>void;
   /** Inject a deterministic clock for offline tests; do not persist timings. */
   clockNowMs?: ()=>number;
+  /** Bound the entire fetch + JSON parse, including transports ignoring AbortSignal. */
+  requestTimeoutMs?: number;
 };
 const failures = {
   missingSession: {
@@ -33,6 +35,10 @@ const failures = {
   unavailable: {
     ok: false as const, code: "REQUEST_FAILED" as const,
     message: "Não foi possível conectar ao serviço de busca. Tente novamente.",
+  },
+  timedOut: {
+    ok: false as const, code: "REQUEST_FAILED" as const,
+    message: "A busca demorou mais do que o esperado. Verifique a conexão e tente novamente.",
   },
 };
 const FAILURE_CODES = new Set([
@@ -77,35 +83,57 @@ export async function requestSearchBusinesses(
         ok: false, code: "NOT_CONFIGURED",
         message: "A conexão pública com o Supabase ainda não está configurada neste ambiente.",
       };
-    try {
-      httpAttempts=1;
-      const response=await deps.fetcher(deps.endpoint,{
-        method:"POST",
-        headers:{
-          "Content-Type":"application/json",
-          apikey:deps.publishableKey,
-          Authorization:`Bearer ${deps.accessToken}`,
-        },
-        body:JSON.stringify({
-          segment:input.segment,
-          city:input.city,
-          state:input.state,
-          ...(input.pageToken?{pageToken:input.pageToken}:{}),
-        }),
-      });
-      observedHttpStatus=response.status;
-      if(response.status===401) return failures.missingSession;
-      let payload:unknown;
-      try{payload=await response.json();}
-      catch{return failures.malformed;}
-      const parsed=parseSearchResponse(payload);
-      if(!response.ok){
-        if(parsed && !parsed.ok)return parsed;
-        return failures.malformed;
+    // A stuck network call or body reader must not leave "Buscando..." forever.
+    // Exactly one request: never automatically retry paid-capable providers.
+    const timeoutMs = typeof deps.requestTimeoutMs === "number" &&
+      Number.isFinite(deps.requestTimeoutMs)
+      ? Math.max(1, Math.min(30_000, Math.floor(deps.requestTimeoutMs)))
+      : 20_000;
+    const controller = new AbortController();
+    let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+    const singleAttempt = async (): Promise<BusinessSearchResponse> => {
+      try {
+        httpAttempts=1;
+        const response=await deps.fetcher(deps.endpoint,{
+          method:"POST",
+          headers:{
+            "Content-Type":"application/json",
+            apikey:deps.publishableKey,
+            Authorization:`Bearer ${deps.accessToken}`,
+          },
+          signal:controller.signal,
+          body:JSON.stringify({
+            segment:input.segment,
+            city:input.city,
+            state:input.state,
+            ...(input.pageToken?{pageToken:input.pageToken}:{}),
+          }),
+        });
+        observedHttpStatus=response.status;
+        if(response.status===401) return failures.missingSession;
+        let payload:unknown;
+        try{payload=await response.json();}
+        catch{return failures.malformed;}
+        const parsed=parseSearchResponse(payload);
+        if(!response.ok){
+          if(parsed && !parsed.ok)return parsed;
+          return failures.malformed;
+        }
+        return parsed??failures.malformed;
+      }catch{
+        return failures.unavailable;
       }
-      return parsed??failures.malformed;
-    }catch{
-      return failures.unavailable;
+    };
+    const timeout = new Promise<BusinessSearchResponse>((resolve) => {
+      timeoutHandle=setTimeout(() => {
+        controller.abort();
+        resolve(failures.timedOut);
+      },timeoutMs);
+    });
+    try {
+      return await Promise.race([singleAttempt(),timeout]);
+    } finally {
+      if(timeoutHandle!==undefined)clearTimeout(timeoutHandle);
     }
   }
   const outcome=await request();
