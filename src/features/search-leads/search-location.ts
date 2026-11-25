@@ -138,11 +138,27 @@ export async function loadBrazilianMunicipalities(
     return cached.values;
   }
 
+  // Without a deadline, an unresponsive IBGE endpoint leaves the city
+  // selector on "Carregando..." and disables Buscar Leads indefinitely.
+  if (signal?.aborted) throw new DOMException("Busca cancelada", "AbortError");
+  const controller = new AbortController();
+  const onAbort = () => controller.abort();
+  signal?.addEventListener("abort", onAbort, { once: true });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      controller.abort();
+      reject(new Error("IBGE_TIMEOUT"));
+    }, 12_000);
+  });
   try {
-    const response = await fetch(
-      `https://servicodados.ibge.gov.br/api/v1/localidades/estados/${state.ibgeCode}/municipios?orderBy=nome`,
-      signal ? { signal } : {},
-    );
+    const response = await Promise.race([
+      fetch(
+        `https://servicodados.ibge.gov.br/api/v1/localidades/estados/${state.ibgeCode}/municipios?orderBy=nome`,
+        { signal: controller.signal },
+      ),
+      deadline,
+    ]);
     if (!response.ok) throw new Error("IBGE_REQUEST_FAILED");
 
     const payload = await response.json() as Array<{ nome?: unknown }>;
@@ -152,9 +168,12 @@ export async function loadBrazilianMunicipalities(
     writeMunicipalityCache(state.code, values);
     return values;
   } catch (error) {
-    if ((error as Error)?.name === "AbortError") throw error;
+    if (signal?.aborted) throw new DOMException("Busca cancelada", "AbortError");
     if (cached?.values.length) return cached.values;
     throw new Error("MUNICIPALITIES_UNAVAILABLE");
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+    signal?.removeEventListener("abort", onAbort);
   }
 }
 
