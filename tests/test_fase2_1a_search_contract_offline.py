@@ -37,6 +37,21 @@ class SearchFlowContract(unittest.TestCase):
         self.assertIn("if (append) setLoadingMore(false)",self.view)
         self.assertIn("item.source===\"overture\" || item.source===\"geoapify\"",self.view)
 
+    def test_municipality_effect_does_not_loop_on_city_change(self):
+        # A formerly unconditional setSearchLocation created an endless
+        # useEffect loop once the IBGE list loaded, hiding the search page.
+        self.assertIn(
+            "[searchLocation.state, selectedState.name]",
+            self.view,
+        )
+        self.assertNotIn(
+            "[searchLocation.state, searchLocation.city, selectedState.name]",
+            self.view,
+        )
+        self.assertIn("canonical !== current.city", self.view)
+        self.assertIn(": current;", self.view)
+        self.assertIn("if (active) setMunicipalitiesLoading(false)", self.view)
+
     def test_client_session_is_checked_before_http(self):
         self.assertIn("const accessToken=await getSearchAccessToken()",self.wrapper)
         self.assertIn("Promise.race([getAccessToken(), deadline])",self.wrapper)
