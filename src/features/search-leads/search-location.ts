@@ -152,20 +152,22 @@ export async function loadBrazilianMunicipalities(
     }, 12_000);
   });
   try {
-    const response = await Promise.race([
-      fetch(
-        `https://servicodados.ibge.gov.br/api/v1/localidades/estados/${state.ibgeCode}/municipios?orderBy=nome`,
-        { signal: controller.signal },
-      ),
+    const values = await Promise.race([
+      (async () => {
+        const response = await fetch(
+          `https://servicodados.ibge.gov.br/api/v1/localidades/estados/${state.ibgeCode}/municipios?orderBy=nome`,
+          { signal: controller.signal },
+        );
+        if (!response.ok) throw new Error("IBGE_REQUEST_FAILED");
+
+        const payload = await response.json() as Array<{ nome?: unknown }>;
+        const result = safeMunicipalities(payload.map((item) => item?.nome));
+        if (!result.length) throw new Error("IBGE_EMPTY_RESPONSE");
+        return result;
+      })(),
       deadline,
     ]);
-    if (!response.ok) throw new Error("IBGE_REQUEST_FAILED");
-
-    const payload = await response.json() as Array<{ nome?: unknown }>;
-    const values = safeMunicipalities(payload.map((item) => item?.nome));
-    if (!values.length) throw new Error("IBGE_EMPTY_RESPONSE");
-
-    writeMunicipalityCache(state.code, values);
+    if (!controller.signal.aborted) writeMunicipalityCache(state.code, values);
     return values;
   } catch (error) {
     if (signal?.aborted) throw new DOMException("Busca cancelada", "AbortError");
