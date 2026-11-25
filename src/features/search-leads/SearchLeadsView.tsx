@@ -251,7 +251,11 @@ function storeRecentSearch(search: RecentSearch) {
     ...getRecentSearches().filter((item) => recentSearchKey(item) !== key),
   ].slice(0, 5);
 
-  accountLocalStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
+  try {
+    accountLocalStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
+  } catch {
+    // Search remains usable if browser storage is full or disabled.
+  }
   return next;
 }
 
@@ -709,7 +713,7 @@ export function SearchLeadsView({
     searchRequestGateRef.current.finish(requestId);
 
     if (!response.ok) {
-      if (!append && response.code === "QUOTA") {
+      if (!append && (response.code === "QUOTA" || response.code === "REQUEST_FAILED")) {
         const cached = await withSearchDeadline(
           fetchCachedPlacesSearchSample(location, segment),
           5_000,
@@ -731,7 +735,9 @@ export function SearchLeadsView({
           setLeadStatusFilter("all");
           setScreen("results");
           setSearchNotice(
-            `A consulta atingiu um limite temporário. Mostrando ${eligible.results.length} resultados salvos da última busca (${checkedAt}).`,
+            response.code === "QUOTA"
+              ? `A consulta atingiu um limite temporário. Mostrando ${eligible.results.length} resultados salvos da última busca (${checkedAt}).`
+              : `A busca ao vivo está indisponível. Exibindo ${eligible.results.length} resultados antigos de fonte aberta, salvos em ${checkedAt}; confirme os dados antes de contatar as empresas.`,
           );
           setRecentSearches(
             storeRecentSearch({
