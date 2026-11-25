@@ -60,13 +60,13 @@ const deps=(fetcher:(url:string,init:RequestInit)=>Promise<Response>)=>({
 
 Deno.test("Buscar Leads returns a bounded error if fetch never resolves, without retries",async()=>{
   let calls=0;
-  let capturedSignal:AbortSignal|null=null;
+  const recorded:{signal?:AbortSignal}={};
   const result=await requestSearchBusinesses(
     {...LOCATION,segment:"Barbearia"},
     {
       ...deps(async(_url,init)=>{
         calls++;
-        capturedSignal=init.signal as AbortSignal;
+        recorded.signal=init.signal as AbortSignal;
         // Simulate a transport which ignores AbortSignal entirely.
         return await new Promise<Response>(()=>{});
       }),
@@ -76,7 +76,7 @@ Deno.test("Buscar Leads returns a bounded error if fetch never resolves, without
   assert(!result.ok && result.code==="REQUEST_FAILED","Timeout must return an explicit error");
   assert(result.message.includes("demorou"),"Show a practical timeout message");
   eq(calls,1,"Timeout never replays a billable search");
-  assert(capturedSignal?.aborted===true,"AbortController must cancel the pending network request");
+  assert(recorded.signal?.aborted===true,"AbortController must cancel the pending network request");
 });
 
 Deno.test("Buscar Leads bounds a response body that never finishes",async()=>{
