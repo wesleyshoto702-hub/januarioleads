@@ -251,7 +251,11 @@ function storeRecentSearch(search: RecentSearch) {
     ...getRecentSearches().filter((item) => recentSearchKey(item) !== key),
   ].slice(0, 5);
 
-  accountLocalStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
+  try {
+    accountLocalStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
+  } catch {
+    // Search remains usable if browser storage is full or disabled.
+  }
   return next;
 }
 
@@ -651,6 +655,21 @@ export function SearchLeadsView({
     setLeadStatusFilter(preset.leadStatusFilter);
   }
 
+  /** The browser must recover even if an external service never settles. */
+  async function withSearchDeadline<T>(pending: Promise<T>, timeoutMs: number): Promise<T> {
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        pending,
+        new Promise<never>((_, reject) => {
+          timeout = setTimeout(() => reject(new Error("SEARCH_TIMEOUT")), timeoutMs);
+        }),
+      ]);
+    } finally {
+      if (timeout !== undefined) clearTimeout(timeout);
+    }
+  }
+
   async function runSearch(
     segment: string,
     location: SearchLocation,
@@ -681,22 +700,23 @@ export function SearchLeadsView({
       setProviderNotice("");
     }
 
-    const response = await searchBusinesses({
+    try {
+    const response = await withSearchDeadline(searchBusinesses({
       segment,
       city: location.city,
       state: location.state,
       ...(pageToken ? { pageToken } : {}),
-    }, searchMetricsRef.current.observe);
+    }, searchMetricsRef.current.observe), 40_000);
 
     // Out-of-order network responses must not overwrite the latest search.
     if (!searchRequestGateRef.current.isCurrent(requestId)) return;
     searchRequestGateRef.current.finish(requestId);
 
     if (!response.ok) {
-      if (!append && response.code === "QUOTA") {
-        const cached = await fetchCachedPlacesSearchSample(
-          location,
-          segment,
+      if (!append && (response.code === "QUOTA" || response.code === "REQUEST_FAILED")) {
+        const cached = await withSearchDeadline(
+          fetchCachedPlacesSearchSample(location, segment),
+          5_000,
         ).catch(() => null);
 
         if (!searchRequestGateRef.current.isCurrent(requestId)) return;
@@ -715,7 +735,9 @@ export function SearchLeadsView({
           setLeadStatusFilter("all");
           setScreen("results");
           setSearchNotice(
-            `A consulta atingiu um limite temporário. Mostrando ${eligible.results.length} resultados salvos da última busca (${checkedAt}).`,
+            response.code === "QUOTA"
+              ? `A consulta atingiu um limite temporário. Mostrando ${eligible.results.length} resultados salvos da última busca (${checkedAt}).`
+              : `A busca ao vivo está indisponível. Exibindo ${eligible.results.length} resultados antigos de fonte aberta, salvos em ${checkedAt}; confirme os dados antes de contatar as empresas.`,
           );
           setRecentSearches(
             storeRecentSearch({
@@ -723,14 +745,11 @@ export function SearchLeadsView({
               segment,
             }),
           );
-          setLoading(false);
           return;
         }
       }
 
       setError({ code: response.code, message: response.message });
-      if (append) setLoadingMore(false);
-      else setLoading(false);
       return;
     }
 
@@ -742,11 +761,15 @@ export function SearchLeadsView({
     setResults(uniqueResults);
     setSearchNotice("");
     setProviderNotice(response.providerNotice ?? "");
-    storeRecentBusinessSearch(segment,response.results.filter(item=>(item.source==="overture" || item.source==="geoapify")),{
-      city: location.city,
-      state: location.state,
-      append,
-    });
+    try {
+      storeRecentBusinessSearch(segment,response.results.filter(item=>(item.source==="overture" || item.source==="geoapify")),{
+        city: location.city,
+        state: location.state,
+        append,
+      });
+    } catch {
+      // Local cache is optional; a full/private browser storage must not block results.
+    }
     void persistPlacesSearchSample({
       location,
       segment,
@@ -756,7 +779,11 @@ export function SearchLeadsView({
     }).catch(() => {
       // Opportunity persistence is auxiliary and must not break lead search.
     });
-    saveSearchLocation(location);
+    try {
+      saveSearchLocation(location);
+    } catch {
+      // Search results remain available even when browser storage is blocked.
+    }
     setSearchLocation(location);
     setCityInput(location.city);
     setResultsLocation(location);
@@ -769,8 +796,24 @@ export function SearchLeadsView({
         segment,
       }),
     );
-    if (append) setLoadingMore(false);
-    else setLoading(false);
+    // Loading is always cleared in finally, including exceptions and timeouts.
+    } catch (failure) {
+      if (!searchRequestGateRef.current.isCurrent(requestId)) return;
+      setError({
+        code: "REQUEST_FAILED",
+        message: failure instanceof Error && failure.message === "SEARCH_TIMEOUT"
+          ? "A busca não respondeu dentro do limite. Tente novamente ou confirme a disponibilidade da base de empresas."
+          : "A consulta não pôde ser concluída agora. Tente novamente.",
+      });
+    } finally {
+      // Never leave the button stuck at “Buscando empresas…” on any code path.
+      // Old requests must not alter the newer search's loading state.
+      if (searchRequestGateRef.current.isCurrent(requestId)) {
+        searchRequestGateRef.current.finish(requestId);
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    }
   }
 
   function startSearch() {

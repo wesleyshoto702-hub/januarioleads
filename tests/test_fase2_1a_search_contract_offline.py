@@ -34,7 +34,9 @@ class SearchFlowContract(unittest.TestCase):
         self.assertIn("searchRequestGateRef.current.next()",self.view)
         self.assertIn("searchRequestGateRef.current.nextPage(pageToken!)",self.view)
         self.assertIn("if (!searchRequestGateRef.current.isCurrent(requestId)) return",self.view)
-        self.assertIn("if (append) setLoadingMore(false)",self.view)
+        self.assertIn("finally {",self.view)
+        self.assertIn("setLoadingMore(false);",self.view)
+        self.assertIn("setLoading(false);",self.view)
         self.assertIn("item.source===\"overture\" || item.source===\"geoapify\"",self.view)
 
     def test_municipality_effect_does_not_loop_on_city_change(self):
