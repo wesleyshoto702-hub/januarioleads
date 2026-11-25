@@ -156,3 +156,31 @@ export async function requestSearchBusinesses(
   }
   return outcome;
 }
+
+/** Read-only local contingency; never contacts an external provider. */
+export async function requestOvertureFallback(
+  input: SearchRequestInput,
+  deps: Pick<SearchHttpDependencies,"fetcher"|"endpoint"|"publishableKey"|"accessToken">,
+): Promise<BusinessSearchResponse | null> {
+  if (input.pageToken || !deps.accessToken?.trim() ||
+      !deps.endpoint.endsWith("/rest/v1/rpc/search_overture_fallback")) return null;
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const request = async () => {
+      try {
+        const response = await deps.fetcher(deps.endpoint, {
+          method:"POST", signal:controller.signal,
+          headers:{"Content-Type":"application/json",apikey:deps.publishableKey,
+            Authorization:"Bearer "+deps.accessToken},
+          body:JSON.stringify({p_segment:input.segment,p_city:input.city,p_state:input.state}),
+        });
+        if (!response.ok) return null;
+        return parseSearchResponse(await response.json());
+      } catch { return null; }
+    };
+    return await Promise.race([request(),new Promise<null>(resolve=>{
+      timer=setTimeout(()=>{controller.abort();resolve(null)},5000);
+    })]);
+  } finally { if(timer!==undefined) clearTimeout(timer); }
+}

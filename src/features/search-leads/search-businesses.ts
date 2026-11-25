@@ -1,7 +1,7 @@
 import type { BusinessSearchResponse } from "./types";
-import { requestSearchBusinesses } from "./search-businesses-http";
+import { requestSearchBusinesses, requestOvertureFallback } from "./search-businesses-http";
 import type { SearchHttpObservation } from "./search-metrics";
-import { getAccessToken } from "../../lib/auth";
+import { getAccessToken, getFreshRequestAccessToken } from "../../lib/auth";
 import type { SearchLocation } from "./search-location";
 
 type SearchBusinessesInput = SearchLocation & {
@@ -30,6 +30,8 @@ function getSupabaseConfig() {
       ? "/api/search-places"
       : `${url.replace(/\/$/, "")}/functions/v1/search-places`,
     publishableKey,
+    fallbackUrl: production && !USE_HTTPONLY_SESSION
+      ? `${url.replace(/\/$/, "")}/rest/v1/rpc/search_overture_fallback` : null,
   };
 }
 
@@ -37,9 +39,11 @@ function getSupabaseConfig() {
  * backend must not leave the Buscar Leads button spinning indefinitely.
  */
 async function getSearchAccessToken(): Promise<string | null> {
+  const fresh = getFreshRequestAccessToken();
+  if (fresh) return fresh;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const deadline = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error("AUTH_TIMEOUT")), 12_000);
+    timer = setTimeout(() => reject(new Error("AUTH_TIMEOUT")), 5_000);
   });
   try {
     return await Promise.race([getAccessToken(), deadline]);
@@ -64,13 +68,29 @@ export async function searchBusinesses(
 
   try {
     const accessToken=await getSearchAccessToken();
-    return requestSearchBusinesses(input,{
+    const fallbackAllowed = Boolean(config.fallbackUrl && accessToken && !input.pageToken);
+    // The alternative is local, read-only, authenticated and has its own
+    // server-side rate-limit check. Never retry an external paid request.
+    const response = await requestSearchBusinesses(input,{
       fetcher:fetch,
       endpoint:config.functionUrl,
       publishableKey:config.publishableKey,
       accessToken,
+      requestTimeoutMs: fallbackAllowed ? 12_000 : 20_000,
       ...(onObservation ? {onObservation} : {}),
     });
+    if (!fallbackAllowed || !config.fallbackUrl || !accessToken ||
+        (response.ok && response.results.length > 0) ||
+        (!response.ok && ["AUTH_REQUIRED","FORBIDDEN","INVALID_REQUEST"].includes(response.code))) {
+      return response;
+    }
+    const fallback = await requestOvertureFallback(input,{
+      fetcher:fetch, endpoint:config.fallbackUrl,
+      publishableKey:config.publishableKey, accessToken,
+    });
+    return fallback?.ok && fallback.results.length > 0
+      ? {...fallback,providerNotice:"Exibindo empresas da base Overture. A consulta complementar não retornou resultados nesta tentativa."}
+      : response;
   }catch{
     return {
       ok:false,code:"REQUEST_FAILED",

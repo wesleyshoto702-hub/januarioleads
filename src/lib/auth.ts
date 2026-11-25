@@ -381,6 +381,16 @@ async function validateSession() {
   return next;
 }
 
+/** A fresh stored JWT may be sent directly to a protected endpoint.
+ * This is not an authorization decision; Supabase verifies the JWT and
+ * the account allowlist on the server. Never use the HttpOnly sentinel. */
+export function getFreshRequestAccessToken(): string | null {
+  if (USE_HTTPONLY_SESSION) return null;
+  const session = readSession();
+  return session && session.expiresAt > Date.now() + 30_000
+    ? session.accessToken : null;
+}
+
 export async function getAccessToken() {
   const session = await getValidSession();
   return session?.accessToken ?? null;

@@ -706,7 +706,7 @@ export function SearchLeadsView({
       city: location.city,
       state: location.state,
       ...(pageToken ? { pageToken } : {}),
-    }, searchMetricsRef.current.observe), 40_000);
+    }, searchMetricsRef.current.observe), 28_000);
 
     // Out-of-order network responses must not overwrite the latest search.
     if (!searchRequestGateRef.current.isCurrent(requestId)) return;
