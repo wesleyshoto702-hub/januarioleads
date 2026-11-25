@@ -28,6 +28,21 @@ function getSupabaseConfig() {
   };
 }
 
+/** Bound session validation as well as the HTTP request. A paused Auth
+ * backend must not leave the Buscar Leads button spinning indefinitely.
+ */
+async function getSearchAccessToken(): Promise<string | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error("AUTH_TIMEOUT")), 12_000);
+  });
+  try {
+    return await Promise.race([getAccessToken(), deadline]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
 export async function searchBusinesses(
   input: SearchBusinessesInput,
   onObservation?: (event:SearchHttpObservation)=>void,
@@ -43,7 +58,7 @@ export async function searchBusinesses(
   }
 
   try {
-    const accessToken=await getAccessToken();
+    const accessToken=await getSearchAccessToken();
     return requestSearchBusinesses(input,{
       fetcher:fetch,
       endpoint:config.functionUrl,
