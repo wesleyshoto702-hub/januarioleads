@@ -4,7 +4,7 @@ import {
 } from "../supabase/functions/_shared/search-continuation.ts";
 import { searchOverture, type OverturePlace } from
   "../supabase/functions/_shared/overture-search.ts";
-import { requestSearchBusinesses } from
+import { requestSearchBusinesses, requestOvertureFallback } from
   "../src/features/search-leads/search-businesses-http.ts";
 import { createSearchRequestGate } from
   "../src/features/search-leads/search-request-gate.ts";
@@ -286,4 +286,21 @@ Deno.test("failed next-page response does not append or erase existing cards",as
   const merged=mergeSearchPageResults(old,[]);
   eq(merged.map(x=>x.placeId),["overture:1","overture:2"],
     "Append only after a successful response");
+});
+
+Deno.test("search transport never invokes injected fetch as a dependency-object method",async()=>{
+  const response={ok:true,results:[business(1)],nextPageToken:null};
+  let calls=0;
+  async function strictTransport(this:unknown,_url:string,_init:RequestInit){
+    if(this!==undefined)throw new TypeError("Illegal invocation");
+    calls++;
+    return new Response(JSON.stringify(response),{status:200});
+  }
+  const input={...LOCATION,segment:"Barbearia"};
+  const primary=await requestSearchBusinesses(input,deps(strictTransport));
+  assert(primary.ok && primary.results.length===1,"Primary transport preserves receiver contract");
+  const local=await requestOvertureFallback(input,{...deps(strictTransport),
+    endpoint:"https://example.invalid/rest/v1/rpc/search_overture_fallback"});
+  assert(local?.ok && local.results.length===1,"Local transport preserves receiver contract");
+  eq(calls,2,"Both paths make one HTTP request");
 });

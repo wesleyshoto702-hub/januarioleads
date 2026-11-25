@@ -96,7 +96,8 @@ export async function requestSearchBusinesses(
     const singleAttempt = async (): Promise<BusinessSearchResponse> => {
       try {
         httpAttempts=1;
-        const response=await deps.fetcher(deps.endpoint,{
+        const fetcher=deps.fetcher;
+        const response=await fetcher(deps.endpoint,{
           method:"POST",
           headers:{
             "Content-Type":"application/json",
@@ -120,11 +121,13 @@ export async function requestSearchBusinesses(
         const parsed=parseSearchResponse(payload);
         if(!response.ok){
           if(parsed && !parsed.ok)return parsed;
-          return failures.malformed;
+          return {...failures.unavailable,message:`O serviço de busca respondeu HTTP ${response.status}. Tente novamente.`};
         }
         return parsed??failures.malformed;
-      }catch{
-        return failures.unavailable;
+      }catch(error){
+        const detail=error instanceof TypeError && /illegal invocation/i.test(error.message)
+          ? "Falha interna no transporte da pesquisa." : "A requisição não chegou ao serviço de busca. Verifique a conexão.";
+        return {...failures.unavailable,message:detail};
       }
     };
     const timeout = new Promise<BusinessSearchResponse>((resolve) => {
@@ -169,7 +172,8 @@ export async function requestOvertureFallback(
   try {
     const request = async () => {
       try {
-        const response = await deps.fetcher(deps.endpoint, {
+        const fetcher=deps.fetcher;
+        const response = await fetcher(deps.endpoint, {
           method:"POST", signal:controller.signal,
           headers:{"Content-Type":"application/json",apikey:deps.publishableKey,
             Authorization:"Bearer "+deps.accessToken},

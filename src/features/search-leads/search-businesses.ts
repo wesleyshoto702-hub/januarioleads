@@ -22,18 +22,18 @@ function getSupabaseConfig() {
   const publishableKey =
     import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"]?.trim() || PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-  const onLovable = typeof window !== "undefined" &&
-    /(^|\.)lovable\.(app|dev)$/.test(window.location.hostname);
   const production = url.replace(/\/$/, "") === "https://czkazbianiflhldenhcj.supabase.co";
   return {
-    functionUrl: !USE_HTTPONLY_SESSION && onLovable && production
-      ? "/api/search-places"
-      : `${url.replace(/\/$/, "")}/functions/v1/search-places`,
+    functionUrl: `${url.replace(/\/$/, "")}/functions/v1/search-places`,
     publishableKey,
     fallbackUrl: production && !USE_HTTPONLY_SESSION
       ? `${url.replace(/\/$/, "")}/rest/v1/rpc/search_overture_fallback` : null,
   };
 }
+
+// Native browser fetch must keep its global receiver. Do not inject it raw
+// as an object method; browsers can reject that call before making HTTP.
+const browserFetch = (url: string, init: RequestInit) => globalThis.fetch(url, init);
 
 /** Bound session validation as well as the HTTP request. A paused Auth
  * backend must not leave the Buscar Leads button spinning indefinitely.
@@ -74,7 +74,7 @@ export async function searchBusinesses(
     // potentially slow external provider. Both paths enforce server auth.
     const local = fallbackAllowed && config.fallbackUrl && accessToken
       ? await requestOvertureFallback(input,{
-          fetcher:fetch, endpoint:config.fallbackUrl,
+          fetcher:browserFetch, endpoint:config.fallbackUrl,
           publishableKey:config.publishableKey, accessToken,
         })
       : null;
@@ -82,7 +82,7 @@ export async function searchBusinesses(
       onLocalResults?.(local);
     }
     const response = await requestSearchBusinesses(input,{
-      fetcher:fetch,
+      fetcher:browserFetch,
       endpoint:config.functionUrl,
       publishableKey:config.publishableKey,
       accessToken,
@@ -97,10 +97,14 @@ export async function searchBusinesses(
     return local?.ok && local.results.length > 0
       ? {...local,providerNotice:"Exibindo empresas da base Overture. A consulta complementar não retornou resultados nesta tentativa."}
       : response;
-  }catch{
+  }catch(error){
+    if(error instanceof Error && error.message==="AUTH_TIMEOUT") return {
+      ok:false,code:"AUTH_REQUIRED",
+      message:"A validação da sessão demorou demais. Saia e entre novamente antes de pesquisar.",
+    };
     return {
       ok:false,code:"REQUEST_FAILED",
-      message:"Não foi possível conectar ao serviço de busca. Tente novamente.",
+      message:"Não foi possível iniciar a pesquisa. Verifique a sessão e tente novamente.",
     };
   }
 }
