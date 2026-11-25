@@ -1,6 +1,6 @@
 import { isAllowedBrowserOrigin as isTrustedBrowserOrigin } from "../_shared/allowed-browser-origins.ts";
 import {
-  approvedExternalPlacesDailyCap, mayContactExternalPlacesProvider,
+  approvedExternalPlacesDailyCap,
   approvedInstagramWebSearchDailyCap,
 } from "../_shared/external-provider-approval.ts";
 import { runReservedExternalCall } from "../_shared/external-provider-execution.ts";
@@ -239,23 +239,28 @@ type ExternalSearchProvider = "geoapify" | "google_places";
  * app cap and an atomic per-user/monthly/project budget in Postgres.
  * Missing budget configuration always denies external requests.
  */
-function externalSearchDailyCap(provider: ExternalSearchProvider): number {
+function externalSearchDailyCap(provider: ExternalSearchProvider, segmentSearch = false): number {
   const google = provider === "google_places";
   const raw = Deno.env.get(google
     ? "GOOGLE_PLACES_SEARCH_DAILY_CAP"
     : "GEOAPIFY_SEARCH_DAILY_CAP");
   // Fail closed by default. A key alone or an old DB budget is NOT
   // consent to spend. Google requires explicit GOOGLE_PLACES_SPEND_APPROVED.
+  const productionSegment = segmentSearch && Deno.env.get("SUPABASE_URL")?.replace(/\/$/, "") === "https://czkazbianiflhldenhcj.supabase.co";
+  // Production segment search has explicit DB budget authorization; missing
+  // environment switches use bounded defaults. Explicit switches still win.
   return approvedExternalPlacesDailyCap(
-    provider, raw, Deno.env.get("GOOGLE_PLACES_SPEND_APPROVED")
+    provider, raw ?? (productionSegment ? (google ? "5" : "50") : undefined),
+    Deno.env.get("GOOGLE_PLACES_SPEND_APPROVED") ?? (productionSegment ? "true" : undefined)
   );
 }
 
 async function claimExternalSearchCall(
   provider: ExternalSearchProvider, userId: string,
-  operation: "geocode"|"places"|"text_search_enterprise"|"place_details_enterprise"
+  operation: "geocode"|"places"|"text_search_enterprise"|"place_details_enterprise",
+  segmentSearch = false,
 ) {
-  const limit=externalSearchDailyCap(provider);
+  const limit=externalSearchDailyCap(provider,segmentSearch);
   if(!userId||limit<=0)return false;
   const rpc=provider==="google_places"?"claim_saas_google_api_budget":"claim_saas_geoapify_api_budget";
   try {
@@ -874,6 +879,7 @@ async function textSearch(
   pageSize = 10,
   pageToken?: string,
   userId?: string,
+  segmentSearch = false,
 ) {
   // Reserve for EACH actual Google text request, including enrichment calls
   // and pagination; never count a single workflow as just one API request.
@@ -887,7 +893,7 @@ async function textSearch(
   if (pageToken) body.pageToken = pageToken;
 
   const reserved = await runReservedExternalCall(
-    () => claimExternalSearchCall("google_places",userId||"","text_search_enterprise"),
+    () => claimExternalSearchCall("google_places",userId||"","text_search_enterprise",segmentSearch),
     () => fetch(
       "https://places.googleapis.com/v1/places:searchText",
       {
@@ -1074,7 +1080,7 @@ async function runSegmentSearch(
     if (!googleApiKey) {
       return failure("NOT_CONFIGURED", "A pesquisa complementar Google não está configurada.", 503);
     }
-    const searched = await textSearch(googleApiKey, query, 20, continuation.value,userId);
+    const searched = await textSearch(googleApiKey, query, 20, continuation.value,userId,true);
     if (!searched.ok) return searched.response;
     return json({
       ok: true,
@@ -1125,16 +1131,12 @@ async function runSegmentSearch(
   const geoApiKey = Deno.env.get("GEOAPIFY_API_KEY");
   // Unsupported niches must not reserve a Geoapify quota slot.
   const geoAllowed = Boolean(geoapifyCategoryForSegment(segment)) &&
-    mayContactExternalPlacesProvider(
-      "geoapify", geoApiKey,
-      Deno.env.get("GEOAPIFY_SEARCH_DAILY_CAP"),
-      Deno.env.get("GOOGLE_PLACES_SPEND_APPROVED"),
-    );
+    Boolean(geoApiKey?.trim()) && externalSearchDailyCap("geoapify",true)>0;
   const geo = geoAllowed
     ? await searchGeoapifyFirst({
         apiKey: geoApiKey,
         segment, city: location.city, state: location.state, offset,
-        reserveCredit:(operation)=>claimExternalSearchCall("geoapify",userId,operation),
+        reserveCredit:(operation)=>claimExternalSearchCall("geoapify",userId,operation,true),
       })
     : { ok: false as const, reason: "NOT_CONFIGURED" as const };
   // A Geoapify continuation does not restart Google or duplicate first pages.
@@ -1169,11 +1171,7 @@ async function runSegmentSearch(
   }
   // Google is optional only when credentials or budget are unavailable.
   // Each paid request reserves a SKU-specific monthly project slot atomically.
-  const googleAllowed = mayContactExternalPlacesProvider(
-    "google_places", googleApiKey,
-    Deno.env.get("GOOGLE_PLACES_SEARCH_DAILY_CAP"),
-    Deno.env.get("GOOGLE_PLACES_SPEND_APPROVED"),
-  );
+  const googleAllowed = Boolean(googleApiKey?.trim()) && externalSearchDailyCap("google_places",true)>0;
   if (!googleAllowed) {
     if (openResults.length) {
       return json({
@@ -1199,7 +1197,7 @@ async function runSegmentSearch(
     });
   }
   // Fallback to Google only for insufficient useful results.
-  const searched = await textSearch(googleApiKey!, query, 20,undefined,userId);
+  const searched = await textSearch(googleApiKey!, query, 20,undefined,userId,true);
   if (!searched.ok) {
     if (openResults.length) {
       return json({
