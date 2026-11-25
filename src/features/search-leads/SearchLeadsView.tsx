@@ -479,6 +479,7 @@ export function SearchLeadsView({
   }, []);
 
   useEffect(() => {
+    let active = true;
     const controller = new AbortController();
     setMunicipalities([]);
     setMunicipalitiesLoading(true);
@@ -486,27 +487,35 @@ export function SearchLeadsView({
 
     void loadBrazilianMunicipalities(searchLocation.state, controller.signal)
       .then((values) => {
+        if (!active) return;
         setMunicipalities(values);
-        const canonical = resolveMunicipality(searchLocation.city, values);
-        if (canonical) {
-          setCityInput(canonical);
-          setSearchLocation((current) => ({
-            city: canonical,
-            state: current.state,
-          }));
-        }
+        // Never create a new location object when the city is unchanged.
+        // The previous unconditional setter caused this effect to refire
+        // indefinitely after the municipality list loaded.
+        setSearchLocation((current) => {
+          const canonical = resolveMunicipality(current.city, values);
+          return canonical && canonical !== current.city
+            ? { ...current, city: canonical }
+            : current;
+        });
       })
       .catch((error) => {
-        if ((error as Error)?.name !== "AbortError") {
+        if (active && (error as Error)?.name !== "AbortError") {
           setMunicipalitiesError(
             `Não foi possível carregar os municípios de ${selectedState.name} agora.`,
           );
         }
       })
-      .finally(() => setMunicipalitiesLoading(false));
+      .finally(() => {
+        if (active) setMunicipalitiesLoading(false);
+      });
 
-    return () => controller.abort();
-  }, [searchLocation.state, searchLocation.city, selectedState.name]);
+    return () => {
+      active = false;
+      controller.abort();
+    };
+    // Municipality catalogue depends on UF, not the selected city.
+  }, [searchLocation.state, selectedState.name]);
 
   const selectedCity = useMemo(() => {
     const official = resolveMunicipality(cityInput, municipalities);

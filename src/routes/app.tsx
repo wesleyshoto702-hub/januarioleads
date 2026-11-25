@@ -87,7 +87,7 @@ import {
   BusinessDetailsModal,
   type BusinessAddResult,
 } from "../features/search-leads/BusinessDetailsModal";
-import type { SearchMode } from "../features/search-leads/SearchLeadsView";
+import { SearchLeadsView, type SearchMode } from "../features/search-leads/SearchLeadsView";
 import { fetchProspectingTouchedIds, recordProspectingTouch } from "../features/search-leads/prospecting-touches";
 import {
   loadBrazilianMunicipalities,
@@ -107,11 +107,8 @@ import { BRAZIL_STATES, normalizeBrazilianStateCode } from "../lib/brazil-locati
 import { normalizeLocationText } from "../lib/location";
 
 // Heavy workspace sections download only when opened. Dashboard stays eager.
-const SearchLeadsView = lazy(() =>
-  import("../features/search-leads/SearchLeadsView").then((module) => ({
-    default: module.SearchLeadsView,
-  })),
-);
+// Buscar Leads is eagerly available inside the authenticated workspace.
+// This avoids a second JavaScript chunk download hanging only when the sidebar is clicked.
 const ProspectingInformationView = lazy(() =>
   import("../features/search-leads/ProspectingInformationView").then((module) => ({
     default: module.ProspectingInformationView,
