@@ -55,6 +55,7 @@ async function getSearchAccessToken(): Promise<string | null> {
 export async function searchBusinesses(
   input: SearchBusinessesInput,
   onObservation?: (event:SearchHttpObservation)=>void,
+  onLocalResults?: (response: Extract<BusinessSearchResponse,{ok:true}>)=>void,
 ): Promise<BusinessSearchResponse> {
   const config = getSupabaseConfig();
 
@@ -69,14 +70,23 @@ export async function searchBusinesses(
   try {
     const accessToken=await getSearchAccessToken();
     const fallbackAllowed = Boolean(config.fallbackUrl && accessToken && !input.pageToken);
-    // The alternative is local, read-only, authenticated and has its own
-    // server-side rate-limit check. Never retry an external paid request.
+    // Read local Overture first; do not hold visible results behind a
+    // potentially slow external provider. Both paths enforce server auth.
+    const local = fallbackAllowed && config.fallbackUrl && accessToken
+      ? await requestOvertureFallback(input,{
+          fetcher:fetch, endpoint:config.fallbackUrl,
+          publishableKey:config.publishableKey, accessToken,
+        })
+      : null;
+    if (local?.ok && local.results.length > 0) {
+      onLocalResults?.(local);
+    }
     const response = await requestSearchBusinesses(input,{
       fetcher:fetch,
       endpoint:config.functionUrl,
       publishableKey:config.publishableKey,
       accessToken,
-      requestTimeoutMs: fallbackAllowed ? 12_000 : 20_000,
+      requestTimeoutMs: 20_000,
       ...(onObservation ? {onObservation} : {}),
     });
     if (!fallbackAllowed || !config.fallbackUrl || !accessToken ||
@@ -84,12 +94,8 @@ export async function searchBusinesses(
         (!response.ok && ["AUTH_REQUIRED","FORBIDDEN","INVALID_REQUEST"].includes(response.code))) {
       return response;
     }
-    const fallback = await requestOvertureFallback(input,{
-      fetcher:fetch, endpoint:config.fallbackUrl,
-      publishableKey:config.publishableKey, accessToken,
-    });
-    return fallback?.ok && fallback.results.length > 0
-      ? {...fallback,providerNotice:"Exibindo empresas da base Overture. A consulta complementar não retornou resultados nesta tentativa."}
+    return local?.ok && local.results.length > 0
+      ? {...local,providerNotice:"Exibindo empresas da base Overture. A consulta complementar não retornou resultados nesta tentativa."}
       : response;
   }catch{
     return {

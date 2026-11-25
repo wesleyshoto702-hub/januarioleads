@@ -313,6 +313,10 @@ export function SearchLeadsView({
     initialSearchSession?.screen ?? "segments",
   );
   const [loading, setLoading] = useState(false);
+  const resultsHeadingRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (screen === "results") resultsHeadingRef.current?.scrollIntoView({block:"start"});
+  }, [screen]);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<{ code: string; message: string } | null>(null);
   const [searchNotice, setSearchNotice] = useState(initialSearchSession?.searchNotice ?? "");
@@ -693,6 +697,12 @@ export function SearchLeadsView({
     } else {
       setLoading(true);
       setLoadingMore(false);
+      setResults([]);
+      setResultsLocation(location);
+      setResultsSegment(segment);
+      setNextPageToken(null);
+      setDetails(null);
+      setScreen("results");
     }
     setError(null);
     if (!append) {
@@ -706,7 +716,12 @@ export function SearchLeadsView({
       city: location.city,
       state: location.state,
       ...(pageToken ? { pageToken } : {}),
-    }, searchMetricsRef.current.observe), 28_000);
+    }, searchMetricsRef.current.observe, (local) => {
+      if (!append && searchRequestGateRef.current.isCurrent(requestId)) {
+        setResults(local.results);
+        setProviderNotice("Resultados Overture disponíveis. Consultando fontes complementares...");
+      }
+    }), 35_000);
 
     // Out-of-order network responses must not overwrite the latest search.
     if (!searchRequestGateRef.current.isCurrent(requestId)) return;
@@ -1084,8 +1099,15 @@ export function SearchLeadsView({
 
   return (
     <section className="page-wrap search-leads-page">
-      <div className="results-heading">
-        <button type="button" className="back-button" onClick={() => setScreen("segments")}>
+      <div className="results-heading" ref={resultsHeadingRef}>
+        <button type="button" className="back-button" onClick={() => {
+          searchRequestGateRef.current.invalidate();
+          setLoading(false);
+          setLoadingMore(false);
+          setError(null);
+          setProviderNotice("");
+          setScreen("segments");
+        }}>
           <ArrowLeft size={16} />
           Alterar busca
         </button>
@@ -1236,7 +1258,24 @@ export function SearchLeadsView({
         </div>
       </div>
 
-      {error && <SearchError error={error} />}
+      {loading && (
+        <div className="search-state" role="status" aria-live="polite">
+          <Search size={20} />
+          <strong>Buscando empresas em {resultsLocation.city}...</strong>
+          <p>Consultando Overture e, quando necessário, as fontes complementares. Os resultados disponíveis aparecem nesta tela.</p>
+        </div>
+      )}
+      {error && (
+        <>
+          <SearchError error={error} />
+          {!loading && !loadingMore && (
+            <button type="button" className="secondary-button"
+              onClick={() => void runSearch(resultsSegment, resultsLocation)}>
+              Tentar novamente
+            </button>
+          )}
+        </>
+      )}
 
       {emptyState ? (
         <div className="search-state">
@@ -1268,7 +1307,7 @@ export function SearchLeadsView({
         </div>
       )}
 
-      {nextPageToken && !error && (
+      {nextPageToken && !error && !loading && (
         <div className="load-more-wrap">
           <button
             type="button"
