@@ -389,6 +389,7 @@ async function adminRest(path: string, init: RequestInit = {}) {
 
   return fetch(`${config.url}/rest/v1/${path}`, {
     ...init,
+    signal: init.signal ?? AbortSignal.timeout(3000),
     headers: {
       apikey: config.key,
       ...(config.authorization
@@ -898,6 +899,7 @@ async function textSearch(
       "https://places.googleapis.com/v1/places:searchText",
       {
         method: "POST",
+        signal: AbortSignal.timeout(segmentSearch ? 4500 : 10000),
         headers: {
           "Content-Type": "application/json",
           "X-Goog-Api-Key": googleApiKey,
@@ -1197,7 +1199,9 @@ async function runSegmentSearch(
     });
   }
   // Fallback to Google only for insufficient useful results.
-  const searched = await textSearch(googleApiKey!, query, 20,undefined,userId,true);
+  const searched = await textSearch(googleApiKey!, query, 20,undefined,userId,true)
+    .catch(() => ({ ok: false as const, response: failure("REQUEST_FAILED",
+      "A consulta complementar Google não respondeu a tempo.", 503) }));
   if (!searched.ok) {
     if (openResults.length) {
       return json({
@@ -2854,6 +2858,7 @@ async function handleRequest(request: Request) {
   try {
     const userResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
       headers: authHeaders,
+      signal: AbortSignal.timeout(3000),
     });
     if (!userResponse.ok) {
       return failure(
@@ -2890,7 +2895,7 @@ async function handleRequest(request: Request) {
   try {
     const accessResponse = await fetch(
       `${supabaseUrl}/rest/v1/private_access?select=user_id&user_id=eq.${encodeURIComponent(userId)}&limit=1`,
-      { headers: authHeaders },
+      { headers: authHeaders, signal: AbortSignal.timeout(3000) },
     );
 
     if (!accessResponse.ok) {
@@ -3001,7 +3006,7 @@ async function handleRequest(request: Request) {
       "REQUEST_FAILED",
       mode === "presence-discovery"
         ? "Não foi possível verificar a presença online agora."
-        : "Não foi possível comunicar com o Google Places agora.",
+        : "Não foi possível concluir a busca de empresas agora.",
       502,
     );
   }
