@@ -85,6 +85,14 @@ A preparação e execução das importações devem ficar **suspensas** até a m
 - [x] **18/11/2026: cópia local manual do Storage** (`prompt-visual-references`) reportada pelo proprietário: **9 arquivos, 760.690 bytes**, em `$HOME\JanuarioLeads-Backups\Storage-Privado`. Correspondência de contagem e soma de metadados, **sem verificação dos hashes individuais ou dos caminhos**, portanto não afirmar equivalência byte a byte.
 - [ ] **Restauração real isolada continua pendente.** Verificar disponibilidade de Docker Desktop/Supabase CLI no computador antes de qualquer restore; manter produção intocada. **0.2 segue EM EXECUÇÃO**, importações pausadas. Detalhes: [runbook 0.2](FASE-0-2-BACKUP-RESTAURACAO-PRODUCAO-2026-11-17.md).
 
+### 25/11/2026 — Estrutura privada do Overture criada na PRODUÇÃO (autorização explícita do proprietário)
+
+- [x] Supabase PRODUÇÃO `czkazbianiflhldenhcj`: migration remota `20261125123659_create_private_overture_places_for_backend_search` aplicada; versão de SQL rastreada em `supabase/migrations/20261125123659_create_private_overture_places_for_backend_search.sql`.
+- [x] Teste read-only: `public.overture_places` existe com **18 colunas, 2 índices, RLS ativo e zero linhas**. `anon`/`authenticated` sem SELECT; `service_role` com SELECT/INSERT. Não foram feitas importações nem ativações de provedores pagos.
+- [ ] **A busca de empresas ainda não está preenchida**: a tabela está vazia; não confundir estrutura criada com dados Overture migrados. O projeto STAGING segue pausado/inativo. Não importar registros sem restauração isolada validada e plano de migração/capacidade.
+- [ ] Teste autenticado da Edge Function e UX no site publicado ainda precisa de confirmação; sem usar credenciais em chats.
+- O aviso de advisor `rls_enabled_no_policy` é esperado neste desenho de uso exclusivo pelo `service_role`; sem políticas para `anon`/`authenticated`. Avisos existentes de extensão `pg_net` no public e proteção de senhas vazadas não foram alterados.
+
 ## 0. Diagnóstico confirmado em 15/11/2026
 
 ### Dados e ambientes
