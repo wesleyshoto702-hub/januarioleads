@@ -38,7 +38,9 @@ class SearchFlowContract(unittest.TestCase):
         self.assertIn("item.source===\"overture\" || item.source===\"geoapify\"",self.view)
 
     def test_client_session_is_checked_before_http(self):
-        self.assertIn("const accessToken=await getAccessToken()",self.wrapper)
+        self.assertIn("const accessToken=await getSearchAccessToken()",self.wrapper)
+        self.assertIn("Promise.race([getAccessToken(), deadline])",self.wrapper)
+        self.assertIn("const accessToken=await",self.wrapper)
         self.assertIn("return requestSearchBusinesses(input",self.wrapper)
         self.assertIn("if(!deps.accessToken?.trim())",self.http)
         self.assertIn('Authorization:',self.http)
