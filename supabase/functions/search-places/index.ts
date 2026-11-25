@@ -1183,6 +1183,16 @@ async function runSegmentSearch(
           ? "mixed" : overture.results.length ? "overture" : "geoapify",
       });
     }
+    // A missing/failed Overture table is not a genuine zero-result search.
+    // Never suggest that no companies exist when the configured source failed.
+    // Do not activate paid providers to mask a backend configuration issue.
+    if (!overture.ok && !geo.ok) {
+      return failure(
+        "REQUEST_FAILED",
+        "A base de empresas Overture está indisponível neste ambiente. A consulta não foi concluída; verifique a configuração do banco.",
+        503,
+      );
+    }
     return json({
       ok: true, results: [], nextPageToken: null, provider: "overture",
       providerNotice: "Nenhum resultado nos dados abertos disponíveis. A consulta Google está desativada ou atingiu o limite de segurança.",
