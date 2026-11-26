@@ -122,6 +122,25 @@ export const OVERTURE_CATEGORY_EXPANSIONS: Record<string, readonly string[]> = {
   "Acessórios Automotivos": ["car_stereo_store"],
   "Escola de Informática": ["computer_coaching"],
   "Loja de Materiais de Construção": ["lumber_store"],
+  // Stage 3: exact categories observed via read-only staging query on 2026-11-15.
+  // Keep service types narrow; never map generic professional_service,
+  // school, shopping, contractor, event_planning or animal_or_pet_service.
+  "Acupuntura": ["acupuncture"],
+  "Adega": ["liquor_store"],
+  "Cartório / Serviços Notariais": ["notary_public"],
+  "Consultoria Empresarial": ["business_consulting"],
+  "Curso Profissionalizante": ["vocational_and_technical_school"],
+  "Dedetizadora": ["pest_control_service"],
+  "Encanador": ["plumbing"],
+  "Fonoaudiólogo": ["speech_therapy"],
+  "Guincho": ["towing_service"],
+  "Hotel para Pets": ["pet_boarding"],
+  "Jardinagem / Paisagismo": ["landscaping", "gardener"],
+  "Maquiagem Profissional": ["makeup_artist"],
+  "Podólogo": ["podiatry"],
+  "Psiquiatra": ["psychiatry"],
+  "Terapeuta Ocupacional": ["occupational_therapy"],
+  "Chaveiro": ["key_and_locksmith"],
 };
 
 /**
