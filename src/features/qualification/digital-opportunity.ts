@@ -39,7 +39,7 @@ export function qualifyDigitalOpportunity(business: DigitalOpportunityInput): Di
     business.instagramConfidence === "high" &&
     !business.instagramNeedsReview
   );
-  const potentialInstagram = !confirmedInstagram && Boolean(business.instagramCandidates?.length);
+  const potentialInstagram = !confirmedInstagram && Boolean(business.instagram?.trim() || business.instagramCandidates?.length);
   const signals: string[] = [];
   signals.push(siteIdentified ? "Site informado pela fonte" : "Site não identificado nesta fonte");
   if (phoneIdentified) signals.push("Telefone disponível (WhatsApp não confirmado)");
