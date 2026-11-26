@@ -442,8 +442,17 @@ html:has(.jl-site) { scroll-behavior: smooth; }
   .jl-header-actions { gap: 9px; }
   .jl-nav a { font-size: 11px; }
 }
+/* Keep both account actions visible on phones. When space is tight,
+ * wrap the action group under the brand rather than hiding signup. */
 @media (max-width: 620px) {
-  .jl-header-actions .jl-header-signup { display: none; }
+  .jl-header-inner { flex-wrap: wrap; padding-block: 8px; }
+  .jl-header-actions { margin-left: auto; gap: 6px; }
+  .jl-header-actions .jl-header-signup { display: inline-flex; }
+}
+@media (max-width: 370px) {
+  /* Override the earlier mobile rule that hides every small header button. */
+  .jl-header-actions .jl-header-signup,
+  .jl-header-actions .jl-header-login { display: inline-flex; }
 }
 
 /* Matching button targets in the mobile menu and footer. */
